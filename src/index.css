@@ -304,9 +304,9 @@ a:hover {
 
 .sidebar-user-menu {
   position: absolute;
-  left: calc(100% + 12px);
+  left: calc(100% + 4px);
   bottom: 0;
-  transform: translateX(-6px);
+  transform: translateX(-4px);
   opacity: 0;
   pointer-events: none;
   background: var(--bg-card);
@@ -316,9 +316,19 @@ a:hover {
   border-radius: var(--r-lg);
   min-width: 210px;
   transition:
-    opacity var(--t-base) var(--ease-smooth),
-    transform var(--t-base) var(--ease-smooth);
+    opacity 0.15s var(--ease-smooth),
+    transform 0.15s var(--ease-smooth);
   z-index: 200;
+}
+
+/* Bridge element to fill the gap so hover doesn't break */
+.sidebar-user-menu::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 0;
+  bottom: 0;
+  width: 12px;
 }
 
 .sidebar-user:hover .sidebar-user-menu {
