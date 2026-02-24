@@ -1,13 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
-import { Zap, LogIn, AlertCircle } from 'lucide-react';
+import { LogIn, AlertCircle, Shield, TrendingUp, Building2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 const fadeUp = (delay = 0) => ({
     initial: { opacity: 0, y: 20 },
     animate: { opacity: 1, y: 0, transition: { duration: 0.5, delay, ease: 'easeOut' as const } },
 });
+
+const features = [
+    { icon: TrendingUp, text: 'Proyecciones en tiempo real' },
+    { icon: Building2, text: 'Multi-empresa nativo' },
+    { icon: Shield, text: 'Acceso por roles y permisos' },
+];
 
 export default function Login() {
     const [email, setEmail] = useState('');
@@ -16,7 +22,6 @@ export default function Login() {
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
 
-    // If Supabase redirected here with an invite/recovery token, send to set-password
     useEffect(() => {
         const hash = window.location.hash;
         if (hash && hash.includes('access_token') && hash.includes('type=invite')) {
@@ -39,19 +44,17 @@ export default function Login() {
             <div className="auth-left">
                 <div className="auth-card">
                     <motion.div {...fadeUp(0)} className="auth-header">
-                        {/* Brand icon */}
-                        <div style={{
-                            width: '48px', height: '48px',
-                            borderRadius: '14px',
-                            background: 'linear-gradient(135deg, var(--brand), var(--brand-accent))',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            boxShadow: 'var(--shadow-brand)',
-                            marginBottom: '1.5rem'
-                        }}>
-                            <Zap size={22} color="white" />
+                        {/* Neura logo */}
+                        <img
+                            src="/neura-logo.png"
+                            alt="Neura Core"
+                            style={{ width: '72px', height: '72px', objectFit: 'contain', marginBottom: '1.25rem' }}
+                        />
+                        <div style={{ marginBottom: '0.25rem', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--brand)', opacity: 0.8 }}>
+                            Neura Core
                         </div>
-                        <h1>Bienvenido de nuevo</h1>
-                        <p>Ingresa a tu entorno de trabajo seguro</p>
+                        <h1 style={{ fontSize: '1.65rem', marginBottom: '0.35rem' }}>Bienvenido de nuevo</h1>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Ingresá a tu entorno de trabajo seguro</p>
                     </motion.div>
 
                     {error && (
@@ -65,7 +68,8 @@ export default function Login() {
                                 border: '1px solid var(--danger-border)',
                                 borderRadius: 'var(--r-md)',
                                 fontSize: '0.875rem',
-                                display: 'flex', alignItems: 'center', gap: '0.5rem'
+                                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                marginBottom: '0.5rem',
                             }}
                         >
                             <AlertCircle size={16} />
@@ -95,7 +99,7 @@ export default function Login() {
                         <motion.button
                             type="submit"
                             className="btn btn-primary"
-                            style={{ marginTop: '1rem', width: '100%', padding: '0.8rem' }}
+                            style={{ marginTop: '1.25rem', width: '100%', padding: '0.85rem', fontSize: '0.95rem', gap: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                             disabled={loading}
                             whileTap={{ scale: 0.97 }}
                             whileHover={{ scale: 1.01 }}
@@ -109,9 +113,13 @@ export default function Login() {
                         </motion.button>
                     </motion.form>
 
-                    <motion.div {...fadeUp(0.2)} style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                        ¿Aún no tienes cuenta?{' '}
-                        <Link to="/register" style={{ fontWeight: 700, color: 'var(--brand)' }}>Registrar mi Empresa</Link>
+                    <motion.div {...fadeUp(0.2)} style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        ¿Primera vez?{' '}
+                        <Link to="/register" style={{ fontWeight: 700, color: 'var(--brand)' }}>Registrar mi empresa</Link>
+                    </motion.div>
+
+                    <motion.div {...fadeUp(0.3)} style={{ marginTop: '2rem', borderTop: '1px solid var(--border)', paddingTop: '1.25rem' }}>
+                        <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'center', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Powered by Neura Core</p>
                     </motion.div>
                 </div>
             </div>
@@ -121,13 +129,13 @@ export default function Login() {
                 {/* Decorative blobs */}
                 <motion.div
                     className="auth-decorative-circle"
-                    style={{ width: '500px', height: '500px', top: '-15%', right: '-8%' }}
+                    style={{ width: '520px', height: '520px', top: '-15%', right: '-8%' }}
                     animate={{ scale: [1, 1.06, 1], rotate: [0, 5, 0] }}
                     transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
                 />
                 <motion.div
                     className="auth-decorative-circle"
-                    style={{ width: '350px', height: '350px', bottom: '-8%', left: '-8%', opacity: 0.12 }}
+                    style={{ width: '360px', height: '360px', bottom: '-8%', left: '-8%', opacity: 0.12 }}
                     animate={{ scale: [1, 1.08, 1], rotate: [0, -6, 0] }}
                     transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
                 />
@@ -137,24 +145,51 @@ export default function Login() {
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0, transition: { duration: 0.8, delay: 0.2, ease: 'easeOut' } }}
                 >
+                    {/* Floating logo */}
                     <motion.div
                         style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'center' }}
-                        animate={{ y: [0, -8, 0] }}
+                        animate={{ y: [0, -10, 0] }}
                         transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
                     >
                         <div style={{
-                            width: '80px', height: '80px',
-                            borderRadius: '24px',
+                            width: '100px', height: '100px',
+                            borderRadius: '28px',
                             background: 'rgba(255,255,255,0.15)',
-                            backdropFilter: 'blur(10px)',
+                            backdropFilter: 'blur(16px)',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            border: '1px solid rgba(255,255,255,0.3)'
+                            border: '1.5px solid rgba(255,255,255,0.35)',
+                            boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+                            padding: '12px',
                         }}>
-                            <Zap size={40} color="white" />
+                            <img src="/neura-logo.png" alt="Neura" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                         </div>
                     </motion.div>
-                    <h2>Tesorería Inteligente</h2>
-                    <p>Gestiona flujos de caja, conciliaciones bancarias y múltiples unidades de negocio en tiempo real.</p>
+
+                    <h2 style={{ fontSize: '1.8rem', marginBottom: '0.75rem' }}>Tesorería Inteligente</h2>
+                    <p style={{ opacity: 0.85, marginBottom: '2rem', lineHeight: 1.6 }}>
+                        Gestioná flujos de caja, conciliaciones bancarias y múltiples empresas en tiempo real.
+                    </p>
+
+                    {/* Feature list */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'flex-start', width: '100%', maxWidth: '320px' }}>
+                        {features.map(({ icon: Icon, text }, i) => (
+                            <motion.div
+                                key={text}
+                                initial={{ opacity: 0, x: -16 }}
+                                animate={{ opacity: 1, x: 0, transition: { delay: 0.5 + i * 0.12, duration: 0.4 } }}
+                                style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}
+                            >
+                                <div style={{
+                                    width: '32px', height: '32px', borderRadius: '10px',
+                                    background: 'rgba(255,255,255,0.18)', display: 'flex',
+                                    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                                }}>
+                                    <Icon size={16} color="white" />
+                                </div>
+                                <span style={{ fontSize: '0.9rem', fontWeight: 500, opacity: 0.92 }}>{text}</span>
+                            </motion.div>
+                        ))}
+                    </div>
                 </motion.div>
             </div>
         </div>
