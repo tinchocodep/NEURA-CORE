@@ -369,12 +369,28 @@ export default function TransactionForm({
 
                 {/* Cuenta */}
                 <div className="form-group" style={{ gridColumn: txType === 'transfer' ? '1' : '1 / -1' }}>
-                    <label className="form-label">{txType === 'transfer' ? 'Cuenta Origen' : 'Cuenta'}</label>
+                    <label className="form-label">{txType === 'transfer' ? 'Cuenta Origen' : 'Banco / Cuenta'}</label>
                     <select className="form-input" value={accountId} onChange={e => setAccountId(e.target.value)} required>
                         <option value="">Seleccione una cuenta</option>
-                        {accounts.map(acc => (
-                            <option key={acc.id} value={acc.id}>{acc.name} (${acc.balance?.toLocaleString('es-AR')})</option>
-                        ))}
+                        {txType === 'transfer' ? (
+                            <>
+                                <optgroup label="🏦 Bancos">
+                                    {accounts.filter(a => !a.assigned_user_id).map(acc => (
+                                        <option key={acc.id} value={acc.id}>{acc.name} (${acc.balance?.toLocaleString('es-AR')})</option>
+                                    ))}
+                                </optgroup>
+                                <optgroup label="💵 Cajas Chicas">
+                                    {accounts.filter(a => !!a.assigned_user_id).map(acc => (
+                                        <option key={acc.id} value={acc.id}>{acc.name} (${acc.balance?.toLocaleString('es-AR')})</option>
+                                    ))}
+                                </optgroup>
+                            </>
+                        ) : (
+                            // For expense/income: only show bank accounts
+                            accounts.filter(a => !a.assigned_user_id).map(acc => (
+                                <option key={acc.id} value={acc.id}>{acc.name} — ${acc.balance?.toLocaleString('es-AR')}</option>
+                            ))
+                        )}
                     </select>
                 </div>
 
@@ -384,11 +400,16 @@ export default function TransactionForm({
                         <label className="form-label">Cuenta Destino</label>
                         <select className="form-input" value={destinationAccountId} onChange={e => setDestinationAccountId(e.target.value)} required>
                             <option value="">Seleccione destino</option>
-                            {accounts.map(acc => (
-                                <option key={acc.id} value={acc.id} disabled={acc.id === accountId}>
-                                    {acc.name} ({acc.assigned_user_id ? 'Caja' : 'General'})
-                                </option>
-                            ))}
+                            <optgroup label="🏦 Bancos">
+                                {accounts.filter(a => !a.assigned_user_id).map(acc => (
+                                    <option key={acc.id} value={acc.id} disabled={acc.id === accountId}>{acc.name}</option>
+                                ))}
+                            </optgroup>
+                            <optgroup label="💵 Cajas Chicas">
+                                {accounts.filter(a => !!a.assigned_user_id).map(acc => (
+                                    <option key={acc.id} value={acc.id} disabled={acc.id === accountId}>{acc.name}</option>
+                                ))}
+                            </optgroup>
                         </select>
                     </div>
                 )}
