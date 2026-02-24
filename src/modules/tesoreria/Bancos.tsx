@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import { useToast } from '../../contexts/ToastContext';
-import { useAuth } from '../../contexts/AuthContext';
-import { Upload, CheckCircle2, Clock, HelpCircle, RefreshCw, ChevronDown, ChevronUp, Link2 } from 'lucide-react';
+import { Upload, Clock, RefreshCw, ChevronDown, ChevronUp, Link2 } from 'lucide-react';
 
 // ── Parse Argentinian number format ──────────────────────────────────────────
 function parseArgNum(s: string): number {
@@ -60,7 +59,6 @@ const fmt = (n: number) => new Intl.NumberFormat('es-AR', { style: 'currency', c
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function Bancos() {
     const { tenant } = useTenant();
-    const { user } = useAuth() as any;
     const { addToast } = useToast();
 
     const [accounts, setAccounts] = useState<any[]>([]);
@@ -68,7 +66,6 @@ export default function Bancos() {
     const [statements, setStatements] = useState<any[]>([]);
     const [pendingTx, setPendingTx] = useState<any[]>([]);
     const [categories, setCategories] = useState<any[]>([]);
-    const [loading, setLoading] = useState(false);
     const [importing, setImporting] = useState(false);
     const [activeTab, setActiveTab] = useState<'import' | 'reconcile'>('import');
     const [collapsed, setCollapsed] = useState<Record<MatchStatus, boolean>>({ matched: true, review: false, unmatched: false, registered: true });
@@ -107,7 +104,11 @@ export default function Bancos() {
     // ── Import CSV ──────────────────────────────────────────────────────────
     const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (!file || !tenant || !selectedAccountId) return;
+        if (!file || !tenant) return;
+        if (!selectedAccountId) {
+            addToast('error', 'Sin cuenta', 'Seleccioná una cuenta bancaria primero.');
+            return;
+        }
         setImporting(true);
         const text = await file.text();
         const rows = parseSupervielleCSV(text);
@@ -242,7 +243,7 @@ export default function Bancos() {
                         Subí el CSV descargado desde el home banking. El sistema lo parsea automáticamente y cruza con tus proyecciones.
                     </p>
                     <input ref={fileRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={handleFile} />
-                    <button className="btn btn-primary" style={{ gap: '0.5rem' }} disabled={importing || !selectedAccountId} onClick={() => fileRef.current?.click()}>
+                    <button className="btn btn-primary" style={{ gap: '0.5rem' }} disabled={importing} onClick={() => fileRef.current?.click()}>
                         <Upload size={17} />
                         {importing ? 'Procesando...' : 'Seleccionar CSV de Supervielle'}
                     </button>
