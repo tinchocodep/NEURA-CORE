@@ -119,7 +119,8 @@ export default function Login() {
                     </motion.div>
 
                     <motion.div {...fadeUp(0.3)} style={{ marginTop: '2rem', borderTop: '1px solid var(--border)', paddingTop: '1.25rem' }}>
-                        <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'center', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Powered by Neura Core</p>
+                        <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'center', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Powered by <a href="https://neuracall.net" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--brand)', textDecoration: 'none' }}>NeuraCall</a></p>
+
                     </motion.div>
                 </div>
             </div>
