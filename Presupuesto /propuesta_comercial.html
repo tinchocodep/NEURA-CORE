@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ecosistema Tecnológico Gestionado | OPEX</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS (via CDN for single file simplicity) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        dark: {
+                            bg: '#0B0F19',
+                            card: 'rgba(30, 41, 59, 0.4)',
+                            border: 'rgba(255, 255, 255, 0.08)',
+                        },
+                        brand: {
+                            blue: '#3b82f6',
+                            teal: '#14b8a6',
+                            indigo: '#6366f1'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Custom Styles -->
+    <style>
+        body {
+            background-color: #0B0F19;
+            color: #F8FAFC;
+            background-image: 
+                radial-gradient(circle at 15% 20%, rgba(59, 130, 246, 0.08), transparent 40%),
+                radial-gradient(circle at 85% 80%, rgba(99, 102, 241, 0.08), transparent 40%);
+            background-attachment: fixed;
+            overflow-x: hidden;
+        }
+        
+        /* Glassmorphism Classes */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 1.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .glass-card {
+            background: rgba(30, 41, 59, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 1rem;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .glass-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px -15px rgba(59, 130, 246, 0.2);
+            border-color: rgba(59, 130, 246, 0.3);
+            background: rgba(30, 41, 59, 0.6);
+        }
+
+        .glass-card:hover::before {
+            opacity: 1;
+        }
+
+        /* Typography */
+        .text-gradient {
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .text-gradient-green {
+            background: linear-gradient(135deg, #34d399, #10b981);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Animations */
+        .reveal {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .delay-100 { transition-delay: 100ms; }
+        .delay-200 { transition-delay: 200ms; }
+        .delay-300 { transition-delay: 300ms; }
+
+        /* Status Dot */
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            background-color: #10b981;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 12px #10b981;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%   { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70%  { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569; 
+        }
+    </style>
+</head>
+<body class="antialiased opacity-0 transition-opacity duration-1000" id="body">
+
+    <!-- Navbar / Header -->
+    <nav class="fixed top-0 w-full z-50 glass-panel !border-x-0 !border-t-0 !rounded-none !bg-opacity-80 py-4 px-6 md:px-12 flex justify-between items-center text-sm font-medium">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center font-bold text-white shadow-lg">
+                N
+            </div>
+            <span class="tracking-wide text-slate-200">NEURA<span class="font-bold text-white">CALL</span></span>
+        </div>
+        <div class="flex items-center gap-2 text-slate-400">
+            <span class="status-dot mr-1"></span>
+            Sistemas Operativos
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="pt-32 pb-24 px-6 md:px-12 max-w-6xl mx-auto">
+        
+        <!-- Hero Section -->
+        <header class="text-center mb-20 reveal">
+            <div class="inline-block px-4 py-1.5 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 text-xs font-semibold tracking-wider uppercase mb-6 shadow-[0_0_15px_rgba(59,130,246,0.2)]">
+                Reporte de Transparencia
+            </div>
+            <h1 class="text-4xl md:text-6xl font-bold tracking-tight mb-6">
+                Ecosistema Tecnológico <br/>
+                <span class="text-gradient">Gestionado (OPEX)</span>
+            </h1>
+            <p class="text-lg text-slate-400 max-w-2xl mx-auto leading-relaxed">
+                Nuestra arquitectura de servicios recurrentes garantiza el máximo rendimiento de su plataforma. 
+                Inversión mensual enfocada en <strong class="text-slate-200 font-semibold">estabilidad, vanguardia en IA y tranquilidad operativa</strong>.
+            </p>
+        </header>
+
+        <!-- Breakdown Section -->
+        <section class="mb-24">
+            <div class="flex items-center justify-between mb-8 reveal">
+                <h2 class="text-2xl font-semibold text-slate-100">Desglose de Inversión</h2>
+                <span class="text-sm text-slate-400">Valores unitarios por Razón Social</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Item 1 -->
+                <div class="glass-card p-6 reveal delay-100 flex flex-col h-full">
+                    <div class="w-12 h-12 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-6 text-blue-400">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-100 mb-2">Infraestructura Cloud</h3>
+                    <p class="text-slate-400 text-sm mb-6 flex-grow">
+                        Hosting de alto rendimiento, costos de transferencia de red, almacenamiento SSD ultra-rápido y backups de redundancia.
+                    </p>
+                    <div class="mt-auto border-t border-slate-700/50 pt-4 flex items-end justify-between">
+                        <span class="text-xs text-slate-500 font-medium uppercase">Mensual</span>
+                        <span class="text-2xl font-bold text-white">$183 <span class="text-sm text-slate-400 font-normal">USD</span></span>
+                    </div>
+                </div>
+
+                <!-- Item 2 -->
+                <div class="glass-card p-6 reveal delay-200 flex flex-col h-full">
+                    <div class="w-12 h-12 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-6 text-indigo-400">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-100 mb-2">Mantenimiento IA</h3>
+                    <p class="text-slate-400 text-sm mb-6 flex-grow">
+                        Monitoreo continuo de modelos OCR, re-entrenamiento periódico y gestión de cuotas de las APIs de Gemini / OpenAI.
+                    </p>
+                    <div class="mt-auto border-t border-slate-700/50 pt-4 flex items-end justify-between">
+                        <span class="text-xs text-slate-500 font-medium uppercase">Mensual</span>
+                        <span class="text-2xl font-bold text-white">$121 <span class="text-sm text-slate-400 font-normal">USD</span></span>
+                    </div>
+                </div>
+
+                <!-- Item 3 -->
+                <div class="glass-card p-6 reveal delay-300 flex flex-col h-full">
+                    <div class="w-12 h-12 rounded-full bg-teal-500/10 border border-teal-500/20 flex items-center justify-center mb-6 text-teal-400">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-100 mb-2">Soporte Fiscal</h3>
+                    <p class="text-slate-400 text-sm mb-6 flex-grow">
+                        Monitoreo SLA 24/7 con los servicios de ARCA (AFIP), gestión de contingencias de facturación y renovación automática de certificados.
+                    </p>
+                    <div class="mt-auto border-t border-slate-700/50 pt-4 flex items-end justify-between">
+                        <span class="text-xs text-slate-500 font-medium uppercase">Mensual</span>
+                        <span class="text-2xl font-bold text-white">$119 <span class="text-sm text-slate-400 font-normal">USD</span></span>
+                    </div>
+                </div>
+
+                <!-- Item 4 -->
+                <div class="glass-card p-6 reveal overflow-visible flex flex-col h-full" style="transition-delay: 400ms;">
+                    <div class="w-12 h-12 rounded-full bg-slate-600/20 border border-slate-500/30 flex items-center justify-center mb-6 text-slate-300">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-100 mb-2">Soporte Técnico N2</h3>
+                    <p class="text-slate-400 text-sm mb-6 flex-grow">
+                        Resolución de incidencias operativas, aplicación de parches de seguridad (OS/Libs) y soporte directo para administradores.
+                    </p>
+                    <div class="mt-auto border-t border-slate-700/50 pt-4 flex items-end justify-between">
+                        <span class="text-xs text-slate-500 font-medium uppercase">Mensual</span>
+                        <span class="text-2xl font-bold text-white">$80 <span class="text-sm text-slate-400 font-normal">USD</span></span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Total Card -->
+            <div class="mt-8 glass-panel p-8 md:p-10 flex flex-col md:flex-row items-center justify-between gap-8 reveal" style="transition-delay: 500ms;">
+                <div>
+                    <h3 class="text-2xl font-bold text-white mb-2">Total Mensual Recurrente</h3>
+                    <p class="text-slate-400 text-sm">El monto asegura la continuidad, seguridad y evolución de la plataforma 24/7.</p>
+                </div>
+                <div class="text-right">
+                    <div class="text-5xl font-extrabold tracking-tight text-white mb-1">
+                        $503 <span class="text-xl text-slate-400 font-medium">USD</span>
+                    </div>
+                    <div class="text-gradient-green text-sm font-semibold tracking-wide uppercase">Costo final por Empresa</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Alcance Section -->
+        <section class="mb-20">
+            <h2 class="text-3xl font-bold text-center mb-12 reveal">Claridad sobre el Alcance Operativo</h2>
+            
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Included -->
+                <div class="glass-card p-8 border-t-4 border-t-emerald-500 reveal">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                        </div>
+                        <h3 class="text-2xl font-bold text-white">Lo que SÍ incluye</h3>
+                    </div>
+                    <ul class="space-y-4">
+                        <li class="flex items-start gap-3">
+                            <svg class="w-5 h-5 text-emerald-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <div>
+                                <strong class="text-slate-200 block mb-0.5">Estabilidad Garantizada</strong>
+                                <span class="text-sm text-slate-400">Mantenimiento preventivo para evitar caídas y asegurar rapidez.</span>
+                            </div>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <svg class="w-5 h-5 text-emerald-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <div>
+                                <strong class="text-slate-200 block mb-0.5">Blindaje de Seguridad</strong>
+                                <span class="text-sm text-slate-400">Actualizaciones de código, librerías y certificados SSL/AFIP.</span>
+                            </div>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <svg class="w-5 h-5 text-emerald-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <div>
+                                <strong class="text-slate-200 block mb-0.5">Evolución del 'Cerebro' (IA)</strong>
+                                <span class="text-sm text-slate-400">Reentrenamiento del OCR e IA para que no pierda precisión con el tiempo.</span>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Not Included -->
+                <div class="glass-card p-8 border-t-4 border-t-rose-500 reveal">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-8 h-8 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </div>
+                        <h3 class="text-2xl font-bold text-white">Fuera del Alcance</h3>
+                    </div>
+                    <ul class="space-y-4">
+                        <li class="flex items-start gap-3">
+                            <svg class="w-5 h-5 text-rose-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            <div>
+                                <strong class="text-slate-200 block mb-0.5">Desarrollo de Nuevas Funciones</strong>
+                                <span class="text-sm text-slate-400">Nuevas pantallas, integraciones o módulos se presupuestan aparte como hitos de proyecto.</span>
+                            </div>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <svg class="w-5 h-5 text-rose-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            <div>
+                                <strong class="text-slate-200 block mb-0.5">Soporte a Usuarios Finales</strong>
+                                <span class="text-sm text-slate-400">El soporte N2 atiende a sus administradores IT, no a los clientes del día a día.</span>
+                            </div>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <svg class="w-5 h-5 text-rose-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            <div>
+                                <strong class="text-slate-200 block mb-0.5">Picos Inusuales de IA</strong>
+                                <span class="text-sm text-slate-400">Si hay un uso excesivo masivo de OpenAI/Gemini, el excedente externo se factura a mes vencido.</span>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA / Footer -->
+        <footer class="text-center pb-8 reveal">
+            <h3 class="text-2xl font-medium text-white mb-6">¿Listo para escalar con tranquilidad operativa?</h3>
+            <button onclick="window.print()" class="px-8 py-3 rounded-full bg-white text-slate-900 font-bold tracking-wide hover:bg-blue-50 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_rgba(255,255,255,0.5)] transform hover:-translate-y-1 hover:scale-105 duration-200">
+                Exportar como PDF
+            </button>
+            <p class="text-slate-500 mt-8 text-sm">
+                Documento confidencial generado para propuesta comercial. 
+            </p>
+        </footer>
+    </main>
+
+    <!-- Scroll Animation Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Fade in body
+            document.getElementById('body').classList.remove('opacity-0');
+
+            // Scroll animations
+            const observerOptions = {
+                root: null,
+                rootMargin: '0px',
+                threshold: 0.1
+            };
+
+            const observer = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('active');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, observerOptions);
+
+            document.querySelectorAll('.reveal').forEach((el) => {
+                observer.observe(el);
+            });
+        });
+    </script>
+</body>
+</html>
