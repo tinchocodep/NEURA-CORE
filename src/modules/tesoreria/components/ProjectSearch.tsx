@@ -55,10 +55,29 @@ export default function ProjectSearch({ value, onChange, tenant }: {
     const openDropdown = () => {
         if (ref.current) {
             const rect = ref.current.getBoundingClientRect();
-            setDropPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+            setDropPos({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX, width: rect.width });
         }
         setOpen(true);
     };
+
+    // Recalculate position when open (handles scroll/resize drift)
+    useEffect(() => {
+        if (!open) return;
+        const update = () => {
+            if (ref.current) {
+                const rect = ref.current.getBoundingClientRect();
+                setDropPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+            }
+        };
+        update();
+        window.addEventListener('scroll', update, true);
+        window.addEventListener('resize', update);
+        return () => {
+            window.removeEventListener('scroll', update, true);
+            window.removeEventListener('resize', update);
+        };
+    }, [open]);
+
 
     const handleCreate = async () => {
         if (!tenant || !query.trim() || creating) return;
