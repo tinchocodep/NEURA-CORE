@@ -1,6 +1,6 @@
 import { Outlet, Navigate, Link, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { LogOut, LayoutDashboard, ArrowRightLeft, FileText, Activity, Landmark, Briefcase, Zap, Users } from 'lucide-react';
+import { LogOut, LayoutDashboard, ArrowRightLeft, FileText, Activity, Landmark, Briefcase, Zap, Users, BookOpen, Package, Building2, Settings, ClipboardList } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
@@ -57,6 +57,21 @@ export default function Layout() {
         { name: 'Equipo', path: '/tesoreria/equipo', icon: Users, adminOnly: true },
     ];
 
+    const allContableItems = [
+        { name: 'Dashboard', path: '/contable', icon: LayoutDashboard },
+        { name: 'Comprobantes', path: '/contable/comprobantes', icon: ClipboardList },
+        { name: 'Proveedores', path: '/contable/proveedores', icon: Building2 },
+        { name: 'Clientes', path: '/contable/clientes', icon: Building2 },
+        { name: 'Catálogos', path: '/contable/catalogos', icon: Package },
+        { name: 'Configuración', path: '/contable/configuracion', icon: Settings, adminOnly: true },
+    ];
+
+    const contableItems = (role === 'admin' || role === 'superadmin'
+        ? allContableItems
+        : allContableItems.filter((i: any) =>
+            !i.adminOnly
+        )).filter((i: any) => !i.adminOnly || role === 'admin' || role === 'superadmin');
+
     const tesoreriaItems = (role === 'admin' || role === 'superadmin'
         ? allTesoreriaItems
         : allTesoreriaItems.filter((i: any) =>
@@ -96,6 +111,16 @@ export default function Layout() {
                         >
                             <Landmark size={18} />
                             <span className="tooltip-text">Tesorería</span>
+                        </Link>
+                    )}
+
+                    {hasModuleAccess('contable') && (
+                        <Link
+                            to="/contable"
+                            className={`nav-item ${location.pathname.startsWith('/contable') ? 'active' : ''}`}
+                        >
+                            <BookOpen size={18} />
+                            <span className="tooltip-text">Contable</span>
                         </Link>
                     )}
 
@@ -176,6 +201,22 @@ export default function Layout() {
                                                 {pendingCount}
                                             </span>
                                         )}
+                                    </Link>
+                                );
+                            })}
+                        </nav>
+                    )}
+
+                    {location.pathname.startsWith('/contable') && (
+                        <nav className="topbar-nav">
+                            {contableItems.map((item) => {
+                                const isActive = item.path === '/contable'
+                                    ? location.pathname === '/contable'
+                                    : location.pathname.startsWith(item.path);
+                                return (
+                                    <Link key={item.path} to={item.path} className={`topbar-nav-item ${isActive ? 'active' : ''}`}>
+                                        <item.icon size={13} />
+                                        {item.name}
                                     </Link>
                                 );
                             })}

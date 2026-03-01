@@ -10,17 +10,96 @@ function parseArgNum(s: string): number {
     return parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
 }
 
+// ── Extract NOMBRE and DOCUMENTO (CUIT/DNI) from Supervielle detail string ────
+function extractFromDetail(detail: string): { nombre: string; documento: string; cheque: string } {
+    const nombreMatch = detail.match(/NOMBRE:\s*([^\n,]+?)(?:\s+DOCUMENTO|\s+CBU|\s+ID_DEBIN|$)/i);
+    const docMatch = detail.match(/DOCUMENTO:\s*([\d]+)/i);
+    const chequeMatch = detail.match(/N[úu]mero Cheque:\s*([\d]+)/i);
+    return {
+        nombre: nombreMatch?.[1]?.trim().toUpperCase() ?? '',
+        documento: docMatch?.[1]?.trim() ?? '',
+        cheque: chequeMatch?.[1]?.trim() ?? '',
+    };
+}
+
+// ── Normalize text for fuzzy comparison ──────────────────────────────────────
+function normalize(s: string): string {
+    return s.toUpperCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove accents
+        .replace(/[^A-Z0-9 ]/g, ' ')
+        .replace(/\s+/g, ' ').trim();
+}
+
+// ── Check if two names share at least one meaningful word ────────────────────
+function namesOverlap(a: string, b: string): boolean {
+    if (!a || !b) return false;
+    const STOP = new Set(['DE', 'LA', 'EL', 'LOS', 'LAS', 'S', 'A', 'SA', 'SRL', 'SH', 'Y']);
+    const wordsA = normalize(a).split(' ').filter(w => w.length > 2 && !STOP.has(w));
+    const wordsB = normalize(b).split(' ').filter(w => w.length > 2 && !STOP.has(w));
+    return wordsA.some(w => wordsB.includes(w));
+}
+
+// ── Scoring system ────────────────────────────────────────────────────────────
+// Max possible score: 115 pts
+// matched  ≥ 70 pts  (auto-concilia)
+// review   ≥ 30 pts  (requiere confirmación)
+function scoreMatch(
+    bankAmt: number,
+    bankDate: string,
+    bankNombre: string,
+    bankDocumento: string,
+    bankCheque: string,
+    tx: any
+): number {
+    let score = 0;
+
+    // ── IMPORTE (hasta 50 pts) ────────────────────────────────────────────────
+    const txAmt = Math.abs(tx.amount);
+    const diff = Math.abs(txAmt - Math.abs(bankAmt));
+    if (diff < 0.01) score += 50;   // exacto
+    else if (diff / txAmt < 0.01) score += 40;   // < 1%
+    else if (diff / txAmt < 0.03) score += 30;   // < 3%
+    else if (diff / txAmt < 0.05) score += 20;   // < 5%
+    else if (diff / txAmt < 0.10) score += 5;    // < 10% — indicio débil
+
+    // ── FECHA (hasta 20 pts) ─────────────────────────────────────────────────
+    const dateDiff = Math.abs(new Date(tx.date).getTime() - new Date(bankDate).getTime()) / 86400000;
+    if (dateDiff === 0) score += 20;
+    else if (dateDiff <= 1) score += 18;
+    else if (dateDiff <= 3) score += 12;
+    else if (dateDiff <= 7) score += 6;
+
+    // ── CUIT / DOCUMENTO (hasta 20 pts) ──────────────────────────────────────
+    if (bankDocumento) {
+        // Compare against contact_name field or description that may contain CUIT
+        const txDesc = (tx.description || '').replace(/[^0-9]/g, '');
+        const txContact = (tx.contact_name || '').replace(/[^0-9]/g, '');
+        if (txDesc.includes(bankDocumento) || txContact.includes(bankDocumento)) score += 20;
+    }
+
+    // ── NOMBRE (hasta 10 pts) ────────────────────────────────────────────────
+    if (bankNombre) {
+        if (namesOverlap(bankNombre, tx.contact_name || '')) score += 10;
+        else if (namesOverlap(bankNombre, tx.description || '')) score += 7;
+    }
+
+    // ── NÚMERO DE CHEQUE (hasta 15 pts) ──────────────────────────────────────
+    if (bankCheque && tx.check_number && bankCheque === String(tx.check_number)) score += 15;
+
+    return score;
+}
+
 // ── Parse Supervielle CSV ─────────────────────────────────────────────────────
 function parseSupervielleCSV(text: string): Array<{
     date: string; concept: string; detail: string;
     debit: number; credit: number; balance: number;
+    nombre: string; documento: string; cheque: string;
 }> {
     const lines = text.trim().split('\n');
     const rows = [];
     for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
-        // Handle quoted fields with commas inside
         const parts: string[] = [];
         let cur = '', inQ = false;
         for (const ch of line) {
@@ -30,15 +109,20 @@ function parseSupervielleCSV(text: string): Array<{
         }
         parts.push(cur.trim());
         if (parts.length < 6) continue;
-        const rawDate = parts[0].split(' ')[0]; // "2026/02/24"
-        const date = rawDate.replace(/\//g, '-'); // "2026-02-24"
+        const rawDate = parts[0].split(' ')[0];
+        const date = rawDate.replace(/\//g, '-');
+        const detail = parts[2] || '';
+        const { nombre, documento, cheque } = extractFromDetail(detail);
         rows.push({
             date,
             concept: parts[1] || '',
-            detail: parts[2] || '',
+            detail,
             debit: parseArgNum(parts[3]),
             credit: parseArgNum(parts[4]),
             balance: parseArgNum(parts[5]),
+            nombre,
+            documento,
+            cheque,
         });
     }
     return rows;
@@ -114,29 +198,31 @@ export default function Bancos() {
         const rows = parseSupervielleCSV(text);
         if (rows.length === 0) { addToast('error', 'Error', 'No se pudo parsear el CSV'); setImporting(false); return; }
 
-        // Auto-match against pending transactions
+        // ── Auto-match por scoring ──────────────────────────────────────────
         const pendingSnap = [...pendingTx];
         const toInsert = rows.map(row => {
             const amount = row.credit > 0 ? row.credit : -row.debit;
-            const absAmt = Math.abs(amount);
-            // Try to find exact match in pending
-            const exact = pendingSnap.find(tx => {
-                const txAmt = tx.type === 'income' ? tx.amount : tx.amount;
-                const dateDiff = Math.abs(new Date(tx.date).getTime() - new Date(row.date).getTime()) / 86400000;
-                return Math.abs(txAmt - absAmt) < 0.01 && dateDiff <= 3;
-            });
-            // Try to find close match (within 5%)
-            const close = !exact ? pendingSnap.find(tx => {
-                const txAmt = tx.amount;
-                const pct = Math.abs(txAmt - absAmt) / txAmt;
-                const dateDiff = Math.abs(new Date(tx.date).getTime() - new Date(row.date).getTime()) / 86400000;
-                return pct <= 0.05 && dateDiff <= 7;
-            }) : null;
 
+            // Calcular score para cada transacción pendiente
+            const scored = pendingSnap.map(tx => ({
+                tx,
+                score: scoreMatch(amount, row.date, row.nombre, row.documento, row.cheque, tx),
+            })).sort((a, b) => b.score - a.score);
+
+            const best = scored[0];
             let status: MatchStatus = 'unmatched';
             let matched_transaction_id = null;
-            if (exact) { status = 'matched'; matched_transaction_id = exact.id; }
-            else if (close) { status = 'review'; matched_transaction_id = close.id; }
+            let match_score = 0;
+
+            if (best && best.score >= 70) {
+                status = 'matched';
+                matched_transaction_id = best.tx.id;
+                match_score = best.score;
+            } else if (best && best.score >= 30) {
+                status = 'review';
+                matched_transaction_id = best.tx.id;
+                match_score = best.score;
+            }
 
             return {
                 tenant_id: tenant.id,
@@ -149,6 +235,7 @@ export default function Bancos() {
                 balance: row.balance,
                 status,
                 matched_transaction_id,
+                match_score,
             };
         });
 
@@ -291,7 +378,18 @@ export default function Bancos() {
                                                             <td style={{ padding: '0.6rem 0.5rem', maxWidth: '300px' }}>
                                                                 <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{line.concept}</div>
                                                                 {line.detail && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '280px' }}>{line.detail}</div>}
-                                                                {line.matched_transaction && <div style={{ fontSize: '0.72rem', color: 'var(--brand)', marginTop: '0.2rem' }}>↔ {line.matched_transaction.description}</div>}
+                                                                {line.matched_transaction && (
+                                                                    <div style={{ fontSize: '0.72rem', color: 'var(--brand)', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                                                        ↔ {line.matched_transaction.description}
+                                                                        {line.match_score != null && (
+                                                                            <span style={{
+                                                                                background: line.match_score >= 70 ? 'rgba(34,197,94,0.15)' : 'rgba(245,158,11,0.15)',
+                                                                                color: line.match_score >= 70 ? 'var(--success)' : 'var(--warning)',
+                                                                                borderRadius: '999px', padding: '0.05rem 0.4rem', fontWeight: 700, fontSize: '0.65rem'
+                                                                            }}>score {line.match_score}</span>
+                                                                        )}
+                                                                    </div>
+                                                                )}
                                                             </td>
                                                             <td style={{ padding: '0.6rem 0.5rem', textAlign: 'right', color: 'var(--danger)', fontWeight: 600 }}>{line.debit > 0 ? fmt(line.debit) : '—'}</td>
                                                             <td style={{ padding: '0.6rem 0.5rem', textAlign: 'right', color: 'var(--success)', fontWeight: 600 }}>{line.credit > 0 ? fmt(line.credit) : '—'}</td>

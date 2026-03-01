@@ -1,0 +1,247 @@
+Nombre,Cuenta,Categoría
+1-0-00-0000 - Activo,,
+   1-1-00-0000 - Activo Corriente,,
+      1-1-01-0000 - Caja y Bancos,,
+         1-1-01-0001 - Caja,,
+,1-1-01-0001-01 - Efectivo en Pesos,Activo Corriente > Caja y Bancos > Caja
+,1-1-01-0001-02 - Valores Varios a Depositar,Activo Corriente > Caja y Bancos > Valores a Depositar
+,1-1-01-0001-03 - Moneda Extranjera,Activo Corriente > Caja y Bancos > Caja
+         1-1-01-0002 - Bancos,,
+,1-1-01-0002-02 - Banco Galicia CC $ 376-1,Activo Corriente > Caja y Bancos > Bancos
+,1-1-01-0002-03 - Banco Santander Cta Cte $ 985,Activo Corriente > Caja y Bancos > Bancos
+,1-1-01-0002-04 - Santader CCESP USD 1658/0,Activo Corriente > Caja y Bancos > Bancos
+,1-1-01-0002-05 - Banco Macro CCE $,Activo Corriente > Caja y Bancos > Bancos
+,1-1-01-0002-06 - Banco Ciudad,Activo Corriente > Caja y Bancos > Bancos
+,1-1-01-0002-07 - Banco Industrial Cta Cte,Activo Corriente > Caja y Bancos > Bancos
+,1-1-01-0002-08 - Banco HSBC,Activo Corriente > Caja y Bancos > Bancos
+,1-1-01-0002-09 - Banco BBVA Cta Cte $,Activo Corriente > Caja y Bancos > Bancos
+,1-1-01-0002-20 - Banco BAPRO Cta Cte $,Activo Corriente > Caja y Bancos > Bancos
+,1-1-01-0002-28 - Banco Galicia CC $ 696-0,Activo Corriente > Caja y Bancos > Bancos
+,1-1-02-0002-22 - Banco Supervielle Cta Cte $,Activo Corriente > Caja y Bancos > Bancos
+,1-1-02-0002-23 - Banco BBVA cta 12398/3,Activo Corriente > Caja y Bancos > Bancos
+,1-1-02-0002-24 - Banco Macro CCE USD,Activo Corriente > Caja y Bancos > Bancos
+,1-1-02-0002-25 - BBVA USD,Activo Corriente > Caja y Bancos > Bancos
+,1-1-02-0002-26 - BANCO NACION,Activo Corriente > Caja y Bancos > Bancos
+,1-1-02-0002-27 - BANCO PATAGONIA SOCIEDAD ANONIMA,Activo Corriente > Caja y Bancos > Bancos
+,1-1-01-0002-01 - Banco Santander Rio CC $ 291,Activo Corriente > Caja y Bancos > Bancos
+      1-1-02-0000 - Créditos por Ventas,,
+,1-1-02-0002 - Deudores por Ventas Mercado Externo,Activo Corriente > Créditos por Ventas
+,1-1-02-0003 - Deudores Varios,Activo Corriente > Créditos por Ventas
+,1-1-02-0004 - Gastos a Refacturar Clientes,Activo Corriente > Créditos por Ventas
+,1-1-02-0005 - Deudores Morosos,Activo Corriente > Créditos por Ventas
+,1-1-02-0006 - Cheques con Rechazo,Activo Corriente > Créditos por Ventas
+,1-1-02-0007 - Cobranzas no Identificiadas,Activo Corriente > Créditos por Ventas
+,1-1-02-0001 - Deudores por Venta Mercado Interno,Activo Corriente > Créditos por Ventas
+      1-1-03-0000 - Inversiones,,
+,1-1-03-0001 - Inversiones FCI $ Santander,Activo Corriente > Inversiones
+,1-1-03-0002 - Inversiones - FCI $ - Galicia,Activo Corriente > Inversiones
+,1-1-03-0003 - Inversiones - FCI $ - Macro,Activo Corriente > Inversiones
+,1-1-03-0004 - Inversiones - FCI $ - BBVA,Activo Corriente > Inversiones
+,1-1-03-0005 - PPI pesos,Activo Corriente > Inversiones
+,1-1-03-0006 - PPI USD,Activo Corriente > Inversiones
+      1-1-04-0000 - Créditos Fiscales,,
+,Impuestos Internos Sufrida,Activo Corriente > Otros Créditos > Créditos Fiscales
+,1-1-04-0012 - IVA Saldo a Favor (ST),Activo Corriente > Otros Créditos > Créditos Fiscales
+,1-1-04-0013 - ISIB Saldo a favor CABA,Activo Corriente > Otros Créditos > Créditos Fiscales
+,1-1-04-0014 - ISIB Saldo a favor Santa Fe,Activo Corriente > Otros Créditos > Créditos Fiscales
+,1-1-04-0015 - Anticipos IG,Activo Corriente > Otros Créditos > Créditos Fiscales
+,1-1-04-0016 - Imp 25413 a Compensar,Activo Corriente > Otros Créditos > Créditos Fiscales
+,1-1-04-0017 - Activo por Impuesto Diferido,Activo Corriente > Otros Créditos > Créditos Fiscales
+,1-1-04-0018 - IVA Crédito fiscal computado Per. Siguiente,Activo Corriente > Otros Créditos > Créditos Fiscales
+,1-1-04-0019 - IG saldo a favor,Activo Corriente > Otros Créditos > Créditos Fiscales
+,1-1-04-0020 - IVA Ret y Perc computado Per. Siguiente,Activo Corriente > Otros Créditos > Créditos Fiscales
+,1-1-04-0022 - Bonos Crédito Fiscal a Compensar,Activo Corriente > Otros Créditos > Créditos Fiscales
+,1-1-04-0023 - Retención Ingresos Brutos Sufrida CABA,Activo Corriente > Otros Créditos
+,1-1-04-0024 - IVA Saldo a Favor (SLD),Activo Corriente > Otros Créditos > Créditos Fiscales
+,1-1-04-0025 - IVA Crédito Fiscal por Contribuciones de la Seguridad Social - Anexo I Ley 27.541,Activo Corriente > Otros Créditos > Créditos Impositivos > IVA Crédito Fiscal
+,1-1-04-0026 - Retención Ingresos Brutos Sufrida Buenos Aires,Activo Corriente > Otros Créditos > Créditos Fiscales
+,1-1-04-0027 - Retención Ingresos Brutos Sufrida Entre Rios,Activo Corriente > Otros Créditos > Créditos Fiscales
+,1-1-04-0001 - IVA Crédito Fiscal,Activo Corriente > Otros Créditos > Créditos Impositivos > IVA Crédito Fiscal
+,1-1-04-0002 - Retención de IVA Sufrida,Activo Corriente > Otros Créditos > Créditos Impositivos > IVA Retención Sufrida
+,1-1-04-0003 - Percepción de IVA Sufrida,Activo Corriente > Otros Créditos > Créditos Impositivos > IVA Percepción Sufrida
+,1-1-04-0004 - Retención Impuesto a las Ganancias Sufrida,Activo Corriente > Otros Créditos > Créditos Fiscales
+,1-1-04-0005 - Percepción Impuesto a las Ganancias Sufrida,Activo Corriente > Otros Créditos > Créditos Impositivos> Percepción Ganancias Sufrida
+,1-1-04-0007 - Retención y Percepciones Ingresos Brutos Sufrida Santa Fe,Activo Corriente > Otros Créditos > Créditos Fiscales
+,1-1-04-0008 - Percepción Ingresos Brutos Sufrida (SIRCREB),Activo Corriente > Otros Créditos > Créditos Fiscales
+,1-1-04-0009 - Retención Cargas Sociales Sufrida,Activo Corriente > Otros Créditos > Créditos Fiscales
+,1-1-04-0010 - Percepciones Cargas Sociales Sufridas,Activo Corriente > Otros Créditos > Créditos Fiscales
+,1-1-04-0011 - Otras Percepciones I reteciones Ingresos Brutos Sufrida,Activo Corriente > Otros Créditos > Créditos Fiscales
+      1-1-05-0000 - Otras Cuentas por Cobrar,,
+,1-1-05-0001 - Préstamos al personal,Activo Corriente > Otros Créditos
+,1-1-05-0002 - Anticipo a Proveedores,Activo Corriente > Otros Créditos
+   1-2-00-0000 - Activo No Corriente,,
+      1-2-01-0000 - Bienes Intangibles,,
+,1-2-01-0009 - Licencias de Software,Activo No Corriente > Activos Intangibles
+,1-2-01-0010 - Horas de Desarrollo a Activables,Activo No Corriente > Activos Intangibles
+,1-2-01-0011 - AA Licencias de Software,Activo No Corriente > Activos Intangibles
+,1-2-01-0012 - Jakue I BCR - Muvin,Activo No Corriente > Activos Intangibles
+      1-2-02-0000 - Bienes de Uso,,
+,1-2-01-0002 - Equipos de computación y Telefonía,Activo No Corriente > Bienes de Uso
+,1-2-01-0005 - Amort Acum Muebles y utiles,Activo No Corriente > Bienes de Uso
+,1-2-01-0006 - AA Equipos de computación y Telefonía,Activo No Corriente > Bienes de Uso
+,1-2-01-0007 - Rodados,Activo No Corriente > Bienes de Uso
+,1-2-01-0008 - AA Rodados,Activo No Corriente > Bienes de Uso
+,1-2-02-0001 - Muebles y Utiles,Activo No Corriente > Bienes de Uso
+2-0-00-0000 - Pasivo,,
+   2-1-00-0000 - Pasivo Corriente,,
+      Previsiones,,
+      Cuentas Aporte,,
+,2-1-06-0001 - Socio Cta Aporte,Pasivo Corriente > Deudas Societarias
+      2-1-01-0000 - Deudas Comerciales,,
+,2-1-01-0002 - Cheques Diferidos a Pagar,Pasivo Corriente > Deudas Comerciales
+,2-1-01-0003 - Tarjetas de Credito a Pagar,Pasivo Corriente > Deudas Comerciales
+,2-1-01-0001 - Proveedores,Pasivo Corriente > Deudas Comerciales
+         Cheques Diferidos Emitidos,,
+,Cheques Diferidos,Pasivo Corriente > Deudas Comerciales > Cheques Diferidos Emitidos
+      2-1-02-0000 - Deudas Bancarias,,
+,2-1-02-0001 - Prestamos Bancarios a Pagar,Pasivo Corriente > Deudas Bancarias
+,2-1-02-0002 - Intereses Financieros a Devengar,Pasivo Corriente > Deudas Bancarias
+,2-1-02-0003 - Préstamos Prendarios a Pagar,Pasivo Corriente > Deudas Bancarias
+,2-1-02-0004 - Intereses a Devengar Préstamos Prendarios,Pasivo Corriente > Deudas Bancarias
+      2-1-03-0000 - Deudas Fiscales,,
+,2-1-03-0002 - Provisión IG,Pasivo Corriente > Deudas Fiscales
+,2-1-03-0008 - DREI a pagar,Pasivo Corriente > Deudas Fiscales
+,2-1-03-0009 - IG - Anticipos a Ingresar,Pasivo Corriente > Deudas Fiscales
+,2-1-03-0021 - AFIP - Planes de pago - Intereses a devengar,Pasivo Corriente > Deudas Fiscales
+,2-1-03-0090 - Pasivo por Impuesto Diferido,Pasivo Corriente > Deudas Fiscales
+,2-1-03-0001 - IVA Débito Fiscal,Pasivo Corriente > Deudas Fiscales > IVA Débito Fiscal
+,2-1-03-0003 - IVA Saldo a pagar,Pasivo Corriente > Deudas Fiscales
+,2-1-03-0004 - Retención Ganancias Efectuada a Proveedores,Pasivo Corriente > Deudas Fiscales
+,2-1-03-0005 - ISIB a Pagar,Pasivo Corriente > Deudas Fiscales
+,2-1-03-0006 - Bs. Pers. Acc y Part. a Pagar,Pasivo Corriente > Deudas Fiscales
+,2-1-03-0007 - IG a Pagar,Pasivo Corriente > Deudas Fiscales
+,2-1-03-0010 - AFIP - Planes de Pago,Pasivo Corriente > Deudas Fiscales
+,2-1-03-0011 - SICORE a Pagar,Pasivo Corriente > Deudas Fiscales
+,2-1-03-0012 - Percepción de Ganancias Efectuada,Pasivo Corriente > Deudas Fiscales > Percepción Ganancias Efectuada
+,2-1-03-0013 - Percepción de IVA Efectuada,Pasivo Corriente > Deudas Fiscales > IVA Percepción Efectuada
+,2-1-03-0014 - Retención de IVA Efectuada,Pasivo Corriente > Deudas Fiscales > IVA Retención Efectuada
+      2-1-04-0000 - Deudas Sociales,,
+,2-1-04-0006 - Sindicato a Pagar,Pasivo Corriente > Deudas Sociales
+,2-1-04-0011 - Embargos de Sueldos a Depositar,Pasivo Corriente > Deudas Sociales
+,2-1-04-0012 - Provisión para SAC y sus Cargas Sociales,Pasivo Corriente > Deudas Sociales
+,2-1-04-0004 - Sueldos a pagar,Pasivo Corriente > Deudas Sociales
+,2-1-04-0005 - SICOSS a Pagar,Pasivo Corriente > Deudas Sociales
+      2-1-05-0000 - Otras Deudas,,
+,2-1-05-0001 - Socio Eloy Cuenta Particular,Pasivo Corriente > Otras Deudas
+,2-1-05-0002 - Socio Villalonga Cuenta Particular,Pasivo Corriente > Otras Deudas
+,2-1-05-0004 - Anticipo de Clientes,Pasivo Corriente > Otras Deudas
+,2-1-05-0090 - Garantías de los Directores,Pasivo Corriente > Otras Deudas
+,2-1-05-0091 - Mutuo Gaviglio a pagar,Pasivo Corriente > Deudas Societarias
+,2-1-05-0092 - Mutuo Tomas hermanos SA,Pasivo Corriente > Otras Deudas
+   2-2-00-0000 - Pasivo No Corriente,,
+      Deudas Comerciales,,
+      Deudas Bancarias,,
+      Deudas Fiscales,,
+      Deudas Sociales,,
+      Deudas Societarias,,
+      Otras Deudas,,
+,2-1-05-0003 - Socio Jose Bonansea Cuenta Particular,Pasivo Corriente > Otras Deudas
+      2-2-07-0000 - Previsiones,,
+,2-2-07-0001 - Sueldos Judiciales,Pasivo No Corriente > Previsiones
+3-0-00-0000 - Patrimonio Neto,,
+   3-1-00-0000 - Patrimonio Neto y  Resultados,,
+,3-1-04-0000 - Partidas a Conciliar,Patrimonio Neto > Ajuste de Capital
+      3-1-01-0000 - Aporte de los Propiertarios,,
+,3-1-01-0001 - Capital Social,Patrimonio Neto > Capital
+,3-1-01-0002 - Ajuste de Capital,Patrimonio Neto > Ajuste de Capital
+      3-1-02-0000 - Ganancias Reservadas,,
+,3-1-02-0001 - Reserva Legal,Patrimonio Neto > Reservas
+,3-1-02-0002 - Aportes Irrevcocables,Patrimonio Neto > Reservas
+      3-1-03-0000 - Resultados,,
+,3-1-03-0002 - Resultados no Asignados,Patrimonio Neto > Resultados No Asignados
+,3-1-03-0001 - Resultado del Ejercicio,Patrimonio Neto > Resultados No Asignados
+4-0-00-0000 - Ingresos,,
+   4-1-00-0000 - Ingresos Ordinarios,,
+      4-1-01-0000 - Ingreso Actividad Principal,,
+,4-1-01-0001 - Venta de Licencias de Software,Ingresos > Ingreso por Ventas Netas de Bienes y Servicios
+,4-1-01-0002 - Implementacion de Sistemas,Ingresos > Ingreso por Ventas Netas de Bienes y Servicios
+,4-1-01-0003 - Soporte de Sistemas,Ingresos > Ingreso por Ventas Netas de Bienes y Servicios
+,4-1-01-0006 - Desarrollo Software Factory,Ingresos > Ingreso por Ventas Netas de Bienes y Servicios
+,4-1-01-0007 - Desarrollo a Medida de Sistemas,Ingresos > Ingreso por Ventas Netas de Bienes y Servicios
+      4-1-02-0000 - Otros Ingresos,,
+,4-1-02-0001 - Diferencia de Cambio,Ingresos > Otros Ingresos
+      4-1-08-0000 - Ingresos Financieros,,
+,4-1-08-0001 - Intereses Ganados por Financiación,Ingresos > Otros Ingresos
+,4-1-08-0011 - Resultados Fondos de Inversión - Ganancias,Ingresos > Otros Ingresos
+,4-1-08-0021 - Rtdo Diferencia de Cambio,Ingresos > Otros Ingresos
+,4-1-08-0031 - Incentivos Fiscales Recibidos,Ingresos > Otros Ingresos
+   4-2-00-0000 - Ingresos Extraordinarios,,
+      4-2-01-0000 - Ingresos Extraordinarios,,
+,4-2-01-0001 - Recupero,Ingresos > Ingresos Extraordinarios
+5-0-00-0000 - Egresos,,
+   5-1-01-0000 - Costo de los Bienes Vendidos y Servicios Prestados,,
+,Compras,Pasivo Corriente > Deudas Comerciales
+,5-1-01-0004 - Servicios medicos por Desarrollo de Software,Egresos > Costo de los Bienes Vendidos y servicios Prestados
+,5-1-01-0006 - Servicios de terceros vinculados al costo,Egresos > Costo de los Bienes Vendidos y servicios Prestados
+,5-1-01-0001 - Sueldos por Desarrollo de Software,Egresos > Costo de los Bienes Vendidos y servicios Prestados
+,5-1-01-0002 - Cargas Soc. y Sind. por Desarrollo de Software,Egresos > Costo de los Bienes Vendidos y servicios Prestados
+,5-1-01-0003 - Honorarios de Terceros por Desarrollo de Software,Egresos > Costo de los Bienes Vendidos y servicios Prestados
+      5-3-00-0000 - Gastos Indirectos,,
+   5-1-02-0000 - Licencia de Software,,
+,5-1-02-0001 - Alquiler de Licencias de Software,Egresos > Gastos de Administración
+   5-1-03-0000 - Licencia de Hardware,,
+,5-1-03-0001 - Alquiler de Hardware y Equipos de Computación,Egresos > Gastos de Administración
+   5-1-04-0000 - Gastos de Estructura,,
+,5-1-04-0001 - Alquiler de Oficinas y Depositos Externo,Egresos > Gastos de Comercialización
+,"5-1-04-0002 - Alojamiento, Movilidad y Viáticos (Comercial)",Egresos > Gastos de Comercialización
+,5-1-04-0003 - Alquiler varios,Egresos > Gastos de Comercialización
+,5-1-04-0004 - Impuestos y Servicios Públicos,Egresos > Gastos de Comercialización
+,5-1-04-0005 - Sueldos Supervisión y de Estructura,Egresos > Gastos de Comercialización
+,5-1-04-0006 - Cargas Soc. y Sind Supervisión y de Estructura,Egresos > Gastos de Comercialización
+,5-1-04-0007 - Honorarios de Terceros Asesores Externos,Egresos > Gastos de Comercialización
+,5-1-04-0008 - Honorarios Profesionales,Egresos > Gastos de Administración
+,5-1-04-0009 - Comisiones Comerciales,Egresos > Gastos de Comercialización
+,5-1-04-0010 - Atenciones Comerciales,Egresos > Gastos de Comercialización
+,5-1-04-0011 - Telefonia e Internet,Egresos > Gastos de Comercialización
+,5-1-04-0012 - Marketing y Eventos,Egresos > Gastos de Comercialización
+,5-1-04-0013 - Capacitación Supervisión y de Estructura,Egresos > Gastos de Comercialización
+,5-1-04-0014 - Insumos de Oficina,Egresos > Gastos de Comercialización
+,5-1-04-0015 - Alquiler de Oficinas y Depositos interno (Celula Santa Fe),Egresos > Gastos de Comercialización
+,5-1-04-0016 - Cobertura médica privada,Egresos > Gastos de Administración
+,5-1-04-0017 - Gasto Educacion Fisica (beneficio),Egresos > Gastos de Administración
+,5-1-04-0018 - Gasto Viáticos,Egresos > Gastos de Administración
+,5-1-04-0019 - Gastos no identificados,Egresos > Gastos de Administración
+,5-1-04-0020 - Gastos TC no documentados,Egresos > Gastos de Administración
+,5-1-04-0021 - Seguros,Egresos > Gastos de Administración
+   5-1-05-0000 - Otros Egresos,,
+,5-1-05-0002 - Intereses por Financiac Bcaria,Egresos > Otros Egresos
+,5-1-05-0003 - Costo Financiero Descuento de Cheques,Egresos > Otros Egresos
+,5-1-05-0004 - Intereses Impositiva y Seg Social,Egresos > Otros Egresos
+,5-1-05-0006 - Diferencia de Cotizacion de TC,Egresos > Otros Egresos
+,5-1-05-0007 - Gastos y Comisiones Bancarias,Egresos > Otros Egresos
+,5-1-05-0001 - Gastos Cheq Rechazados,Egresos > Otros Egresos
+,5-1-05-0005 - Resultados por Tenencia,Egresos > Resultados Financieros y por Tenencia
+   5-1-06-0000 - Gastos Impositivos,,
+,5-1-06-0001 - Imp Deb y Cred Ley 25413,Egresos > Otros Egresos
+,5-1-06-0002 - Bienes Personales Acc y Part,Egresos > Otros Egresos
+,5-1-06-0003 - Impuesto sobre los Brutos Santa Fe,Egresos > Otros Egresos
+,5-1-06-0004 - DREI,Egresos > Otros Egresos
+,5-1-06-0005 - Impuesto a los Sellos,Egresos > Otros Egresos
+,5-1-06-0006 - Gastos Bono Fiscal,Egresos > Gastos de Administración
+,5-1-06-0007 - Gastos ARCA I SIFERE,Egresos > Otros Egresos
+   5-1-07-0001 - Amortizaciones,,
+,5-1-07-0001 - Amortizaciones del ejercicio,Ingresos > Otros Ingresos
+   5-1-08-0000 - Impuesto a las Ganancias,,
+,5-1-08-0001 - Impuesto a las Ganancias,Egresos > Impuesto a las Ganancias
+   5-1-09-0000 - Gastos de financiación y cambiarios,,
+,RECPAM,Egresos > Resultado por Exposición a la Inflación
+,Ajuste por Redondeo Decimal,Ingresos > Otros Ingresos
+,Intereses por Financiacion Bancaria y Financiera,Egresos > Resultados Financieros y por Tenencia
+   5-1-10-0000 - Gastos de Administración,,
+,Cargas Sociales,Egresos > Gastos de Administración
+,Sueldos y Jornales,Egresos > Gastos de Administración
+,Medicina Laboral,Egresos > Gastos de Administración
+,5-1-10-0001 - Sueldos Staff,Egresos > Gastos de Administración
+,5-1-10-0002 - Sueldo Negocio,Egresos > Gastos de Administración
+,5-1-10-0003 - Sueldo BCR,Egresos > Gastos de Administración
+,5-1-10-0004 - Sueldos Paraguay,Egresos > Gastos de Administración
+,5-1-10-0005 - Sueldos Fabrica,Egresos > Gastos de Administración
+,5-1-10-0006 - Cargas Sociales Staff,Egresos > Gastos de Administración
+,5-1-10-0007 - Cargas Sociales Negocio,Egresos > Gastos de Administración
+,5-1-10-0008 - Cargas Sociales BCR,Egresos > Gastos de Administración
+,5-1-10-0009 - Cargas Sociales Paraguay,Egresos > Gastos de Administración
+,5-1-10-0010 - Cargas Sociales Fabrica,Egresos > Gastos de Administración
+   5-2-0-0000 - Gastos Extraordinarios,,
+,Diferencia de Inventario,Egresos > Egresos Extraordinarios
+   5-3-00-0000 - Gastos Indirectos,,
+,5-3-01-0000 - Medicina Pre Paga,Egresos > Gastos de Administración

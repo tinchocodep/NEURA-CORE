@@ -13,6 +13,12 @@ import Bancos from './modules/tesoreria/Bancos';
 import Monitor from './modules/tesoreria/Monitor';
 import Equipo from './modules/tesoreria/Equipo';
 import SuperAdminDashboard from './modules/superadmin/Dashboard';
+import ContableDashboard from './modules/contable/Dashboard';
+import ContableComprobantes from './modules/contable/Comprobantes';
+import ContableProveedores from './modules/contable/Proveedores';
+import ContableClientes from './modules/contable/Clientes';
+import ContableCatalogos from './modules/contable/Catalogos';
+import ContableConfiguracion from './modules/contable/Configuracion';
 import { useAuth } from './contexts/AuthContext';
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -64,6 +70,15 @@ export default function App() {
             <Route path="bancos" element={<Bancos />} />
             <Route path="equipo" element={<Equipo />} />
             <Route path="monitor" element={<Monitor />} />
+          </Route>
+          {/* Modulo Contable */}
+          <Route path="contable">
+            <Route index element={<ContableDashboard />} />
+            <Route path="comprobantes" element={<ContableComprobantes />} />
+            <Route path="proveedores" element={<ContableProveedores />} />
+            <Route path="clientes" element={<ContableClientes />} />
+            <Route path="catalogos" element={<ContableCatalogos />} />
+            <Route path="configuracion" element={<ContableConfiguracion />} />
           </Route>
           {/* Modulo Super Admin */}
           <Route path="superadmin" element={<SuperAdminDashboard />} />
