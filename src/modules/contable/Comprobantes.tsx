@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
-import { Search, Filter, ArrowUpRight, ArrowDownLeft, CheckCircle, XCircle, Upload as UploadIcon, ChevronDown } from 'lucide-react';
+import { Search, Filter, ArrowUpRight, ArrowDownLeft, CheckCircle, XCircle, Upload as UploadIcon } from 'lucide-react';
 
 interface Comprobante {
     id: string;

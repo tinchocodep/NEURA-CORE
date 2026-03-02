@@ -162,7 +162,7 @@ export default function Proveedores() {
                                 {filtered.map(p => (
                                     <tr key={p.id}>
                                         <td style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
-                                            {p.es_caso_rojo && <AlertTriangle size={14} color="var(--warning)" title="Caso rojo: múltiples clasificaciones" />}
+                                            {p.es_caso_rojo && <AlertTriangle size={14} color="var(--warning)" />}
                                             {p.razon_social}
                                         </td>
                                         <td style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: p.cuit ? 'var(--text-sub)' : 'var(--text-faint)' }}>
