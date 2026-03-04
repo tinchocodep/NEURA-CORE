@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import {
     Search, Filter, ArrowUpRight, ArrowDownLeft, CheckCircle, XCircle,
     Upload as UploadIcon, Send, Plus, Trash2, Save, FileText, X, Eye, Download,
-    ChevronRight, ChevronDown, Folder
+    ChevronRight, ChevronDown
 } from 'lucide-react';
 
 // --- Types ---
@@ -132,6 +132,8 @@ export default function Comprobantes() {
     const [productosServicio, setProductosServicio] = useState<ProductoServicio[]>([]);
     const [centrosCosto, setCentrosCosto] = useState<CentroCosto[]>([]);
     const [expandedProductFolders, setExpandedProductFolders] = useState<Set<string>>(new Set());
+    const [prodSearchFilter, setProdSearchFilter] = useState('');
+    const [showProductSelector, setShowProductSelector] = useState(false);
 
     // Entity search
     const [entitySearch, setEntitySearch] = useState('');
@@ -780,124 +782,199 @@ export default function Comprobantes() {
                                 )}
                             </div>
 
-                            {/* Producto/Servicio - folder toggle */}
+                            {/* Producto/Servicio - accordion + chips toggle */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
                                 <div className="form-group">
                                     <label>Producto/Servicio</label>
-                                    <div style={{
-                                        border: '1.5px solid #e2e8f0', borderRadius: 8,
-                                        maxHeight: 220, overflowY: 'auto', background: '#fff',
-                                    }}>
-                                        {/* Group by grupo field */}
-                                        {(() => {
-                                            const grupoMap = new Map<string, ProductoServicio[]>();
-                                            const sinGrupo: ProductoServicio[] = [];
-                                            for (const p of productosServicio) {
-                                                if (p.grupo) {
-                                                    if (!grupoMap.has(p.grupo)) grupoMap.set(p.grupo, []);
-                                                    grupoMap.get(p.grupo)!.push(p);
-                                                } else {
-                                                    sinGrupo.push(p);
-                                                }
+
+                                    <div
+                                        onClick={() => setShowProductSelector(prev => !prev)}
+                                        style={{
+                                            display: 'flex', alignItems: 'center', gap: 8,
+                                            padding: '0.5rem 0.75rem', cursor: 'pointer',
+                                            border: '1px solid #cbd5e1', borderRadius: 10,
+                                            background: showProductSelector ? '#f0f7ff' : '#f8f9fc',
+                                            transition: 'all 0.15s ease',
+                                            marginBottom: showProductSelector ? '0.5rem' : 0,
+                                        }}
+                                    >
+                                        {showProductSelector
+                                            ? <ChevronDown size={14} style={{ color: '#1958E0', flexShrink: 0 }} />
+                                            : <ChevronRight size={14} style={{ color: '#94a3b8', flexShrink: 0 }} />
+                                        }
+                                        <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: '#334155' }}>
+                                            {formProductoServicioId
+                                                ? productosServicio.find(p => p.id === formProductoServicioId)?.nombre || 'Seleccionado'
+                                                : 'Seleccionar producto/servicio...'
                                             }
-                                            const sortedGrupos = [...grupoMap.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-
-                                            return (
-                                                <>
-                                                    {/* Sin asignar option */}
-                                                    <div
-                                                        onClick={() => setFormProductoServicioId('')}
-                                                        style={{
-                                                            padding: '6px 10px', cursor: 'pointer', fontSize: '0.8rem',
-                                                            borderBottom: '1px solid #f1f5f9',
-                                                            background: formProductoServicioId === '' ? '#eff6ff' : undefined,
-                                                            color: '#94a3b8', fontStyle: 'italic',
-                                                        }}
-                                                    >
-                                                        Sin asignar
-                                                    </div>
-
-                                                    {sortedGrupos.map(([grupo, items]) => {
-                                                        const isOpen = expandedProductFolders.has(grupo);
-                                                        const hasSelected = items.some(i => i.id === formProductoServicioId);
-                                                        return (
-                                                            <div key={grupo}>
-                                                                <div
-                                                                    onClick={() => {
-                                                                        setExpandedProductFolders(prev => {
-                                                                            const next = new Set(prev);
-                                                                            if (next.has(grupo)) next.delete(grupo);
-                                                                            else next.add(grupo);
-                                                                            return next;
-                                                                        });
-                                                                    }}
-                                                                    style={{
-                                                                        padding: '6px 10px', cursor: 'pointer',
-                                                                        display: 'flex', alignItems: 'center', gap: 6,
-                                                                        fontSize: '0.78rem', fontWeight: 600,
-                                                                        background: hasSelected ? '#f0f7ff' : '#f8f9fc',
-                                                                        borderBottom: '1px solid #f1f5f9',
-                                                                        color: '#334155',
-                                                                    }}
-                                                                >
-                                                                    {isOpen ? <ChevronDown size={14} color="#64748b" /> : <ChevronRight size={14} color="#64748b" />}
-                                                                    <Folder size={14} color={hasSelected ? '#2563eb' : '#94a3b8'} />
-                                                                    <span>{grupo}</span>
-                                                                    <span style={{ fontSize: '0.65rem', color: '#94a3b8', marginLeft: 'auto' }}>{items.length}</span>
-                                                                </div>
-                                                                {isOpen && items.sort((a, b) => a.nombre.localeCompare(b.nombre)).map(p => (
-                                                                    <div
-                                                                        key={p.id}
-                                                                        onClick={() => setFormProductoServicioId(p.id)}
-                                                                        style={{
-                                                                            padding: '5px 10px 5px 36px', cursor: 'pointer',
-                                                                            fontSize: '0.78rem',
-                                                                            borderBottom: '1px solid #f8f9fa',
-                                                                            background: formProductoServicioId === p.id ? '#eff6ff' : undefined,
-                                                                            color: formProductoServicioId === p.id ? '#2563eb' : '#334155',
-                                                                            fontWeight: formProductoServicioId === p.id ? 600 : 400,
-                                                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                                                        }}
-                                                                        onMouseEnter={e => { if (formProductoServicioId !== p.id) e.currentTarget.style.background = '#f8fafc'; }}
-                                                                        onMouseLeave={e => { if (formProductoServicioId !== p.id) e.currentTarget.style.background = ''; }}
-                                                                    >
-                                                                        <span>{p.nombre}</span>
-                                                                        {formProductoServicioId === p.id && <CheckCircle size={14} color="#2563eb" />}
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        );
-                                                    })}
-
-                                                    {/* Standalone items (no group) */}
-                                                    {sinGrupo.sort((a, b) => a.nombre.localeCompare(b.nombre)).map(p => (
-                                                        <div
-                                                            key={p.id}
-                                                            onClick={() => setFormProductoServicioId(p.id)}
-                                                            style={{
-                                                                padding: '5px 10px', cursor: 'pointer',
-                                                                fontSize: '0.78rem',
-                                                                borderBottom: '1px solid #f8f9fa',
-                                                                background: formProductoServicioId === p.id ? '#eff6ff' : undefined,
-                                                                color: formProductoServicioId === p.id ? '#2563eb' : '#334155',
-                                                                fontWeight: formProductoServicioId === p.id ? 600 : 400,
-                                                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                                            }}
-                                                            onMouseEnter={e => { if (formProductoServicioId !== p.id) e.currentTarget.style.background = '#f8fafc'; }}
-                                                            onMouseLeave={e => { if (formProductoServicioId !== p.id) e.currentTarget.style.background = ''; }}
-                                                        >
-                                                            <span>{p.nombre}</span>
-                                                            {formProductoServicioId === p.id && <CheckCircle size={14} color="#2563eb" />}
-                                                        </div>
-                                                    ))}
-                                                </>
-                                            );
-                                        })()}
+                                        </span>
+                                        {formProductoServicioId && (
+                                            <CheckCircle size={14} style={{ color: '#1958E0', marginLeft: 'auto', flexShrink: 0 }} />
+                                        )}
                                     </div>
-                                    {formProductoServicioId && (
-                                        <div style={{ fontSize: '0.7rem', color: '#2563eb', marginTop: 4, fontWeight: 500 }}>
-                                            ✓ {productosServicio.find(p => p.id === formProductoServicioId)?.nombre}
-                                        </div>
+
+                                    {showProductSelector && (
+                                        <>
+                                            {/* Search */}
+                                            <div style={{ position: 'relative', marginBottom: '0.5rem' }}>
+                                                <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                                                <input
+                                                    className="form-input"
+                                                    placeholder="Buscar producto/servicio..."
+                                                    value={prodSearchFilter}
+                                                    onChange={e => setProdSearchFilter(e.target.value)}
+                                                    style={{ paddingLeft: 32, height: 36, fontSize: '0.8125rem' }}
+                                                />
+                                            </div>
+
+                                            {/* Accordion list */}
+                                            <div style={{
+                                                maxHeight: 300, overflowY: 'auto',
+                                                border: '1px solid #cbd5e1', borderRadius: 10,
+                                                background: '#f8f9fc',
+                                            }}>
+                                                {(() => {
+                                                    // Smart prefix-based auto-grouping (same as Proveedores)
+                                                    const productFolders: { label: string; items: ProductoServicio[] }[] = [];
+                                                    const productStandalones: ProductoServicio[] = [];
+
+                                                    const prefixMap = new Map<string, ProductoServicio[]>();
+                                                    for (const p of productosServicio) {
+                                                        const firstWord = p.nombre.split(/[\s\-\/]/)[0].trim();
+                                                        if (!firstWord) continue;
+                                                        const key = firstWord.toLowerCase();
+                                                        if (!prefixMap.has(key)) prefixMap.set(key, []);
+                                                        prefixMap.get(key)!.push(p);
+                                                    }
+
+                                                    const assigned = new Set<string>();
+                                                    const sortedPrefixes = [...prefixMap.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+
+                                                    for (const [prefix, items] of sortedPrefixes) {
+                                                        if (items.length >= 2) {
+                                                            const label = prefix.charAt(0).toUpperCase() + prefix.slice(1);
+                                                            productFolders.push({ label, items: items.sort((a, b) => a.nombre.localeCompare(b.nombre)) });
+                                                            items.forEach(i => assigned.add(i.id));
+                                                        }
+                                                    }
+
+                                                    productosServicio
+                                                        .filter(p => !assigned.has(p.id))
+                                                        .sort((a, b) => a.nombre.localeCompare(b.nombre))
+                                                        .forEach(p => productStandalones.push(p));
+
+                                                    return (
+                                                        <>
+                                                            {/* Folder groups */}
+                                                            {productFolders.map((folder, idx) => {
+                                                                const matchingItems = folder.items.filter(p =>
+                                                                    !prodSearchFilter || p.nombre.toLowerCase().includes(prodSearchFilter.toLowerCase())
+                                                                );
+                                                                if (matchingItems.length === 0) return null;
+                                                                const isOpen = expandedProductFolders.has(folder.label) || !!prodSearchFilter;
+                                                                const hasSelected = matchingItems.some(p => p.id === formProductoServicioId);
+                                                                return (
+                                                                    <div key={folder.label}>
+                                                                        {idx > 0 && <div style={{ height: 1, background: '#e2e8f0' }} />}
+                                                                        {/* Accordion header */}
+                                                                        <div
+                                                                            onClick={() => {
+                                                                                setExpandedProductFolders(prev => {
+                                                                                    const next = new Set(prev);
+                                                                                    if (next.has(folder.label)) next.delete(folder.label);
+                                                                                    else next.add(folder.label);
+                                                                                    return next;
+                                                                                });
+                                                                            }}
+                                                                            style={{
+                                                                                display: 'flex', alignItems: 'center', gap: 8,
+                                                                                padding: '0.6rem 0.75rem', cursor: 'pointer',
+                                                                                background: hasSelected ? 'rgba(25,88,224,0.08)' : 'transparent',
+                                                                                transition: 'background 0.15s ease',
+                                                                            }}
+                                                                        >
+                                                                            {isOpen
+                                                                                ? <ChevronDown size={14} style={{ color: '#1958E0', flexShrink: 0 }} />
+                                                                                : <ChevronRight size={14} style={{ color: '#94a3b8', flexShrink: 0 }} />
+                                                                            }
+                                                                            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a' }}>
+                                                                                {folder.label}
+                                                                            </span>
+                                                                            <span style={{
+                                                                                marginLeft: 'auto', fontSize: '0.6875rem', fontWeight: 500,
+                                                                                color: '#fff', background: hasSelected ? '#1958E0' : '#94a3b8',
+                                                                                padding: '0.1rem 0.45rem', borderRadius: 99, minWidth: 20, textAlign: 'center',
+                                                                            }}>
+                                                                                {matchingItems.length}
+                                                                            </span>
+                                                                        </div>
+                                                                        {/* Accordion body - chips */}
+                                                                        {isOpen && (
+                                                                            <div style={{
+                                                                                padding: '0.375rem 0.75rem 0.5rem 2rem',
+                                                                                display: 'flex', flexWrap: 'wrap', gap: '0.3rem',
+                                                                                background: '#fff',
+                                                                                borderTop: '1px solid #e2e8f0',
+                                                                            }}>
+                                                                                {matchingItems.sort((a, b) => a.nombre.localeCompare(b.nombre)).map(p => {
+                                                                                    const sel = formProductoServicioId === p.id;
+                                                                                    return (
+                                                                                        <button
+                                                                                            key={p.id} type="button"
+                                                                                            onClick={() => setFormProductoServicioId(sel ? '' : p.id)}
+                                                                                            style={{
+                                                                                                padding: '0.25rem 0.6rem', borderRadius: 14,
+                                                                                                fontSize: '0.75rem', fontWeight: sel ? 600 : 400,
+                                                                                                border: sel ? '2px solid #1958E0' : '1px solid #cbd5e1',
+                                                                                                background: sel ? '#1958E0' : '#f1f5f9',
+                                                                                                color: sel ? '#fff' : '#334155',
+                                                                                                cursor: 'pointer', transition: 'all 0.15s ease',
+                                                                                            }}
+                                                                                        >{p.nombre}</button>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })}
+
+                                                            {/* Standalone items */}
+                                                            {productStandalones
+                                                                .filter(p => !prodSearchFilter || p.nombre.toLowerCase().includes(prodSearchFilter.toLowerCase()))
+                                                                .map((p, idx) => {
+                                                                    const sel = formProductoServicioId === p.id;
+                                                                    return (
+                                                                        <div key={p.id}>
+                                                                            {(productFolders.length > 0 || idx > 0) && <div style={{ height: 1, background: '#e2e8f0' }} />}
+                                                                            <div
+                                                                                onClick={() => setFormProductoServicioId(sel ? '' : p.id)}
+                                                                                style={{
+                                                                                    padding: '0.6rem 0.75rem', cursor: 'pointer',
+                                                                                    display: 'flex', alignItems: 'center', gap: 8,
+                                                                                    background: sel ? 'rgba(25,88,224,0.08)' : 'transparent',
+                                                                                    transition: 'background 0.15s ease',
+                                                                                }}
+                                                                            >
+                                                                                {sel
+                                                                                    ? <div style={{ width: 14, height: 14, borderRadius: 99, background: '#1958E0', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                                                        <div style={{ width: 6, height: 6, borderRadius: 99, background: '#fff' }} />
+                                                                                    </div>
+                                                                                    : <div style={{ width: 14, height: 14, borderRadius: 99, border: '2px solid #cbd5e1', flexShrink: 0 }} />
+                                                                                }
+                                                                                <span style={{
+                                                                                    fontSize: '0.8125rem', fontWeight: sel ? 600 : 400,
+                                                                                    color: sel ? '#1958E0' : '#334155',
+                                                                                }}>{p.nombre}</span>
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                        </>
+                                                    );
+                                                })()}
+                                            </div>
+                                        </>
                                     )}
                                 </div>
                                 <div className="form-group">
