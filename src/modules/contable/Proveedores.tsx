@@ -150,7 +150,7 @@ export default function Proveedores() {
                 .order('grupo', { nullsFirst: false })
                 .order('nombre'),
         ]);
-        setProveedores((provs || []) as Proveedor[]);
+        setProveedores((provs || []) as unknown as Proveedor[]);
         setProductos((prods || []) as ProductoServicio[]);
 
         // Load activity stats
