@@ -186,6 +186,27 @@ export default function ComprobanteForm({ onSuccess }: Props) {
         const tipoCambioNum = moneda === 'USD' ? parseFloat(tipoCambio) || 1 : null;
         const montoArs = moneda === 'USD' ? totalFinal * (tipoCambioNum || 1) : totalFinal;
 
+        // If Remito, auto-generate PDF and upload to Storage
+        let pdfUrl: string | null = null;
+        if (isRemito) {
+            try {
+                const doc = generateRemitoPdf();
+                const pdfBlob = doc.output('blob');
+                const fileName = `remitos/${tenant.id}/${Date.now()}_Remito_${(numero || 'SN').replace(/[^a-zA-Z0-9-_]/g, '')}_${fecha}.pdf`;
+                const { error: upErr } = await supabase.storage
+                    .from('comprobantes-pdf')
+                    .upload(fileName, pdfBlob, { contentType: 'application/pdf', upsert: false });
+                if (upErr) {
+                    console.warn('[Remito] Storage upload error:', upErr);
+                } else {
+                    const { data: urlData } = supabase.storage.from('comprobantes-pdf').getPublicUrl(fileName);
+                    pdfUrl = urlData.publicUrl;
+                }
+            } catch (pdfErr) {
+                console.warn('[Remito] PDF generation error:', pdfErr);
+            }
+        }
+
         const payload = {
             tenant_id: tenant.id,
             tipo,
@@ -198,25 +219,28 @@ export default function ComprobanteForm({ onSuccess }: Props) {
             producto_servicio_id: productoId || (lineas.length === 1 && lineas[0].producto_servicio_id ? lineas[0].producto_servicio_id : null),
             centro_costo_id: centroCostoId || null,
             moneda,
-            monto_original: totalFinal,
+            monto_original: isRemito ? 0 : totalFinal,
             tipo_cambio: tipoCambioNum,
-            monto_ars: montoArs,
-            lineas: lineas.map(l => ({
-                producto_servicio_id: l.producto_servicio_id || null,
-                descripcion: l.descripcion,
-                cantidad: l.cantidad,
-                precio_unitario: l.precio_unitario,
-                iva_porcentaje: l.iva_porcentaje,
-                subtotal: l.cantidad * l.precio_unitario,
-                iva: l.cantidad * l.precio_unitario * l.iva_porcentaje / 100,
-                total: l.cantidad * l.precio_unitario * (1 + l.iva_porcentaje / 100),
-            })),
-            descripcion: descripcion.trim() || null,
+            monto_ars: isRemito ? 0 : montoArs,
+            lineas: isRemito
+                ? remItems.map(i => ({ descripcion: i.descripcion, cantidad: i.cantidad, unidad: i.unidad }))
+                : lineas.map(l => ({
+                    producto_servicio_id: l.producto_servicio_id || null,
+                    descripcion: l.descripcion,
+                    cantidad: l.cantidad,
+                    precio_unitario: l.precio_unitario,
+                    iva_porcentaje: l.iva_porcentaje,
+                    subtotal: l.cantidad * l.precio_unitario,
+                    iva: l.cantidad * l.precio_unitario * l.iva_porcentaje / 100,
+                    total: l.cantidad * l.precio_unitario * (1 + l.iva_porcentaje / 100),
+                })),
+            descripcion: descripcion.trim() || (isRemito ? `Remito ${numero || ''}`.trim() : null),
             observaciones: observaciones.trim() || null,
             estado: 'pendiente' as const,
             clasificacion_score: 100,
             clasificado_por: 'manual',
-            source: 'manual',
+            source: isRemito ? 'remito' : 'manual',
+            pdf_url: pdfUrl,
         };
 
         const { error: err } = await supabase.from('contable_comprobantes').insert(payload);
