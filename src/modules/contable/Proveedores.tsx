@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
-import { Search, Plus, Edit2, AlertTriangle, X, Save, Trash2, Loader, Globe, ChevronDown, ChevronRight, Download, Clock, FileText, Filter } from 'lucide-react';
+import { Search, Plus, Edit2, AlertTriangle, X, Save, Trash2, Loader, Globe, ChevronDown, ChevronRight, Download, Clock, FileText, Filter, Eye } from 'lucide-react';
 
 // --- Types ---
 
@@ -41,6 +41,7 @@ interface ComprobanteResumen {
     monto_ars: number;
     estado: string;
     descripcion: string | null;
+    pdf_url: string | null;
 }
 
 /** Shape returned by the ARCA n8n webhook */
@@ -209,7 +210,7 @@ export default function Proveedores() {
         setDetailLoading(true);
         const { data } = await supabase
             .from('contable_comprobantes')
-            .select('id, fecha, tipo_comprobante, numero_comprobante, monto_ars, estado, descripcion')
+            .select('id, fecha, tipo_comprobante, numero_comprobante, monto_ars, estado, descripcion, pdf_url')
             .eq('proveedor_id', p.id)
             .order('fecha', { ascending: false })
             .limit(20);
@@ -1076,6 +1077,21 @@ export default function Proveedores() {
                                                         <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', flexShrink: 0 }}>
                                                             ${Number(c.monto_ars || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                                                         </div>
+                                                        {c.pdf_url && (
+                                                            <a
+                                                                href={c.pdf_url.trim()}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                style={{
+                                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                    width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+                                                                    background: '#eff6ff', border: '1px solid #bfdbfe',
+                                                                }}
+                                                                title="Ver PDF"
+                                                            >
+                                                                <Eye size={14} color="#2563eb" />
+                                                            </a>
+                                                        )}
                                                     </div>
                                                 ))}
                                             </div>
