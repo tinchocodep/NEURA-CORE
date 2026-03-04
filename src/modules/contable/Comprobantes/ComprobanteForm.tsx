@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Plus, Trash2, Save, ChevronDown, ChevronRight, CheckCircle } from 'lucide-react';
+import { Plus, Trash2, Save, ChevronDown, ChevronRight, CheckCircle, Download, Mail, Loader } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useTenant } from '../../../contexts/TenantContext';
+import jsPDF from 'jspdf';
 
 /* ─── Types ─────────────────────────────────────────── */
 
@@ -29,8 +30,10 @@ const TIPOS_COMPROBANTE = [
     'Factura A', 'Factura B', 'Factura C',
     'Nota de Crédito A', 'Nota de Crédito B', 'Nota de Crédito C',
     'Nota de Débito A', 'Nota de Débito B', 'Nota de Débito C',
-    'Recibo', 'Otro',
+    'Recibo', 'Remito', 'Otro',
 ];
+
+interface RemItem { id: string; descripcion: string; cantidad: number; unidad: string; }
 
 const IVA_OPTIONS = [
     { value: 21, label: '21%' },
@@ -96,6 +99,16 @@ export default function ComprobanteForm({ onSuccess }: Props) {
     const [showLineas, setShowLineas] = useState(true);
     const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
     const [prodSearch, setProdSearch] = useState('');
+
+    // Remito-specific state
+    const [remDireccion, setRemDireccion] = useState('');
+    const [remTransportista, setRemTransportista] = useState('');
+    const [remItems, setRemItems] = useState<RemItem[]>([{ id: newId(), descripcion: '', cantidad: 1, unidad: 'UN' }]);
+    const [remSending, setRemSending] = useState(false);
+    const [remSent, setRemSent] = useState(false);
+    const [remEmail, setRemEmail] = useState('');
+
+    const isRemito = tipoComp === 'Remito';
 
     /* Load catalogs */
     useEffect(() => {
@@ -221,10 +234,131 @@ export default function ComprobanteForm({ onSuccess }: Props) {
         onSuccess?.();
     };
 
+    /* ─── Remito helpers ─── */
+    const addRemItem = () => setRemItems(prev => [...prev, { id: newId(), descripcion: '', cantidad: 1, unidad: 'UN' }]);
+    const removeRemItem = (id: string) => { if (remItems.length > 1) setRemItems(prev => prev.filter(i => i.id !== id)); };
+    const updateRemItem = (id: string, field: keyof RemItem, value: string | number) => setRemItems(prev => prev.map(i => i.id === id ? { ...i, [field]: value } : i));
+
+    const generateRemitoPdf = () => {
+        const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+        const w = doc.internal.pageSize.getWidth();
+        const entityName = selectedEntity?.razon_social || '—';
+        const entityCuit = selectedEntity ? ('cuit' in selectedEntity ? selectedEntity.cuit : '') : '';
+
+        // Header
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text('REMITO', w / 2, 25, { align: 'center' });
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`N°: ${numero || 'S/N'}`, w - 20, 25, { align: 'right' });
+        doc.text(`Fecha: ${fecha}`, w - 20, 31, { align: 'right' });
+
+        // Destinatario box
+        doc.setDrawColor(200);
+        doc.rect(15, 40, w - 30, 30);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.text('DESTINATARIO', 20, 47);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.text(entityName, 20, 54);
+        if (entityCuit) doc.text(`CUIT: ${entityCuit}`, 20, 60);
+        if (remDireccion) doc.text(`Dirección: ${remDireccion}`, 20, 66);
+
+        // Transportista
+        if (remTransportista) {
+            doc.rect(15, 75, w - 30, 12);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(9);
+            doc.text('TRANSPORTISTA', 20, 82);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(10);
+            doc.text(remTransportista, 60, 82);
+        }
+
+        // Items table
+        const tableTop = remTransportista ? 95 : 80;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.setFillColor(240, 240, 240);
+        doc.rect(15, tableTop, w - 30, 8, 'F');
+        doc.text('CANT.', 20, tableTop + 6);
+        doc.text('UNIDAD', 45, tableTop + 6);
+        doc.text('DESCRIPCIÓN', 75, tableTop + 6);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        let y = tableTop + 14;
+        remItems.forEach(item => {
+            if (item.descripcion || item.cantidad) {
+                doc.text(String(item.cantidad), 20, y);
+                doc.text(item.unidad, 45, y);
+                doc.text(item.descripcion, 75, y);
+                y += 7;
+            }
+        });
+
+        // Line separator
+        doc.setDrawColor(200);
+        doc.line(15, y + 2, w - 15, y + 2);
+
+        // Observations
+        if (observaciones) {
+            y += 10;
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'bold');
+            doc.text('OBSERVACIONES:', 20, y);
+            doc.setFont('helvetica', 'normal');
+            doc.text(observaciones, 20, y + 6);
+            y += 16;
+        }
+
+        // Signature lines
+        const sigY = Math.max(y + 20, 240);
+        doc.line(25, sigY, 90, sigY);
+        doc.line(w - 90, sigY, w - 25, sigY);
+        doc.setFontSize(8);
+        doc.text('Firma y aclaración (entregó)', 30, sigY + 5);
+        doc.text('Firma y aclaración (recibió)', w - 88, sigY + 5);
+
+        return doc;
+    };
+
+    const handleDownloadRemitoPdf = () => {
+        const doc = generateRemitoPdf();
+        doc.save(`Remito_${numero || 'SN'}_${fecha}.pdf`);
+    };
+
+    const handleSendRemitoEmail = async () => {
+        if (!remEmail) return;
+        setRemSending(true);
+        try {
+            const doc = generateRemitoPdf();
+            const pdfBase64 = doc.output('datauristring');
+            await fetch('/api/n8n-remito-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    to: remEmail,
+                    subject: `Remito ${numero || 'S/N'} — ${fecha}`,
+                    pdfBase64,
+                    filename: `Remito_${numero || 'SN'}_${fecha}.pdf`,
+                }),
+            });
+            setRemSent(true);
+            setTimeout(() => setRemSent(false), 3000);
+        } catch (err) {
+            console.error('[Remito] Email error:', err);
+        }
+        setRemSending(false);
+    };
+
     /* ─── Render ─────────────────────────────────────── */
 
     return (
-        <div style={{ maxWidth: 860, margin: '0 auto' }}>
+        <div style={{ maxWidth: isRemito ? 1200 : 860, margin: '0 auto' }}>
 
             {/* Success banner */}
             {success && (
@@ -361,195 +495,335 @@ export default function ComprobanteForm({ onSuccess }: Props) {
                 )}
             </div>
 
-            {/* ── SECCIÓN 3: Clasificación ── */}
-            <div className="card" style={{ padding: '1.5rem', marginBottom: '1rem' }}>
-                <div style={{ fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-text-muted)', marginBottom: '1.25rem' }}>
-                    Clasificación
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <div className="form-group">
-                        <label className="form-label">Producto / Servicio</label>
-                        <div style={{ position: 'relative' }}>
-                            <input
-                                className="form-input"
-                                placeholder="Buscar producto o servicio..."
-                                value={prodSearch || productos.find(p => p.id === productoId)?.nombre || ''}
-                                onChange={e => { setProdSearch(e.target.value); setProductoId(''); }}
-                                onFocus={() => setProdSearch(prev => prev || (productos.find(p => p.id === productoId)?.nombre ?? ''))}
-                            />
-                            {prodSearch && !productoId && (
-                                <div style={{
-                                    position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 50,
-                                    background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)',
-                                    borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg)',
-                                    maxHeight: 240, overflowY: 'auto',
-                                }}>
-                                    {Object.entries(productGroups).map(([group, items]) => (
-                                        <div key={group}>
-                                            <div
-                                                style={{ padding: '0.375rem 0.75rem', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--color-text-muted)', background: 'var(--color-bg-surface-2)', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
-                                                onClick={() => setExpandedGroups(prev => { const n = new Set(prev); n.has(group) ? n.delete(group) : n.add(group); return n; })}
-                                            >
-                                                {expandedGroups.has(group) ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
-                                                {group}
-                                            </div>
-                                            {(expandedGroups.has(group) || Object.keys(productGroups).length === 1) && items.map(p => (
-                                                <div
-                                                    key={p.id}
-                                                    style={{ padding: '0.5rem 1.25rem', fontSize: '0.8125rem', cursor: 'pointer', borderBottom: '1px solid var(--color-border-subtle)' }}
-                                                    className="nav-item-hover"
-                                                    onMouseDown={() => { setProductoId(p.id); setProdSearch(''); }}
-                                                >
-                                                    {p.nombre}
+            {/* ── SECTIONS 3-5: Normal comprobante (hide when Remito) ── */}
+            {!isRemito && (
+                <>
+                    {/* ── SECCIÓN 3: Clasificación ── */}
+                    <div className="card" style={{ padding: '1.5rem', marginBottom: '1rem' }}>
+                        <div style={{ fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-text-muted)', marginBottom: '1.25rem' }}>
+                            Clasificación
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                            <div className="form-group">
+                                <label className="form-label">Producto / Servicio</label>
+                                <div style={{ position: 'relative' }}>
+                                    <input
+                                        className="form-input"
+                                        placeholder="Buscar producto o servicio..."
+                                        value={prodSearch || productos.find(p => p.id === productoId)?.nombre || ''}
+                                        onChange={e => { setProdSearch(e.target.value); setProductoId(''); }}
+                                        onFocus={() => setProdSearch(prev => prev || (productos.find(p => p.id === productoId)?.nombre ?? ''))}
+                                    />
+                                    {prodSearch && !productoId && (
+                                        <div style={{
+                                            position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 50,
+                                            background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)',
+                                            borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg)',
+                                            maxHeight: 240, overflowY: 'auto',
+                                        }}>
+                                            {Object.entries(productGroups).map(([group, items]) => (
+                                                <div key={group}>
+                                                    <div
+                                                        style={{ padding: '0.375rem 0.75rem', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--color-text-muted)', background: 'var(--color-bg-surface-2)', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
+                                                        onClick={() => setExpandedGroups(prev => { const n = new Set(prev); n.has(group) ? n.delete(group) : n.add(group); return n; })}
+                                                    >
+                                                        {expandedGroups.has(group) ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+                                                        {group}
+                                                    </div>
+                                                    {(expandedGroups.has(group) || Object.keys(productGroups).length === 1) && items.map(p => (
+                                                        <div
+                                                            key={p.id}
+                                                            style={{ padding: '0.5rem 1.25rem', fontSize: '0.8125rem', cursor: 'pointer', borderBottom: '1px solid var(--color-border-subtle)' }}
+                                                            className="nav-item-hover"
+                                                            onMouseDown={() => { setProductoId(p.id); setProdSearch(''); }}
+                                                        >
+                                                            {p.nombre}
+                                                        </div>
+                                                    ))}
                                                 </div>
                                             ))}
                                         </div>
-                                    ))}
+                                    )}
                                 </div>
-                            )}
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Centro de Costo</label>
+                                <select className="form-input" value={centroCostoId} onChange={e => setCentroId(e.target.value)}>
+                                    <option value="">Sin asignar</option>
+                                    {centros.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                                </select>
+                            </div>
+                            <div className="form-group" style={{ gridColumn: '1/-1' }}>
+                                <label className="form-label">Descripción</label>
+                                <input className="form-input" placeholder="Ej: Servicios de consultoría — Enero 2025" value={descripcion} onChange={e => setDescripcion(e.target.value)} />
+                            </div>
                         </div>
                     </div>
-                    <div className="form-group">
-                        <label className="form-label">Centro de Costo</label>
-                        <select className="form-input" value={centroCostoId} onChange={e => setCentroId(e.target.value)}>
-                            <option value="">Sin asignar</option>
-                            {centros.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                        </select>
-                    </div>
-                    <div className="form-group" style={{ gridColumn: '1/-1' }}>
-                        <label className="form-label">Descripción</label>
-                        <input className="form-input" placeholder="Ej: Servicios de consultoría — Enero 2025" value={descripcion} onChange={e => setDescripcion(e.target.value)} />
-                    </div>
-                </div>
-            </div>
 
-            {/* ── SECCIÓN 4: Líneas de Detalle ── */}
-            <div className="card" style={{ padding: '1.5rem', marginBottom: '1rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                    <button
-                        type="button"
-                        style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-text-muted)' }}
-                        onClick={() => setShowLineas(s => !s)}
-                    >
-                        {showLineas ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                        Líneas de Detalle ({lineas.length})
-                    </button>
-                    {showLineas && (
-                        <button type="button" className="btn btn-secondary btn-sm" onClick={addLinea}>
-                            <Plus size={13} /> Agregar línea
+                    {/* ── SECCIÓN 4: Líneas de Detalle ── */}
+                    <div className="card" style={{ padding: '1.5rem', marginBottom: '1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                            <button
+                                type="button"
+                                style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-text-muted)' }}
+                                onClick={() => setShowLineas(s => !s)}
+                            >
+                                {showLineas ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                Líneas de Detalle ({lineas.length})
+                            </button>
+                            {showLineas && (
+                                <button type="button" className="btn btn-secondary btn-sm" onClick={addLinea}>
+                                    <Plus size={13} /> Agregar línea
+                                </button>
+                            )}
+                        </div>
+
+                        {showLineas && (
+                            <>
+                                {/* Header row */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '3fr 80px 120px 90px 30px', gap: '0.5rem', padding: '0 0 0.375rem', borderBottom: '1px solid var(--color-border-subtle)', marginBottom: '0.5rem' }}>
+                                    {['Descripción', 'Cant.', 'Precio Unit.', 'IVA', ''].map(h => (
+                                        <div key={h} style={{ fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--color-text-muted)' }}>{h}</div>
+                                    ))}
+                                </div>
+
+                                {lineas.map((l, i) => (
+                                    <div key={l.id} style={{ display: 'grid', gridTemplateColumns: '3fr 80px 120px 90px 30px', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'center' }}>
+                                        <input className="form-input" placeholder={`Línea ${i + 1}`} value={l.descripcion} onChange={e => updateLinea(l.id, 'descripcion', e.target.value)} style={{ fontSize: '0.8125rem' }} tabIndex={0} />
+                                        <input type="number" className="form-input" min={1} value={l.cantidad} onChange={e => updateLinea(l.id, 'cantidad', parseFloat(e.target.value) || 1)} style={{ fontSize: '0.8125rem', textAlign: 'right', fontFamily: 'var(--font-mono)' }} />
+                                        <input type="number" className="form-input" min={0} step={0.01} value={l.precio_unitario === 0 ? '' : l.precio_unitario} placeholder="0.00" onChange={e => updateLinea(l.id, 'precio_unitario', parseFloat(e.target.value) || 0)} style={{ fontSize: '0.8125rem', textAlign: 'right', fontFamily: 'var(--font-mono)' }} />
+                                        <select className="form-input" value={l.iva_porcentaje} onChange={e => updateLinea(l.id, 'iva_porcentaje', parseFloat(e.target.value))} style={{ fontSize: '0.8125rem' }}>
+                                            {IVA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                        </select>
+                                        <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => removeLinea(l.id)} disabled={lineas.length <= 1} title="Eliminar línea">
+                                            <Trash2 size={13} color="var(--color-danger)" />
+                                        </button>
+                                    </div>
+                                ))}
+
+                                {/* Totals */}
+                                <div style={{ borderTop: '1px solid var(--color-border-subtle)', marginTop: '0.75rem', paddingTop: '0.75rem', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem', fontSize: '0.875rem' }}>
+                                    <div style={{ display: 'flex', gap: '2rem' }}>
+                                        <span style={{ color: 'var(--color-text-muted)' }}>Subtotal</span>
+                                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, minWidth: 120, textAlign: 'right' }}>{fmt(subtotal)}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '2rem' }}>
+                                        <span style={{ color: 'var(--color-text-muted)' }}>IVA</span>
+                                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, minWidth: 120, textAlign: 'right' }}>{fmt(totalIva)}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '2rem', borderTop: '2px solid var(--color-border)', paddingTop: '0.375rem', marginTop: '0.25rem' }}>
+                                        <span style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>Total</span>
+                                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '1.125rem', color: 'var(--color-text-primary)', minWidth: 120, textAlign: 'right' }}>
+                                            {moneda === 'USD' && tipoCambio
+                                                ? `USD ${totalFinal.toLocaleString('es-AR', { minimumFractionDigits: 2 })} → ${fmt(totalFinal * parseFloat(tipoCambio || '1'))}`
+                                                : fmt(totalFinal)
+                                            }
+                                        </span>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    {/* ── SECCIÓN 5: Observaciones ── */}
+                    <div className="card" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
+                        <div className="form-group">
+                            <label className="form-label">Observaciones internas (opcional)</label>
+                            <textarea
+                                className="form-input"
+                                rows={2}
+                                placeholder="Notas internas, referencia de pedido de compra, etc."
+                                value={observaciones}
+                                onChange={e => setObs(e.target.value)}
+                                style={{ resize: 'vertical', fontFamily: 'var(--font-sans)' }}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+                        <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={handleSave}
+                            disabled={saving}
+                            style={{ minWidth: 160 }}
+                        >
+                            <Save size={15} />
+                            {saving ? 'Guardando...' : 'Guardar Comprobante'}
                         </button>
-                    )}
-                </div>
+                    </div>
+                </>
+            )}
 
-                {showLineas && (
-                    <>
-                        {/* Header row */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '3fr 80px 120px 90px 30px', gap: '0.5rem', padding: '0 0 0.375rem', borderBottom: '1px solid var(--color-border-subtle)', marginBottom: '0.5rem' }}>
-                            {['Descripción', 'Cant.', 'Precio Unit.', 'IVA', ''].map(h => (
-                                <div key={h} style={{ fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--color-text-muted)' }}>{h}</div>
+            {/* ═══════════════════════════════════════════════════ */}
+            {/* ══ REMITO MODE: 2-column layout (form + preview) ══ */}
+            {/* ═══════════════════════════════════════════════════ */}
+            {isRemito && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '0.5rem' }}>
+
+                    {/* ── LEFT: Remito Form ── */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+                        {/* Dirección de entrega */}
+                        <div className="card" style={{ padding: '1.25rem' }}>
+                            <div style={{ fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
+                                Datos del Remito
+                            </div>
+                            <div className="form-group" style={{ marginBottom: '0.75rem' }}>
+                                <label className="form-label">Dirección de entrega</label>
+                                <input className="form-input" placeholder="Av. Corrientes 1234, CABA" value={remDireccion} onChange={e => setRemDireccion(e.target.value)} />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Transportista</label>
+                                <input className="form-input" placeholder="Nombre del transportista o empresa" value={remTransportista} onChange={e => setRemTransportista(e.target.value)} />
+                            </div>
+                        </div>
+
+                        {/* Items */}
+                        <div className="card" style={{ padding: '1.25rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                                <div style={{ fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-text-muted)' }}>
+                                    Ítems ({remItems.length})
+                                </div>
+                                <button type="button" className="btn btn-secondary btn-sm" onClick={addRemItem}>
+                                    <Plus size={13} /> Agregar
+                                </button>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '3fr 70px 70px 28px', gap: '0.5rem', padding: '0 0 0.375rem', borderBottom: '1px solid var(--color-border-subtle)', marginBottom: '0.5rem' }}>
+                                {['Descripción', 'Cant.', 'Unidad', ''].map(h => (
+                                    <div key={h} style={{ fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--color-text-muted)' }}>{h}</div>
+                                ))}
+                            </div>
+                            {remItems.map((item, i) => (
+                                <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '3fr 70px 70px 28px', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'center' }}>
+                                    <input className="form-input" placeholder={`Ítem ${i + 1}`} value={item.descripcion} onChange={e => updateRemItem(item.id, 'descripcion', e.target.value)} style={{ fontSize: '0.8125rem' }} />
+                                    <input type="number" className="form-input" min={1} value={item.cantidad} onChange={e => updateRemItem(item.id, 'cantidad', parseFloat(e.target.value) || 1)} style={{ fontSize: '0.8125rem', textAlign: 'right', fontFamily: 'var(--font-mono)' }} />
+                                    <select className="form-input" value={item.unidad} onChange={e => updateRemItem(item.id, 'unidad', e.target.value)} style={{ fontSize: '0.8125rem' }}>
+                                        {['UN', 'KG', 'LT', 'MT', 'M2', 'M3', 'CM', 'PAR', 'JUEGO', 'CAJA', 'BOLSA', 'ROLLO'].map(u => <option key={u} value={u}>{u}</option>)}
+                                    </select>
+                                    <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => removeRemItem(item.id)} disabled={remItems.length <= 1} title="Eliminar">
+                                        <Trash2 size={13} color="var(--color-danger)" />
+                                    </button>
+                                </div>
                             ))}
                         </div>
 
-                        {lineas.map((l, i) => (
-                            <div key={l.id} style={{ display: 'grid', gridTemplateColumns: '3fr 80px 120px 90px 30px', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'center' }}>
-                                <input
-                                    className="form-input"
-                                    placeholder={`Línea ${i + 1}`}
-                                    value={l.descripcion}
-                                    onChange={e => updateLinea(l.id, 'descripcion', e.target.value)}
-                                    style={{ fontSize: '0.8125rem' }}
-                                    tabIndex={0}
-                                />
-                                <input
-                                    type="number"
-                                    className="form-input"
-                                    min={1}
-                                    value={l.cantidad}
-                                    onChange={e => updateLinea(l.id, 'cantidad', parseFloat(e.target.value) || 1)}
-                                    style={{ fontSize: '0.8125rem', textAlign: 'right', fontFamily: 'var(--font-mono)' }}
-                                />
-                                <input
-                                    type="number"
-                                    className="form-input"
-                                    min={0}
-                                    step={0.01}
-                                    value={l.precio_unitario === 0 ? '' : l.precio_unitario}
-                                    placeholder="0.00"
-                                    onChange={e => updateLinea(l.id, 'precio_unitario', parseFloat(e.target.value) || 0)}
-                                    style={{ fontSize: '0.8125rem', textAlign: 'right', fontFamily: 'var(--font-mono)' }}
-                                />
-                                <select
-                                    className="form-input"
-                                    value={l.iva_porcentaje}
-                                    onChange={e => updateLinea(l.id, 'iva_porcentaje', parseFloat(e.target.value))}
-                                    style={{ fontSize: '0.8125rem' }}
-                                >
-                                    {IVA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                </select>
-                                <button
-                                    type="button"
-                                    className="btn btn-ghost btn-icon btn-sm"
-                                    onClick={() => removeLinea(l.id)}
-                                    disabled={lineas.length <= 1}
-                                    title="Eliminar línea"
-                                >
-                                    <Trash2 size={13} color="var(--color-danger)" />
-                                </button>
-                            </div>
-                        ))}
-
-                        {/* Totals */}
-                        <div style={{ borderTop: '1px solid var(--color-border-subtle)', marginTop: '0.75rem', paddingTop: '0.75rem', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem', fontSize: '0.875rem' }}>
-                            <div style={{ display: 'flex', gap: '2rem' }}>
-                                <span style={{ color: 'var(--color-text-muted)' }}>Subtotal</span>
-                                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, minWidth: 120, textAlign: 'right' }}>{fmt(subtotal)}</span>
-                            </div>
-                            <div style={{ display: 'flex', gap: '2rem' }}>
-                                <span style={{ color: 'var(--color-text-muted)' }}>IVA</span>
-                                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, minWidth: 120, textAlign: 'right' }}>{fmt(totalIva)}</span>
-                            </div>
-                            <div style={{ display: 'flex', gap: '2rem', borderTop: '2px solid var(--color-border)', paddingTop: '0.375rem', marginTop: '0.25rem' }}>
-                                <span style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>Total</span>
-                                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '1.125rem', color: 'var(--color-text-primary)', minWidth: 120, textAlign: 'right' }}>
-                                    {moneda === 'USD' && tipoCambio
-                                        ? `USD ${totalFinal.toLocaleString('es-AR', { minimumFractionDigits: 2 })} → ${fmt(totalFinal * parseFloat(tipoCambio || '1'))}`
-                                        : fmt(totalFinal)
-                                    }
-                                </span>
+                        {/* Observations */}
+                        <div className="card" style={{ padding: '1.25rem' }}>
+                            <div className="form-group">
+                                <label className="form-label">Observaciones</label>
+                                <textarea className="form-input" rows={2} placeholder="Notas adicionales para el remito..." value={observaciones} onChange={e => setObs(e.target.value)} style={{ resize: 'vertical' }} />
                             </div>
                         </div>
-                    </>
-                )}
-            </div>
 
-            {/* ── SECCIÓN 5: Observaciones ── */}
-            <div className="card" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
-                <div className="form-group">
-                    <label className="form-label">Observaciones internas (opcional)</label>
-                    <textarea
-                        className="form-input"
-                        rows={2}
-                        placeholder="Notas internas, referencia de pedido de compra, etc."
-                        value={observaciones}
-                        onChange={e => setObs(e.target.value)}
-                        style={{ resize: 'vertical', fontFamily: 'var(--font-sans)' }}
-                    />
+                        {/* Email */}
+                        <div className="card" style={{ padding: '1.25rem' }}>
+                            <div className="form-group" style={{ marginBottom: '0.75rem' }}>
+                                <label className="form-label">Enviar por email</label>
+                                <input type="email" className="form-input" placeholder="destinatario@email.com" value={remEmail} onChange={e => setRemEmail(e.target.value)} />
+                            </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                            <button type="button" className="btn btn-secondary" onClick={handleDownloadRemitoPdf} style={{ flex: 1 }}>
+                                <Download size={15} /> Descargar PDF
+                            </button>
+                            <button type="button" className="btn btn-secondary" onClick={handleSendRemitoEmail} disabled={!remEmail || remSending} style={{ flex: 1 }}>
+                                {remSending ? <Loader size={15} className="spin" /> : <Mail size={15} />}
+                                {remSending ? 'Enviando...' : remSent ? '✓ Enviado' : 'Enviar Email'}
+                            </button>
+                            <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving} style={{ flex: 1 }}>
+                                <Save size={15} />
+                                {saving ? 'Guardando...' : 'Guardar Remito'}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* ── RIGHT: Live Preview ── */}
+                    <div style={{ position: 'sticky', top: '1rem', alignSelf: 'start' }}>
+                        <div style={{ fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-text-muted)', marginBottom: '0.75rem' }}>
+                            Vista previa
+                        </div>
+                        <div style={{
+                            background: '#fff', color: '#111', borderRadius: 'var(--radius-lg)',
+                            boxShadow: '0 4px 24px rgba(0,0,0,0.15)', padding: '2rem 2.25rem',
+                            fontFamily: "'Inter', 'Helvetica', sans-serif",
+                            aspectRatio: '210 / 297', maxHeight: '75vh', overflow: 'auto',
+                            border: '1px solid #e5e7eb',
+                        }}>
+                            {/* Header */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '2px solid #111', paddingBottom: '0.75rem' }}>
+                                <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, letterSpacing: '0.1em' }}>REMITO</h2>
+                                <div style={{ textAlign: 'right', fontSize: '0.8125rem' }}>
+                                    <div style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>N° {numero || 'S/N'}</div>
+                                    <div style={{ color: '#666' }}>Fecha: {fecha}</div>
+                                </div>
+                            </div>
+
+                            {/* Destinatario */}
+                            <div style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.875rem 1rem', marginBottom: '1rem' }}>
+                                <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#888', marginBottom: '0.375rem' }}>Destinatario</div>
+                                <div style={{ fontWeight: 700, fontSize: '0.9375rem' }}>{selectedEntity?.razon_social || '—'}</div>
+                                {selectedEntity && 'cuit' in selectedEntity && selectedEntity.cuit && (
+                                    <div style={{ fontSize: '0.8125rem', color: '#555', fontFamily: 'var(--font-mono)' }}>CUIT: {selectedEntity.cuit}</div>
+                                )}
+                                {remDireccion && <div style={{ fontSize: '0.8125rem', color: '#555', marginTop: 2 }}>📍 {remDireccion}</div>}
+                            </div>
+
+                            {/* Transportista */}
+                            {remTransportista && (
+                                <div style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.625rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem' }}>
+                                    <span style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#888' }}>Transportista: </span>
+                                    <span style={{ fontWeight: 600 }}>{remTransportista}</span>
+                                </div>
+                            )}
+
+                            {/* Items table */}
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem', marginBottom: '1rem' }}>
+                                <thead>
+                                    <tr style={{ background: '#f3f4f6', borderBottom: '1px solid #d1d5db' }}>
+                                        <th style={{ padding: '0.5rem 0.625rem', textAlign: 'left', fontWeight: 700, fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: '#666' }}>Cant.</th>
+                                        <th style={{ padding: '0.5rem 0.625rem', textAlign: 'left', fontWeight: 700, fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: '#666' }}>Unidad</th>
+                                        <th style={{ padding: '0.5rem 0.625rem', textAlign: 'left', fontWeight: 700, fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: '#666' }}>Descripción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {remItems.filter(i => i.descripcion || i.cantidad > 0).map((item, idx) => (
+                                        <tr key={item.id} style={{ borderBottom: '1px solid #e5e7eb', background: idx % 2 ? '#fafafa' : '#fff' }}>
+                                            <td style={{ padding: '0.5rem 0.625rem', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{item.cantidad}</td>
+                                            <td style={{ padding: '0.5rem 0.625rem', color: '#555' }}>{item.unidad}</td>
+                                            <td style={{ padding: '0.5rem 0.625rem' }}>{item.descripcion || <span style={{ color: '#ccc', fontStyle: 'italic' }}>Sin descripción</span>}</td>
+                                        </tr>
+                                    ))}
+                                    {remItems.filter(i => i.descripcion || i.cantidad > 0).length === 0 && (
+                                        <tr><td colSpan={3} style={{ padding: '1.5rem', textAlign: 'center', color: '#aaa', fontStyle: 'italic' }}>Agregá ítems al remito</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+
+                            {/* Observations */}
+                            {observaciones && (
+                                <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '0.75rem', marginBottom: '1rem' }}>
+                                    <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#888', marginBottom: '0.25rem' }}>Observaciones</div>
+                                    <div style={{ fontSize: '0.8125rem', color: '#555', whiteSpace: 'pre-wrap' }}>{observaciones}</div>
+                                </div>
+                            )}
+
+                            {/* Signature lines */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '2rem' }}>
+                                <div style={{ width: '40%', textAlign: 'center' }}>
+                                    <div style={{ borderTop: '1px solid #999', paddingTop: '0.375rem', fontSize: '0.6875rem', color: '#888' }}>Firma y aclaración (entregó)</div>
+                                </div>
+                                <div style={{ width: '40%', textAlign: 'center' }}>
+                                    <div style={{ borderTop: '1px solid #999', paddingTop: '0.375rem', fontSize: '0.6875rem', color: '#888' }}>Firma y aclaración (recibió)</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-
-            {/* Actions */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
-                <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={handleSave}
-                    disabled={saving}
-                    style={{ minWidth: 160 }}
-                >
-                    <Save size={15} />
-                    {saving ? 'Guardando...' : 'Guardar Comprobante'}
-                </button>
-            </div>
+            )}
         </div>
     );
 }
