@@ -268,7 +268,10 @@ export default function Layout() {
             </main>
 
             {/* ──────────────── AGENT MONITOR ──────────────── */}
-            <AgentMonitorPanel />
+            <AgentMonitorPanel
+                collapsed={agentCollapsed}
+                onToggle={() => setAgentCollapsed(c => !c)}
+            />
         </div>
     );
 }

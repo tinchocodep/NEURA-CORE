@@ -1,8 +1,6 @@
-import { useState } from 'react';
 import { Zap, ChevronLeft, ChevronRight, ShieldCheck, Clock, ShieldX, WifiOff, Activity } from 'lucide-react';
 import { useAgentStream } from './useAgentStream';
 import type { AfipApiStatus } from './useAgentStream';
-
 
 const AFIP_ICON: Record<AfipApiStatus, { icon: typeof ShieldCheck; color: string; label: string }> = {
     ok: { icon: ShieldCheck, color: 'var(--color-afip-ok)', label: 'AFIP Online' },
@@ -11,17 +9,20 @@ const AFIP_ICON: Record<AfipApiStatus, { icon: typeof ShieldCheck; color: string
     offline: { icon: WifiOff, color: 'var(--color-afip-offline)', label: 'AFIP Offline' },
 };
 
-const STATUS_COLORS = {
+const STATUS_COLORS: Record<string, string> = {
     running: 'var(--color-accent)',
     done: 'var(--color-success)',
     error: 'var(--color-danger)',
     queued: 'var(--color-warning)',
 };
 
-export default function AgentMonitorPanel() {
-    const [collapsed, setCollapsed] = useState(false);
-    const { tasks, afipStatus, activeCount } = useAgentStream();
+interface Props {
+    collapsed: boolean;
+    onToggle: () => void;
+}
 
+export default function AgentMonitorPanel({ collapsed, onToggle }: Props) {
+    const { tasks, afipStatus, activeCount } = useAgentStream();
     const afipCfg = AFIP_ICON[afipStatus];
     const AfipIcon = afipCfg.icon;
 
@@ -31,11 +32,12 @@ export default function AgentMonitorPanel() {
             role="complementary"
             aria-label="Neura Agent Monitor"
         >
-            {/* Header */}
+            {/* Toggle header */}
             <div
                 className="agent-panel-header"
-                onClick={() => setCollapsed(c => !c)}
-                title={collapsed ? 'Expandir Monitor' : 'Colapsar Monitor'}
+                onClick={onToggle}
+                title={collapsed ? 'Expandir Monitor (⌘J)' : 'Colapsar Monitor (⌘J)'}
+                style={{ cursor: 'pointer' }}
             >
                 <span className={`agent-pulse${activeCount === 0 ? ' idle' : ''}`} />
                 {!collapsed && (
@@ -49,7 +51,7 @@ export default function AgentMonitorPanel() {
                 </span>
             </div>
 
-            {/* Task Feed */}
+            {/* Task Feed (only when expanded) */}
             {!collapsed && (
                 <>
                     <div className="agent-feed">
@@ -64,7 +66,7 @@ export default function AgentMonitorPanel() {
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                         <span style={{
                                             width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
-                                            background: STATUS_COLORS[task.status] || 'var(--color-text-muted)',
+                                            background: STATUS_COLORS[task.status] ?? 'var(--color-text-muted)',
                                         }} />
                                         <span className="agent-task-label">{task.label}</span>
                                     </div>
@@ -76,13 +78,12 @@ export default function AgentMonitorPanel() {
                         )}
                     </div>
 
-                    {/* Status bar */}
                     <div className="agent-status-bar">
                         <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                             <AfipIcon size={12} color={afipCfg.color} />
-                            <span style={{ color: afipCfg.color }}>{afipCfg.label}</span>
+                            <span style={{ color: afipCfg.color, fontSize: '0.6875rem' }}>{afipCfg.label}</span>
                         </span>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.6875rem' }}>
                             <Zap size={10} color="var(--color-accent)" />
                             {activeCount} activos
                         </span>
