@@ -4,10 +4,9 @@
    + Backward-compat aliases for legacy modules
    ===================================================== */
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
 @import "./design-system/tokens.css";
 @import "tailwindcss";
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
 
 /* =====================================================
    LEGACY VARIABLE ALIASES
