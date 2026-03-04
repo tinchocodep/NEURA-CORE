@@ -39,6 +39,7 @@ interface ComprobanteResumen {
     tipo_comprobante: string;
     numero_comprobante: string;
     monto_ars: number;
+    monto_original: number;
     estado: string;
     descripcion: string | null;
     pdf_url: string | null;
@@ -210,7 +211,7 @@ export default function Proveedores() {
         setDetailLoading(true);
         const { data } = await supabase
             .from('contable_comprobantes')
-            .select('id, fecha, tipo_comprobante, numero_comprobante, monto_ars, estado, descripcion, pdf_url')
+            .select('id, fecha, tipo_comprobante, numero_comprobante, monto_ars, monto_original, estado, descripcion, pdf_url')
             .eq('proveedor_id', p.id)
             .order('fecha', { ascending: false })
             .limit(20);
@@ -1075,7 +1076,7 @@ export default function Proveedores() {
                                                             </div>
                                                         </div>
                                                         <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', flexShrink: 0 }}>
-                                                            ${Number(c.monto_ars || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                                                            ${Number(c.monto_ars || c.monto_original || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                                                         </div>
                                                         {c.pdf_url && (
                                                             <a
