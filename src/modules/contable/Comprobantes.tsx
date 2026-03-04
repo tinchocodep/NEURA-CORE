@@ -4,8 +4,9 @@ import { supabase } from '../../lib/supabase';
 import {
     Search, Filter, ArrowUpRight, ArrowDownLeft, CheckCircle, XCircle,
     Upload as UploadIcon, Send, Plus, Trash2, Save, FileText, X, Eye, Download,
-    ChevronRight, ChevronDown
+    ChevronRight, ChevronDown, Package, Mail
 } from 'lucide-react';
+import jsPDF from 'jspdf';
 
 // --- Types ---
 
@@ -38,7 +39,7 @@ interface Comprobante {
     centro_costo: { nombre: string } | null;
 }
 
-interface Proveedor { id: string; razon_social: string; cuit: string | null; condicion_fiscal: string | null; }
+interface Proveedor { id: string; razon_social: string; cuit: string | null; condicion_fiscal: string | null; email: string | null; }
 interface Cliente { id: string; razon_social: string; cuit: string | null; }
 interface ProductoServicio { id: string; nombre: string; grupo: string; }
 interface CentroCosto { id: string; nombre: string; }
@@ -52,11 +53,19 @@ interface LineaDetalle {
     iva_porcentaje: number;
 }
 
+interface RemitoItem {
+    id: string;
+    descripcion: string;
+    cantidad: number;
+    unidad: string;
+    codigo: string;
+}
+
 // --- Constants ---
 
+const UNIDADES = ['unidad', 'kg', 'lt', 'mt', 'mt²', 'caja', 'bolsa', 'rollo', 'par', 'docena', 'pallet', 'otro'];
 
-
-const TIPOS_COMPROBANTE = ['Factura A', 'Factura B', 'Factura C', 'Nota de Crédito A', 'Nota de Crédito B', 'Nota de Crédito C', 'Nota de Débito A', 'Nota de Débito B', 'Nota de Débito C', 'Recibo', 'Otro'];
+const TIPOS_COMPROBANTE = ['Factura A', 'Factura B', 'Factura C', 'Nota de Crédito A', 'Nota de Crédito B', 'Nota de Crédito C', 'Nota de Débito A', 'Nota de Débito B', 'Nota de Débito C', 'Recibo', 'Remito', 'Otro'];
 
 const IVA_OPTIONS = [
     { value: 21, label: '21%' },
@@ -135,6 +144,11 @@ export default function Comprobantes() {
     const [prodSearchFilter, setProdSearchFilter] = useState('');
     const [showProductSelector, setShowProductSelector] = useState(false);
 
+    // Remito state
+    const [remitoItems, setRemitoItems] = useState<RemitoItem[]>([{ id: newLineaId(), descripcion: '', cantidad: 1, unidad: 'unidad', codigo: '' }]);
+    const [remitoDireccion, setRemitoDireccion] = useState('');
+    const [remitoObservaciones, setRemitoObservaciones] = useState('');
+
     // Entity search
     const [entitySearch, setEntitySearch] = useState('');
     const [expandedRow, setExpandedRow] = useState<string | null>(null);
@@ -195,7 +209,7 @@ export default function Comprobantes() {
 
     async function loadCatalogs() {
         const [{ data: provs }, { data: clis }, { data: prods }, { data: centros }] = await Promise.all([
-            supabase.from('contable_proveedores').select('id, razon_social, cuit, condicion_fiscal').eq('tenant_id', tenant!.id).eq('activo', true).order('razon_social'),
+            supabase.from('contable_proveedores').select('id, razon_social, cuit, condicion_fiscal, email').eq('tenant_id', tenant!.id).eq('activo', true).order('razon_social'),
             supabase.from('contable_clientes').select('id, razon_social, cuit').eq('tenant_id', tenant!.id).eq('activo', true).order('razon_social'),
             supabase.from('contable_productos_servicio').select('id, nombre, grupo').eq('tenant_id', tenant!.id).eq('activo', true).order('nombre'),
             supabase.from('contable_centros_costo').select('id, nombre').eq('tenant_id', tenant!.id).eq('activo', true).order('nombre'),
@@ -256,6 +270,194 @@ export default function Comprobantes() {
     const totalFinal = subtotal + totalIva;
 
     const fmt = (n: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n);
+
+    // --- Remito helpers ---
+    function addRemitoItem() {
+        setRemitoItems(prev => [...prev, { id: newLineaId(), descripcion: '', cantidad: 1, unidad: 'unidad', codigo: '' }]);
+    }
+    function removeRemitoItem(id: string) {
+        setRemitoItems(prev => prev.length <= 1 ? prev : prev.filter(i => i.id !== id));
+    }
+    function updateRemitoItem(id: string, field: keyof RemitoItem, value: string | number) {
+        setRemitoItems(prev => prev.map(i => i.id === id ? { ...i, [field]: value } : i));
+    }
+
+    function generateRemitoPDF() {
+        const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+        const pageW = doc.internal.pageSize.getWidth();
+        const margin = 15;
+        const contentW = pageW - margin * 2;
+        let y = margin;
+
+        // --- HEADER ---
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text(tenant?.name || 'EMPRESA', margin, y + 6);
+        doc.setFontSize(22);
+        doc.setFont('helvetica', 'bold');
+        doc.text('REMITO', pageW - margin, y + 6, { align: 'right' });
+        y += 12;
+
+        // separator
+        doc.setDrawColor(25, 88, 224);
+        doc.setLineWidth(0.8);
+        doc.line(margin, y, pageW - margin, y);
+        y += 8;
+
+        // --- REMITO INFO ---
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 116, 139);
+        doc.text('Nro. Remito:', margin, y);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(15, 23, 42);
+        doc.text(formNumero || 'S/N', margin + 28, y);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 116, 139);
+        doc.text('Fecha:', pageW - margin - 50, y);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(15, 23, 42);
+        doc.text(formFecha || new Date().toISOString().slice(0, 10), pageW - margin - 50 + 15, y);
+        y += 5;
+
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 116, 139);
+        doc.text('Tipo:', margin, y);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(15, 23, 42);
+        doc.text(formTipo === 'compra' ? 'Entrada (Recepción)' : 'Salida (Entrega)', margin + 28, y);
+        y += 8;
+
+        // --- DESTINATARIO ---
+        const entityName = selectedEntity?.razon_social || '—';
+        const entityCuit = (selectedEntity as Proveedor)?.cuit || (selectedEntity as Cliente)?.cuit || '';
+
+        doc.setFillColor(248, 249, 252);
+        doc.roundedRect(margin, y, contentW, 18, 2, 2, 'F');
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 116, 139);
+        doc.text(formTipo === 'compra' ? 'PROVEEDOR' : 'CLIENTE', margin + 4, y + 5);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(15, 23, 42);
+        doc.text(entityName, margin + 4, y + 11);
+        if (entityCuit) {
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(100, 116, 139);
+            doc.text('CUIT: ' + entityCuit, margin + 4, y + 15);
+        }
+        if (remitoDireccion) {
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(100, 116, 139);
+            doc.text('Dir. Entrega: ' + remitoDireccion, pageW / 2, y + 11);
+        }
+        y += 24;
+
+        // --- ITEMS TABLE ---
+        const colWidths = [15, contentW - 15 - 25 - 25 - 30, 25, 25, 30];
+        const colHeaders = ['#', 'Descripción', 'Cantidad', 'Unidad', 'Código'];
+        const tableX = margin;
+
+        // Table header
+        doc.setFillColor(25, 88, 224);
+        doc.roundedRect(tableX, y, contentW, 8, 1, 1, 'F');
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(255, 255, 255);
+        let colX = tableX + 3;
+        colHeaders.forEach((h, i) => {
+            doc.text(h, colX, y + 5.5);
+            colX += colWidths[i];
+        });
+        y += 10;
+
+        // Table rows
+        const validItems = remitoItems.filter(item => item.descripcion.trim());
+        validItems.forEach((item, idx) => {
+            if (y > 260) {
+                doc.addPage();
+                y = margin;
+            }
+            const rowY = y;
+            if (idx % 2 === 0) {
+                doc.setFillColor(248, 250, 252);
+                doc.rect(tableX, rowY - 1, contentW, 7, 'F');
+            }
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(15, 23, 42);
+            colX = tableX + 3;
+            const rowData = [
+                String(idx + 1),
+                item.descripcion,
+                String(item.cantidad),
+                item.unidad,
+                item.codigo || '—',
+            ];
+            rowData.forEach((val, i) => {
+                const text = val.length > 45 ? val.slice(0, 42) + '...' : val;
+                doc.text(text, colX, rowY + 4);
+                colX += colWidths[i];
+            });
+            y += 7;
+        });
+
+        // Bottom line
+        y += 2;
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.3);
+        doc.line(margin, y, pageW - margin, y);
+        y += 4;
+
+        // Total items count
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(15, 23, 42);
+        doc.text(`Total de ítems: ${validItems.length}`, margin, y + 4);
+        const totalCantidad = validItems.reduce((s, i) => s + i.cantidad, 0);
+        doc.text(`Cantidad total: ${totalCantidad}`, pageW - margin, y + 4, { align: 'right' });
+        y += 12;
+
+        // --- OBSERVACIONES ---
+        if (remitoObservaciones) {
+            doc.setFillColor(248, 249, 252);
+            doc.roundedRect(margin, y, contentW, 14, 2, 2, 'F');
+            doc.setFontSize(7);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(100, 116, 139);
+            doc.text('OBSERVACIONES:', margin + 4, y + 4);
+            doc.setFontSize(8);
+            doc.setTextColor(15, 23, 42);
+            doc.text(remitoObservaciones, margin + 4, y + 10);
+            y += 20;
+        }
+
+        // --- FIRMAS ---
+        const sigY = Math.max(y + 10, 250);
+        doc.setDrawColor(148, 163, 184);
+        doc.setLineWidth(0.3);
+        const sigW = 60;
+        // Firma entrega
+        doc.line(margin, sigY, margin + sigW, sigY);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 116, 139);
+        doc.text('Firma y Aclaración (Entrega)', margin, sigY + 5);
+        // Firma recepción
+        doc.line(pageW - margin - sigW, sigY, pageW - margin, sigY);
+        doc.text('Firma y Aclaración (Recepción)', pageW - margin - sigW, sigY + 5);
+
+        // --- FOOTER ---
+        doc.setFontSize(7);
+        doc.setTextColor(148, 163, 184);
+        doc.text(`Generado por ${tenant?.name || 'NeuraCore'} — ${new Date().toLocaleString('es-AR')}`, pageW / 2, 290, { align: 'center' });
+
+        doc.save(`Remito_${formNumero || 'borrador'}_${formFecha}.pdf`);
+    }
 
     async function handleSaveComprobante() {
         if (!tenant) return;
@@ -632,7 +834,7 @@ export default function Comprobantes() {
 
                 {/* ===================== TAB: CREAR FACTURA ===================== */}
                 {activeTab === 'crear' && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: '1.25rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: formTipoComprobante === 'Remito' ? '1fr 380px' : '1fr 280px', gap: '1.25rem', transition: 'grid-template-columns 0.2s ease' }}>
                         {/* Left: Form */}
                         <div className="card" style={{ padding: '1.5rem' }}>
                             <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', margin: '0 0 1.25rem' }}>
@@ -986,219 +1188,557 @@ export default function Comprobantes() {
                                 </div>
                             </div>
 
-                            {/* Line items */}
-                            <div style={{ marginBottom: '1rem' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                                    <label style={{ fontWeight: 600, fontSize: '0.8125rem', color: '#0f172a' }}>Detalle de ítems</label>
-                                    <button onClick={addLinea} className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', gap: 4 }}>
-                                        <Plus size={12} /> Agregar ítem
-                                    </button>
-                                </div>
+                            {formTipoComprobante === 'Remito' ? (
+                                <>
+                                    {/* === REMITO MODE === */}
 
-                                {lineas.map((linea, idx) => {
-                                    const lineTotal = linea.cantidad * linea.precio_unitario;
-                                    const lineIvaAmt = lineTotal * linea.iva_porcentaje / 100;
-                                    const inputStyle: React.CSSProperties = {
-                                        width: '100%', padding: '6px 10px', borderRadius: 6,
-                                        border: '1.5px solid #e2e8f0', background: '#fff', color: '#0f172a',
-                                        fontSize: '0.85rem', fontFamily: 'inherit', outline: 'none',
-                                        boxSizing: 'border-box' as const,
-                                    };
-                                    const selectStyle: React.CSSProperties = {
-                                        ...inputStyle, appearance: 'auto' as const, cursor: 'pointer',
-                                    };
-                                    const labelStyle: React.CSSProperties = {
-                                        fontSize: '0.75rem', color: '#64748b', fontWeight: 600, marginBottom: 4, display: 'block',
-                                    };
-                                    return (
-                                        <div key={linea.id} style={{
-                                            padding: '0.75rem 1rem', marginBottom: idx < lineas.length - 1 ? 8 : 0,
-                                            border: '1px solid #e2e8f0', borderRadius: 8,
-                                            background: '#fafbfc',
-                                        }}>
-                                            {/* Header: #N + description + trash */}
-                                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
-                                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8' }}>#{idx + 1}</span>
-                                                <input
-                                                    placeholder="Descripción del ítem"
-                                                    value={linea.descripcion}
-                                                    onChange={e => updateLinea(linea.id, 'descripcion', e.target.value)}
-                                                    style={{ ...inputStyle, flex: 1 }}
-                                                />
-                                                <button
-                                                    onClick={() => removeLinea(linea.id)}
-                                                    disabled={lineas.length <= 1}
-                                                    style={{
-                                                        background: 'none', border: 'none', padding: 4, cursor: lineas.length > 1 ? 'pointer' : 'not-allowed',
-                                                        color: lineas.length > 1 ? '#f43f5e' : '#d1d5db', flexShrink: 0,
-                                                    }}
-                                                >
-                                                    <Trash2 size={14} />
-                                                </button>
-                                            </div>
+                                    {/* Dirección de entrega */}
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+                                        <div className="form-group">
+                                            <label>Dirección de Entrega</label>
+                                            <input className="form-input" placeholder="Dirección de entrega..." value={remitoDireccion} onChange={e => setRemitoDireccion(e.target.value)} />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Observaciones</label>
+                                            <input className="form-input" placeholder="Notas o aclaraciones..." value={remitoObservaciones} onChange={e => setRemitoObservaciones(e.target.value)} />
+                                        </div>
+                                    </div>
 
-                                            {/* Producto - full width */}
-                                            <div style={{ marginBottom: 10 }}>
-                                                <span style={labelStyle}>Producto / Servicio</span>
-                                                <select
-                                                    value={linea.producto_servicio_id}
-                                                    onChange={e => updateLinea(linea.id, 'producto_servicio_id', e.target.value)}
-                                                    style={selectStyle}
-                                                >
-                                                    <option value="">Sin asignar</option>
-                                                    {productosServicio.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                                                </select>
-                                            </div>
+                                    {/* Remito Items */}
+                                    <div style={{ marginBottom: '1rem' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                            <label style={{ fontWeight: 600, fontSize: '0.8125rem', color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                <Package size={15} style={{ color: '#1958E0' }} /> Ítems del Remito
+                                            </label>
+                                            <button onClick={addRemitoItem} className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', gap: 4 }}>
+                                                <Plus size={12} /> Agregar ítem
+                                            </button>
+                                        </div>
 
-                                            {/* Cant | Precio | IVA | Subtotal */}
-                                            <div style={{ display: 'flex', gap: 12 }}>
-                                                <div style={{ flex: 1 }}>
-                                                    <span style={labelStyle}>Cantidad</span>
-                                                    <input
-                                                        type="number" min="1"
-                                                        value={linea.cantidad}
-                                                        onChange={e => updateLinea(linea.id, 'cantidad', parseInt(e.target.value) || 1)}
-                                                        style={{ ...inputStyle, textAlign: 'center' }}
-                                                    />
-                                                </div>
-                                                <div style={{ flex: 1.5 }}>
-                                                    <span style={labelStyle}>Precio Unitario</span>
-                                                    <input
-                                                        type="number" placeholder="0"
-                                                        value={linea.precio_unitario || ''}
-                                                        onChange={e => updateLinea(linea.id, 'precio_unitario', parseFloat(e.target.value) || 0)}
-                                                        style={{ ...inputStyle, textAlign: 'right' }}
-                                                    />
-                                                </div>
-                                                <div style={{ flex: 1 }}>
-                                                    <span style={labelStyle}>IVA</span>
-                                                    <select
-                                                        value={linea.iva_porcentaje}
-                                                        onChange={e => updateLinea(linea.id, 'iva_porcentaje', parseFloat(e.target.value))}
-                                                        style={selectStyle}
-                                                    >
-                                                        {IVA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                                    </select>
-                                                </div>
-                                                <div style={{ flex: 1.5 }}>
-                                                    <span style={labelStyle}>Subtotal</span>
-                                                    <div style={{
-                                                        padding: '6px 10px', borderRadius: 6, background: '#e8edf5',
-                                                        border: '1.5px solid #cbd5e1', textAlign: 'right',
-                                                        fontSize: '0.9rem', fontWeight: 700, color: '#0f172a',
-                                                    }}>
-                                                        {fmt(lineTotal + lineIvaAmt)}
+                                        {remitoItems.map((item, idx) => {
+                                            const inputStyle: React.CSSProperties = {
+                                                width: '100%', padding: '6px 10px', borderRadius: 6,
+                                                border: '1.5px solid #e2e8f0', background: '#fff', color: '#0f172a',
+                                                fontSize: '0.85rem', fontFamily: 'inherit', outline: 'none',
+                                                boxSizing: 'border-box' as const,
+                                            };
+                                            const selectStyle: React.CSSProperties = {
+                                                ...inputStyle, appearance: 'auto' as const, cursor: 'pointer',
+                                            };
+                                            const labelStyle: React.CSSProperties = {
+                                                fontSize: '0.75rem', color: '#64748b', fontWeight: 600, marginBottom: 4, display: 'block',
+                                            };
+                                            return (
+                                                <div key={item.id} style={{
+                                                    padding: '0.75rem 1rem', marginBottom: idx < remitoItems.length - 1 ? 8 : 0,
+                                                    border: '1px solid #e2e8f0', borderRadius: 8,
+                                                    background: '#fafbfc',
+                                                }}>
+                                                    {/* Header: #N + description + trash */}
+                                                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+                                                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#1958E0' }}>#{idx + 1}</span>
+                                                        <input
+                                                            placeholder="Descripción del ítem"
+                                                            value={item.descripcion}
+                                                            onChange={e => updateRemitoItem(item.id, 'descripcion', e.target.value)}
+                                                            style={{ ...inputStyle, flex: 1 }}
+                                                        />
+                                                        <button
+                                                            onClick={() => removeRemitoItem(item.id)}
+                                                            disabled={remitoItems.length <= 1}
+                                                            style={{
+                                                                background: 'none', border: 'none', padding: 4,
+                                                                cursor: remitoItems.length > 1 ? 'pointer' : 'not-allowed',
+                                                                color: remitoItems.length > 1 ? '#f43f5e' : '#d1d5db', flexShrink: 0,
+                                                            }}
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </div>
+
+                                                    {/* Cantidad | Unidad | Código */}
+                                                    <div style={{ display: 'flex', gap: 12 }}>
+                                                        <div style={{ flex: 1 }}>
+                                                            <span style={labelStyle}>Cantidad</span>
+                                                            <input
+                                                                type="number" min="1"
+                                                                value={item.cantidad}
+                                                                onChange={e => updateRemitoItem(item.id, 'cantidad', parseInt(e.target.value) || 1)}
+                                                                style={{ ...inputStyle, textAlign: 'center' }}
+                                                            />
+                                                        </div>
+                                                        <div style={{ flex: 1.2 }}>
+                                                            <span style={labelStyle}>Unidad</span>
+                                                            <select
+                                                                value={item.unidad}
+                                                                onChange={e => updateRemitoItem(item.id, 'unidad', e.target.value)}
+                                                                style={selectStyle}
+                                                            >
+                                                                {UNIDADES.map(u => <option key={u} value={u}>{u}</option>)}
+                                                            </select>
+                                                        </div>
+                                                        <div style={{ flex: 1.5 }}>
+                                                            <span style={labelStyle}>Código (opcional)</span>
+                                                            <input
+                                                                placeholder="SKU / Código"
+                                                                value={item.codigo}
+                                                                onChange={e => updateRemitoItem(item.id, 'codigo', e.target.value)}
+                                                                style={inputStyle}
+                                                            />
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Summary bar */}
+                                    <div style={{
+                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                        padding: '0.6rem 1rem', borderRadius: 8,
+                                        background: 'rgba(25,88,224,0.06)', border: '1px solid rgba(25,88,224,0.15)',
+                                        marginBottom: '1rem', fontSize: '0.8125rem',
+                                    }}>
+                                        <span style={{ color: '#64748b' }}>
+                                            <strong style={{ color: '#0f172a' }}>{remitoItems.filter(i => i.descripcion.trim()).length}</strong> ítems · <strong style={{ color: '#0f172a' }}>{remitoItems.reduce((s, i) => s + i.cantidad, 0)}</strong> unidades totales
+                                        </span>
+                                    </div>
+
+                                    {/* Generate PDF + Save */}
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                                        {saveSuccess && (
+                                            <span style={{ color: '#22c55e', fontWeight: 600, fontSize: '0.8125rem', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                <CheckCircle size={16} /> Comprobante guardado!
+                                            </span>
+                                        )}
+                                        <button
+                                            className="btn btn-primary"
+                                            onClick={handleSaveComprobante}
+                                            disabled={saving || !formNumero.trim()}
+                                            style={{ gap: 6 }}
+                                        >
+                                            {saving ? 'Guardando...' : <><Save size={16} /> Guardar</>}
+                                        </button>
+                                        <button
+                                            className="btn btn-primary"
+                                            onClick={generateRemitoPDF}
+                                            disabled={remitoItems.filter(i => i.descripcion.trim()).length === 0}
+                                            style={{
+                                                gap: 6, background: '#1958E0',
+                                                boxShadow: '0 4px 12px rgba(25,88,224,0.25)',
+                                            }}
+                                        >
+                                            <Download size={16} /> Generar Remito PDF
+                                        </button>
+                                        <button
+                                            className="btn btn-primary"
+                                            onClick={() => {
+                                                // Generate PDF first so user can attach it
+                                                generateRemitoPDF();
+                                                // Build mailto
+                                                const email = formTipo === 'compra'
+                                                    ? (selectedEntity as Proveedor)?.email || ''
+                                                    : '';
+                                                const subject = encodeURIComponent(`Remito ${formNumero || ''} - ${tenant?.name || ''}`);
+                                                const body = encodeURIComponent(
+                                                    `Estimado/a ${selectedEntity?.razon_social || ''},\n\n` +
+                                                    `Adjunto el Remito N° ${formNumero || 'S/N'} con fecha ${formFecha || '—'}.\n` +
+                                                    `Total de ítems: ${remitoItems.filter(i => i.descripcion.trim()).length}\n\n` +
+                                                    `Saludos,\n${tenant?.name || ''}`
+                                                );
+                                                window.open(`mailto:${email}?subject=${subject}&body=${body}`, '_blank');
+                                            }}
+                                            disabled={remitoItems.filter(i => i.descripcion.trim()).length === 0}
+                                            style={{
+                                                gap: 6,
+                                                background: 'linear-gradient(135deg, #059669, #10b981)',
+                                                boxShadow: '0 4px 12px rgba(5,150,105,0.25)',
+                                            }}
+                                        >
+                                            <Mail size={16} /> Enviar por Mail
+                                        </button>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    {/* === NORMAL COMPROBANTE MODE === */}
+
+                                    {/* Line items */}
+                                    <div style={{ marginBottom: '1rem' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                            <label style={{ fontWeight: 600, fontSize: '0.8125rem', color: '#0f172a' }}>Detalle de ítems</label>
+                                            <button onClick={addLinea} className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', gap: 4 }}>
+                                                <Plus size={12} /> Agregar ítem
+                                            </button>
                                         </div>
-                                    );
-                                })}
-                            </div>
 
-                            {/* Description + observaciones */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
-                                <div className="form-group">
-                                    <label>Descripción</label>
-                                    <input className="form-input" placeholder="Descripción general" value={formDescripcion} onChange={e => setFormDescripcion(e.target.value)} />
-                                </div>
-                                <div className="form-group">
-                                    <label>Observaciones</label>
-                                    <input className="form-input" placeholder="Notas internas" value={formObservaciones} onChange={e => setFormObservaciones(e.target.value)} />
-                                </div>
-                            </div>
+                                        {lineas.map((linea, idx) => {
+                                            const lineTotal = linea.cantidad * linea.precio_unitario;
+                                            const lineIvaAmt = lineTotal * linea.iva_porcentaje / 100;
+                                            const inputStyle: React.CSSProperties = {
+                                                width: '100%', padding: '6px 10px', borderRadius: 6,
+                                                border: '1.5px solid #e2e8f0', background: '#fff', color: '#0f172a',
+                                                fontSize: '0.85rem', fontFamily: 'inherit', outline: 'none',
+                                                boxSizing: 'border-box' as const,
+                                            };
+                                            const selectStyle: React.CSSProperties = {
+                                                ...inputStyle, appearance: 'auto' as const, cursor: 'pointer',
+                                            };
+                                            const labelStyle: React.CSSProperties = {
+                                                fontSize: '0.75rem', color: '#64748b', fontWeight: 600, marginBottom: 4, display: 'block',
+                                            };
+                                            return (
+                                                <div key={linea.id} style={{
+                                                    padding: '0.75rem 1rem', marginBottom: idx < lineas.length - 1 ? 8 : 0,
+                                                    border: '1px solid #e2e8f0', borderRadius: 8,
+                                                    background: '#fafbfc',
+                                                }}>
+                                                    {/* Header: #N + description + trash */}
+                                                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+                                                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8' }}>#{idx + 1}</span>
+                                                        <input
+                                                            placeholder="Descripción del ítem"
+                                                            value={linea.descripcion}
+                                                            onChange={e => updateLinea(linea.id, 'descripcion', e.target.value)}
+                                                            style={{ ...inputStyle, flex: 1 }}
+                                                        />
+                                                        <button
+                                                            onClick={() => removeLinea(linea.id)}
+                                                            disabled={lineas.length <= 1}
+                                                            style={{
+                                                                background: 'none', border: 'none', padding: 4, cursor: lineas.length > 1 ? 'pointer' : 'not-allowed',
+                                                                color: lineas.length > 1 ? '#f43f5e' : '#d1d5db', flexShrink: 0,
+                                                            }}
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </div>
 
-                            {/* Save */}
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                                {saveSuccess && (
-                                    <span style={{ color: '#22c55e', fontWeight: 600, fontSize: '0.8125rem', display: 'flex', alignItems: 'center', gap: 4 }}>
-                                        <CheckCircle size={16} /> Comprobante guardado!
-                                    </span>
-                                )}
-                                <button
-                                    className="btn btn-primary"
-                                    onClick={handleSaveComprobante}
-                                    disabled={saving || !formNumero.trim()}
-                                    style={{ gap: 6 }}
-                                >
-                                    {saving ? 'Guardando...' : <><Save size={16} /> Guardar Comprobante</>}
-                                </button>
-                            </div>
+                                                    {/* Producto - full width */}
+                                                    <div style={{ marginBottom: 10 }}>
+                                                        <span style={labelStyle}>Producto / Servicio</span>
+                                                        <select
+                                                            value={linea.producto_servicio_id}
+                                                            onChange={e => updateLinea(linea.id, 'producto_servicio_id', e.target.value)}
+                                                            style={selectStyle}
+                                                        >
+                                                            <option value="">Sin asignar</option>
+                                                            {productosServicio.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                                                        </select>
+                                                    </div>
+
+                                                    {/* Cant | Precio | IVA | Subtotal */}
+                                                    <div style={{ display: 'flex', gap: 12 }}>
+                                                        <div style={{ flex: 1 }}>
+                                                            <span style={labelStyle}>Cantidad</span>
+                                                            <input
+                                                                type="number" min="1"
+                                                                value={linea.cantidad}
+                                                                onChange={e => updateLinea(linea.id, 'cantidad', parseInt(e.target.value) || 1)}
+                                                                style={{ ...inputStyle, textAlign: 'center' }}
+                                                            />
+                                                        </div>
+                                                        <div style={{ flex: 1.5 }}>
+                                                            <span style={labelStyle}>Precio Unitario</span>
+                                                            <input
+                                                                type="number" placeholder="0"
+                                                                value={linea.precio_unitario || ''}
+                                                                onChange={e => updateLinea(linea.id, 'precio_unitario', parseFloat(e.target.value) || 0)}
+                                                                style={{ ...inputStyle, textAlign: 'right' }}
+                                                            />
+                                                        </div>
+                                                        <div style={{ flex: 1 }}>
+                                                            <span style={labelStyle}>IVA</span>
+                                                            <select
+                                                                value={linea.iva_porcentaje}
+                                                                onChange={e => updateLinea(linea.id, 'iva_porcentaje', parseFloat(e.target.value))}
+                                                                style={selectStyle}
+                                                            >
+                                                                {IVA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                                            </select>
+                                                        </div>
+                                                        <div style={{ flex: 1.5 }}>
+                                                            <span style={labelStyle}>Subtotal</span>
+                                                            <div style={{
+                                                                padding: '6px 10px', borderRadius: 6, background: '#e8edf5',
+                                                                border: '1.5px solid #cbd5e1', textAlign: 'right',
+                                                                fontSize: '0.9rem', fontWeight: 700, color: '#0f172a',
+                                                            }}>
+                                                                {fmt(lineTotal + lineIvaAmt)}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Description + observaciones */}
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                                        <div className="form-group">
+                                            <label>Descripción</label>
+                                            <input className="form-input" placeholder="Descripción general" value={formDescripcion} onChange={e => setFormDescripcion(e.target.value)} />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Observaciones</label>
+                                            <input className="form-input" placeholder="Notas internas" value={formObservaciones} onChange={e => setFormObservaciones(e.target.value)} />
+                                        </div>
+                                    </div>
+
+                                    {/* Save */}
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                                        {saveSuccess && (
+                                            <span style={{ color: '#22c55e', fontWeight: 600, fontSize: '0.8125rem', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                <CheckCircle size={16} /> Comprobante guardado!
+                                            </span>
+                                        )}
+                                        <button
+                                            className="btn btn-primary"
+                                            onClick={handleSaveComprobante}
+                                            disabled={saving || !formNumero.trim()}
+                                            style={{ gap: 6 }}
+                                        >
+                                            {saving ? 'Guardando...' : <><Save size={16} /> Guardar Comprobante</>}
+                                        </button>
+                                    </div>
+                                </>
+                            )}
                         </div>
 
-                        {/* Right: Summary panel */}
+                        {/* Right: Summary / Preview panel */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            {/* Totals card */}
-                            <div className="card" style={{ padding: '1.25rem' }}>
-                                <h3 style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#64748b', margin: '0 0 0.75rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>
-                                    Resumen
-                                </h3>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
-                                        <span style={{ color: '#64748b' }}>Subtotal</span>
-                                        <span style={{ fontWeight: 500 }}>{fmt(subtotal)}</span>
-                                    </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
-                                        <span style={{ color: '#64748b' }}>IVA</span>
-                                        <span style={{ fontWeight: 500 }}>{fmt(totalIva)}</span>
-                                    </div>
-                                    <div style={{ height: 1, background: '#e2e8f0', margin: '0.25rem 0' }} />
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.125rem' }}>
-                                        <span style={{ fontWeight: 700, color: '#0f172a' }}>Total</span>
-                                        <span style={{ fontWeight: 700, color: '#1958E0' }}>{fmt(totalFinal)}</span>
-                                    </div>
-                                    {formMoneda === 'USD' && formTipoCambio && (
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', marginTop: 4 }}>
-                                            <span style={{ color: '#94a3b8' }}>Total ARS</span>
-                                            <span style={{ fontWeight: 600, color: '#475569' }}>{fmt(totalFinal * (parseFloat(formTipoCambio) || 1))}</span>
+
+                            {formTipoComprobante === 'Remito' ? (
+                                <>
+                                    {/* === REMITO PREVIEW === */}
+                                    <div className="card" style={{
+                                        padding: 0, overflow: 'hidden',
+                                        border: '1px solid #e2e8f0',
+                                        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                                    }}>
+                                        <div style={{
+                                            padding: '0.5rem 0.75rem',
+                                            background: 'linear-gradient(135deg, #1958E0, #2563eb)',
+                                            color: '#fff', fontSize: '0.75rem', fontWeight: 600,
+                                            display: 'flex', alignItems: 'center', gap: 6,
+                                            letterSpacing: '0.03em',
+                                        }}>
+                                            <Eye size={13} /> VISTA PREVIA DEL REMITO
                                         </div>
-                                    )}
-                                </div>
-                            </div>
 
-                            {/* Info card */}
-                            <div className="card" style={{ padding: '1rem', background: '#f8fafc' }}>
-                                <div style={{ fontSize: '0.75rem', color: '#64748b', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, color: '#475569', marginBottom: 4 }}>
-                                        <FileText size={14} /> Información
-                                    </div>
-                                    <p style={{ margin: 0 }}>
-                                        El comprobante se guardará con estado <strong>"Pendiente"</strong>. Podés aprobarlo después desde el Listado.
-                                    </p>
-                                    {formTipo === 'compra' && (
-                                        <p style={{ margin: 0, marginTop: 4 }}>
-                                            💡 Al seleccionar un proveedor con condición fiscal, se sugiere automáticamente el tipo de factura.
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Line items breakdown */}
-                            {lineas.some(l => l.precio_unitario > 0) && (
-                                <div className="card" style={{ padding: '1rem' }}>
-                                    <h3 style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', margin: '0 0 0.5rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>
-                                        Desglose por ítem
-                                    </h3>
-                                    {lineas.filter(l => l.precio_unitario > 0).map((l, i) => {
-                                        const lineSubtotal = l.cantidad * l.precio_unitario;
-                                        const lineIva = lineSubtotal * l.iva_porcentaje / 100;
-                                        return (
-                                            <div key={l.id} style={{
-                                                padding: '0.4rem 0', borderBottom: i < lineas.length - 1 ? '1px solid #f1f5f9' : undefined,
-                                                fontSize: '0.8125rem',
-                                            }}>
-                                                <div style={{ fontWeight: 500, color: '#0f172a', marginBottom: 2 }}>
-                                                    {l.descripcion || `Ítem ${i + 1}`}
+                                        {/* Paper-like preview */}
+                                        <div style={{
+                                            padding: '1rem', background: '#fff',
+                                            fontFamily: 'Georgia, serif', fontSize: '0.65rem',
+                                            lineHeight: 1.4, color: '#0f172a',
+                                            minHeight: 350,
+                                        }}>
+                                            {/* Header */}
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                                                <div style={{ fontWeight: 700, fontSize: '0.85rem', fontFamily: 'Helvetica, sans-serif' }}>
+                                                    {tenant?.name || 'EMPRESA'}
                                                 </div>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontSize: '0.75rem' }}>
-                                                    <span>{l.cantidad} × {fmt(l.precio_unitario)}</span>
-                                                    <span>{fmt(lineSubtotal + lineIva)}</span>
+                                                <div style={{
+                                                    fontWeight: 700, fontSize: '0.9rem', color: '#1958E0',
+                                                    fontFamily: 'Helvetica, sans-serif', letterSpacing: '0.05em',
+                                                }}>
+                                                    REMITO
                                                 </div>
                                             </div>
-                                        );
-                                    })}
-                                </div>
+
+                                            {/* Blue separator */}
+                                            <div style={{ height: 2, background: '#1958E0', marginBottom: 8, borderRadius: 1 }} />
+
+                                            {/* Info row */}
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontFamily: 'Helvetica, sans-serif' }}>
+                                                <div>
+                                                    <span style={{ color: '#94a3b8', fontSize: '0.55rem' }}>Nro. </span>
+                                                    <strong>{formNumero || 'S/N'}</strong>
+                                                </div>
+                                                <div>
+                                                    <span style={{ color: '#94a3b8', fontSize: '0.55rem' }}>Fecha: </span>
+                                                    <strong>{formFecha || '—'}</strong>
+                                                </div>
+                                            </div>
+
+                                            {/* Recipient box */}
+                                            <div style={{
+                                                background: '#f8f9fc', borderRadius: 4, padding: '6px 8px',
+                                                marginBottom: 8, border: '1px solid #f1f5f9',
+                                            }}>
+                                                <div style={{ fontSize: '0.5rem', color: '#94a3b8', textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: 2, fontFamily: 'Helvetica, sans-serif' }}>
+                                                    {formTipo === 'compra' ? 'PROVEEDOR' : 'CLIENTE'}
+                                                </div>
+                                                <div style={{ fontWeight: 700, fontSize: '0.7rem', fontFamily: 'Helvetica, sans-serif' }}>
+                                                    {selectedEntity?.razon_social || '—'}
+                                                </div>
+                                                {remitoDireccion && (
+                                                    <div style={{ fontSize: '0.55rem', color: '#64748b', marginTop: 2, fontFamily: 'Helvetica, sans-serif' }}>
+                                                        📍 {remitoDireccion}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Items table */}
+                                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.6rem', fontFamily: 'Helvetica, sans-serif' }}>
+                                                <thead>
+                                                    <tr style={{ background: '#1958E0', color: '#fff' }}>
+                                                        <th style={{ padding: '3px 4px', textAlign: 'left', fontWeight: 600, borderRadius: '3px 0 0 0' }}>#</th>
+                                                        <th style={{ padding: '3px 4px', textAlign: 'left', fontWeight: 600 }}>Descripción</th>
+                                                        <th style={{ padding: '3px 4px', textAlign: 'center', fontWeight: 600 }}>Cant.</th>
+                                                        <th style={{ padding: '3px 4px', textAlign: 'center', fontWeight: 600 }}>Unid.</th>
+                                                        <th style={{ padding: '3px 4px', textAlign: 'left', fontWeight: 600, borderRadius: '0 3px 0 0' }}>Cód.</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {remitoItems.filter(i => i.descripcion.trim()).length === 0 ? (
+                                                        <tr>
+                                                            <td colSpan={5} style={{ padding: '12px 4px', textAlign: 'center', color: '#94a3b8', fontStyle: 'italic' }}>
+                                                                Agregá ítems al remito...
+                                                            </td>
+                                                        </tr>
+                                                    ) : (
+                                                        remitoItems.filter(i => i.descripcion.trim()).map((item, idx) => (
+                                                            <tr key={item.id} style={{ background: idx % 2 === 0 ? '#f8fafc' : '#fff' }}>
+                                                                <td style={{ padding: '3px 4px', color: '#94a3b8' }}>{idx + 1}</td>
+                                                                <td style={{ padding: '3px 4px', fontWeight: 500 }}>{item.descripcion}</td>
+                                                                <td style={{ padding: '3px 4px', textAlign: 'center', fontWeight: 600 }}>{item.cantidad}</td>
+                                                                <td style={{ padding: '3px 4px', textAlign: 'center', color: '#64748b' }}>{item.unidad}</td>
+                                                                <td style={{ padding: '3px 4px', color: '#64748b' }}>{item.codigo || '—'}</td>
+                                                            </tr>
+                                                        ))
+                                                    )}
+                                                </tbody>
+                                            </table>
+
+                                            {/* Totals bar */}
+                                            {remitoItems.some(i => i.descripcion.trim()) && (
+                                                <div style={{
+                                                    display: 'flex', justifyContent: 'space-between',
+                                                    padding: '4px 6px', marginTop: 6,
+                                                    borderTop: '1px solid #e2e8f0',
+                                                    fontFamily: 'Helvetica, sans-serif', fontSize: '0.6rem', fontWeight: 600,
+                                                }}>
+                                                    <span>Total ítems: {remitoItems.filter(i => i.descripcion.trim()).length}</span>
+                                                    <span>Cant. total: {remitoItems.filter(i => i.descripcion.trim()).reduce((s, i) => s + i.cantidad, 0)}</span>
+                                                </div>
+                                            )}
+
+                                            {/* Observaciones */}
+                                            {remitoObservaciones && (
+                                                <div style={{
+                                                    background: '#f8f9fc', borderRadius: 4, padding: '4px 6px',
+                                                    marginTop: 8, fontSize: '0.55rem', fontFamily: 'Helvetica, sans-serif',
+                                                }}>
+                                                    <span style={{ color: '#94a3b8', fontSize: '0.5rem' }}>OBS: </span>
+                                                    {remitoObservaciones}
+                                                </div>
+                                            )}
+
+                                            {/* Signature lines */}
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20, fontFamily: 'Helvetica, sans-serif' }}>
+                                                <div style={{ textAlign: 'center' }}>
+                                                    <div style={{ width: 80, borderTop: '1px solid #94a3b8', marginBottom: 2 }} />
+                                                    <span style={{ fontSize: '0.5rem', color: '#94a3b8' }}>Firma Entrega</span>
+                                                </div>
+                                                <div style={{ textAlign: 'center' }}>
+                                                    <div style={{ width: 80, borderTop: '1px solid #94a3b8', marginBottom: 2 }} />
+                                                    <span style={{ fontSize: '0.5rem', color: '#94a3b8' }}>Firma Recepción</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Info card for remito */}
+                                    <div className="card" style={{ padding: '1rem', background: '#f8fafc' }}>
+                                        <div style={{ fontSize: '0.75rem', color: '#64748b', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, color: '#475569', marginBottom: 4 }}>
+                                                <Package size={14} /> Remito en Tiempo Real
+                                            </div>
+                                            <p style={{ margin: 0 }}>
+                                                Armá el remito y descargalo como PDF con el botón <strong>"Generar Remito PDF"</strong>. La vista previa se actualiza en tiempo real.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    {/* === NORMAL TOTALS PANEL === */}
+
+                                    {/* Totals card */}
+                                    <div className="card" style={{ padding: '1.25rem' }}>
+                                        <h3 style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#64748b', margin: '0 0 0.75rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>
+                                            Resumen
+                                        </h3>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+                                                <span style={{ color: '#64748b' }}>Subtotal</span>
+                                                <span style={{ fontWeight: 500 }}>{fmt(subtotal)}</span>
+                                            </div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+                                                <span style={{ color: '#64748b' }}>IVA</span>
+                                                <span style={{ fontWeight: 500 }}>{fmt(totalIva)}</span>
+                                            </div>
+                                            <div style={{ height: 1, background: '#e2e8f0', margin: '0.25rem 0' }} />
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.125rem' }}>
+                                                <span style={{ fontWeight: 700, color: '#0f172a' }}>Total</span>
+                                                <span style={{ fontWeight: 700, color: '#1958E0' }}>{fmt(totalFinal)}</span>
+                                            </div>
+                                            {formMoneda === 'USD' && formTipoCambio && (
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', marginTop: 4 }}>
+                                                    <span style={{ color: '#94a3b8' }}>Total ARS</span>
+                                                    <span style={{ fontWeight: 600, color: '#475569' }}>{fmt(totalFinal * (parseFloat(formTipoCambio) || 1))}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Info card */}
+                                    <div className="card" style={{ padding: '1rem', background: '#f8fafc' }}>
+                                        <div style={{ fontSize: '0.75rem', color: '#64748b', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, color: '#475569', marginBottom: 4 }}>
+                                                <FileText size={14} /> Información
+                                            </div>
+                                            <p style={{ margin: 0 }}>
+                                                El comprobante se guardará con estado <strong>"Pendiente"</strong>. Podés aprobarlo después desde el Listado.
+                                            </p>
+                                            {formTipo === 'compra' && (
+                                                <p style={{ margin: 0, marginTop: 4 }}>
+                                                    💡 Al seleccionar un proveedor con condición fiscal, se sugiere automáticamente el tipo de factura.
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Line items breakdown */}
+                                    {lineas.some(l => l.precio_unitario > 0) && (
+                                        <div className="card" style={{ padding: '1rem' }}>
+                                            <h3 style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', margin: '0 0 0.5rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>
+                                                Desglose por ítem
+                                            </h3>
+                                            {lineas.filter(l => l.precio_unitario > 0).map((l, i) => {
+                                                const lineSubtotal = l.cantidad * l.precio_unitario;
+                                                const lineIva = lineSubtotal * l.iva_porcentaje / 100;
+                                                return (
+                                                    <div key={l.id} style={{
+                                                        padding: '0.4rem 0', borderBottom: i < lineas.length - 1 ? '1px solid #f1f5f9' : undefined,
+                                                        fontSize: '0.8125rem',
+                                                    }}>
+                                                        <div style={{ fontWeight: 500, color: '#0f172a', marginBottom: 2 }}>
+                                                            {l.descripcion || `Ítem ${i + 1}`}
+                                                        </div>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontSize: '0.75rem' }}>
+                                                            <span>{l.cantidad} × {fmt(l.precio_unitario)}</span>
+                                                            <span>{fmt(lineSubtotal + lineIva)}</span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </>
                             )}
+
                         </div>
                     </div >
                 )
