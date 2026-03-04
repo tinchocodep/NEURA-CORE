@@ -1,65 +1,65 @@
 /* =====================================================
-   NEURAORKESTA DESIGN SYSTEM — Dark Pro Tokens
-   v4.6 — 60/30/10 Rule
+   NEURAORKESTA DESIGN SYSTEM — Light Pro Tokens
+   v4.6 — Modo Claro
    ===================================================== */
 
 @theme {
-    /* ── Paleta base (60%) ── */
-    --color-bg-base: #0B0E14;
-    --color-bg-surface: #161B22;
-    --color-bg-surface-2: #1C2333;
-    --color-bg-hover: #1F2B3E;
-    --color-bg-active: #243047;
+    /* ── Fondo base (60%) ── */
+    --color-bg-base: #F6F8FA;
+    --color-bg-surface: #FFFFFF;
+    --color-bg-surface-2: #F0F3F7;
+    --color-bg-hover: #EBF0F6;
+    --color-bg-active: #DDE5EF;
 
     /* ── Texto ── */
-    --color-text-primary: #F0F6FC;
-    --color-text-secondary: #8B949E;
-    --color-text-muted: #484F58;
-    --color-text-faint: #30363D;
+    --color-text-primary: #1F2328;
+    --color-text-secondary: #57606A;
+    --color-text-muted: #8C959F;
+    --color-text-faint: #B3BCC6;
 
     /* ── Acento Neura (10%) ── */
-    --color-accent: #00D1FF;
-    --color-accent-dim: rgba(0, 209, 255, 0.12);
-    --color-accent-border: rgba(0, 209, 255, 0.30);
-    --color-accent-hover: #33DAFF;
+    --color-accent: #0284C7;
+    --color-accent-dim: rgba(2, 132, 199, 0.08);
+    --color-accent-border: rgba(2, 132, 199, 0.25);
+    --color-accent-hover: #0369A1;
 
     /* ── Semánticos ── */
-    --color-success: #3FB950;
-    --color-success-dim: rgba(63, 185, 80, 0.12);
-    --color-warning: #D29922;
-    --color-warning-dim: rgba(210, 153, 34, 0.12);
-    --color-danger: #F85149;
-    --color-danger-dim: rgba(248, 81, 73, 0.12);
-    --color-info: #58A6FF;
-    --color-info-dim: rgba(88, 166, 255, 0.12);
+    --color-success: #16A34A;
+    --color-success-dim: rgba(22, 163, 74, 0.10);
+    --color-warning: #D97706;
+    --color-warning-dim: rgba(217, 119, 6, 0.10);
+    --color-danger: #DC2626;
+    --color-danger-dim: rgba(220, 38, 38, 0.10);
+    --color-info: #2563EB;
+    --color-info-dim: rgba(37, 99, 235, 0.10);
 
     /* ── AFIP específicos ── */
-    --color-afip-ok: #3FB950;
-    --color-afip-pending: #D29922;
-    --color-afip-error: #F85149;
-    --color-afip-offline: #484F58;
+    --color-afip-ok: #16A34A;
+    --color-afip-pending: #D97706;
+    --color-afip-error: #DC2626;
+    --color-afip-offline: #8C959F;
 
     /* ── Bordes ── */
-    --color-border: #30363D;
-    --color-border-subtle: #21262D;
+    --color-border: #D0D7DE;
+    --color-border-subtle: #E8ECF0;
 
     /* ── Tipografía ── */
     --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-    --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
-    /* ── Spacing / Radius ── */
+    /* ── Radius ── */
     --radius-sm: 4px;
     --radius-md: 8px;
     --radius-lg: 12px;
     --radius-xl: 16px;
 
     /* ── Shadows ── */
-    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
-    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
-    --shadow-accent: 0 0 20px rgba(0, 209, 255, 0.15);
+    --shadow-sm: 0 1px 3px rgba(31, 35, 40, 0.10), 0 1px 2px rgba(31, 35, 40, 0.07);
+    --shadow-md: 0 4px 12px rgba(31, 35, 40, 0.12);
+    --shadow-lg: 0 8px 24px rgba(31, 35, 40, 0.14);
+    --shadow-accent: 0 0 0 3px rgba(2, 132, 199, 0.15);
 
-    /* ── Z-index layers ── */
+    /* ── Z-index ── */
     --z-panel: 100;
     --z-dropdown: 200;
     --z-modal: 300;
@@ -68,7 +68,7 @@
 
     /* ── Layout ── */
     --sidebar-width: 240px;
-    --agent-panel-width: 280px;
-    --header-height: 56px;
+    --agent-panel-width: 272px;
+    --header-height: 52px;
     --grid-row-height: 44px;
 }
