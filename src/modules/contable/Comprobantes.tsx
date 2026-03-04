@@ -3,7 +3,8 @@ import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
 import {
     Search, Filter, ArrowUpRight, ArrowDownLeft, CheckCircle, XCircle,
-    Upload as UploadIcon, Send, Plus, Trash2, Save, FileText, X, Eye, Download
+    Upload as UploadIcon, Send, Plus, Trash2, Save, FileText, X, Eye, Download,
+    ChevronRight, ChevronDown, Folder
 } from 'lucide-react';
 
 // --- Types ---
@@ -130,6 +131,7 @@ export default function Comprobantes() {
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [productosServicio, setProductosServicio] = useState<ProductoServicio[]>([]);
     const [centrosCosto, setCentrosCosto] = useState<CentroCosto[]>([]);
+    const [expandedProductFolders, setExpandedProductFolders] = useState<Set<string>>(new Set());
 
     // Entity search
     const [entitySearch, setEntitySearch] = useState('');
@@ -778,14 +780,125 @@ export default function Comprobantes() {
                                 )}
                             </div>
 
-                            {/* Centro de costo */}
+                            {/* Producto/Servicio - folder toggle */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
                                 <div className="form-group">
-                                    <label>Producto/Servicio (general)</label>
-                                    <select className="form-input" value={formProductoServicioId} onChange={e => setFormProductoServicioId(e.target.value)}>
-                                        <option value="">Sin asignar</option>
-                                        {productosServicio.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                                    </select>
+                                    <label>Producto/Servicio</label>
+                                    <div style={{
+                                        border: '1.5px solid #e2e8f0', borderRadius: 8,
+                                        maxHeight: 220, overflowY: 'auto', background: '#fff',
+                                    }}>
+                                        {/* Group by grupo field */}
+                                        {(() => {
+                                            const grupoMap = new Map<string, ProductoServicio[]>();
+                                            const sinGrupo: ProductoServicio[] = [];
+                                            for (const p of productosServicio) {
+                                                if (p.grupo) {
+                                                    if (!grupoMap.has(p.grupo)) grupoMap.set(p.grupo, []);
+                                                    grupoMap.get(p.grupo)!.push(p);
+                                                } else {
+                                                    sinGrupo.push(p);
+                                                }
+                                            }
+                                            const sortedGrupos = [...grupoMap.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+
+                                            return (
+                                                <>
+                                                    {/* Sin asignar option */}
+                                                    <div
+                                                        onClick={() => setFormProductoServicioId('')}
+                                                        style={{
+                                                            padding: '6px 10px', cursor: 'pointer', fontSize: '0.8rem',
+                                                            borderBottom: '1px solid #f1f5f9',
+                                                            background: formProductoServicioId === '' ? '#eff6ff' : undefined,
+                                                            color: '#94a3b8', fontStyle: 'italic',
+                                                        }}
+                                                    >
+                                                        Sin asignar
+                                                    </div>
+
+                                                    {sortedGrupos.map(([grupo, items]) => {
+                                                        const isOpen = expandedProductFolders.has(grupo);
+                                                        const hasSelected = items.some(i => i.id === formProductoServicioId);
+                                                        return (
+                                                            <div key={grupo}>
+                                                                <div
+                                                                    onClick={() => {
+                                                                        setExpandedProductFolders(prev => {
+                                                                            const next = new Set(prev);
+                                                                            if (next.has(grupo)) next.delete(grupo);
+                                                                            else next.add(grupo);
+                                                                            return next;
+                                                                        });
+                                                                    }}
+                                                                    style={{
+                                                                        padding: '6px 10px', cursor: 'pointer',
+                                                                        display: 'flex', alignItems: 'center', gap: 6,
+                                                                        fontSize: '0.78rem', fontWeight: 600,
+                                                                        background: hasSelected ? '#f0f7ff' : '#f8f9fc',
+                                                                        borderBottom: '1px solid #f1f5f9',
+                                                                        color: '#334155',
+                                                                    }}
+                                                                >
+                                                                    {isOpen ? <ChevronDown size={14} color="#64748b" /> : <ChevronRight size={14} color="#64748b" />}
+                                                                    <Folder size={14} color={hasSelected ? '#2563eb' : '#94a3b8'} />
+                                                                    <span>{grupo}</span>
+                                                                    <span style={{ fontSize: '0.65rem', color: '#94a3b8', marginLeft: 'auto' }}>{items.length}</span>
+                                                                </div>
+                                                                {isOpen && items.sort((a, b) => a.nombre.localeCompare(b.nombre)).map(p => (
+                                                                    <div
+                                                                        key={p.id}
+                                                                        onClick={() => setFormProductoServicioId(p.id)}
+                                                                        style={{
+                                                                            padding: '5px 10px 5px 36px', cursor: 'pointer',
+                                                                            fontSize: '0.78rem',
+                                                                            borderBottom: '1px solid #f8f9fa',
+                                                                            background: formProductoServicioId === p.id ? '#eff6ff' : undefined,
+                                                                            color: formProductoServicioId === p.id ? '#2563eb' : '#334155',
+                                                                            fontWeight: formProductoServicioId === p.id ? 600 : 400,
+                                                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                                        }}
+                                                                        onMouseEnter={e => { if (formProductoServicioId !== p.id) e.currentTarget.style.background = '#f8fafc'; }}
+                                                                        onMouseLeave={e => { if (formProductoServicioId !== p.id) e.currentTarget.style.background = ''; }}
+                                                                    >
+                                                                        <span>{p.nombre}</span>
+                                                                        {formProductoServicioId === p.id && <CheckCircle size={14} color="#2563eb" />}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        );
+                                                    })}
+
+                                                    {/* Standalone items (no group) */}
+                                                    {sinGrupo.sort((a, b) => a.nombre.localeCompare(b.nombre)).map(p => (
+                                                        <div
+                                                            key={p.id}
+                                                            onClick={() => setFormProductoServicioId(p.id)}
+                                                            style={{
+                                                                padding: '5px 10px', cursor: 'pointer',
+                                                                fontSize: '0.78rem',
+                                                                borderBottom: '1px solid #f8f9fa',
+                                                                background: formProductoServicioId === p.id ? '#eff6ff' : undefined,
+                                                                color: formProductoServicioId === p.id ? '#2563eb' : '#334155',
+                                                                fontWeight: formProductoServicioId === p.id ? 600 : 400,
+                                                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                            }}
+                                                            onMouseEnter={e => { if (formProductoServicioId !== p.id) e.currentTarget.style.background = '#f8fafc'; }}
+                                                            onMouseLeave={e => { if (formProductoServicioId !== p.id) e.currentTarget.style.background = ''; }}
+                                                        >
+                                                            <span>{p.nombre}</span>
+                                                            {formProductoServicioId === p.id && <CheckCircle size={14} color="#2563eb" />}
+                                                        </div>
+                                                    ))}
+                                                </>
+                                            );
+                                        })()}
+                                    </div>
+                                    {formProductoServicioId && (
+                                        <div style={{ fontSize: '0.7rem', color: '#2563eb', marginTop: 4, fontWeight: 500 }}>
+                                            ✓ {productosServicio.find(p => p.id === formProductoServicioId)?.nombre}
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="form-group">
                                     <label>Centro de Costo</label>
