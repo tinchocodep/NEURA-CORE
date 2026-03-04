@@ -466,8 +466,126 @@ a {
 }
 
 /* =====================================================
-   DATA GRID (new)
+   METRIC CARDS (Dashboard KPI grid)
    ===================================================== */
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.metric-card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 1.25rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  transition: box-shadow 0.15s, transform 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+
+.metric-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.metric-card.success {
+  border-top-color: var(--color-success);
+}
+
+.metric-card.danger {
+  border-top-color: var(--color-danger);
+}
+
+.metric-card.warning {
+  border-top-color: var(--color-warning);
+}
+
+.metric-card.info {
+  border-top-color: var(--color-info);
+}
+
+.metric-title {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--color-text-muted);
+  margin-bottom: 0.375rem;
+}
+
+.metric-value {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.metric-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--color-bg-surface-2);
+  color: var(--color-text-muted);
+}
+
+.metric-icon.primary {
+  background: var(--color-accent-dim);
+  color: var(--color-accent);
+}
+
+.metric-icon.success {
+  background: var(--color-success-dim);
+  color: var(--color-success);
+}
+
+.metric-icon.danger {
+  background: var(--color-danger-dim);
+  color: var(--color-danger);
+}
+
+.metric-icon.warning {
+  background: var(--color-warning-dim);
+  color: var(--color-warning);
+}
+
+.metric-icon.info {
+  background: var(--color-info-dim);
+  color: var(--color-info);
+}
+
+/* Row hover utility (day cards, table rows with manual bg) */
+.nav-item-hover {
+  transition: background 0.12s, transform 0.12s;
+}
+
+.nav-item-hover:hover {
+  background: var(--color-bg-hover) !important;
+}
+
+/* Custom horizontal scrollbar for day card strip */
+.custom-scrollbar::-webkit-scrollbar {
+  height: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 99px;
+}
+
+
 
 .data-grid-wrapper {
   background: var(--color-bg-surface);
