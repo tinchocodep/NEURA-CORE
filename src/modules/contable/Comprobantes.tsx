@@ -476,7 +476,7 @@ export default function Comprobantes() {
                                                         }
                                                     </td>
                                                     <td style={{ textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                                                        {fmt(c.monto_ars)}
+                                                        {fmt(c.monto_ars || c.monto_original)}
                                                         {c.moneda === 'USD' && c.tipo_cambio && (
                                                             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 400 }}>
                                                                 USD {c.monto_original.toLocaleString()} · TC {c.tipo_cambio}
