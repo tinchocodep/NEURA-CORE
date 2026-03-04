@@ -14,7 +14,8 @@ import Monitor from './modules/tesoreria/Monitor';
 import Equipo from './modules/tesoreria/Equipo';
 import SuperAdminDashboard from './modules/superadmin/Dashboard';
 import ContableDashboard from './modules/contable/Dashboard';
-import ContableComprobantes from './modules/contable/Comprobantes';
+import ContableComprobantes from './modules/contable/Comprobantes/index';
+
 import ContableProveedores from './modules/contable/Proveedores';
 import ContableClientes from './modules/contable/Clientes';
 import ContableCatalogos from './modules/contable/Catalogos';

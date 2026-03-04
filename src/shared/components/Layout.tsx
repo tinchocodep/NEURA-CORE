@@ -1,16 +1,21 @@
 import { Outlet, Navigate, Link, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { LogOut, LayoutDashboard, ArrowRightLeft, FileText, Activity, Landmark, Briefcase, Zap, Users, BookOpen, Package, Building2, Settings, ClipboardList } from 'lucide-react';
+import {
+    LogOut, LayoutDashboard, ArrowRightLeft, FileText, Activity, Landmark,
+    Briefcase, Zap, Users, BookOpen, Package, Building2, Settings, ClipboardList
+} from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
 import { useEffect, useState } from 'react';
+import AgentMonitorPanel from '../../design-system/components/AgentMonitor/AgentMonitorPanel';
 
 export default function Layout() {
     const { user, signOut, role, userModules } = useAuth() as any;
     const { tenant } = useTenant();
     const location = useLocation();
     const [pendingCount, setPendingCount] = useState(0);
+    const [agentCollapsed, setAgentCollapsed] = useState(false);
 
     useEffect(() => {
         if (!tenant || (role !== 'admin' && role !== 'superadmin')) return;
@@ -20,7 +25,6 @@ export default function Layout() {
             d.setDate(d.getDate() + diff);
             return d.toISOString().split('T')[0];
         })();
-        // Count cajas with assigned_user_id that have NO settlement this week
         supabase.from('treasury_accounts')
             .select('id', { count: 'exact' })
             .eq('tenant_id', tenant.id)
@@ -36,6 +40,18 @@ export default function Layout() {
                     });
             });
     }, [tenant, role, location.pathname]);
+
+    // Hotkey: Cmd+J toggles agent panel
+    useEffect(() => {
+        const handler = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'j') {
+                e.preventDefault();
+                setAgentCollapsed(c => !c);
+            }
+        };
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    }, []);
 
     if (!user) return <Navigate to="/login" replace />;
 
@@ -66,185 +82,193 @@ export default function Layout() {
         { name: 'Configuración', path: '/contable/configuracion', icon: Settings, adminOnly: true },
     ];
 
-    const contableItems = (role === 'admin' || role === 'superadmin'
-        ? allContableItems
-        : allContableItems.filter((i: any) =>
-            !i.adminOnly
-        )).filter((i: any) => !i.adminOnly || role === 'admin' || role === 'superadmin');
-
+    const contableItems = allContableItems.filter(
+        (i: any) => !i.adminOnly || role === 'admin' || role === 'superadmin'
+    );
     const tesoreriaItems = (role === 'admin' || role === 'superadmin'
         ? allTesoreriaItems
-        : allTesoreriaItems.filter((i: any) =>
+        : allTesoreriaItems.filter(i =>
             i.path === '/tesoreria/movimientos' || i.path === '/tesoreria/comprobantes'
-        )).filter((i: any) => !i.adminOnly || role === 'admin' || role === 'superadmin');
+        )
+    ).filter((i: any) => !i.adminOnly || role === 'admin' || role === 'superadmin');
 
-    const displayRole = role === 'superadmin' ? 'Super Admin' : role === 'admin' ? 'Administrador' : 'Usuario';
+    const displayRole = role === 'superadmin' ? 'Super Admin' : role === 'admin' ? 'Admin' : 'Usuario';
+    const isContable = location.pathname.startsWith('/contable');
+    const isTesoreria = location.pathname.startsWith('/tesoreria');
+
+    // Determine current section nav items
+    const sectionItems = isContable ? contableItems : isTesoreria ? tesoreriaItems : [];
 
     return (
-        <div className="app-layout">
-            {/* ──── SIDEBAR ──── */}
+        <div
+            className={`app-shell${agentCollapsed ? ' agent-collapsed' : ''}`}
+        >
+            {/* ──────────────── SIDEBAR ──────────────── */}
             <aside className="sidebar">
-                <div className="sidebar-brand">
+                {/* Logo */}
+                <div className="sidebar-logo">
                     {tenant?.logo_url ? (
                         <img src={tenant.logo_url} alt={tenant.name || 'Logo'}
-                            style={{ height: '36px', width: '36px', objectFit: 'contain', borderRadius: '8px' }} />
+                            style={{ height: 32, width: 32, objectFit: 'contain', borderRadius: 6 }} />
                     ) : (
-                        <div style={{ position: 'relative' }}>
-                            <div className="sidebar-brand-icon">
-                                <Zap size={18} color="white" />
-                            </div>
-                            <span className="tooltip-text">{tenant?.name || 'Tesorería'}</span>
+                        <div style={{
+                            width: 32, height: 32, borderRadius: 8,
+                            background: 'linear-gradient(135deg, var(--color-accent-dim), rgba(0,209,255,0.05))',
+                            border: '1px solid var(--color-accent-border)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                        }}>
+                            <Zap size={16} color="var(--color-accent)" />
                         </div>
                     )}
+                    <div>
+                        <div className="sidebar-logo-text">
+                            {tenant?.name || 'NeuraOrkesta'}
+                        </div>
+                        <div className="sidebar-logo-badge">v4.6</div>
+                    </div>
                 </div>
 
-                <nav className="sidebar-nav">
-                    <Link to="/" className={`nav-item ${location.pathname === '/' ? 'active' : ''}`}>
-                        <LayoutDashboard size={18} />
-                        <span className="tooltip-text">Visión General</span>
+                {/* Module Navigation */}
+                <div className="sidebar-section">
+                    <div className="sidebar-section-label">Módulos</div>
+
+                    <Link to="/" className={`sidebar-link${location.pathname === '/' ? ' active' : ''}`}>
+                        <LayoutDashboard size={16} />
+                        Visión General
                     </Link>
 
                     {hasModuleAccess('tesoreria') && (
                         <Link
                             to={role === 'admin' || role === 'superadmin' ? '/tesoreria' : '/tesoreria/movimientos'}
-                            className={`nav-item ${location.pathname.startsWith('/tesoreria') ? 'active' : ''}`}
+                            className={`sidebar-link${isTesoreria ? ' active' : ''}`}
                         >
-                            <Landmark size={18} />
-                            <span className="tooltip-text">Tesorería</span>
+                            <Landmark size={16} />
+                            Tesorería
                         </Link>
                     )}
 
                     {hasModuleAccess('contable') && (
                         <Link
                             to="/contable"
-                            className={`nav-item ${location.pathname.startsWith('/contable') ? 'active' : ''}`}
+                            className={`sidebar-link${isContable ? ' active' : ''}`}
                         >
-                            <BookOpen size={18} />
-                            <span className="tooltip-text">Contable</span>
+                            <BookOpen size={16} />
+                            Contable
                         </Link>
                     )}
 
                     {hasModuleAccess('crm') && (
-                        <Link to="/crm" className={`nav-item ${location.pathname.startsWith('/crm') ? 'active' : ''}`}>
-                            <Briefcase size={18} />
-                            <span className="tooltip-text">CRM</span>
+                        <Link to="/crm" className={`sidebar-link${location.pathname.startsWith('/crm') ? ' active' : ''}`}>
+                            <Briefcase size={16} />
+                            CRM
                         </Link>
                     )}
 
                     {role === 'superadmin' && (
                         <Link
                             to="/superadmin"
-                            className={`nav-item ${location.pathname.startsWith('/superadmin') ? 'active' : ''}`}
-                            style={{ color: 'var(--brand-accent)' }}
+                            className={`sidebar-link${location.pathname.startsWith('/superadmin') ? ' active' : ''}`}
+                            style={{ color: 'var(--color-accent)' }}
                         >
-                            <Activity size={18} />
-                            <span className="tooltip-text">Super Admin</span>
+                            <Activity size={16} />
+                            Super Admin
                         </Link>
                     )}
-                </nav>
+                </div>
 
-                <div className="sidebar-user">
-                    <div className="user-avatar">
+                {/* Section sub-navigation */}
+                {sectionItems.length > 0 && (
+                    <div className="sidebar-section" style={{ borderTop: '1px solid var(--color-border-subtle)', marginTop: '0.5rem', paddingTop: '1rem' }}>
+                        <div className="sidebar-section-label">
+                            {isContable ? 'Contable' : 'Tesorería'}
+                        </div>
+                        {sectionItems.map(item => {
+                            const isActive = item.path === '/tesoreria' || item.path === '/contable'
+                                ? location.pathname === item.path
+                                : location.pathname.startsWith(item.path);
+                            const isCajas = item.path === '/tesoreria/cajas';
+                            return (
+                                <Link
+                                    key={item.path}
+                                    to={item.path}
+                                    className={`sidebar-link${isActive ? ' active' : ''}`}
+                                    style={{ position: 'relative' }}
+                                >
+                                    <item.icon size={14} />
+                                    {item.name}
+                                    {isCajas && pendingCount > 0 && (
+                                        <span style={{
+                                            marginLeft: 'auto',
+                                            background: 'var(--color-warning)',
+                                            color: '#0B0E14',
+                                            fontSize: '0.6rem', fontWeight: 800,
+                                            padding: '1px 5px', borderRadius: 99,
+                                        }}>
+                                            {pendingCount}
+                                        </span>
+                                    )}
+                                </Link>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {/* Spacer */}
+                <div style={{ flex: 1 }} />
+
+                {/* User footer */}
+                <div style={{
+                    padding: '0.875rem 1rem',
+                    borderTop: '1px solid var(--color-border-subtle)',
+                    display: 'flex', alignItems: 'center', gap: '0.625rem',
+                }}>
+                    <div style={{
+                        width: 30, height: 30, borderRadius: '50%',
+                        background: 'var(--color-accent-dim)',
+                        border: '1px solid var(--color-accent-border)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-accent)',
+                        flexShrink: 0,
+                    }}>
                         {user.email?.charAt(0).toUpperCase()}
                     </div>
-                    <div className="sidebar-user-menu">
-                        <div style={{ padding: '0.75rem', marginBottom: '0.25rem', borderBottom: '1px solid var(--border)' }}>
-                            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '168px' }}>
-                                {user.email}
-                            </div>
-                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
-                                {displayRole}
-                            </div>
+                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {user.email}
                         </div>
-                        <button
-                            onClick={signOut}
-                            className="btn btn-secondary"
-                            style={{ width: '100%', justifyContent: 'flex-start', padding: '0.5rem 0.75rem', border: 'none', borderRadius: 'var(--r-sm)', fontSize: '0.8125rem' }}
-                        >
-                            <LogOut size={14} />
-                            Cerrar sesión
-                        </button>
+                        <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>
+                            {displayRole}
+                        </div>
                     </div>
+                    <button
+                        onClick={signOut}
+                        className="btn btn-ghost btn-icon"
+                        title="Cerrar sesión"
+                        tabIndex={0}
+                    >
+                        <LogOut size={14} />
+                    </button>
                 </div>
             </aside>
 
-            {/* ──── MAIN ──── */}
+            {/* ──────────────── MAIN CONTENT ──────────────── */}
             <main className="main-content">
-                <header className="topbar">
-                    <div style={{ flex: 1 }}>
-                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em' }}>
-                            {tenant?.name}
-                        </span>
-                    </div>
-
-                    {location.pathname.startsWith('/tesoreria') && (
-                        <nav className="topbar-nav">
-                            {tesoreriaItems.map((item) => {
-                                const isActive = item.path === '/tesoreria'
-                                    ? location.pathname === '/tesoreria'
-                                    : location.pathname.startsWith(item.path);
-                                const isCajas = item.path === '/tesoreria/cajas';
-                                return (
-                                    <Link key={item.path} to={item.path} className={`topbar-nav-item ${isActive ? 'active' : ''}`}
-                                        style={{ position: 'relative' }}>
-                                        <item.icon size={13} />
-                                        {item.name}
-                                        {isCajas && pendingCount > 0 && (
-                                            <span style={{
-                                                position: 'absolute', top: '-4px', right: '-6px',
-                                                background: 'var(--warning)', color: '#fff',
-                                                fontSize: '0.6rem', fontWeight: 800,
-                                                width: '16px', height: '16px', borderRadius: '50%',
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                lineHeight: 1,
-                                            }}>
-                                                {pendingCount}
-                                            </span>
-                                        )}
-                                    </Link>
-                                );
-                            })}
-                        </nav>
-                    )}
-
-                    {location.pathname.startsWith('/contable') && (
-                        <nav className="topbar-nav">
-                            {contableItems.map((item) => {
-                                const isActive = item.path === '/contable'
-                                    ? location.pathname === '/contable'
-                                    : location.pathname.startsWith(item.path);
-                                return (
-                                    <Link key={item.path} to={item.path} className={`topbar-nav-item ${isActive ? 'active' : ''}`}>
-                                        <item.icon size={13} />
-                                        {item.name}
-                                    </Link>
-                                );
-                            })}
-                        </nav>
-                    )}
-
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.6rem' }}>
-                        <span className="signal-dot online" />
-                        <span style={{ fontSize: '0.75rem', color: 'var(--success)', fontWeight: 600 }}>Online</span>
-                    </div>
-                </header>
-
-                {/* Animated pages */}
-                <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
-                    <AnimatePresence mode="wait">
-                        <motion.div
-                            key={location.pathname}
-                            initial={{ opacity: 0, y: 12 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -8 }}
-                            transition={{ duration: 0.3, ease: 'easeOut' }}
-                            style={{ height: '100%', padding: '2rem 2.5rem', overflowY: 'auto' }}
-                        >
-                            <Outlet />
-                        </motion.div>
-                    </AnimatePresence>
-                </div>
+                <AnimatePresence mode="wait">
+                    <motion.div
+                        key={location.pathname}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -6 }}
+                        transition={{ duration: 0.2, ease: 'easeOut' }}
+                        style={{ minHeight: '100%' }}
+                    >
+                        <Outlet />
+                    </motion.div>
+                </AnimatePresence>
             </main>
+
+            {/* ──────────────── AGENT MONITOR ──────────────── */}
+            <AgentMonitorPanel />
         </div>
     );
 }
