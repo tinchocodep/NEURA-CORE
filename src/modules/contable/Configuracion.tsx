@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
-import { Settings, Eye, EyeOff, Save, RefreshCw, CheckCircle, XCircle, Zap } from 'lucide-react';
+import { Settings, Eye, EyeOff, Save, RefreshCw, CheckCircle, XCircle, Zap, Building2 } from 'lucide-react';
 
 interface Config {
     id: string;
@@ -18,7 +18,7 @@ interface Config {
 }
 
 export default function Configuracion() {
-    const { tenant } = useTenant();
+    const { tenant, refreshTenant } = useTenant();
     const [config, setConfig] = useState<Config | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -29,9 +29,19 @@ export default function Configuracion() {
     const [xubioStatus, setXubioStatus] = useState<'idle' | 'ok' | 'error'>('idle');
     const [arcaStatus, setArcaStatus] = useState<'idle' | 'ok' | 'error'>('idle');
 
+    // Tenant company data
+    const [tenantRazonSocial, setTenantRazonSocial] = useState('');
+    const [tenantCuit, setTenantCuit] = useState('');
+    const [tenantDireccion, setTenantDireccion] = useState('');
+    const [savingTenant, setSavingTenant] = useState(false);
+    const [tenantSaved, setTenantSaved] = useState(false);
+
     useEffect(() => {
         if (!tenant) return;
         loadConfig();
+        setTenantRazonSocial(tenant.razon_social || tenant.name || '');
+        setTenantCuit(tenant.cuit || '');
+        setTenantDireccion(tenant.direccion || '');
     }, [tenant]);
 
     async function loadConfig() {
@@ -69,6 +79,22 @@ export default function Configuracion() {
             })
             .eq('id', config.id);
         setSaving(false);
+    }
+
+    async function handleSaveTenant() {
+        if (!tenant) return;
+        setSavingTenant(true);
+        await supabase.from('tenants')
+            .update({
+                razon_social: tenantRazonSocial.trim() || null,
+                cuit: tenantCuit.trim() || null,
+                direccion: tenantDireccion.trim() || null,
+            })
+            .eq('id', tenant.id);
+        setSavingTenant(false);
+        setTenantSaved(true);
+        setTimeout(() => setTenantSaved(false), 2500);
+        refreshTenant?.();
     }
 
     async function testXubio() {
@@ -111,6 +137,36 @@ export default function Configuracion() {
                 <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
                     <Save size={16} /> {saving ? 'Guardando...' : 'Guardar cambios'}
                 </button>
+            </div>
+
+            {/* ═══ Datos de la Empresa ═══ */}
+            <div className="card" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '1.5rem' }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 'var(--r-md)', background: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Building2 size={20} color="#3b82f6" />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                        <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Datos de la Empresa</h3>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Información fiscal que aparece en remitos y comprobantes</p>
+                    </div>
+                    <button className="btn btn-primary btn-sm" onClick={handleSaveTenant} disabled={savingTenant}>
+                        {tenantSaved ? <><CheckCircle size={14} /> Guardado</> : <><Save size={14} /> {savingTenant ? 'Guardando...' : 'Guardar'}</>}
+                    </button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                    <div className="form-group">
+                        <label className="form-label">Razón Social</label>
+                        <input className="form-input" value={tenantRazonSocial} onChange={e => setTenantRazonSocial(e.target.value)} placeholder="Mi Empresa S.R.L." />
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">CUIT</label>
+                        <input className="form-input" value={tenantCuit} onChange={e => setTenantCuit(e.target.value)} placeholder="30-12345678-9" style={{ fontFamily: 'var(--font-mono)' }} />
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">Dirección</label>
+                        <input className="form-input" value={tenantDireccion} onChange={e => setTenantDireccion(e.target.value)} placeholder="Av. Corrientes 1234, CABA" />
+                    </div>
+                </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', alignItems: 'start' }}>

@@ -18,12 +18,14 @@ interface TenantContextType {
     tenant: Tenant | null;
     userProfile: any | null;
     loading: boolean;
+    refreshTenant: () => void;
 }
 
 const TenantContext = createContext<TenantContextType>({
     tenant: null,
     userProfile: null,
     loading: true,
+    refreshTenant: () => { },
 });
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
@@ -92,13 +94,19 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         return () => { mounted = false; };
     }, [user, authLoading]);
 
+    const refreshTenant = async () => {
+        if (!tenant) return;
+        const { data } = await supabase.from('tenants').select('*').eq('id', tenant.id).single();
+        if (data) setTenant(data as Tenant);
+    };
+
     // If auth is loading, tenant is also loading
     if (authLoading) {
         return null;
     }
 
     return (
-        <TenantContext.Provider value={{ tenant, userProfile, loading }}>
+        <TenantContext.Provider value={{ tenant, userProfile, loading, refreshTenant }}>
             {children}
         </TenantContext.Provider>
     );
