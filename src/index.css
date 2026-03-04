@@ -717,20 +717,21 @@ a {
 }
 
 /* =====================================================
-   TABLE (legacy modules)
+   TABLE (legacy modules) — scoped to .table-container
+   to avoid bleeding into metric cards and other layouts
    ===================================================== */
 
 .table-container {
   overflow-x: auto;
 }
 
-table {
+.table-container table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.8125rem;
 }
 
-thead th {
+.table-container thead th {
   background: var(--color-bg-surface-2);
   border-bottom: 1px solid var(--color-border);
   padding: 0 0.875rem;
@@ -747,27 +748,34 @@ thead th {
   z-index: 5;
 }
 
-tbody tr {
+.table-container tbody tr {
   height: 44px;
   border-bottom: 1px solid var(--color-border-subtle);
   transition: background 0.1s;
 }
 
-tbody tr:last-child {
+.table-container tbody tr:last-child {
   border-bottom: none;
 }
 
-tbody tr:hover {
+.table-container tbody tr:hover {
   background: var(--color-bg-hover);
 }
 
-tbody td {
+.table-container tbody td {
   padding: 0 0.875rem;
   color: var(--color-text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   vertical-align: middle;
+}
+
+/* Standalone table (outside .table-container, e.g. inline tables in Dashboard) */
+table:not(.data-grid) {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
 }
 
 /* =====================================================
