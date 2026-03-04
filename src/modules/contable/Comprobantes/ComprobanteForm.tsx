@@ -266,8 +266,12 @@ export default function ComprobanteForm({ onSuccess }: Props) {
     const generateRemitoPdf = () => {
         const doc = new jsPDF({ unit: 'mm', format: 'a4' });
         const w = doc.internal.pageSize.getWidth();
+        const half = (w - 30) / 2 - 3; // half width for 2-col layout
         const entityName = selectedEntity?.razon_social || '—';
         const entityCuit = selectedEntity ? ('cuit' in selectedEntity ? selectedEntity.cuit : '') : '';
+        const tenantName = tenant?.razon_social || tenant?.name || '';
+        const tenantCuit = tenant?.cuit || '';
+        const tenantDir = tenant?.direccion || '';
 
         // Header
         doc.setFontSize(18);
@@ -279,27 +283,39 @@ export default function ComprobanteForm({ onSuccess }: Props) {
         doc.text(`N°: ${numero || 'S/N'}`, w - 20, 25, { align: 'right' });
         doc.text(`Fecha: ${fecha}`, w - 20, 31, { align: 'right' });
 
-        // Destinatario box
+        // Remitente box (left)
         doc.setDrawColor(200);
-        doc.rect(15, 40, w - 30, 30);
+        doc.rect(15, 40, half, 28);
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(9);
-        doc.text('DESTINATARIO', 20, 47);
+        doc.text('REMITENTE', 20, 47);
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(10);
-        doc.text(entityName, 20, 54);
-        if (entityCuit) doc.text(`CUIT: ${entityCuit}`, 20, 60);
-        if (remDireccion) doc.text(`Dirección: ${remDireccion}`, 20, 66);
+        doc.text(tenantName, 20, 54);
+        if (tenantCuit) doc.text(`CUIT: ${tenantCuit}`, 20, 60);
+        if (tenantDir) doc.text(tenantDir, 20, 66, { maxWidth: half - 10 });
+
+        // Destinatario box (right)
+        const rightX = 15 + half + 6;
+        doc.rect(rightX, 40, half, 28);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.text('DESTINATARIO', rightX + 5, 47);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.text(entityName, rightX + 5, 54);
+        if (entityCuit) doc.text(`CUIT: ${entityCuit}`, rightX + 5, 60);
+        if (remDireccion) doc.text(remDireccion, rightX + 5, 66, { maxWidth: half - 10 });
 
         // Transportista
         if (remTransportista) {
-            doc.rect(15, 75, w - 30, 12);
+            doc.rect(15, 73, w - 30, 12);
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(9);
-            doc.text('TRANSPORTISTA', 20, 82);
+            doc.text('TRANSPORTISTA', 20, 80);
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(10);
-            doc.text(remTransportista, 60, 82);
+            doc.text(remTransportista, 60, 80);
         }
 
         // Items table
@@ -786,14 +802,24 @@ export default function ComprobanteForm({ onSuccess }: Props) {
                                 </div>
                             </div>
 
-                            {/* Destinatario */}
-                            <div style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.875rem 1rem', marginBottom: '1rem' }}>
-                                <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#888', marginBottom: '0.375rem' }}>Destinatario</div>
-                                <div style={{ fontWeight: 700, fontSize: '0.9375rem' }}>{selectedEntity?.razon_social || '—'}</div>
-                                {selectedEntity && 'cuit' in selectedEntity && selectedEntity.cuit && (
-                                    <div style={{ fontSize: '0.8125rem', color: '#555', fontFamily: 'var(--font-mono)' }}>CUIT: {selectedEntity.cuit}</div>
-                                )}
-                                {remDireccion && <div style={{ fontSize: '0.8125rem', color: '#555', marginTop: 2 }}>📍 {remDireccion}</div>}
+                            {/* Remitente + Destinatario (2 columns) */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+                                {/* Remitente */}
+                                <div style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.75rem 0.875rem' }}>
+                                    <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#888', marginBottom: '0.375rem' }}>Remitente</div>
+                                    <div style={{ fontWeight: 700, fontSize: '0.875rem' }}>{tenant?.razon_social || tenant?.name || '—'}</div>
+                                    {tenant?.cuit && <div style={{ fontSize: '0.75rem', color: '#555', fontFamily: 'var(--font-mono)' }}>CUIT: {tenant.cuit}</div>}
+                                    {tenant?.direccion && <div style={{ fontSize: '0.75rem', color: '#555', marginTop: 2 }}>📍 {tenant.direccion}</div>}
+                                </div>
+                                {/* Destinatario */}
+                                <div style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.75rem 0.875rem' }}>
+                                    <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#888', marginBottom: '0.375rem' }}>Destinatario</div>
+                                    <div style={{ fontWeight: 700, fontSize: '0.875rem' }}>{selectedEntity?.razon_social || '—'}</div>
+                                    {selectedEntity && 'cuit' in selectedEntity && selectedEntity.cuit && (
+                                        <div style={{ fontSize: '0.75rem', color: '#555', fontFamily: 'var(--font-mono)' }}>CUIT: {selectedEntity.cuit}</div>
+                                    )}
+                                    {remDireccion && <div style={{ fontSize: '0.75rem', color: '#555', marginTop: 2 }}>📍 {remDireccion}</div>}
+                                </div>
                             </div>
 
                             {/* Transportista */}

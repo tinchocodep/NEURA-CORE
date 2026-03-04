@@ -9,6 +9,9 @@ export interface Tenant {
     primary_color: string;
     secondary_color: string;
     enabled_modules: string[];
+    razon_social: string | null;
+    cuit: string | null;
+    direccion: string | null;
 }
 
 interface TenantContextType {
