@@ -6,10 +6,10 @@
 
 :root {
   /* Brand */
-  --brand: #6366f1;
-  --brand-light: #818cf8;
-  --brand-dark: #4338ca;
-  --brand-accent: #a855f7;
+  --brand: #1958E0;
+  --brand-light: #3B78F0;
+  --brand-dark: #011126;
+  --brand-accent: #1958E0;
   --brand-cyan: #06b6d4;
 
   /* White Theme Surfaces */
@@ -19,7 +19,7 @@
   --bg-sidebar: #ffffff;
   --bg-elevated: #ffffff;
   --bg-input: #f8f9fc;
-  --bg-hover: rgba(99, 102, 241, 0.04);
+  --bg-hover: rgba(25, 88, 224, 0.04);
 
   /* Text */
   --text-main: #0f172a;
@@ -30,7 +30,7 @@
   /* Borders */
   --border: rgba(148, 163, 184, 0.2);
   --border-strong: rgba(148, 163, 184, 0.4);
-  --border-brand: rgba(99, 102, 241, 0.3);
+  --border-brand: rgba(25, 88, 224, 0.3);
 
   /* Status */
   --success: #10b981;
@@ -58,7 +58,7 @@
   --shadow-md: 0 4px 20px rgba(15, 23, 42, 0.08);
   --shadow-lg: 0 12px 40px rgba(15, 23, 42, 0.1);
   --shadow-xl: 0 24px 60px rgba(15, 23, 42, 0.14);
-  --shadow-brand: 0 4px 20px rgba(99, 102, 241, 0.25);
+  --shadow-brand: 0 4px 20px rgba(25, 88, 224, 0.25);
   --shadow-success: 0 4px 16px rgba(16, 185, 129, 0.2);
   --shadow-danger: 0 4px 16px rgba(244, 63, 94, 0.2);
 
@@ -98,7 +98,7 @@ body {
 }
 
 ::selection {
-  background: rgba(99, 102, 241, 0.15);
+  background: rgba(25, 88, 224, 0.15);
   color: var(--brand-dark);
 }
 
@@ -186,7 +186,7 @@ a:hover {
 
 .sidebar-brand:hover .sidebar-brand-icon {
   transform: scale(1.08) rotate(-3deg);
-  box-shadow: 0 8px 30px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 8px 30px rgba(25, 88, 224, 0.4);
 }
 
 .sidebar-nav {
@@ -229,7 +229,7 @@ a:hover {
 }
 
 .nav-item.active {
-  background: rgba(99, 102, 241, 0.1);
+  background: rgba(25, 88, 224, 0.1);
   color: var(--brand);
   box-shadow: inset 0 0 0 1px var(--border-brand);
 }
@@ -523,7 +523,7 @@ a:hover {
 }
 
 .metric-icon.primary {
-  background: rgba(99, 102, 241, 0.1);
+  background: rgba(25, 88, 224, 0.1);
   color: var(--brand);
 }
 
@@ -632,7 +632,7 @@ tr {
 }
 
 tr:hover td {
-  background: rgba(99, 102, 241, 0.025);
+  background: rgba(25, 88, 224, 0.025);
   color: var(--text-main);
 }
 
@@ -736,7 +736,7 @@ tr:hover td {
 .btn-primary:hover:not(:disabled) {
   background: var(--brand-light);
   transform: translateY(-1px);
-  box-shadow: 0 6px 24px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 6px 24px rgba(25, 88, 224, 0.4);
 }
 
 .btn-primary:active:not(:disabled) {
@@ -803,7 +803,7 @@ tr:hover td {
   outline: none;
   border-color: var(--brand);
   background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+  box-shadow: 0 0 0 3px rgba(25, 88, 224, 0.12);
 }
 
 .form-input::placeholder {
@@ -813,6 +813,13 @@ tr:hover td {
 .form-input option {
   background: var(--bg-card);
   color: var(--text-main);
+}
+
+select.form-input {
+  appearance: auto;
+  -webkit-appearance: menulist;
+  padding-right: 1.5rem;
+  text-overflow: ellipsis;
 }
 
 /* ══════════════════════════════════════
@@ -1205,4 +1212,14 @@ tr:hover td {
   background: var(--success);
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
   animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }

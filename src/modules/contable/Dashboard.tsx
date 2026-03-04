@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
-import { FileText, CheckCircle, Upload, AlertTriangle, Clock, ArrowUpRight, ArrowDownLeft, TrendingUp } from 'lucide-react';
+import { FileText, CheckCircle, Upload, AlertTriangle, Clock, ArrowUpRight, ArrowDownLeft, TrendingUp, Send } from 'lucide-react';
 
 interface Stats {
     pendientes: number;
     clasificados: number;
+    aprobados: number;
     inyectados: number;
     errores: number;
     totalCompras: number;
@@ -36,7 +37,7 @@ const estadoBadge: Record<string, { cls: string; label: string }> = {
 
 export default function ContableDashboard() {
     const { tenant } = useTenant();
-    const [stats, setStats] = useState<Stats>({ pendientes: 0, clasificados: 0, inyectados: 0, errores: 0, totalCompras: 0, totalVentas: 0 });
+    const [stats, setStats] = useState<Stats>({ pendientes: 0, clasificados: 0, aprobados: 0, inyectados: 0, errores: 0, totalCompras: 0, totalVentas: 0 });
     const [recientes, setRecientes] = useState<Comprobante[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -50,9 +51,10 @@ export default function ContableDashboard() {
         const tid = tenant!.id;
 
         // Count by estado
-        const [pend, clas, inyec, err, compras, ventas, recent] = await Promise.all([
+        const [pend, clas, aprob, inyec, err, compras, ventas, recent] = await Promise.all([
             supabase.from('contable_comprobantes').select('id', { count: 'exact', head: true }).eq('tenant_id', tid).eq('estado', 'pendiente'),
             supabase.from('contable_comprobantes').select('id', { count: 'exact', head: true }).eq('tenant_id', tid).eq('estado', 'clasificado'),
+            supabase.from('contable_comprobantes').select('id', { count: 'exact', head: true }).eq('tenant_id', tid).eq('estado', 'aprobado'),
             supabase.from('contable_comprobantes').select('id', { count: 'exact', head: true }).eq('tenant_id', tid).eq('estado', 'inyectado'),
             supabase.from('contable_comprobantes').select('id', { count: 'exact', head: true }).eq('tenant_id', tid).eq('estado', 'error'),
             supabase.from('contable_comprobantes').select('id', { count: 'exact', head: true }).eq('tenant_id', tid).eq('tipo', 'compra'),
@@ -67,6 +69,7 @@ export default function ContableDashboard() {
         setStats({
             pendientes: pend.count || 0,
             clasificados: clas.count || 0,
+            aprobados: aprob.count || 0,
             inyectados: inyec.count || 0,
             errores: err.count || 0,
             totalCompras: compras.count || 0,
@@ -86,7 +89,7 @@ export default function ContableDashboard() {
                     <p>Cargando tablero de control...</p>
                 </div>
                 <div className="metrics-grid">
-                    {[1, 2, 3, 4].map(i => (
+                    {[1, 2, 3, 4, 5].map(i => (
                         <div key={i} className="metric-card" style={{ minHeight: 100 }}>
                             <div>
                                 <div className="metric-title" style={{ width: 80, height: 12, background: 'var(--bg-main)', borderRadius: 6 }} />
@@ -134,6 +137,19 @@ export default function ContableDashboard() {
                     </div>
                 </div>
 
+                <div className="metric-card" style={{ borderTop: '3px solid var(--success)' }}>
+                    <div>
+                        <div className="metric-title">Aprobados</div>
+                        <div className="metric-value">{stats.aprobados}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+                            Listos para inyectar
+                        </div>
+                    </div>
+                    <div className="metric-icon success">
+                        <CheckCircle size={22} />
+                    </div>
+                </div>
+
                 <div className="metric-card success" style={{ borderTop: '3px solid var(--success)' }}>
                     <div>
                         <div className="metric-title">Inyectados</div>
@@ -143,7 +159,7 @@ export default function ContableDashboard() {
                         </div>
                     </div>
                     <div className="metric-icon success">
-                        <CheckCircle size={22} />
+                        <Send size={22} />
                     </div>
                 </div>
 
