@@ -5,6 +5,7 @@ import ComprobantesGrid from './ComprobantesGrid';
 import { useComprobantes } from './useComprobantes';
 import type { ComprobanteEstado } from './useComprobantes';
 import { CommandBar, useCommandBar } from '../../../design-system/components/CommandBar/CommandBar';
+import ComprobanteForm from './ComprobanteForm';
 
 type TabKey = 'listado' | 'crear' | 'upload';
 
@@ -193,11 +194,12 @@ export default function Comprobantes() {
 
             {/* ── TAB: CREAR ── */}
             {activeTab === 'crear' && (
-                <div className="card" style={{ padding: '2rem', maxWidth: 800, margin: '0 auto' }}>
-                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
-                        Formulario de nueva factura — integrar <code>ComprobanteForm</code> aquí.
-                    </p>
-                </div>
+                <ComprobanteForm
+                    onSuccess={() => {
+                        handleTab('listado');
+                        reset();
+                    }}
+                />
             )}
 
             {/* ── TAB: UPLOAD ── */}
