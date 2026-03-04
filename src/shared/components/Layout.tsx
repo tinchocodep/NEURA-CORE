@@ -15,7 +15,7 @@ export default function Layout() {
     const { tenant } = useTenant();
     const location = useLocation();
     const [pendingCount, setPendingCount] = useState(0);
-    const [agentCollapsed, setAgentCollapsed] = useState(false);
+    const [agentCollapsed, setAgentCollapsed] = useState(true);
 
     useEffect(() => {
         if (!tenant || (role !== 'admin' && role !== 'superadmin')) return;
