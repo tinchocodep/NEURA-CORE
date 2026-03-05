@@ -81,6 +81,12 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
                     if (tenantData.secondary_color) {
                         root.style.setProperty('--tenant-secondary', tenantData.secondary_color);
                     }
+                    // Font size: small=14px, medium=15px(default), large=16px
+                    const fontMap: Record<string, string> = { small: '13.5px', medium: '15px', large: '16.5px' };
+                    root.style.setProperty('--font-size-base', fontMap[tenantData.ui_font_size] || '15px');
+                    // Density: compact=tighter spacing, normal=default, comfortable=more spacing
+                    const densityMap: Record<string, string> = { compact: '0.85', normal: '1', comfortable: '1.2' };
+                    root.style.setProperty('--density-scale', densityMap[tenantData.ui_density] || '1');
                 }
             } else {
                 if (mounted) {

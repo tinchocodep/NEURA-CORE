@@ -55,6 +55,8 @@
 
   /* Font */
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --font-size-base: 15px;
+  --density-scale: 1;
 
   /* Radius legacy */
   --r-sm: var(--radius-sm);
@@ -86,7 +88,7 @@ body,
   background: var(--color-bg-base);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: var(--font-size-base, 15px);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }

@@ -55,6 +55,8 @@ export default function Configuracion() {
     const [primaryColor, setPrimaryColor] = useState('#3b82f6');
     const [logoUrl, setLogoUrl] = useState('');
     const [uploadingLogo, setUploadingLogo] = useState(false);
+    const [uiFontSize, setUiFontSize] = useState('medium');
+    const [uiDensity, setUiDensity] = useState('normal');
     const [savingTenant, setSavingTenant] = useState(false);
     const [tenantSaved, setTenantSaved] = useState(false);
     const logoInputRef = useRef<HTMLInputElement>(null);
@@ -77,6 +79,8 @@ export default function Configuracion() {
         setTenantEmail(tenant.email || '');
         setPrimaryColor(tenant.primary_color || '#3b82f6');
         setLogoUrl(tenant.logo_url || '');
+        setUiFontSize((tenant as any).ui_font_size || 'medium');
+        setUiDensity((tenant as any).ui_density || 'normal');
     }, [tenant]);
 
     /* ─── Data Loaders ─── */
@@ -126,15 +130,21 @@ export default function Configuracion() {
             email: tenantEmail.trim() || null,
             primary_color: primaryColor,
             logo_url: logoUrl || null,
+            ui_font_size: uiFontSize,
+            ui_density: uiDensity,
         }).eq('id', tenant.id);
         setSavingTenant(false);
         setTenantSaved(true);
         setTimeout(() => setTenantSaved(false), 2500);
-        // Apply color immediately
+        // Apply styles immediately
         const root = document.documentElement;
         root.style.setProperty('--color-accent', primaryColor);
         root.style.setProperty('--color-accent-dim', primaryColor + '18');
         root.style.setProperty('--tenant-primary', primaryColor);
+        const fontMap: Record<string, string> = { small: '13.5px', medium: '15px', large: '16.5px' };
+        root.style.setProperty('--font-size-base', fontMap[uiFontSize] || '15px');
+        const densityMap: Record<string, string> = { compact: '0.85', normal: '1', comfortable: '1.2' };
+        root.style.setProperty('--density-scale', densityMap[uiDensity] || '1');
         refreshTenant?.();
     }
 
@@ -292,6 +302,35 @@ export default function Configuracion() {
                                     style={{ flex: 1, fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}
                                 />
                             </div>
+                        </div>
+                    </div>
+                </div>
+                {/* Font size + Density */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1.25rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem' }}>
+                    <div>
+                        <label className="form-label" style={{ fontSize: '0.7rem' }}>Tamaño de texto</label>
+                        <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
+                            {([['small', 'Chico'], ['medium', 'Medio'], ['large', 'Grande']] as const).map(([val, lbl]) => (
+                                <button key={val} onClick={() => setUiFontSize(val)} style={{
+                                    flex: 1, padding: '6px 0', fontSize: val === 'small' ? '0.65rem' : val === 'large' ? '0.8rem' : '0.72rem',
+                                    fontWeight: uiFontSize === val ? 700 : 500, border: 'none', cursor: 'pointer',
+                                    background: uiFontSize === val ? 'var(--brand)' : 'var(--bg-subtle)',
+                                    color: uiFontSize === val ? '#fff' : 'var(--text-muted)', transition: 'all 0.15s',
+                                }}>{lbl}</button>
+                            ))}
+                        </div>
+                    </div>
+                    <div>
+                        <label className="form-label" style={{ fontSize: '0.7rem' }}>Densidad</label>
+                        <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
+                            {([['compact', 'Compacto'], ['normal', 'Normal'], ['comfortable', 'Cómodo']] as const).map(([val, lbl]) => (
+                                <button key={val} onClick={() => setUiDensity(val)} style={{
+                                    flex: 1, padding: '6px 0', fontSize: '0.72rem',
+                                    fontWeight: uiDensity === val ? 700 : 500, border: 'none', cursor: 'pointer',
+                                    background: uiDensity === val ? 'var(--brand)' : 'var(--bg-subtle)',
+                                    color: uiDensity === val ? '#fff' : 'var(--text-muted)', transition: 'all 0.15s',
+                                }}>{lbl}</button>
+                            ))}
                         </div>
                     </div>
                 </div>
