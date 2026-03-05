@@ -6,6 +6,7 @@ import {
 import { DataGrid } from '../../../design-system/components/DataGrid/DataGrid';
 import type { ColumnDef } from '../../../design-system/components/DataGrid/DataGrid';
 import type { Comprobante, ComprobanteEstado } from './useComprobantes';
+import TagPicker from './TagPicker';
 
 const fmt = (n: number) =>
     new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n);
@@ -297,6 +298,11 @@ export default function ComprobantesGrid({
                     </button>
                 </div>
             )}
+            {/* Tags */}
+            <div style={{ gridColumn: '1/-1' }}>
+                <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Etiquetas</div>
+                <TagPicker comprobanteId={c.id} />
+            </div>
         </div>
     );
 
