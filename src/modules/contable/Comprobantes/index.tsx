@@ -46,27 +46,62 @@ export default function Comprobantes() {
         if (data.length === 0) return;
         setExportando(true);
         try {
-            const rows = data.map(c => ({
-                'Fecha': c.fecha,
-                'Tipo': c.tipo === 'compra' ? 'Compra' : 'Venta',
-                'Tipo Comp.': c.tipo_comprobante || '',
-                'N° Comprobante': c.numero_comprobante || '',
-                'Proveedor/Cliente': c.proveedor?.razon_social || c.cliente?.razon_social || '',
-                'Moneda': c.moneda || 'ARS',
-                'Monto Original': c.monto_original,
-                'Monto ARS': c.monto_ars,
-                'Estado': c.estado,
-                'Prod/Servicio': c.producto_servicio?.nombre || '',
-                'Centro Costo': c.centro_costo?.nombre || '',
-                'Descripción': c.descripcion || '',
-            }));
-            const ws = XLSX.utils.json_to_sheet(rows);
-            // Auto-width columns
-            ws['!cols'] = Object.keys(rows[0]).map(key => ({ wch: Math.max(key.length, 14) }));
+            const headers = ['Fecha', 'Tipo Comp.', 'N° Comprobante', 'Proveedor/Cliente', 'CUIT', 'Moneda', 'Monto Original', 'Monto ARS', 'Estado', 'Prod/Servicio', 'Centro Costo', 'Descripción'];
+
+            const mapRow = (c: (typeof data)[0]) => ([
+                c.fecha,
+                c.tipo_comprobante || '',
+                c.numero_comprobante || '',
+                c.proveedor?.razon_social || c.cliente?.razon_social || '',
+                (c as any).cuit_emisor || '',
+                c.moneda || 'ARS',
+                Number(c.monto_original || 0),
+                Number(c.monto_ars || 0),
+                c.estado,
+                c.producto_servicio?.nombre || '',
+                c.centro_costo?.nombre || '',
+                c.descripcion || '',
+            ]);
+
+            const compras = data.filter(c => c.tipo === 'compra');
+            const ventas = data.filter(c => c.tipo === 'venta');
+
+            const buildSheet = (rows: typeof data) => {
+                const aoa = [headers, ...rows.map(mapRow)];
+                // Totals row
+                const totalRow = rows.length + 1; // 0-indexed header + data rows
+                aoa.push([
+                    'TOTALES', '', '', '', '', '',
+                    { t: 'n', f: `SUM(G2:G${totalRow})` } as any,
+                    { t: 'n', f: `SUM(H2:H${totalRow})` } as any,
+                    '', `${rows.length} comprobantes`, '', '',
+                ]);
+                const ws = XLSX.utils.aoa_to_sheet(aoa);
+                // Column widths
+                ws['!cols'] = [
+                    { wch: 12 }, { wch: 16 }, { wch: 22 }, { wch: 30 }, { wch: 14 },
+                    { wch: 7 }, { wch: 16 }, { wch: 16 }, { wch: 12 }, { wch: 20 },
+                    { wch: 16 }, { wch: 30 },
+                ];
+                return ws;
+            };
+
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, 'Comprobantes');
+
+            if (compras.length > 0) {
+                XLSX.utils.book_append_sheet(wb, buildSheet(compras), 'Compras');
+            }
+            if (ventas.length > 0) {
+                XLSX.utils.book_append_sheet(wb, buildSheet(ventas), 'Ventas');
+            }
+            // If filters show only one type, also add a combined "Todos" sheet
+            if (compras.length > 0 && ventas.length > 0) {
+                XLSX.utils.book_append_sheet(wb, buildSheet(data), 'Todos');
+            }
+
+            const today = new Date().toISOString().split('T')[0];
             const rangoLabel = fechaDesde && fechaHasta ? `_${fechaDesde}_a_${fechaHasta}` : fechaDesde ? `_desde_${fechaDesde}` : fechaHasta ? `_hasta_${fechaHasta}` : '';
-            XLSX.writeFile(wb, `Comprobantes${rangoLabel}.xlsx`);
+            XLSX.writeFile(wb, `Comprobantes_${today}${rangoLabel}.xlsx`);
         } catch (err) {
             console.error('Export error:', err);
         }
