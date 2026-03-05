@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
-import { Settings, Eye, EyeOff, Save, RefreshCw, CheckCircle, XCircle, Zap, Building2 } from 'lucide-react';
+import { Settings, Eye, EyeOff, Save, RefreshCw, CheckCircle, XCircle, Zap, Building2, Mail, Download, Users } from 'lucide-react';
+import { getXubioService } from '../../services/XubioService';
 
 interface Config {
     id: string;
@@ -28,11 +29,18 @@ export default function Configuracion() {
     const [testingArca, setTestingArca] = useState(false);
     const [xubioStatus, setXubioStatus] = useState<'idle' | 'ok' | 'error'>('idle');
     const [arcaStatus, setArcaStatus] = useState<'idle' | 'ok' | 'error'>('idle');
+    const [xubioMessage, setXubioMessage] = useState('');
+
+    // Sync state
+    const [syncingClientes, setSyncingClientes] = useState(false);
+    const [syncingProveedores, setSyncingProveedores] = useState(false);
+    const [syncResult, setSyncResult] = useState('');
 
     // Tenant company data
     const [tenantRazonSocial, setTenantRazonSocial] = useState('');
     const [tenantCuit, setTenantCuit] = useState('');
     const [tenantDireccion, setTenantDireccion] = useState('');
+    const [tenantEmail, setTenantEmail] = useState('');
     const [savingTenant, setSavingTenant] = useState(false);
     const [tenantSaved, setTenantSaved] = useState(false);
 
@@ -42,6 +50,7 @@ export default function Configuracion() {
         setTenantRazonSocial(tenant.razon_social || tenant.name || '');
         setTenantCuit(tenant.cuit || '');
         setTenantDireccion(tenant.direccion || '');
+        setTenantEmail(tenant.email || '');
     }, [tenant]);
 
     async function loadConfig() {
@@ -89,6 +98,7 @@ export default function Configuracion() {
                 razon_social: tenantRazonSocial.trim() || null,
                 cuit: tenantCuit.trim() || null,
                 direccion: tenantDireccion.trim() || null,
+                email: tenantEmail.trim() || null,
             })
             .eq('id', tenant.id);
         setSavingTenant(false);
@@ -100,10 +110,61 @@ export default function Configuracion() {
     async function testXubio() {
         setTestingXubio(true);
         setXubioStatus('idle');
-        // Simulate test — in production this would call the Xubio OAuth2 endpoint
-        await new Promise(r => setTimeout(r, 1500));
-        setXubioStatus(config?.xubio_client_id && config?.xubio_client_secret ? 'ok' : 'error');
+        setXubioMessage('');
+
+        // First save current credentials
+        if (config) {
+            await supabase.from('contable_config').update({
+                xubio_client_id: config.xubio_client_id,
+                xubio_client_secret: config.xubio_client_secret,
+            }).eq('id', config.id);
+        }
+
+        const xubio = getXubioService(tenant!.id);
+        await xubio.loadConfig();
+
+        if (!xubio.isConfigured) {
+            setXubioStatus('error');
+            setXubioMessage('Ingresá Client ID y Client Secret');
+            setTestingXubio(false);
+            return;
+        }
+
+        const result = await xubio.testConnection();
+        setXubioStatus(result.success ? 'ok' : 'error');
+        setXubioMessage(result.message);
         setTestingXubio(false);
+
+        // Reload config to show updated token expiry
+        if (result.success) await loadConfig();
+    }
+
+    async function handleSyncClientes() {
+        setSyncingClientes(true);
+        setSyncResult('');
+        try {
+            const xubio = getXubioService(tenant!.id);
+            await xubio.loadConfig();
+            const result = await xubio.syncClientesFromXubio();
+            setSyncResult(`Clientes: ${result.imported} importados, ${result.updated} actualizados${result.errors.length ? ` (${result.errors.length} errores)` : ''}`);
+        } catch (err) {
+            setSyncResult(`Error sync clientes: ${(err as Error).message}`);
+        }
+        setSyncingClientes(false);
+    }
+
+    async function handleSyncProveedores() {
+        setSyncingProveedores(true);
+        setSyncResult('');
+        try {
+            const xubio = getXubioService(tenant!.id);
+            await xubio.loadConfig();
+            const result = await xubio.syncProveedoresFromXubio();
+            setSyncResult(`Proveedores: ${result.imported} importados, ${result.updated} actualizados${result.errors.length ? ` (${result.errors.length} errores)` : ''}`);
+        } catch (err) {
+            setSyncResult(`Error sync proveedores: ${(err as Error).message}`);
+        }
+        setSyncingProveedores(false);
     }
 
     async function testArca() {
@@ -147,13 +208,13 @@ export default function Configuracion() {
                     </div>
                     <div style={{ flex: 1 }}>
                         <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Datos de la Empresa</h3>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Información fiscal que aparece en remitos y comprobantes</p>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Información fiscal y de contacto que aparece en remitos, recibos y comprobantes</p>
                     </div>
                     <button className="btn btn-primary btn-sm" onClick={handleSaveTenant} disabled={savingTenant}>
                         {tenantSaved ? <><CheckCircle size={14} /> Guardado</> : <><Save size={14} /> {savingTenant ? 'Guardando...' : 'Guardar'}</>}
                     </button>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div className="form-group">
                         <label className="form-label">Razón Social</label>
                         <input className="form-input" value={tenantRazonSocial} onChange={e => setTenantRazonSocial(e.target.value)} placeholder="Mi Empresa S.R.L." />
@@ -165,6 +226,15 @@ export default function Configuracion() {
                     <div className="form-group">
                         <label className="form-label">Dirección</label>
                         <input className="form-input" value={tenantDireccion} onChange={e => setTenantDireccion(e.target.value)} placeholder="Av. Corrientes 1234, CABA" />
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Mail size={14} color="var(--brand)" /> Email de la empresa
+                        </label>
+                        <input type="email" className="form-input" value={tenantEmail} onChange={e => setTenantEmail(e.target.value)} placeholder="contabilidad@miempresa.com" />
+                        <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                            Se usa como remitente al enviar facturas, remitos y recibos por email
+                        </p>
                     </div>
                 </div>
             </div>
@@ -207,8 +277,36 @@ export default function Configuracion() {
                     )}
 
                     <button className="btn btn-secondary" onClick={testXubio} disabled={testingXubio} style={{ width: '100%' }}>
-                        <RefreshCw size={14} className={testingXubio ? 'spinning' : ''} /> {testingXubio ? 'Probando...' : 'Probar conexión'}
+                        <RefreshCw size={14} className={testingXubio ? 'spinning' : ''} /> {testingXubio ? 'Conectando...' : 'Probar conexión'}
                     </button>
+
+                    {xubioMessage && (
+                        <div style={{ marginTop: '0.75rem', fontSize: '0.8rem', padding: '0.625rem 0.875rem', borderRadius: 'var(--r-md)', background: xubioStatus === 'ok' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: xubioStatus === 'ok' ? 'var(--success)' : 'var(--danger)' }}>
+                            {xubioMessage}
+                        </div>
+                    )}
+
+                    {/* Sync buttons — only show when connected */}
+                    {xubioStatus === 'ok' && (
+                        <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem' }}>
+                            <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                                Sincronización
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <button className="btn btn-secondary btn-sm" onClick={handleSyncClientes} disabled={syncingClientes} style={{ flex: 1 }}>
+                                    <Users size={13} /> {syncingClientes ? 'Sincronizando...' : 'Sync Clientes'}
+                                </button>
+                                <button className="btn btn-secondary btn-sm" onClick={handleSyncProveedores} disabled={syncingProveedores} style={{ flex: 1 }}>
+                                    <Download size={13} /> {syncingProveedores ? 'Sincronizando...' : 'Sync Proveedores'}
+                                </button>
+                            </div>
+                            {syncResult && (
+                                <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)', padding: '0.5rem 0.75rem', background: 'var(--bg-subtle)', borderRadius: 'var(--r-sm)' }}>
+                                    {syncResult}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* ARCA */}

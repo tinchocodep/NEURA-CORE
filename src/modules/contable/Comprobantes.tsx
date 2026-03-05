@@ -39,7 +39,7 @@ interface Comprobante {
     centro_costo: { nombre: string } | null;
 }
 
-interface Proveedor { id: string; razon_social: string; cuit: string | null; condicion_fiscal: string | null; email: string | null; }
+interface Proveedor { id: string; razon_social: string; cuit: string | null; condicion_fiscal: string | null; email: string | null; producto_servicio_default_id: string | null; }
 interface Cliente { id: string; razon_social: string; cuit: string | null; }
 interface ProductoServicio { id: string; nombre: string; grupo: string; }
 interface CentroCosto { id: string; nombre: string; }
@@ -209,7 +209,7 @@ export default function Comprobantes() {
 
     async function loadCatalogs() {
         const [{ data: provs }, { data: clis }, { data: prods }, { data: centros }] = await Promise.all([
-            supabase.from('contable_proveedores').select('id, razon_social, cuit, condicion_fiscal, email').eq('tenant_id', tenant!.id).eq('activo', true).order('razon_social'),
+            supabase.from('contable_proveedores').select('id, razon_social, cuit, condicion_fiscal, email, producto_servicio_default_id').eq('tenant_id', tenant!.id).eq('activo', true).order('razon_social'),
             supabase.from('contable_clientes').select('id, razon_social, cuit').eq('tenant_id', tenant!.id).eq('activo', true).order('razon_social'),
             supabase.from('contable_productos_servicio').select('id, nombre, grupo').eq('tenant_id', tenant!.id).eq('activo', true).order('nombre'),
             supabase.from('contable_centros_costo').select('id, nombre').eq('tenant_id', tenant!.id).eq('activo', true).order('nombre'),
@@ -251,6 +251,16 @@ export default function Comprobantes() {
             setFormTipoComprobante(suggestedInvoiceType);
         }
     }, [formProveedorId, formClienteId]);
+
+    // Auto-fill producto/servicio from proveedor's default config
+    useEffect(() => {
+        if (formTipo === 'compra' && formProveedorId) {
+            const prov = proveedores.find(p => p.id === formProveedorId);
+            if (prov?.producto_servicio_default_id && !formProductoServicioId) {
+                setFormProductoServicioId(prov.producto_servicio_default_id);
+            }
+        }
+    }, [formProveedorId, formTipo]);
 
     function addLinea() {
         setLineas(prev => [...prev, { id: newLineaId(), producto_servicio_id: '', descripcion: '', cantidad: 1, precio_unitario: 0, iva_porcentaje: 21 }]);

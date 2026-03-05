@@ -223,14 +223,26 @@ export function DataGrid<T extends { id: string }>({
                     </thead>
                     <tbody ref={tbodyRef}>
                         {isLoading && data.length === 0 ? (
-                            <tr>
-                                <td colSpan={columns.length + (bulkActions ? 1 : 0)} style={{ textAlign: 'center', padding: '4rem 1rem' }}>
-                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-                                        <div className="spinner" />
-                                        <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>Cargando...</span>
-                                    </div>
-                                </td>
-                            </tr>
+                            <>
+                                {Array.from({ length: 8 }).map((_, i) => (
+                                    <tr key={`skel-${i}`} style={{ height: 'var(--grid-row-height, 44px)', borderBottom: '1px solid var(--color-border-subtle)' }}>
+                                        <td colSpan={columns.length + (bulkActions ? 1 : 0)}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', padding: '0 0.875rem', animationDelay: `${i * 0.08}s` }}>
+                                                <div className="skeleton" style={{ width: 14, height: 14, borderRadius: 3, flexShrink: 0 }} />
+                                                <div className="skeleton skeleton-text" style={{ width: 70, animationDelay: `${i * 0.08 + 0.05}s` }} />
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                                    <div className="skeleton skeleton-text" style={{ width: 120, animationDelay: `${i * 0.08 + 0.1}s` }} />
+                                                    <div className="skeleton skeleton-text" style={{ width: 80, height: 9, animationDelay: `${i * 0.08 + 0.15}s` }} />
+                                                </div>
+                                                <div className="skeleton skeleton-text-lg" style={{ width: 140, flex: 1, maxWidth: 160, animationDelay: `${i * 0.08 + 0.2}s` }} />
+                                                <div className="skeleton skeleton-text" style={{ width: 90, animationDelay: `${i * 0.08 + 0.25}s` }} />
+                                                <div className="skeleton skeleton-circle" style={{ width: 28, height: 28, flexShrink: 0, animationDelay: `${i * 0.08 + 0.3}s` }} />
+                                                <div className="skeleton skeleton-badge" style={{ animationDelay: `${i * 0.08 + 0.35}s` }} />
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </>
                         ) : data.length === 0 ? (
                             <tr>
                                 <td colSpan={columns.length + (bulkActions ? 1 : 0)} style={{ padding: 0, border: 'none' }}>

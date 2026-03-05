@@ -47,6 +47,8 @@ export interface ComprobantesFilters {
     tipo: string;
     estado: string;
     busqueda: string;
+    fechaDesde: string;
+    fechaHasta: string;
 }
 
 export function useComprobantes(filters: ComprobantesFilters) {
@@ -81,6 +83,8 @@ export function useComprobantes(filters: ComprobantesFilters) {
                 `numero_comprobante.ilike.%${filters.busqueda}%`
             );
         }
+        if (filters.fechaDesde) query = query.gte('fecha', filters.fechaDesde);
+        if (filters.fechaHasta) query = query.lte('fecha', filters.fechaHasta);
 
         const { data: rows, count, error } = await query;
         setIsLoading(false);
@@ -91,7 +95,34 @@ export function useComprobantes(filters: ComprobantesFilters) {
         setTotalCount(count || 0);
         if (freshRows.length < PAGE_SIZE) setHasMore(false);
         if (freshRows.length > 0) setLastCreatedAt(freshRows[freshRows.length - 1].created_at);
-    }, [tenant, filters.tipo, filters.estado, filters.busqueda]);
+
+        // Background backfill: link producto_servicio from proveedor's default for comprobantes missing it
+        const toBackfill = freshRows.filter(
+            c => !c.producto_servicio && c.proveedor && (c.proveedor as any).producto_servicio_default_id
+        );
+        if (toBackfill.length > 0) {
+            Promise.all(
+                toBackfill.map(c =>
+                    supabase
+                        .from('contable_comprobantes')
+                        .update({ producto_servicio_id: (c.proveedor as any).producto_servicio_default_id })
+                        .eq('id', c.id)
+                )
+            ).then(() => {
+                // Silently re-fetch to show linked products
+                supabase
+                    .from('contable_comprobantes')
+                    .select(SELECT_FIELDS, { count: 'exact' })
+                    .eq('tenant_id', tenant.id)
+                    .order('fecha', { ascending: false })
+                    .order('created_at', { ascending: false })
+                    .limit(PAGE_SIZE)
+                    .then(({ data: refreshed }) => {
+                        if (refreshed) setPages([(refreshed as unknown as Comprobante[])]);
+                    });
+            });
+        }
+    }, [tenant, filters.tipo, filters.estado, filters.busqueda, filters.fechaDesde, filters.fechaHasta]);
 
     const loadMore = useCallback(async () => {
         if (!tenant || isLoading || !hasMore || !lastCreatedAt) return;
@@ -108,6 +139,8 @@ export function useComprobantes(filters: ComprobantesFilters) {
 
         if (filters.tipo !== 'todos') query = query.eq('tipo', filters.tipo);
         if (filters.estado !== 'todos') query = query.eq('estado', filters.estado);
+        if (filters.fechaDesde) query = query.gte('fecha', filters.fechaDesde);
+        if (filters.fechaHasta) query = query.lte('fecha', filters.fechaHasta);
 
         const { data: rows, error } = await query;
         setIsLoading(false);
@@ -119,7 +152,7 @@ export function useComprobantes(filters: ComprobantesFilters) {
             setPages(prev => [...prev, newRows]);
             setLastCreatedAt(newRows[newRows.length - 1].created_at);
         }
-    }, [tenant, isLoading, hasMore, lastCreatedAt, filters.tipo, filters.estado]);
+    }, [tenant, isLoading, hasMore, lastCreatedAt, filters.tipo, filters.estado, filters.fechaDesde, filters.fechaHasta]);
 
     const updateEstado = useCallback(async (id: string, estado: ComprobanteEstado) => {
         const payload: Record<string, unknown> = { estado };

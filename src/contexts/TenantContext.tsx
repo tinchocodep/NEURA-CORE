@@ -12,6 +12,7 @@ export interface Tenant {
     razon_social: string | null;
     cuit: string | null;
     direccion: string | null;
+    email: string | null;
 }
 
 interface TenantContextType {

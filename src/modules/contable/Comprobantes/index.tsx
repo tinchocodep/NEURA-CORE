@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import { useTenant } from '../../../contexts/TenantContext';
-import { Search, Filter, Plus, Upload as UploadIcon, X, Send, FileText, CheckCircle, XCircle, Eye } from 'lucide-react';
+import { Search, Filter, Plus, Upload as UploadIcon, X, Send, FileText, CheckCircle, XCircle, Eye, Calendar, Download, AlertTriangle } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import ComprobantesGrid from './ComprobantesGrid';
 import { useComprobantes } from './useComprobantes';
 import type { ComprobanteEstado } from './useComprobantes';
@@ -20,21 +21,57 @@ export default function Comprobantes() {
     const [filtroTipo, setFiltroTipo] = useState('todos');
     const [filtroEstado, setFiltroEstado] = useState('todos');
     const [busqueda, setBusqueda] = useState('');
+    const [fechaDesde, setFechaDesde] = useState('');
+    const [fechaHasta, setFechaHasta] = useState('');
     const [pdfPreview, setPdfPreview] = useState<string | null>(null);
+    const [exportando, setExportando] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [bulkProcessing, setBulkProcessing] = useState(false);
 
     // Upload state
     const [uploadFiles, setUploadFiles] = useState<File[]>([]);
     const [uploading, setUploading] = useState(false);
     const [dragOver, setDragOver] = useState(false);
-    const [uploadResults, setUploadResults] = useState<{ name: string; status: 'ok' | 'error'; msg: string; data?: { numero_comprobante?: string; tipo?: string; tipo_comprobante?: string; fecha?: string; monto?: number; proveedor_nombre?: string; proveedor_cuit?: string; proveedor_nuevo?: boolean; pdf_url?: string; descripcion?: string } }[]>([]);
+    const [uploadResults, setUploadResults] = useState<{ name: string; status: 'ok' | 'error'; msg: string; duplicate?: boolean; duplicateCount?: number; data?: { numero_comprobante?: string; tipo?: string; tipo_comprobante?: string; fecha?: string; monto?: number; proveedor_nombre?: string; proveedor_cuit?: string; proveedor_nuevo?: boolean; pdf_url?: string; descripcion?: string } }[]>([]);
 
     const { open: cmdOpen, setOpen: setCmdOpen } = useCommandBar();
 
     const { data, totalCount, isLoading, hasMore, loadMore, reset, updateEstado } =
-        useComprobantes({ tipo: filtroTipo, estado: filtroEstado, busqueda });
+        useComprobantes({ tipo: filtroTipo, estado: filtroEstado, busqueda, fechaDesde, fechaHasta });
 
     // Load on mount and when filters change
-    useEffect(() => { reset(); }, [filtroTipo, filtroEstado, busqueda]);
+    useEffect(() => { reset(); setSelectedIds(new Set()); }, [filtroTipo, filtroEstado, busqueda, fechaDesde, fechaHasta]);
+
+    const handleExportExcel = () => {
+        if (data.length === 0) return;
+        setExportando(true);
+        try {
+            const rows = data.map(c => ({
+                'Fecha': c.fecha,
+                'Tipo': c.tipo === 'compra' ? 'Compra' : 'Venta',
+                'Tipo Comp.': c.tipo_comprobante || '',
+                'N° Comprobante': c.numero_comprobante || '',
+                'Proveedor/Cliente': c.proveedor?.razon_social || c.cliente?.razon_social || '',
+                'Moneda': c.moneda || 'ARS',
+                'Monto Original': c.monto_original,
+                'Monto ARS': c.monto_ars,
+                'Estado': c.estado,
+                'Prod/Servicio': c.producto_servicio?.nombre || '',
+                'Centro Costo': c.centro_costo?.nombre || '',
+                'Descripción': c.descripcion || '',
+            }));
+            const ws = XLSX.utils.json_to_sheet(rows);
+            // Auto-width columns
+            ws['!cols'] = Object.keys(rows[0]).map(key => ({ wch: Math.max(key.length, 14) }));
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Comprobantes');
+            const rangoLabel = fechaDesde && fechaHasta ? `_${fechaDesde}_a_${fechaHasta}` : fechaDesde ? `_desde_${fechaDesde}` : fechaHasta ? `_hasta_${fechaHasta}` : '';
+            XLSX.writeFile(wb, `Comprobantes${rangoLabel}.xlsx`);
+        } catch (err) {
+            console.error('Export error:', err);
+        }
+        setExportando(false);
+    };
 
     // Sync tab from URL
     useEffect(() => {
@@ -47,10 +84,71 @@ export default function Comprobantes() {
     };
 
     const handleAction = async (id: string, action: 'aprobar' | 'rechazar' | 'inyectar') => {
-        const map: Record<string, ComprobanteEstado> = {
-            aprobar: 'aprobado', rechazar: 'rechazado', inyectar: 'inyectado',
-        };
-        await updateEstado(id, map[action]);
+        if (action === 'inyectar') {
+            // Attempt real Xubio injection
+            try {
+                const { getXubioService } = await import('../../../services/XubioService');
+                const xubio = getXubioService(tenant!.id);
+                await xubio.loadConfig();
+
+                if (!xubio.isConfigured) {
+                    // No credentials — just update status without injection
+                    await updateEstado(id, 'inyectado');
+                    return;
+                }
+
+                // Fetch full comprobante with entity xubio_id
+                const { data: comp } = await supabase
+                    .from('contable_comprobantes')
+                    .select('*, proveedor:contable_proveedores(xubio_id), cliente:contable_clientes(xubio_id)')
+                    .eq('id', id)
+                    .single();
+
+                if (!comp) { await updateEstado(id, 'inyectado'); return; }
+
+                const result = await xubio.injectComprobante({
+                    tipo: comp.tipo,
+                    tipo_comprobante: comp.tipo_comprobante || 'Factura A',
+                    fecha: comp.fecha,
+                    numero_comprobante: comp.numero_comprobante,
+                    moneda: comp.moneda || 'ARS',
+                    tipo_cambio: comp.tipo_cambio,
+                    observaciones: comp.observaciones,
+                    proveedor_xubio_id: comp.proveedor?.xubio_id,
+                    cliente_xubio_id: comp.cliente?.xubio_id,
+                    lineas: (comp.lineas || []).map((l: any) => ({
+                        descripcion: l.descripcion || '',
+                        cantidad: l.cantidad || 1,
+                        precio_unitario: l.precio_unitario || l.subtotal || 0,
+                        iva_porcentaje: l.iva_porcentaje || 21,
+                    })),
+                });
+
+                if (result.success) {
+                    // Mark as inyectado + save xubio_id
+                    await supabase.from('contable_comprobantes').update({
+                        estado: 'inyectado',
+                        xubio_id: result.xubioId,
+                        xubio_synced_at: new Date().toISOString(),
+                    }).eq('id', id);
+                    reset(); // Refresh list
+                } else {
+                    alert(`Error al inyectar en Xubio: ${result.error}`);
+                    // Still allow marking as inyectado if user wants
+                    if (confirm('¿Marcar como inyectado de todas formas?')) {
+                        await updateEstado(id, 'inyectado');
+                    }
+                }
+            } catch (err) {
+                console.error('[Xubio] Injection error:', err);
+                alert(`Error: ${(err as Error).message}`);
+            }
+        } else {
+            const map: Record<string, ComprobanteEstado> = {
+                aprobar: 'aprobado', rechazar: 'rechazado',
+            };
+            await updateEstado(id, map[action]);
+        }
     };
 
     // Hotkeys: Cmd+N → crear, Cmd+U → upload
@@ -187,7 +285,111 @@ export default function Comprobantes() {
                                 <option value="rechazado">Rechazado</option>
                             </select>
                         </div>
+                        <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center' }}>
+                            <Calendar size={13} color="var(--color-text-muted)" />
+                            <input
+                                type="date"
+                                className="form-input"
+                                value={fechaDesde}
+                                onChange={e => setFechaDesde(e.target.value)}
+                                style={{ width: 140, height: 36 }}
+                                title="Desde"
+                            />
+                            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>a</span>
+                            <input
+                                type="date"
+                                className="form-input"
+                                value={fechaHasta}
+                                onChange={e => setFechaHasta(e.target.value)}
+                                style={{ width: 140, height: 36 }}
+                                title="Hasta"
+                            />
+                            {(fechaDesde || fechaHasta) && (
+                                <button
+                                    className="btn btn-ghost btn-sm"
+                                    onClick={() => { setFechaDesde(''); setFechaHasta(''); }}
+                                    title="Limpiar fechas"
+                                    style={{ padding: '0.2rem' }}
+                                >
+                                    <X size={13} />
+                                </button>
+                            )}
+                        </div>
+                        <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={handleExportExcel}
+                            disabled={data.length === 0 || exportando}
+                            title="Descargar Excel con filtros actuales"
+                            style={{ marginLeft: 'auto' }}
+                        >
+                            <Download size={13} /> {exportando ? 'Exportando...' : 'Descargar Excel'}
+                        </button>
                     </div>
+
+                    {/* Bulk Action Bar */}
+                    {selectedIds.size > 0 && (
+                        <div style={{
+                            display: 'flex', alignItems: 'center', gap: '0.75rem',
+                            padding: '0.75rem 1rem', marginBottom: '0.75rem',
+                            background: 'var(--color-accent-subtle)', border: '1px solid var(--brand)',
+                            borderRadius: 'var(--radius-lg)',
+                            animation: 'fadeIn 0.15s ease',
+                        }}>
+                            <span style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--brand)' }}>
+                                {selectedIds.size} seleccionado{selectedIds.size > 1 ? 's' : ''}
+                            </span>
+                            <div style={{ flex: 1 }} />
+                            <button
+                                className="btn btn-sm"
+                                style={{ background: 'var(--color-success)', color: '#fff', gap: 4 }}
+                                disabled={bulkProcessing}
+                                onClick={async () => {
+                                    setBulkProcessing(true);
+                                    for (const id of selectedIds) await handleAction(id, 'aprobar');
+                                    setSelectedIds(new Set());
+                                    setBulkProcessing(false);
+                                    reset();
+                                }}
+                            >
+                                <CheckCircle size={13} /> Aprobar todos
+                            </button>
+                            <button
+                                className="btn btn-sm"
+                                style={{ background: 'var(--color-danger)', color: '#fff', gap: 4 }}
+                                disabled={bulkProcessing}
+                                onClick={async () => {
+                                    setBulkProcessing(true);
+                                    for (const id of selectedIds) await handleAction(id, 'rechazar');
+                                    setSelectedIds(new Set());
+                                    setBulkProcessing(false);
+                                    reset();
+                                }}
+                            >
+                                <XCircle size={13} /> Rechazar todos
+                            </button>
+                            <button
+                                className="btn btn-sm btn-primary"
+                                style={{ gap: 4 }}
+                                disabled={bulkProcessing}
+                                onClick={async () => {
+                                    setBulkProcessing(true);
+                                    for (const id of selectedIds) await handleAction(id, 'inyectar');
+                                    setSelectedIds(new Set());
+                                    setBulkProcessing(false);
+                                    reset();
+                                }}
+                            >
+                                <Send size={13} /> Inyectar todos
+                            </button>
+                            <button
+                                className="btn btn-ghost btn-sm"
+                                onClick={() => setSelectedIds(new Set())}
+                                style={{ marginLeft: '0.25rem' }}
+                            >
+                                <X size={13} /> Deseleccionar
+                            </button>
+                        </div>
+                    )}
 
                     <ComprobantesGrid
                         data={data}
@@ -197,6 +399,8 @@ export default function Comprobantes() {
                         onLoadMore={loadMore}
                         onAction={handleAction}
                         onPdfPreview={setPdfPreview}
+                        selectedIds={selectedIds}
+                        onSelectionChange={setSelectedIds}
                     />
                 </>
             )}
@@ -237,7 +441,7 @@ export default function Comprobantes() {
                                     await new Promise(r => setTimeout(r, 2500));
                                     const { data: rows } = await supabase
                                         .from('contable_comprobantes')
-                                        .select('numero_comprobante, tipo, tipo_comprobante, fecha, monto_original, descripcion, pdf_url, cuit_emisor, proveedor_id')
+                                        .select('id, numero_comprobante, tipo, tipo_comprobante, fecha, monto_original, descripcion, pdf_url, cuit_emisor, proveedor_id')
                                         .eq('tenant_id', tenant.id)
                                         .order('created_at', { ascending: false })
                                         .limit(1);
@@ -249,12 +453,19 @@ export default function Comprobantes() {
                                         if (row.proveedor_id) {
                                             const { data: prov } = await supabase
                                                 .from('contable_proveedores')
-                                                .select('razon_social, cuit')
+                                                .select('razon_social, cuit, producto_servicio_default_id')
                                                 .eq('id', row.proveedor_id)
                                                 .single();
                                             if (prov) {
                                                 provNombre = prov.razon_social;
                                                 provCuit = prov.cuit || provCuit;
+                                                // Auto-link product from proveedor's default if comprobante has none
+                                                if (prov.producto_servicio_default_id && !row.producto_servicio_id) {
+                                                    await supabase
+                                                        .from('contable_comprobantes')
+                                                        .update({ producto_servicio_id: prov.producto_servicio_default_id })
+                                                        .eq('id', row.id);
+                                                }
                                             }
                                         }
                                         data = {
@@ -270,6 +481,25 @@ export default function Comprobantes() {
                                             descripcion: row.descripcion,
                                         };
                                         console.log('[Upload] Comprobante:', data);
+                                    }
+
+                                    // Duplicate detection: check if another comprobante with same numero already existed
+                                    if (row && row.numero_comprobante) {
+                                        const { data: dupes } = await supabase
+                                            .from('contable_comprobantes')
+                                            .select('id')
+                                            .eq('tenant_id', tenant.id)
+                                            .eq('numero_comprobante', row.numero_comprobante)
+                                            .neq('id', row.id);
+
+                                        if (dupes && dupes.length > 0) {
+                                            results.push({
+                                                name: file.name, status: 'ok',
+                                                msg: `⚠️ Procesado, pero ya existe${dupes.length > 1 ? 'n' : ''} ${dupes.length} comprobante${dupes.length > 1 ? 's' : ''} con el mismo número (${row.numero_comprobante})`,
+                                                duplicate: true, duplicateCount: dupes.length, data,
+                                            });
+                                            continue; // skip the normal push below
+                                        }
                                     }
                                 }
                                 results.push({ name: file.name, status: 'ok', msg: 'Procesado correctamente', data });
@@ -383,14 +613,14 @@ export default function Comprobantes() {
                                 {uploadResults.map((r, i) => (
                                     <div key={i} style={{
                                         borderRadius: 10, marginBottom: 12, overflow: 'hidden',
-                                        background: r.status === 'ok' ? '#f0fdf4' : '#fef2f2',
-                                        border: `1px solid ${r.status === 'ok' ? '#bbf7d0' : '#fecaca'}`,
+                                        background: r.duplicate ? '#fffbeb' : r.status === 'ok' ? '#f0fdf4' : '#fef2f2',
+                                        border: `1px solid ${r.duplicate ? '#fde68a' : r.status === 'ok' ? '#bbf7d0' : '#fecaca'}`,
                                     }}>
                                         {/* Header */}
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px' }}>
-                                            {r.status === 'ok' ? <CheckCircle size={16} color="#22c55e" /> : <XCircle size={16} color="#ef4444" />}
+                                            {r.duplicate ? <AlertTriangle size={16} color="#f59e0b" /> : r.status === 'ok' ? <CheckCircle size={16} color="#22c55e" /> : <XCircle size={16} color="#ef4444" />}
                                             <span style={{ flex: 1, fontWeight: 600, fontSize: '0.85rem' }}>{r.name}</span>
-                                            <span style={{ fontSize: '0.75rem', color: r.status === 'ok' ? '#16a34a' : '#dc2626' }}>{r.msg}</span>
+                                            <span style={{ fontSize: '0.75rem', color: r.duplicate ? '#b45309' : r.status === 'ok' ? '#16a34a' : '#dc2626' }}>{r.msg}</span>
                                         </div>
 
                                         {/* Data card + PDF preview for successful results */}

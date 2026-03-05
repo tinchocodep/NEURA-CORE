@@ -1,0 +1,362 @@
+﻿
+=== PROVEEDORES PARSED: 313 ===
+
+=== UNIQUE PRODUCTS (41): ===
+  - Alojamiento, Movilidad y Viáticos
+  - Alquiler de Licencias de Software
+  - Alquiler de Oficinas y Depositos Externo
+  - Alquiler de Oficinas y Depósitos Interno
+  - Alquiler varios
+  - Campaña Publicitaria
+  - Comisiones Comerciales
+  - Desarrollo a medida
+  - Desarrollo de Software
+  - Gasto de Oficina
+  - Gastos ARCA
+  - Gastos Bancarios 10.5%
+  - Gastos Bancarios 21%
+  - Gastos bono fiscal
+  - Honorarios
+  - Honorarios de Terceros Asesores Externos
+  - Impuesto a los Débitos y Créditos
+  - Impuesto a los Sellos
+  - Intereses Devengados Prestamos
+  - Licencia de Software
+  - Marketing
+  - Marketing y Eventos
+  - Medicina Prepaga 10,5%
+  - Medicina Prepaga IE
+  - Producto Exento (Compra de Servicios)
+  - Producto Exento TC no documentados
+  - Producto No Gravado (Compra de Servicios)
+  - Producto al 10.5% (Compra de Servicios)
+  - Producto al 21%
+  - Producto al 21% (Compra de Servicios)
+  - Servicio
+  - Servicios del Exterior
+  - Sueldo BCR
+  - Sueldo Fabrica
+  - Sueldo Negocio
+  - Sueldo Paraguay
+  - Sueldos Staff
+  - Sueldos por Desarrollo de Software
+  - Telefonia e Internet 21%
+  - Telefonia e Internet 27%
+  - Telefonia e Internet Exento
+
+=== MAPPING (proveedor → first product as default): ===
+"AGROPECUARIA LA RESERVA" S. A. → Marketing (+1 more)
+A LA PARR S.R.L. → Sueldos por Desarrollo de Software 
+ACUÃA RODRIGO CESAR → Producto Exento TC no documentados 
+AGENCIA DE RECAUDACION Y CONTROL ADUANERO → Gastos ARCA 
+AGROENERGIA S. A. → Sueldos por Desarrollo de Software 
+AGROFY S.A. → Sueldos por Desarrollo de Software 
+ALANCAY JUAN JOSE → Producto Exento TC no documentados 
+ALANIZ LEONARDO ANDRES → Honorarios de Terceros Asesores Externos (+1 more)
+ALBERTO MARIO SERGIO → Producto Exento TC no documentados 
+ALBORNOZ IGNACIO GABRIEL → Sueldo Fabrica 
+ALGORITMO  SA → Alquiler de Licencias de Software (+1 more)
+ALLOVERO HERNAN DARIO → Producto Exento TC no documentados 
+ALVAREZ MARILINA MONICA → Producto Exento (Compra de Servicios) (+2 more)
+ALVAREZ OSCAR ALFREDO → Sueldos por Desarrollo de Software 
+AMATO CARLA ANDREA → Honorarios de Terceros Asesores Externos (+1 more)
+AMATRIAIN MARIA BEGOÃA → Sueldos por Desarrollo de Software 
+AMAZON → Servicios del Exterior 
+AMSLER HERMANOS S. A. S. → Alojamiento, Movilidad y Viáticos (+1 more)
+AMX ARGENTINA SOCIEDAD ANONIMA → Producto Exento TC no documentados (+3 more)
+APPLICA S. A. S. → Alquiler de Oficinas y Depósitos Interno (+1 more)
+ARANDA ACEVEDO JUAN ALBERTO → Producto Exento TC no documentados 
+ARANDA NICOLAS → Producto Exento TC no documentados (+1 more)
+ARATRO S.R.L. → Sueldo Negocio 
+ARGENPYMES S.G.R. → Producto No Gravado (Compra de Servicios) 
+ARMENTI ALEJANDRO → Alojamiento, Movilidad y Viáticos (+1 more)
+ARRASTIA ALBERTO MARTIN → Gasto de Oficina 
+ATLASSIAN → Licencia de Software 
+BANCO BBVA ARGENTINA S.A. → Gastos ARCA (+4 more)
+BANCO DE GALICIA Y BUENOS AIRES S A U → Gastos ARCA (+3 more)
+BANCO DE LA CIUDAD DE BUENOS AIRES → Gastos ARCA 
+BANCO DE LA NACION ARGENTINA → Gastos ARCA 
+BANCO DE LA PROVINCIA DE BUENOS AIRES → Impuesto a los Débitos y Créditos (+1 more)
+BANCO INDUSTRIAL SOCIEDAD ANONIMA → Gastos Bancarios 21% 
+BANCO MACRO S.A. → Gastos ARCA (+4 more)
+BANCO PATAGONIA SOCIEDAD ANONIMA → Gastos ARCA 
+BANCO SANTANDER ARGENTINA SOCIEDAD ANONIMA → Gastos ARCA (+3 more)
+BANCO SUPERVIELLE SOCIEDAD ANONIMA → Gastos ARCA (+1 more)
+BANDI JAQUELINA ANABEL → Producto Exento TC no documentados (+1 more)
+BARAVALLE & GRANADOS  A. DE C. → Honorarios de Terceros Asesores Externos 
+BARAVALLE ROBERTO GRANADOS ERNESTO SH → Honorarios (+1 more)
+BENETTI JUAN LUCAS → Producto Exento TC no documentados (+1 more)
+BETANCOURT IBARRA LUIS MIGUEL → Producto Exento TC no documentados 
+BIGLIA DIEGO ARIEL → Producto Exento TC no documentados 
+BILBOSF S. R. L → Alojamiento, Movilidad y Viáticos (+1 more)
+BIOLATTO MAXIMO MARTIN → Producto Exento TC no documentados (+1 more)
+BLANCO PINTO PEDRO MARIA → Producto Exento TC no documentados (+1 more)
+BOLSA DE COMERCIO DE ROSARIO ASOCIACION CIVIL → Desarrollo a medida (+2 more)
+BONELLI MAURICIO → Producto Exento TC no documentados (+1 more)
+BORDER S  PARKING  SRL → Alojamiento, Movilidad y Viáticos (+1 more)
+BORGATELLO AGUSTIN RAUL → Honorarios (+1 more)
+BRAU CESAR FABIAN → Producto Exento TC no documentados (+1 more)
+BRAU JULIO CESAR → Producto Exento TC no documentados 
+BRUZA GUILLERMO ADRIAN → Gasto de Oficina 
+BUFARINI GIULIANO → Producto Exento TC no documentados (+2 more)
+BUJAN MARIA ELINA → Producto Exento TC no documentados 
+CABRAL MAURERA JORGE LUIS DE JESUS → Producto Exento TC no documentados 
+CABRERA PEREIRA MARTIN NICOLAS → Honorarios de Terceros Asesores Externos 
+CALGARO GABRIELA MARIA DEL ROSARIO → Producto Exento TC no documentados 
+CALGARO VANINA MANUELA → Producto Exento TC no documentados (+1 more)
+CALVO MARTIN EMILIO → Honorarios de Terceros Asesores Externos (+1 more)
+CAMPUS SUITES PILAR ADMINISTRADORA SRL → Producto Exento TC no documentados (+1 more)
+CANELLO MANUEL → Producto Exento TC no documentados (+1 more)
+CAPA PRODUCCIONES S.R.L. → Sueldos por Desarrollo de Software 
+CAPSOL S.R.L. → Honorarios (+3 more)
+CARDINAL SERVICIOS INTEGRALES SOCIEDAD ANONIMA → Sueldos por Desarrollo de Software 
+CAREGGIO ARIEL ANTONIO → Producto Exento TC no documentados 
+CARGNELLO EMILIANO → Producto Exento TC no documentados (+1 more)
+CARLOS A. LAGGER S.A → Alojamiento, Movilidad y Viáticos 
+CARNE VIVA SRL → Sueldos por Desarrollo de Software 
+CARTA DARIO JAVIER → Producto Exento TC no documentados (+1 more)
+CASA CATTANI S R L → Alojamiento, Movilidad y Viáticos 
+CASATI NORBERTO → Producto Exento TC no documentados 
+CASELLA GUILLERMO CESAR → Sueldos por Desarrollo de Software 
+CASELLA PEDRO → Sueldos por Desarrollo de Software 
+CASINO PUERTO SANTA FE S.A. → Sueldos por Desarrollo de Software 
+CATTELAN ALBERTO ANDRES → Producto Exento TC no documentados (+1 more)
+CAZENAVE MARIA   ANAMA → Sueldos por Desarrollo de Software 
+CETROGAR SA → Sueldos por Desarrollo de Software 
+CEVEN SA → Producto al 10.5% (Compra de Servicios) 
+CHARA ITALO RAUL → Producto Exento TC no documentados 
+CLOUD SOLUTIONS ARGENTINA S.A.S → Sueldos por Desarrollo de Software 
+CMS CREDIT MANAGEMENT SOLUTIONS SA → Sueldos por Desarrollo de Software 
+COMBUSPLATA S.A. → Sueldos por Desarrollo de Software 
+COMBUSTIBLES LIQUIDES AYACUCHO S.R.L. → Alojamiento, Movilidad y Viáticos 
+CONSEJO PROFESIONAL DE CIENCIAS ECONOMICAS DE LA CIUDAD AUTONOMA DE BUENOS AIRES → Honorarios de Terceros Asesores Externos 
+CORDARA CAMILA LUCIA → Sueldo BCR 
+CORREO OFICIAL DE LA REPUBLICA ARGENTINA SOCIEDAD ANONIMA → Gasto de Oficina 
+CRESPO CARLOS OSVALDO → Honorarios de Terceros Asesores Externos 
+CYSMO S. A. → Alojamiento, Movilidad y Viáticos (+1 more)
+DATTATEC.COM S.R.L. → Alquiler de Licencias de Software (+1 more)
+DE BORTOLI ANA MARIA → Sueldos por Desarrollo de Software 
+DE GIUSTI CARLOS MANUEL → Producto Exento TC no documentados 
+DEFELIPPE FERNANDO JAVIER → Producto Exento TC no documentados 
+DEHEZA SOCIEDAD ANONIMA INDUSTRIAL COMERCIAL FINANCIERA INMOBILIARIA → Alojamiento, Movilidad y Viáticos 
+DELFINO MARIANO GABRIEL → Producto Exento TC no documentados 
+DESPEGAR COM AR SA → Alojamiento, Movilidad y Viáticos (+2 more)
+DESPRATS HOTELERA ARGENTINA S A → Alojamiento, Movilidad y Viáticos (+1 more)
+DHL EXPRESS (ARGENTINA) S.A. → Gasto de Oficina 
+DI GIULIO GABRIELA SOLEDAD → Producto Exento TC no documentados 
+DI GIULIO ROMINA ELIZABTH → Producto Exento TC no documentados (+1 more)
+DIEZ MARCELO DANIEL → Alojamiento, Movilidad y Viáticos 
+DOLINSKY S.A → Producto al 21% 
+DOMINGUEZ SERGIO ELOY → Honorarios de Terceros Asesores Externos (+1 more)
+DOMUS SAN GERONIMO S.R.L. → Honorarios de Terceros Asesores Externos (+1 more)
+DORINKA S.R.L. → Alojamiento, Movilidad y Viáticos 
+DUARTE MARIA MACARENA → Producto Exento TC no documentados 
+DUARTE WALTER EMILIO → Producto Exento TC no documentados 
+DURAN FERNANDO EMANUEL → Honorarios (+2 more)
+DURANA MARCOS ANDRES → Producto Exento TC no documentados 
+DURANDO TERESITA GISEL → Producto Exento TC no documentados (+1 more)
+EDUARDO CESAR RIVOIRE → Gasto de Oficina 
+ESCUDERO LUCIANO DANIEL → Producto Exento TC no documentados 
+ESPINOZA CARDENAS YULIANA YANMARIE → Sueldos por Desarrollo de Software 
+ESPINOZA HUGO ALEJANDRO → Sueldos por Desarrollo de Software 
+ESTACIONAMIENTOS PILAR S. R. L. → Sueldos por Desarrollo de Software 
+ESTUDIO PEREZ HUALDE SOCIEDAD CIVIL → Sueldos por Desarrollo de Software 
+ETCHEVERRY JUAN CRUZ MARTIN → Producto Exento TC no documentados 
+EZCURRA QUESADA ANGELICA INES → Campaña Publicitaria (+2 more)
+FABIANA LUCIA STOCKMANNS → Gasto de Oficina 
+FACEBOOK → Licencia de Software 
+FAJARDO SOL GABRIELA → Honorarios de Terceros Asesores Externos (+1 more)
+FANELLI JUSTINA → Producto Exento TC no documentados 
+FEDERICI AGUSTINA → Producto Exento TC no documentados 
+FERNANDEZ BRUERA MARIA VIRGINIA DORA → Honorarios de Terceros Asesores Externos (+1 more)
+FERNANDEZ DANIEL RAUL → Sueldos por Desarrollo de Software 
+FERRANDO MARCELO GUSTAVO Y FERRANDO LUIS ROGELIO → Sueldos por Desarrollo de Software 
+FGC FUELS MARKETING SA → Alojamiento, Movilidad y Viáticos 
+FIDEICOMISO 773 → Alojamiento, Movilidad y Viáticos 
+FIDEICOMISO DE ADMINISTRACION DAMFIELD SPORTS → Sueldos por Desarrollo de Software 
+FIDEICOMISO DE ADMINISTRACION Y FINANCIERO FONDO FIDUCIARIO PARA LA PROMOCION DE LA ECONOMIA DEL CONOCIMIENTO → Gastos bono fiscal 
+FIDEICOMISO ENTRE OFEK S.A. , OSVALDO BESNOSOFF Y OTROS → Alojamiento, Movilidad y Viáticos (+1 more)
+FIDESUR S A → Sueldos por Desarrollo de Software 
+FIGUEROA DAVID GUSTAVO → Producto Exento TC no documentados 
+FINTECH S.G.R. → Producto Exento TC no documentados 
+FIRST LABEL S.R.L. → Producto al 10.5% (Compra de Servicios) 
+FLECHA MARTIN GABRIEL → Producto Exento TC no documentados 
+FOOD CORNER  S A → Alojamiento, Movilidad y Viáticos (+1 more)
+FORNASARI MAXIMO ANDRES → Producto Exento TC no documentados 
+FRANCO SABRINA ISABEL → Producto Exento TC no documentados 
+FUENTES FRANCISCO MANUEL → Alquiler de Oficinas y Depósitos Interno 
+GABENARA BOERO PAULA LORENA → Producto Exento TC no documentados 
+GALVAN MARIA LUZ → Sueldos por Desarrollo de Software 
+GARANTIZAR SOCIEDAD DE GARANTIA RECIPROCA → Intereses Devengados Prestamos (+2 more)
+GASTRONOMIA DEL LITORAL S R L → Sueldos por Desarrollo de Software 
+GAVIGLIO COMERCIAL S. A. → Alquiler varios (+2 more)
+GERBIDO GROUP S.A. → Sueldos por Desarrollo de Software 
+GIACHE ANDREA PAOLA → Producto Exento TC no documentados 
+GIBSON ANDINO HECTOR JESUS → Producto Exento TC no documentados (+1 more)
+GIFT CARD ARGENTINA S.A. → Marketing y Eventos (+1 more)
+GILETTA VALERIA ELISA LIDIA → Honorarios de Terceros Asesores Externos 
+GIMELLI AGUSTINA → Alojamiento, Movilidad y Viáticos (+1 more)
+GIROD IGNACIO → Producto Exento TC no documentados (+1 more)
+GMRA S. A. U. → Producto al 10.5% (Compra de Servicios) 
+GOMEZ SALUSSO LUCIA BETHANIA → Producto Exento TC no documentados (+1 more)
+GONZALEZ GUERRA JASMANY → Producto Exento TC no documentados (+1 more)
+GOOGLE LLP → Licencia de Software 
+GRAN HOTEL CARLOS CASARES SOCIEDAD ANONIMA → Sueldos por Desarrollo de Software 
+GRANRIO SA → Sueldos por Desarrollo de Software 
+GRUPO AREA S.R.L → Alojamiento, Movilidad y Viáticos 
+GRUPO CONOSUR S.A. → Sueldos por Desarrollo de Software (+1 more)
+GRUPO RONDA S.A.S. S. A. S. → Sueldos por Desarrollo de Software 
+GUERRA CHAVEZ MILAGROS → Producto Exento TC no documentados (+1 more)
+GUERRA LOPEZ RAUBEL → Producto Exento TC no documentados (+2 more)
+GUEVARA MANGIONE FERNANDO MARTIN → Producto Exento TC no documentados 
+GUEVARA MANGIONE MELINA BELEN → Producto Exento TC no documentados 
+HANG FABRICIO ANDRES → Producto Exento TC no documentados (+1 more)
+HARARI SALOME → Comisiones Comerciales (+3 more)
+HARVEST S.R.L. → Servicio 
+HITCOWORK SA → Sueldos por Desarrollo de Software 
+HOTEL PRESIDENTE ROSARIO SOCIEDAD ANONIMA → Sueldos por Desarrollo de Software 
+HOTELES DE PERGAMINO S.A. → Alojamiento, Movilidad y Viáticos 
+HUINCAS SA → Sueldos por Desarrollo de Software 
+HUNDT MIRTA BEATRIZ → Producto Exento TC no documentados (+1 more)
+IBARRA NICOLAS RAMIRO → Producto Exento TC no documentados 
+INDICOM SA → Servicio 
+INSUMOS SERVICOMP S.A. → Producto al 21% (Compra de Servicios) 
+INTERBANKING SA → Alquiler de Licencias de Software (+1 more)
+INTERNATIONAL HOTEL DEVELOPMENT S.A. → Sueldos por Desarrollo de Software 
+IPARRAGUIRRE RAUL HORACIO → Producto Exento TC no documentados 
+IRIBARREN MORA MARIA MICAELA → Producto Exento TC no documentados 
+ISMAEL MARIO EDARDO GALDEANO → Gasto de Oficina 
+IT-BUY SRL → Producto al 10.5% (Compra de Servicios) 
+JAUREGUI SIMON → Producto Exento TC no documentados 
+JIMENEZ CABANILLAS ROMINA ALEJANDRA → Producto Exento TC no documentados (+1 more)
+JUANIZ BALTASAR FERNANDO → Producto Exento TC no documentados (+1 more)
+JUANOJUAN S.A. → Alojamiento, Movilidad y Viáticos 
+JUST IN TIME SRL → Sueldos por Desarrollo de Software 
+KERPS MAXIMILIANO EZEQUIEL → Producto Exento TC no documentados (+1 more)
+KOLOMIETZ BERNARDO DANIEL → Honorarios (+3 more)
+LA CUARTA SA → Sueldos por Desarrollo de Software 
+LA DELFINA SOCIEDAD ANONIMA COMERCIAL INDUSTRIAL FINANCIERA Y AGROPECUARIA → Sueldos por Desarrollo de Software 
+LA MOLLEJA SRL → Sueldos por Desarrollo de Software 
+LAS PAMPLONAS S.R.L → Sueldos por Desarrollo de Software 
+LATINA DE GESTION HOTELERA SOCIEDAD ANONIMA → Sueldos por Desarrollo de Software 
+LEGUIZAMON AGUSTINA → Producto Exento TC no documentados (+1 more)
+LEGUIZAMON MARCOS MARTIN → Producto Exento TC no documentados (+1 more)
+LEHMANN INES CLAUDIA → Producto Exento TC no documentados 
+LEVEAL S A → Producto al 21% (Compra de Servicios) (+1 more)
+LOGO CLUB SOCIEDAD POR ACCIONES SIMPLIFICADA → Sueldos por Desarrollo de Software 
+LOGOSETTIS NICOLAS JORGE → Producto Exento TC no documentados (+1 more)
+LOPEZ AZCURRA FEDERICO ALBERTO → Alquiler de Oficinas y Depósitos Interno 
+LORENZO DIEGO → Sueldos por Desarrollo de Software 
+LOS PRIMOS SH DE TONIOLLO FRANCISCO Y TIZON JUAN → Sueldos por Desarrollo de Software 
+LUICO S.A. → Sueldos por Desarrollo de Software 
+LUVINO S.R.L. → Sueldos por Desarrollo de Software 
+MAGNAGO HANNA → Producto Exento TC no documentados 
+MALANO PEDRO → Producto Exento TC no documentados 
+MANSILLA MARCOS HERNAN → Sueldo Negocio 
+MANSILLA MARZOLA BRINA → Sueldo Negocio 
+MANSILLA MARZOLA GRETA → Sueldo Negocio 
+MARIA MARIA CATERING S.A.S. → Sueldos por Desarrollo de Software 
+MARSEILLE S.A. → Sueldos por Desarrollo de Software 
+MARTIN ALBERTO FANDIÑO → Honorarios de Terceros Asesores Externos 
+MARTINENGO PABLO DANIEL → Sueldos por Desarrollo de Software 
+MARZOLA RAQUEL NOEMI → Producto Exento TC no documentados (+1 more)
+MATIAS ROBERTO ANTONIO → Producto Exento TC no documentados (+1 more)
+MEDICINA PARA EMPRESAS S.A. → Sueldos por Desarrollo de Software 
+MEKHANE SIMPLE SOCIEDAD → Alquiler de Oficinas y Depositos Externo (+1 more)
+MENEGHINI DANIEL MAXIMILIANO EZEQUIEL → Producto Exento TC no documentados 
+MENGE S.A. → Sueldos por Desarrollo de Software 
+MERLO FRANCO FEDERICO → Producto Exento TC no documentados 
+MIGUEL ANGEL CANTON Y ASOCIADOS  S A → Producto al 10.5% (Compra de Servicios) 
+MIRABET CECILIA → Producto Exento TC no documentados 
+MIRALLES RODRIGO → Honorarios de Terceros Asesores Externos (+1 more)
+MOD HOTELS SA → Sueldos por Desarrollo de Software 
+MOINE HNOS. S.A. → Sueldos por Desarrollo de Software 
+MONDINO PATRICIO NELSON → Alquiler de Oficinas y Depositos Externo (+1 more)
+MONTENEGRO LUCAS EZEQUIEL → Producto Exento TC no documentados 
+MORZAN RENZO → Producto Exento TC no documentados 
+NATION LITORAL S.A. → Producto al 21% (Compra de Servicios) 
+NAVARRO GABRIEL WALTER EDGARDO → Producto Exento TC no documentados 
+NELSON AUGUSTO LEAL → Servicio 
+NESTOR HUGO ZAZA → Servicio 
+NVS DESARROLLOS S.R.L. → Sueldos por Desarrollo de Software 
+OLIVERA JUAN MANUEL → Sueldo Fabrica (+1 more)
+OPERADORA DE ESTACIONES DE SERVICIOS SA → Alojamiento, Movilidad y Viáticos (+1 more)
+ORGANIZACION PANAMERICA S.A. → Producto al 21% (Compra de Servicios) (+1 more)
+ORTIZ SEBASTIAN → Producto Exento TC no documentados 
+OSCAR LEANDRO S.R.L. → Sueldos por Desarrollo de Software 
+OSDE ORGANIZACION DE SERVICIOS DIRECTOS EMPRESARIOS → Medicina Prepaga IE 
+PACITTI HNOS. S. CAP I SECC IV → Gasto de Oficina 
+PAGANINI JOEL NICOLAS → Producto Exento (Compra de Servicios) 
+PALAVECINO DANIEL ALBERTO → Producto Exento TC no documentados (+1 more)
+PALERMO DAIANA GISELE → Producto Exento TC no documentados 
+PANADERIA LA DEFENSA S.A. → Alojamiento, Movilidad y Viáticos 
+PASTORIZA ALEJANDRO JAVIER → Producto al 10.5% (Compra de Servicios) 
+PELLEGRINI AGUSTIN IGNACIO → Producto Exento TC no documentados 
+PEREYRA ROZAS MACARENA → Sueldos por Desarrollo de Software 
+PEREZ MARIANO ANDRES → Producto Exento TC no documentados 
+PEREZ MONICA VIVIANA → Producto Exento TC no documentados 
+PEREZ XAVIER ROMAN → Producto Exento TC no documentados 
+PETRONNET COMBUSTIBLES S.A. → Producto al 21% (Compra de Servicios) 
+PETROPRINGLES S A → Sueldos por Desarrollo de Software 
+PIAGENTINI SILVINA → Producto Exento TC no documentados (+1 more)
+PIRCHI ALEJANDRO JOSE → Producto Exento TC no documentados 
+POCOVI FELIPE JUAN → Producto Exento TC no documentados 
+PRESSACCO BRUNO PABLO → Producto al 21% (Compra de Servicios) 
+QUAGLI MAURO BRUNO → Producto Exento TC no documentados 
+RAMIREZ TIRADO DORIAN ALEJANDRO → Producto Exento TC no documentados 
+RECALDE JUAN MANUEL → Producto Exento TC no documentados 
+RECOLETA WORKPLACE → Servicio 
+REDNET  SRL → Producto al 10.5% (Compra de Servicios) 
+RENE DAIAN LIONEL → Producto Exento TC no documentados (+1 more)
+REPUESTOS LA ESQUINA S R L → Sueldos por Desarrollo de Software 
+RIGAMONTI NOELIA → Producto Exento TC no documentados 
+RIVIERA PALACE S.A. → Sueldos por Desarrollo de Software 
+ROBAS JORGE JAVIER → Producto Exento TC no documentados (+1 more)
+ROMAGNOLI EZEQUIEL GUSTAVO → Honorarios de Terceros Asesores Externos (+2 more)
+ROMERO ALEXIS MAURICIO → Producto Exento TC no documentados (+1 more)
+ROSARIO PACK S.R.L. → Sueldos por Desarrollo de Software 
+ROSTAGNO ADRIANA MARTA → Sueldos por Desarrollo de Software 
+SABY HERMANOS S R L → Sueldos por Desarrollo de Software 
+SALSA VERDE S.R.L. → Alojamiento, Movilidad y Viáticos 
+SAN DAMASO TOMAS → Sueldos por Desarrollo de Software 
+SANCHEZ GUSTAVO PASCUAL → Producto Exento TC no documentados 
+SANPINA S. A. → Sueldos por Desarrollo de Software 
+SERVICE GRAFICA 12 50 SRL → Marketing 
+SEVEN LAKES  S.A. → Sueldos por Desarrollo de Software 
+SOFTCRATES SOLUTIONS S. R. L. → Servicio 
+SOLUCIONES NEXO SOCIEDAD ANONIMA → Desarrollo de Software 
+SOLUCIONES ONLINE SA → Alquiler de Licencias de Software (+1 more)
+SOLUCIONES TECNOLOGICAS INTEGRALES SRL → Sueldos por Desarrollo de Software 
+SONEYRO CARINA ANDREA → Producto Exento TC no documentados 
+SOSA CLAUDIO FABIAN → Sueldos por Desarrollo de Software 
+SOSA PABLO MATIAS → Producto Exento TC no documentados 
+STAHLI GERMAN → Sueldos por Desarrollo de Software 
+SUCESION DE VICENTINI ELDO SANTIAGO → Sueldos por Desarrollo de Software 
+SWISS MEDICAL S A → Medicina Prepaga 10,5% (+2 more)
+TAMBORINI MARIA CECILIA → Producto Exento TC no documentados 
+TANOIRA CASSAGNE SOCIEDAD CIVIL → Honorarios de Terceros Asesores Externos (+1 more)
+TELECOM ARGENTINA SOCIEDAD ANONIMA → Sueldos por Desarrollo de Software (+1 more)
+TIRELLI LUCIANO → Honorarios de Terceros Asesores Externos (+2 more)
+TOCAGNI INES → Honorarios de Terceros Asesores Externos (+1 more)
+TOLOMEI CAROLA → Honorarios (+1 more)
+TOMAS HNOS Y CIA SA → Intereses Devengados Prestamos (+1 more)
+TOSOLINI IGNACIO EDUARDO → Producto Exento TC no documentados (+1 more)
+TOTALGNC S.R.L. → Sueldos por Desarrollo de Software 
+TUV RHEINLAND ARGENTINA SA → Honorarios de Terceros Asesores Externos (+1 more)
+VALENTE GISELA LUCIANA → Producto Exento TC no documentados 
+VAUDAGNA JUAN PABLO → Gasto de Oficina 
+VEGLIA MARIA NATALIA → Sueldos por Desarrollo de Software 
+VENEX S.A. → Sueldos por Desarrollo de Software 
+VENTURINI CESAR HERNAN → Producto al 10.5% (Compra de Servicios) 
+VILLAGAS SA → Sueldos por Desarrollo de Software 
+VISMA ARGENTINA S.A. → Alquiler de Licencias de Software (+1 more)
+VITANTONIO LORENA → Gasto de Oficina (+2 more)
+WAIMAN JOEL CARLOS DANIEL → Producto Exento TC no documentados (+1 more)
+WALTHER LAUTARO NICOLAS → Producto Exento TC no documentados 
+YARBI GABRIEL HORACIO → Producto Exento TC no documentados (+1 more)
+YUVONE MARCELO ANDRES → Producto Exento TC no documentados 
+ZAMPAR MARIA CRISTINA → Sueldos por Desarrollo de Software 
+ZEBALLOS MELANI ELISA → Sueldo Fabrica 
+ZOHO → Licencia de Software 
+
+Saved to proveedor_product_mapping.json

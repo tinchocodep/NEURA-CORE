@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
-import { Search, Plus, Edit2, AlertTriangle, X, Save, Trash2, Loader, Globe, ChevronDown, ChevronRight, Download, Clock, FileText, Filter, Eye } from 'lucide-react';
+import { Search, Plus, Edit2, AlertTriangle, X, Save, Trash2, Loader, Globe, ChevronDown, ChevronRight, Download, Clock, FileText, Filter, Eye, Send, Star } from 'lucide-react';
 
 // --- Types ---
 
@@ -10,6 +11,7 @@ interface Proveedor {
     cuit: string | null;
     razon_social: string;
     es_caso_rojo: boolean;
+    es_favorito: boolean;
     activo: boolean;
     producto_servicio_default: { id: string; nombre: string; grupo: string } | null;
     condicion_fiscal: string | null;
@@ -112,6 +114,7 @@ function sugerirTipoFactura(condEmisor: string | null, condReceptor: string | nu
 
 export default function Proveedores() {
     const { tenant } = useTenant();
+    const navigate = useNavigate();
     const [proveedores, setProveedores] = useState<Proveedor[]>([]);
     const [productos, setProductos] = useState<ProductoServicio[]>([]);
     const [loading, setLoading] = useState(true);
@@ -137,6 +140,11 @@ export default function Proveedores() {
     const [expandedComprobante, setExpandedComprobante] = useState<string | null>(null);
     const [pdfPreview, setPdfPreview] = useState<string | null>(null);
     const [activityFilter, setActivityFilter] = useState<'all' | 'recent' | 'month' | 'dormant' | 'none'>('all');
+    const [productoFilter, setProductoFilter] = useState<string>('');
+    const [showProdFilterDrop, setShowProdFilterDrop] = useState(false);
+    const [prodFilterSearch, setProdFilterSearch] = useState('');
+    const [condicionFilter, setCondicionFilter] = useState<string>('');
+    const [casoRojoFilter, setCasoRojoFilter] = useState<'all' | 'si' | 'no'>('all');
 
     useEffect(() => {
         if (!tenant) return;
@@ -147,9 +155,10 @@ export default function Proveedores() {
         setLoading(true);
         const [{ data: provs }, { data: prods }] = await Promise.all([
             supabase.from('contable_proveedores')
-                .select('id, cuit, razon_social, es_caso_rojo, activo, condicion_fiscal, telefono, email, direccion, observaciones, producto_servicio_default:contable_productos_servicio(id, nombre, grupo)')
+                .select('id, cuit, razon_social, es_caso_rojo, es_favorito, activo, condicion_fiscal, telefono, email, direccion, observaciones, producto_servicio_default:contable_productos_servicio(id, nombre, grupo)')
                 .eq('tenant_id', tenant!.id)
                 .eq('activo', true)
+                .order('es_favorito', { ascending: false })
                 .order('razon_social'),
             supabase.from('contable_productos_servicio')
                 .select('id, nombre, grupo, tipo')
@@ -386,7 +395,14 @@ export default function Proveedores() {
         load();
     }
 
+    async function toggleFavorito(id: string, current: boolean) {
+        await supabase.from('contable_proveedores').update({ es_favorito: !current }).eq('id', id);
+        setProveedores(prev => prev.map(p => p.id === id ? { ...p, es_favorito: !current } : p));
+    }
+
     // --- Derived data ---
+
+    const hasActiveFilters = productoFilter !== '' || condicionFilter !== '' || casoRojoFilter !== 'all' || activityFilter !== 'all';
 
     const filtered = proveedores.filter(p => {
         // Text search
@@ -394,6 +410,26 @@ export default function Proveedores() {
             const q = busqueda.toLowerCase();
             if (!p.razon_social.toLowerCase().includes(q) && !(p.cuit || '').includes(busqueda)) return false;
         }
+        // Producto/Servicio filter
+        if (productoFilter) {
+            const prod = p.producto_servicio_default as ProductoServicio | null;
+            if (productoFilter === '__none__') {
+                if (prod) return false;
+            } else {
+                if (!prod || prod.id !== productoFilter) return false;
+            }
+        }
+        // Condición fiscal filter
+        if (condicionFilter) {
+            if (condicionFilter === '__none__') {
+                if (p.condicion_fiscal) return false;
+            } else {
+                if (p.condicion_fiscal !== condicionFilter) return false;
+            }
+        }
+        // Caso rojo filter
+        if (casoRojoFilter === 'si' && !p.es_caso_rojo) return false;
+        if (casoRojoFilter === 'no' && p.es_caso_rojo) return false;
         // Activity filter
         if (activityFilter !== 'all') {
             const stats = providerStats.get(p.id);
@@ -407,6 +443,11 @@ export default function Proveedores() {
             }
         }
         return true;
+    }).sort((a, b) => {
+        // Favorites first, then alphabetical
+        if (a.es_favorito && !b.es_favorito) return -1;
+        if (!a.es_favorito && b.es_favorito) return 1;
+        return a.razon_social.localeCompare(b.razon_social);
     });
     // Smart prefix-based auto-grouping
     const productFolders: { label: string; items: ProductoServicio[] }[] = [];
@@ -527,6 +568,199 @@ export default function Proveedores() {
                             );
                         })}
                     </div>
+
+                    {/* Advanced filters row */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+                        {/* Producto/Servicio custom folder dropdown */}
+                        <div style={{ position: 'relative' }}>
+                            <button
+                                onClick={() => { setShowProdFilterDrop(!showProdFilterDrop); setProdFilterSearch(''); }}
+                                style={{
+                                    height: 32, fontSize: '0.75rem', padding: '0 0.75rem', minWidth: 200,
+                                    borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+                                    border: productoFilter ? '2px solid #1958E0' : '1px solid #e2e8f0',
+                                    background: productoFilter ? 'rgba(25, 88, 224, 0.08)' : '#fff',
+                                    color: productoFilter ? '#1958E0' : '#64748b',
+                                    fontWeight: productoFilter ? 600 : 400,
+                                }}
+                            >
+                                📦 {productoFilter
+                                    ? productoFilter === '__none__'
+                                        ? 'Sin asignar'
+                                        : (productos.find(p => p.id === productoFilter)?.nombre || 'Producto')
+                                    : 'Producto/Servicio'
+                                }
+                                <ChevronDown size={12} style={{ marginLeft: 'auto' }} />
+                            </button>
+
+                            {showProdFilterDrop && (
+                                <>
+                                    <div onClick={() => setShowProdFilterDrop(false)} style={{ position: 'fixed', inset: 0, zIndex: 99 }} />
+                                    <div style={{
+                                        position: 'absolute', top: '100%', left: 0, marginTop: 4,
+                                        width: 300, maxHeight: 360, overflowY: 'auto',
+                                        background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12,
+                                        boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 100,
+                                    }}>
+                                        {/* Search */}
+                                        <div style={{ padding: '0.5rem', borderBottom: '1px solid #e2e8f0' }}>
+                                            <div style={{ position: 'relative' }}>
+                                                <Search size={13} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                                                <input
+                                                    className="form-input"
+                                                    placeholder="Buscar..."
+                                                    value={prodFilterSearch}
+                                                    onChange={e => setProdFilterSearch(e.target.value)}
+                                                    autoFocus
+                                                    style={{ paddingLeft: 28, height: 30, fontSize: '0.75rem' }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* "Todos" option */}
+                                        <div
+                                            onClick={() => { setProductoFilter(''); setShowProdFilterDrop(false); }}
+                                            style={{
+                                                padding: '0.5rem 0.75rem', cursor: 'pointer',
+                                                fontWeight: !productoFilter ? 700 : 400, fontSize: '0.8rem',
+                                                background: !productoFilter ? 'rgba(25,88,224,0.06)' : 'transparent',
+                                                color: !productoFilter ? '#1958E0' : '#334155',
+                                                borderBottom: '1px solid #f1f5f9',
+                                            }}
+                                        >📦 Todos</div>
+
+                                        {/* "Sin asignar" option */}
+                                        <div
+                                            onClick={() => { setProductoFilter('__none__'); setShowProdFilterDrop(false); }}
+                                            style={{
+                                                padding: '0.5rem 0.75rem', cursor: 'pointer',
+                                                fontWeight: productoFilter === '__none__' ? 700 : 400, fontSize: '0.8rem',
+                                                background: productoFilter === '__none__' ? 'rgba(25,88,224,0.06)' : 'transparent',
+                                                color: productoFilter === '__none__' ? '#1958E0' : '#334155',
+                                                borderBottom: '1px solid #e2e8f0',
+                                            }}
+                                        >⚠️ Sin asignar</div>
+
+                                        {/* Folder groups */}
+                                        {productFolders.map((folder, idx) => {
+                                            const matchingItems = folder.items.filter(p =>
+                                                !prodFilterSearch || p.nombre.toLowerCase().includes(prodFilterSearch.toLowerCase())
+                                            );
+                                            if (matchingItems.length === 0) return null;
+                                            const isOpen = expandedFolders.has(folder.label) || !!prodFilterSearch;
+                                            const hasSelected = matchingItems.some(p => p.id === productoFilter);
+                                            return (
+                                                <div key={folder.label}>
+                                                    {idx > 0 && <div style={{ height: 1, background: '#e2e8f0' }} />}
+                                                    <div
+                                                        onClick={() => toggleFolder(folder.label)}
+                                                        style={{
+                                                            display: 'flex', alignItems: 'center', gap: 8,
+                                                            padding: '0.5rem 0.75rem', cursor: 'pointer',
+                                                            background: hasSelected ? 'rgba(25,88,224,0.06)' : 'transparent',
+                                                            transition: 'background 0.15s',
+                                                        }}
+                                                    >
+                                                        {isOpen
+                                                            ? <ChevronDown size={13} style={{ color: '#1958E0', flexShrink: 0 }} />
+                                                            : <ChevronRight size={13} style={{ color: '#94a3b8', flexShrink: 0 }} />
+                                                        }
+                                                        <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#0f172a' }}>{folder.label}</span>
+                                                        <span style={{
+                                                            marginLeft: 'auto', fontSize: '0.65rem', fontWeight: 600,
+                                                            color: '#fff', background: hasSelected ? '#1958E0' : '#94a3b8',
+                                                            padding: '0 0.4rem', borderRadius: 99, minWidth: 18, textAlign: 'center',
+                                                        }}>{matchingItems.length}</span>
+                                                    </div>
+                                                    {isOpen && (
+                                                        <div style={{ padding: '0.25rem 0.75rem 0.5rem 2rem', display: 'flex', flexWrap: 'wrap', gap: '0.25rem', background: '#fafbfc', borderTop: '1px solid #f1f5f9' }}>
+                                                            {matchingItems.map(p => {
+                                                                const sel = productoFilter === p.id;
+                                                                return (
+                                                                    <button
+                                                                        key={p.id} type="button"
+                                                                        onClick={() => { setProductoFilter(sel ? '' : p.id); setShowProdFilterDrop(false); }}
+                                                                        style={{
+                                                                            padding: '0.2rem 0.55rem', borderRadius: 14,
+                                                                            fontSize: '0.72rem', fontWeight: sel ? 600 : 400,
+                                                                            border: sel ? '2px solid #1958E0' : '1px solid #cbd5e1',
+                                                                            background: sel ? '#1958E0' : '#f1f5f9',
+                                                                            color: sel ? '#fff' : '#334155',
+                                                                            cursor: 'pointer', transition: 'all 0.15s',
+                                                                        }}
+                                                                    >{p.nombre}</button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+
+                                        {/* Standalone items */}
+                                        {productStandalones
+                                            .filter(p => !prodFilterSearch || p.nombre.toLowerCase().includes(prodFilterSearch.toLowerCase()))
+                                            .map((p, idx) => {
+                                                const sel = productoFilter === p.id;
+                                                return (
+                                                    <div key={p.id}>
+                                                        {(productFolders.length > 0 || idx > 0) && <div style={{ height: 1, background: '#f1f5f9' }} />}
+                                                        <div
+                                                            onClick={() => { setProductoFilter(sel ? '' : p.id); setShowProdFilterDrop(false); }}
+                                                            style={{
+                                                                padding: '0.45rem 0.75rem', cursor: 'pointer',
+                                                                display: 'flex', alignItems: 'center', gap: 8,
+                                                                background: sel ? 'rgba(25,88,224,0.06)' : 'transparent',
+                                                                transition: 'background 0.15s',
+                                                                fontSize: '0.78rem', fontWeight: sel ? 600 : 400,
+                                                                color: sel ? '#1958E0' : '#334155',
+                                                            }}
+                                                        >{p.nombre}</div>
+                                                    </div>
+                                                );
+                                            })}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        <select
+                            className="form-input"
+                            value={condicionFilter}
+                            onChange={e => setCondicionFilter(e.target.value)}
+                            style={{ height: 32, fontSize: '0.75rem', padding: '0 0.5rem', minWidth: 180, maxWidth: 220, borderRadius: 8 }}
+                        >
+                            <option value="">Cond. Fiscal: Todas</option>
+                            <option value="__none__">⚠️ Sin definir</option>
+                            {CONDICIONES_FISCALES.map(c => (
+                                <option key={c} value={c}>{c}</option>
+                            ))}
+                        </select>
+
+                        <select
+                            className="form-input"
+                            value={casoRojoFilter}
+                            onChange={e => setCasoRojoFilter(e.target.value as 'all' | 'si' | 'no')}
+                            style={{ height: 32, fontSize: '0.75rem', padding: '0 0.5rem', minWidth: 130, maxWidth: 160, borderRadius: 8 }}
+                        >
+                            <option value="all">Caso Rojo: Todos</option>
+                            <option value="si">🔴 Solo caso rojo</option>
+                            <option value="no">✅ Sin caso rojo</option>
+                        </select>
+
+                        {hasActiveFilters && (
+                            <button
+                                onClick={() => { setActivityFilter('all'); setProductoFilter(''); setCondicionFilter(''); setCasoRojoFilter('all'); }}
+                                style={{
+                                    padding: '0.2rem 0.6rem', borderRadius: 99, fontSize: '0.7rem', fontWeight: 600,
+                                    border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626',
+                                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
+                                }}
+                            >
+                                <X size={12} /> Limpiar filtros
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {/* Table */}
@@ -571,6 +805,17 @@ export default function Proveedores() {
                                             <tr key={p.id} onClick={() => openDetail(p)} style={{ cursor: 'pointer' }}>
                                                 <td style={{ fontWeight: 600 }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); toggleFavorito(p.id, p.es_favorito); }}
+                                                            style={{
+                                                                background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                                                                color: p.es_favorito ? '#f59e0b' : '#d1d5db',
+                                                                transition: 'color 0.15s', flexShrink: 0,
+                                                            }}
+                                                            title={p.es_favorito ? 'Quitar de favoritos' : 'Marcar como favorito'}
+                                                        >
+                                                            <Star size={14} fill={p.es_favorito ? '#f59e0b' : 'none'} />
+                                                        </button>
                                                         {p.es_caso_rojo && <AlertTriangle size={14} color="var(--warning)" style={{ flexShrink: 0 }} />}
                                                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.razon_social}</span>
                                                         {p.es_caso_rojo && (
@@ -628,6 +873,14 @@ export default function Proveedores() {
                                                 </td>
                                                 <td>
                                                     <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); navigate(`/contable/comprobantes?tab=crear&proveedor_id=${p.id}`); }}
+                                                            className="btn btn-primary"
+                                                            style={{ padding: '0.3rem 0.5rem', fontSize: '0.7rem', gap: 4 }}
+                                                            title="Emitir factura a este proveedor"
+                                                        >
+                                                            <Send size={12} /> Factura
+                                                        </button>
                                                         <button onClick={(e) => { e.stopPropagation(); openEdit(p); }} className="btn btn-secondary" style={{ padding: '0.3rem 0.5rem' }}>
                                                             <Edit2 size={14} />
                                                         </button>
@@ -1106,6 +1359,23 @@ export default function Proveedores() {
                                                                             <Eye size={14} color="#2563eb" />
                                                                         </button>
                                                                     )}
+                                                                    <button
+                                                                        onClick={async (e) => {
+                                                                            e.stopPropagation();
+                                                                            if (!confirm(`¿Eliminar comprobante ${c.numero_comprobante || ''}? Esta acción no se puede deshacer.`)) return;
+                                                                            await supabase.from('contable_comprobantes').delete().eq('id', c.id);
+                                                                            setDetailComprobantes(prev => prev.filter(x => x.id !== c.id));
+                                                                        }}
+                                                                        style={{
+                                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+                                                                            background: '#fef2f2', border: '1px solid #fecaca',
+                                                                            cursor: 'pointer', transition: 'background 0.15s',
+                                                                        }}
+                                                                        title="Eliminar comprobante"
+                                                                    >
+                                                                        <X size={14} color="#ef4444" />
+                                                                    </button>
                                                                     <ChevronDown size={16} color="#94a3b8" style={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }} />
                                                                 </div>
                                                                 {expanded && (

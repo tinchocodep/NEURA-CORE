@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
-import { FileText, CheckCircle, Upload, AlertTriangle, Clock, ArrowUpRight, ArrowDownLeft, TrendingUp, Send } from 'lucide-react';
+import { FileText, CheckCircle, Upload, AlertTriangle, Clock, ArrowUpRight, ArrowDownLeft, TrendingUp, Send, RefreshCw, DollarSign } from 'lucide-react';
+import { DolarService, type DolarResumen } from '../../services/DolarService';
 
 interface Stats {
     pendientes: number;
@@ -40,11 +41,26 @@ export default function ContableDashboard() {
     const [stats, setStats] = useState<Stats>({ pendientes: 0, clasificados: 0, aprobados: 0, inyectados: 0, errores: 0, totalCompras: 0, totalVentas: 0 });
     const [recientes, setRecientes] = useState<Comprobante[]>([]);
     const [loading, setLoading] = useState(true);
+    const [dolar, setDolar] = useState<DolarResumen | null>(null);
+    const [dolarLoading, setDolarLoading] = useState(true);
 
     useEffect(() => {
         if (!tenant) return;
         loadData();
     }, [tenant]);
+
+    useEffect(() => {
+        loadDolar();
+        const interval = setInterval(loadDolar, 5 * 60 * 1000); // refresh every 5 min
+        return () => clearInterval(interval);
+    }, []);
+
+    async function loadDolar(force = false) {
+        setDolarLoading(true);
+        const data = await DolarService.getCotizaciones(force);
+        setDolar(data);
+        setDolarLoading(false);
+    }
 
     async function loadData() {
         setLoading(true);
@@ -108,6 +124,42 @@ export default function ContableDashboard() {
                 <h1>Contable</h1>
                 <p>Motor de clasificación e inyección a Xubio · {tenant?.name}</p>
             </div>
+
+            {/* Alert banner for pending comprobantes */}
+            {stats.pendientes > 0 && (
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '0.75rem 1.25rem', marginBottom: '1.25rem',
+                    background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12,
+                }}>
+                    <div style={{
+                        width: 36, height: 36, borderRadius: 10,
+                        background: 'rgba(245, 158, 11, 0.15)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    }}>
+                        <AlertTriangle size={18} color="#f59e0b" />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#92400e' }}>
+                            {stats.pendientes} comprobante{stats.pendientes > 1 ? 's' : ''} pendiente{stats.pendientes > 1 ? 's' : ''} de clasificación
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: '#b45309' }}>
+                            Requieren asignación de producto/servicio antes de aprobar
+                        </div>
+                    </div>
+                    <a
+                        href="/contable/comprobantes"
+                        style={{
+                            fontSize: '0.75rem', fontWeight: 700, color: '#f59e0b',
+                            textDecoration: 'none', padding: '0.4rem 0.8rem',
+                            borderRadius: 8, border: '1px solid #fde68a',
+                            background: 'rgba(245, 158, 11, 0.08)',
+                        }}
+                    >
+                        Ver pendientes →
+                    </a>
+                </div>
+            )}
 
             {/* KPI Cards */}
             <div className="metrics-grid">
@@ -249,44 +301,88 @@ export default function ContableDashboard() {
 
                 {/* Side panel */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                    {/* Cotizaciones Dólar */}
+                    <div className="card" style={{ padding: '1.25rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                            <h3 className="card-title" style={{ margin: 0 }}>
+                                <DollarSign size={16} /> Cotizaciones
+                            </h3>
+                            <button
+                                className="btn btn-ghost btn-icon"
+                                onClick={() => loadDolar(true)}
+                                disabled={dolarLoading}
+                                title="Actualizar cotizaciones"
+                            >
+                                <RefreshCw size={14} style={{ animation: dolarLoading ? 'spin 1s linear infinite' : 'none' }} />
+                            </button>
+                        </div>
+
+                        {dolar?.error && !dolar.oficial && (
+                            <div style={{ fontSize: '0.75rem', color: 'var(--color-danger)', marginBottom: '0.75rem' }}>
+                                ⚠️ {dolar.error}
+                            </div>
+                        )}
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                            {[
+                                { label: 'BNA Oficial', data: dolar?.oficial, color: 'var(--color-success)' },
+                                { label: 'Blue', data: dolar?.blue, color: 'var(--color-info)' },
+                                { label: 'MEP', data: dolar?.mep, color: 'var(--color-accent)' },
+                                { label: 'CCL', data: dolar?.ccl, color: 'var(--color-warning)' },
+                            ].map(item => (
+                                <div key={item.label} style={{
+                                    padding: '0.625rem', borderRadius: 'var(--radius-md)',
+                                    border: '1px solid var(--color-border-subtle)',
+                                    background: 'var(--color-bg-surface-2)',
+                                }}>
+                                    <div style={{ fontSize: '0.625rem', fontWeight: 700, color: item.color, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
+                                        {item.label}
+                                    </div>
+                                    {dolarLoading && !item.data ? (
+                                        <div className="skeleton skeleton-text" style={{ width: '80%', marginTop: 4 }} />
+                                    ) : item.data ? (
+                                        <>
+                                            <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-text-primary)', fontFamily: 'var(--font-mono)' }}>
+                                                ${item.data.venta.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                                            </div>
+                                            <div style={{ fontSize: '0.625rem', color: 'var(--color-text-muted)', marginTop: 2 }}>
+                                                Compra: ${item.data.compra.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)' }}>—</div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+
+                        {dolar?.oficial && (
+                            <div style={{ marginTop: '0.5rem', fontSize: '0.625rem', color: 'var(--color-text-muted)', textAlign: 'right' }}>
+                                {dolar.isStale ? '⚠️ Cache expirado · ' : ''}
+                                Actualizado: {new Date(dolar.oficial.fechaActualizacion).toLocaleString('es-AR')}
+                            </div>
+                        )}
+                    </div>
+
                     {/* Volume card */}
-                    <div className="card" style={{ padding: '1.5rem' }}>
-                        <h3 className="card-title" style={{ marginBottom: '1.25rem' }}>
+                    <div className="card" style={{ padding: '1.25rem' }}>
+                        <h3 className="card-title" style={{ marginBottom: '1rem' }}>
                             <TrendingUp size={16} /> Volumen
                         </h3>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    <ArrowDownLeft size={14} color="var(--danger)" />
+                                    <ArrowDownLeft size={14} color="var(--color-danger)" />
                                     <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Compras</span>
                                 </div>
                                 <span style={{ fontWeight: 700, fontSize: '1.125rem' }}>{stats.totalCompras}</span>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    <ArrowUpRight size={14} color="var(--success)" />
+                                    <ArrowUpRight size={14} color="var(--color-success)" />
                                     <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Ventas</span>
                                 </div>
                                 <span style={{ fontWeight: 700, fontSize: '1.125rem' }}>{stats.totalVentas}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Status APIs */}
-                    <div className="card" style={{ padding: '1.5rem' }}>
-                        <h3 className="card-title" style={{ marginBottom: '1.25rem' }}>Status Integraciones</h3>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>ARCA</span>
-                                <span className="badge badge-muted">No configurado</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Xubio</span>
-                                <span className="badge badge-muted">No configurado</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>DolarApi</span>
-                                <span className="badge badge-success">Online</span>
                             </div>
                         </div>
                     </div>

@@ -15,6 +15,7 @@ export default function Layout() {
     const { tenant } = useTenant();
     const location = useLocation();
     const [pendingCount, setPendingCount] = useState(0);
+    const [pendingComprobantes, setPendingComprobantes] = useState(0);
     const [agentCollapsed, setAgentCollapsed] = useState(true);
 
     useEffect(() => {
@@ -40,6 +41,16 @@ export default function Layout() {
                     });
             });
     }, [tenant, role, location.pathname]);
+
+    // Count pending comprobantes for contable sidebar badge
+    useEffect(() => {
+        if (!tenant) return;
+        supabase.from('contable_comprobantes')
+            .select('id', { count: 'exact', head: true })
+            .eq('tenant_id', tenant.id)
+            .eq('estado', 'pendiente')
+            .then(({ count }) => setPendingComprobantes(count || 0));
+    }, [tenant, location.pathname]);
 
     // Hotkey: Cmd+J toggles agent panel
     useEffect(() => {
@@ -205,6 +216,17 @@ export default function Layout() {
                                             padding: '1px 5px', borderRadius: 99,
                                         }}>
                                             {pendingCount}
+                                        </span>
+                                    )}
+                                    {item.name === 'Comprobantes' && pendingComprobantes > 0 && (
+                                        <span style={{
+                                            marginLeft: 'auto',
+                                            background: '#f59e0b',
+                                            color: '#fff',
+                                            fontSize: '0.6rem', fontWeight: 800,
+                                            padding: '1px 5px', borderRadius: 99,
+                                        }}>
+                                            {pendingComprobantes}
                                         </span>
                                     )}
                                 </Link>

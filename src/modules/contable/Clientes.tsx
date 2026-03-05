@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
-import { Search, Plus, Edit2, X, Save, Trash2, Building2 } from 'lucide-react';
+import { Search, Plus, Edit2, X, Save, Trash2, Building2, Eye } from 'lucide-react';
+import Entity360Panel from './Entity360Panel';
 
 interface Cliente {
     id: string;
@@ -19,6 +20,7 @@ export default function Clientes() {
     const [showModal, setShowModal] = useState(false);
     const [editando, setEditando] = useState<Cliente | null>(null);
     const [form, setForm] = useState({ razon_social: '', cuit: '', segmento: '' });
+    const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
 
     useEffect(() => {
         if (!tenant) return;
@@ -133,7 +135,7 @@ export default function Clientes() {
                             </thead>
                             <tbody>
                                 {filtered.map(c => (
-                                    <tr key={c.id}>
+                                    <tr key={c.id} onClick={() => setSelectedCliente(c)} style={{ cursor: 'pointer' }}>
                                         <td style={{ fontWeight: 600 }}>{c.razon_social}</td>
                                         <td style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: c.cuit ? 'var(--text-sub)' : 'var(--text-faint)' }}>
                                             {c.cuit || 'Sin CUIT'}
@@ -141,10 +143,13 @@ export default function Clientes() {
                                         <td>{segmentoBadge(c.segmento)}</td>
                                         <td>
                                             <div style={{ display: 'flex', gap: 4 }}>
-                                                <button onClick={() => openEdit(c)} className="btn btn-secondary" style={{ padding: '0.3rem 0.5rem' }}>
+                                                <button onClick={e => { e.stopPropagation(); setSelectedCliente(c); }} className="btn btn-secondary" style={{ padding: '0.3rem 0.5rem' }} title="Vista 360°">
+                                                    <Eye size={14} />
+                                                </button>
+                                                <button onClick={e => { e.stopPropagation(); openEdit(c); }} className="btn btn-secondary" style={{ padding: '0.3rem 0.5rem' }}>
                                                     <Edit2 size={14} />
                                                 </button>
-                                                <button onClick={() => handleDelete(c.id)} className="btn btn-secondary" style={{ padding: '0.3rem 0.5rem' }}>
+                                                <button onClick={e => { e.stopPropagation(); handleDelete(c.id); }} className="btn btn-secondary" style={{ padding: '0.3rem 0.5rem' }}>
                                                     <Trash2 size={14} />
                                                 </button>
                                             </div>
@@ -197,6 +202,15 @@ export default function Clientes() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* 360° Detail Panel */}
+            {selectedCliente && (
+                <Entity360Panel
+                    entity={selectedCliente}
+                    entityType="cliente"
+                    onClose={() => setSelectedCliente(null)}
+                />
             )}
         </div>
     );

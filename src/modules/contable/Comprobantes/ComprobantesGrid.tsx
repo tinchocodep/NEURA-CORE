@@ -27,10 +27,13 @@ interface Props {
     onLoadMore: () => void;
     onAction: (id: string, action: 'aprobar' | 'rechazar' | 'inyectar') => void;
     onPdfPreview: (url: string) => void;
+    selectedIds: Set<string>;
+    onSelectionChange: (ids: Set<string>) => void;
 }
 
 export default function ComprobantesGrid({
-    data, totalCount, isLoading, hasMore, onLoadMore, onAction, onPdfPreview
+    data, totalCount, isLoading, hasMore, onLoadMore, onAction, onPdfPreview,
+    selectedIds, onSelectionChange,
 }: Props) {
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -38,7 +41,47 @@ export default function ComprobantesGrid({
         setExpandedId(prev => prev === row.id ? null : row.id);
     }, []);
 
+    const allSelected = data.length > 0 && data.every(c => selectedIds.has(c.id));
+    const someSelected = data.some(c => selectedIds.has(c.id)) && !allSelected;
+
+    const toggleAll = () => {
+        if (allSelected) {
+            onSelectionChange(new Set());
+        } else {
+            onSelectionChange(new Set(data.map(c => c.id)));
+        }
+    };
+
+    const toggleOne = (id: string) => {
+        const next = new Set(selectedIds);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        onSelectionChange(next);
+    };
+
     const columns: ColumnDef<Comprobante>[] = [
+        {
+            id: 'select',
+            header: (
+                <input
+                    type="checkbox"
+                    checked={allSelected}
+                    ref={(el) => { if (el) el.indeterminate = someSelected; }}
+                    onChange={toggleAll}
+                    style={{ cursor: 'pointer', accentColor: 'var(--brand)' }}
+                />
+            ) as any,
+            width: 36,
+            accessor: (c) => (
+                <div onClick={e => e.stopPropagation()}>
+                    <input
+                        type="checkbox"
+                        checked={selectedIds.has(c.id)}
+                        onChange={() => toggleOne(c.id)}
+                        style={{ cursor: 'pointer', accentColor: 'var(--brand)' }}
+                    />
+                </div>
+            ),
+        },
         {
             id: 'tipo',
             header: '',
@@ -94,9 +137,15 @@ export default function ComprobantesGrid({
             minWidth: 140,
             accessor: (c) => {
                 const name = (c.producto_servicio as any)?.nombre;
-                return name
-                    ? <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.8125rem' }}>{name}</span>
-                    : <span style={{ color: 'var(--color-text-muted)', fontSize: '0.8125rem' }}>Sin clasificar</span>;
+                if (name) {
+                    return <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.8125rem' }}>{name}</span>;
+                }
+                // Fallback: proveedor has a default product configured but comprobante wasn't linked
+                const hasDefault = (c.proveedor as any)?.producto_servicio_default_id;
+                if (hasDefault) {
+                    return <span style={{ color: 'var(--color-warning)', fontSize: '0.75rem', fontStyle: 'italic' }}>Pendiente vincular</span>;
+                }
+                return <span style={{ color: 'var(--color-text-muted)', fontSize: '0.8125rem' }}>Sin clasificar</span>;
             },
         },
         {
