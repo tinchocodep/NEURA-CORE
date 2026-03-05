@@ -78,10 +78,13 @@ export default function Configuracion() {
         setInviting(true);
         setInviteResult(null);
 
-        // 1) Sign up via Supabase Auth
+        // 1) Sign up via Supabase Auth (email confirmation is disabled in Supabase dashboard)
         const { data: authData, error: authErr } = await supabase.auth.signUp({
             email: inviteEmail.trim(),
             password: invitePassword.trim(),
+            options: {
+                data: { tenant_id: tenant.id },
+            },
         });
 
         if (authErr || !authData.user) {
@@ -90,13 +93,14 @@ export default function Configuracion() {
             return;
         }
 
-        // 2) Insert into public.users with tenant + role='user'
+        // 2) Insert into public.users with tenant + role='user' + same modules as tenant
         const { error: insertErr } = await supabase.from('users').insert({
             id: authData.user.id,
             tenant_id: tenant.id,
             email: inviteEmail.trim(),
             role: 'user',
             status: 'active',
+            enabled_modules: tenant.enabled_modules || ['contable'],
         });
 
         if (insertErr) {
