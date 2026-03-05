@@ -44,14 +44,71 @@ export default function Configuracion() {
     const [savingTenant, setSavingTenant] = useState(false);
     const [tenantSaved, setTenantSaved] = useState(false);
 
+    // User management state
+    const [tenantUsers, setTenantUsers] = useState<{ id: string; email: string; role: string; status: string; created_at: string }[]>([]);
+    const [loadingUsers, setLoadingUsers] = useState(false);
+    const [inviteEmail, setInviteEmail] = useState('');
+    const [invitePassword, setInvitePassword] = useState('');
+    const [inviting, setInviting] = useState(false);
+    const [inviteResult, setInviteResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
     useEffect(() => {
         if (!tenant) return;
         loadConfig();
+        loadUsers();
         setTenantRazonSocial(tenant.razon_social || tenant.name || '');
         setTenantCuit(tenant.cuit || '');
         setTenantDireccion(tenant.direccion || '');
         setTenantEmail(tenant.email || '');
     }, [tenant]);
+
+    async function loadUsers() {
+        if (!tenant) return;
+        setLoadingUsers(true);
+        const { data } = await supabase.from('users')
+            .select('id, email, role, status, created_at')
+            .eq('tenant_id', tenant.id)
+            .order('created_at', { ascending: true });
+        setTenantUsers((data || []) as any);
+        setLoadingUsers(false);
+    }
+
+    async function handleInviteUser() {
+        if (!tenant || !inviteEmail.trim() || !invitePassword.trim()) return;
+        setInviting(true);
+        setInviteResult(null);
+
+        // 1) Sign up via Supabase Auth
+        const { data: authData, error: authErr } = await supabase.auth.signUp({
+            email: inviteEmail.trim(),
+            password: invitePassword.trim(),
+        });
+
+        if (authErr || !authData.user) {
+            setInviteResult({ ok: false, msg: authErr?.message || 'Error al crear usuario' });
+            setInviting(false);
+            return;
+        }
+
+        // 2) Insert into public.users with tenant + role='user'
+        const { error: insertErr } = await supabase.from('users').insert({
+            id: authData.user.id,
+            tenant_id: tenant.id,
+            email: inviteEmail.trim(),
+            role: 'user',
+            status: 'active',
+        });
+
+        if (insertErr) {
+            setInviteResult({ ok: false, msg: `Auth creado pero error al vincular: ${insertErr.message}` });
+        } else {
+            setInviteResult({ ok: true, msg: `✅ Usuario ${inviteEmail.trim()} creado exitosamente` });
+            setInviteEmail('');
+            setInvitePassword('');
+            loadUsers();
+        }
+        setInviting(false);
+    }
 
     async function loadConfig() {
         setLoading(true);
@@ -406,6 +463,112 @@ export default function Configuracion() {
                             </p>
                         )}
                     </div>
+                </div>
+            </div>
+
+            {/* ═══ Usuarios ═══ */}
+            <div className="card" style={{ padding: '1.5rem', marginTop: '1.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '1.5rem' }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 'var(--r-md)', background: 'rgba(168, 85, 247, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Users size={20} color="#a855f7" />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                        <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Usuarios de la Empresa</h3>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Administrá los usuarios que tienen acceso al sistema bajo este tenant</p>
+                    </div>
+                </div>
+
+                {/* User list */}
+                {loadingUsers ? (
+                    <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>Cargando usuarios...</div>
+                ) : (
+                    <div style={{ marginBottom: '1.5rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '0.5rem', padding: '0.5rem 0.75rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-subtle)' }}>
+                            <span>Email</span>
+                            <span>Rol</span>
+                            <span>Estado</span>
+                            <span>Creado</span>
+                        </div>
+                        {tenantUsers.map(u => (
+                            <div key={u.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '0.5rem', padding: '0.6rem 0.75rem', fontSize: '0.8rem', borderBottom: '1px solid var(--border-subtle)', alignItems: 'center' }}>
+                                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{u.email}</span>
+                                <span>
+                                    <span style={{
+                                        padding: '2px 8px', borderRadius: 99, fontSize: '0.68rem', fontWeight: 700,
+                                        background: u.role === 'admin' || u.role === 'superadmin' ? 'rgba(99, 102, 241, 0.12)' : 'rgba(107, 114, 128, 0.1)',
+                                        color: u.role === 'admin' || u.role === 'superadmin' ? '#6366f1' : '#6b7280',
+                                    }}>
+                                        {u.role === 'superadmin' ? 'Super Admin' : u.role === 'admin' ? 'Admin' : 'Usuario'}
+                                    </span>
+                                </span>
+                                <span>
+                                    <span style={{
+                                        padding: '2px 8px', borderRadius: 99, fontSize: '0.68rem', fontWeight: 700,
+                                        background: u.status === 'active' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                                        color: u.status === 'active' ? '#10b981' : '#ef4444',
+                                    }}>
+                                        {u.status === 'active' ? 'Activo' : 'Inactivo'}
+                                    </span>
+                                </span>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                    {new Date(u.created_at).toLocaleDateString('es-AR')}
+                                </span>
+                            </div>
+                        ))}
+                        {tenantUsers.length === 0 && (
+                            <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>No hay usuarios registrados</div>
+                        )}
+                    </div>
+                )}
+
+                {/* Invite form */}
+                <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem' }}>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                        Agregar nuevo usuario
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '0.75rem', alignItems: 'end' }}>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                            <label className="form-label">Email</label>
+                            <input
+                                className="form-input"
+                                type="email"
+                                value={inviteEmail}
+                                onChange={e => setInviteEmail(e.target.value)}
+                                placeholder="usuario@empresa.com"
+                            />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                            <label className="form-label">Contraseña temporal</label>
+                            <input
+                                className="form-input"
+                                type="text"
+                                value={invitePassword}
+                                onChange={e => setInvitePassword(e.target.value)}
+                                placeholder="Mínimo 6 caracteres"
+                            />
+                        </div>
+                        <button
+                            className="btn btn-primary"
+                            onClick={handleInviteUser}
+                            disabled={inviting || !inviteEmail.trim() || !invitePassword.trim()}
+                            style={{ height: 38 }}
+                        >
+                            {inviting ? 'Creando...' : '+ Agregar'}
+                        </button>
+                    </div>
+                    {inviteResult && (
+                        <div style={{
+                            marginTop: '0.75rem', fontSize: '0.8rem', padding: '0.625rem 0.875rem',
+                            borderRadius: 'var(--r-md)',
+                            background: inviteResult.ok ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                            color: inviteResult.ok ? 'var(--success)' : 'var(--danger)',
+                        }}>
+                            {inviteResult.msg}
+                        </div>
+                    )}
+                    <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+                        El usuario se crea con rol "Usuario" y acceso completo. Compartile el email y contraseña para que inicie sesión.
+                    </p>
                 </div>
             </div>
         </div>
