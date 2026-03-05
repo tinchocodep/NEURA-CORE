@@ -74,6 +74,9 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
                     const root = document.documentElement;
                     if (tenantData.primary_color) {
                         root.style.setProperty('--tenant-primary', tenantData.primary_color);
+                        root.style.setProperty('--color-accent', tenantData.primary_color);
+                        // Derive a dim version for backgrounds (10% opacity)
+                        root.style.setProperty('--color-accent-dim', tenantData.primary_color + '18');
                     }
                     if (tenantData.secondary_color) {
                         root.style.setProperty('--tenant-secondary', tenantData.secondary_color);

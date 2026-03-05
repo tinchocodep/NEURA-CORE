@@ -287,6 +287,11 @@ export default function ComprobantesGrid({
                     }}>{f.value}</div>
                 </div>
             ))}
+            {/* Tags — flows after data fields, next to Fecha de Carga */}
+            <div>
+                <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Etiquetas</div>
+                <TagPicker comprobanteId={c.id} />
+            </div>
             {c.pdf_url && (
                 <div style={{ gridColumn: '1/-1' }}>
                     <button
@@ -298,11 +303,6 @@ export default function ComprobantesGrid({
                     </button>
                 </div>
             )}
-            {/* Tags */}
-            <div style={{ gridColumn: '1/-1' }}>
-                <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Etiquetas</div>
-                <TagPicker comprobanteId={c.id} />
-            </div>
         </div>
     );
 

@@ -130,6 +130,11 @@ export default function Configuracion() {
         setSavingTenant(false);
         setTenantSaved(true);
         setTimeout(() => setTenantSaved(false), 2500);
+        // Apply color immediately
+        const root = document.documentElement;
+        root.style.setProperty('--color-accent', primaryColor);
+        root.style.setProperty('--color-accent-dim', primaryColor + '18');
+        root.style.setProperty('--tenant-primary', primaryColor);
         refreshTenant?.();
     }
 
