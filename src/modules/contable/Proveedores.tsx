@@ -147,6 +147,14 @@ export default function Proveedores() {
     const [condicionFilter, setCondicionFilter] = useState<string>('');
     const [casoRojoFilter, setCasoRojoFilter] = useState<'all' | 'si' | 'no'>('all');
 
+    // Pagination state
+    const [visibleCount, setVisibleCount] = useState(50);
+
+    // Reset pagination on filter change
+    useEffect(() => {
+        setVisibleCount(50);
+    }, [busqueda, productoFilter, condicionFilter, casoRojoFilter, activityFilter]);
+
     useEffect(() => {
         if (!tenant) return;
         load();
@@ -799,7 +807,7 @@ export default function Proveedores() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filtered.map(p => {
+                                    {filtered.slice(0, visibleCount).map(p => {
                                         const stats = providerStats.get(p.id);
                                         const activity = formatTimeAgo(stats?.ultima_actividad ?? null);
                                         return (
@@ -895,6 +903,17 @@ export default function Proveedores() {
                                     })}
                                 </tbody>
                             </table>
+                            {visibleCount < filtered.length && (
+                                <div style={{ padding: '1rem', textAlign: 'center', borderTop: '1px solid var(--color-border-subtle)' }}>
+                                    <button
+                                        className="btn btn-secondary"
+                                        onClick={() => setVisibleCount(v => v + 50)}
+                                        style={{ background: 'var(--color-bg-surface-2)' }}
+                                    >
+                                        Cargar más ({filtered.length - visibleCount} restantes)
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

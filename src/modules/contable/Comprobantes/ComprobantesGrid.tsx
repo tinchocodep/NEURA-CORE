@@ -107,18 +107,30 @@ export default function ComprobantesGrid({
             id: 'numero',
             header: 'Comprobante',
             width: 160,
-            accessor: (c) => (
-                <div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '0.75rem', color: 'var(--color-text-primary)' }}>
-                        {c.numero_comprobante || '—'}
-                    </div>
-                    {c.tipo_comprobante && (
-                        <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', marginTop: 1 }}>
-                            {c.tipo_comprobante}
+            accessor: (c) => {
+                const isSinFactura = c.tipo_comprobante === 'Sin Factura';
+                return (
+                    <div>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '0.75rem', color: 'var(--color-text-primary)' }}>
+                            {c.numero_comprobante || (isSinFactura ? (
+                                <span style={{
+                                    background: 'rgba(37, 99, 235, 0.1)', color: '#2563eb',
+                                    padding: '0.15rem 0.4rem', borderRadius: 4,
+                                    fontSize: '0.65rem', fontWeight: 700,
+                                    textTransform: 'uppercase', letterSpacing: '0.05em'
+                                }}>
+                                    Sin Factura
+                                </span>
+                            ) : '—')}
                         </div>
-                    )}
-                </div>
-            ),
+                        {c.tipo_comprobante && !isSinFactura && (
+                            <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', marginTop: 1 }}>
+                                {c.tipo_comprobante}
+                            </div>
+                        )}
+                    </div>
+                );
+            },
         },
         {
             id: 'entidad',

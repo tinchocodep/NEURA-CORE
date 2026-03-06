@@ -45,12 +45,29 @@ export default function Layout() {
     // Count pending comprobantes for contable sidebar badge
     useEffect(() => {
         if (!tenant) return;
-        supabase.from('contable_comprobantes')
-            .select('id', { count: 'exact', head: true })
-            .eq('tenant_id', tenant.id)
-            .eq('estado', 'pendiente')
-            .then(({ count }) => setPendingComprobantes(count || 0));
-    }, [tenant, location.pathname]);
+
+        const fetchPending = () => {
+            supabase.from('contable_comprobantes')
+                .select('id', { count: 'exact', head: true })
+                .eq('tenant_id', tenant.id)
+                .eq('estado', 'pendiente')
+                .then(({ count }) => setPendingComprobantes(count || 0));
+        };
+
+        fetchPending();
+
+        const channel = supabase.channel('layout-comprobantes-pending')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'contable_comprobantes', filter: `tenant_id=eq.${tenant.id}` },
+                () => fetchPending()
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [tenant?.id]);
 
     // Hotkey: Cmd+J toggles agent panel
     useEffect(() => {

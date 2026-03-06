@@ -9,8 +9,9 @@ import { useComprobantes } from './useComprobantes';
 import type { ComprobanteEstado } from './useComprobantes';
 import { CommandBar, useCommandBar } from '../../../design-system/components/CommandBar/CommandBar';
 import ComprobanteForm from './ComprobanteForm';
+import GastoIngresoForm from './GastoIngresoForm';
 
-type TabKey = 'listado' | 'crear' | 'upload';
+type TabKey = 'listado' | 'crear' | 'upload' | 'gasto' | 'ingreso';
 
 export default function Comprobantes() {
     const { tenant } = useTenant();
@@ -39,8 +40,8 @@ export default function Comprobantes() {
     const { data, totalCount, isLoading, hasMore, loadMore, reset, updateEstado } =
         useComprobantes({ tipo: filtroTipo, estado: filtroEstado, busqueda, fechaDesde, fechaHasta });
 
-    // Load on mount and when filters change
-    useEffect(() => { reset(); setSelectedIds(new Set()); }, [filtroTipo, filtroEstado, busqueda, fechaDesde, fechaHasta]);
+    // Load on mount, when filters change, or when tenant is available
+    useEffect(() => { reset(); setSelectedIds(new Set()); }, [tenant?.id, filtroTipo, filtroEstado, busqueda, fechaDesde, fechaHasta]);
 
     const handleExportExcel = () => {
         if (data.length === 0) return;
@@ -198,8 +199,10 @@ export default function Comprobantes() {
 
     const tabs = [
         { key: 'listado' as TabKey, label: 'Listado', icon: <Search size={13} /> },
-        { key: 'crear' as TabKey, label: 'Nueva Factura', icon: <Plus size={13} /> },
-        { key: 'upload' as TabKey, label: 'Subir PDF', icon: <UploadIcon size={13} /> },
+        { key: 'crear' as TabKey, label: 'Emitir Factura', icon: <Plus size={13} /> },
+        { key: 'upload' as TabKey, label: 'Cargar Factura', icon: <UploadIcon size={13} /> },
+        { key: 'gasto' as TabKey, label: 'Cargar Gasto', icon: <FileText size={13} /> },
+        { key: 'ingreso' as TabKey, label: 'Cargar Ingreso', icon: <FileText size={13} /> },
     ];
 
     return (
@@ -250,9 +253,9 @@ export default function Comprobantes() {
                         <button
                             className="btn btn-primary btn-sm"
                             onClick={() => handleTab('crear')}
-                            title="Nueva factura (⌘N)"
+                            title="Emitir factura (⌘N)"
                         >
-                            <Plus size={13} /> Nueva <kbd style={{ background: 'rgba(0,0,0,0.2)', borderColor: 'transparent', color: 'inherit', marginLeft: 4 }}>⌘N</kbd>
+                            <Plus size={13} /> Emitir <kbd style={{ background: 'rgba(0,0,0,0.2)', borderColor: 'transparent', color: 'inherit', marginLeft: 4 }}>⌘N</kbd>
                         </button>
                     </div>
                 </div>
@@ -450,6 +453,28 @@ export default function Comprobantes() {
                 />
             )}
 
+            {/* ── TAB: GASTO ── */}
+            {activeTab === 'gasto' && (
+                <GastoIngresoForm
+                    tipo="compra"
+                    onSuccess={() => {
+                        handleTab('listado');
+                        reset();
+                    }}
+                />
+            )}
+
+            {/* ── TAB: INGRESO ── */}
+            {activeTab === 'ingreso' && (
+                <GastoIngresoForm
+                    tipo="venta"
+                    onSuccess={() => {
+                        handleTab('listado');
+                        reset();
+                    }}
+                />
+            )}
+
             {/* ── TAB: UPLOAD ── */}
             {activeTab === 'upload' && (() => {
                 const N8N_WEBHOOK = '/api/n8n-comprobantes';
@@ -569,7 +594,7 @@ export default function Comprobantes() {
 
                 return (
                     <div className="card" style={{ padding: '2rem', maxWidth: 700, margin: '0 auto' }}>
-                        <h2 style={{ fontSize: '1.125rem', fontWeight: 700, margin: '0 0 0.25rem' }}>Subir Factura PDF</h2>
+                        <h2 style={{ fontSize: '1.125rem', fontWeight: 700, margin: '0 0 0.25rem' }}>Cargar Factura PDF</h2>
                         <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', margin: '0 0 1.5rem' }}>
                             Arrastrá PDFs de facturas acá. Se envían a n8n para extraer datos automáticamente y crear el comprobante.
                         </p>

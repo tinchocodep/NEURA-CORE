@@ -1,4 +1,4 @@
-import { useCallback, useState, useMemo } from 'react';
+import { useCallback, useState, useMemo, useEffect, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useTenant } from '../../../contexts/TenantContext';
 
@@ -41,7 +41,7 @@ const SELECT_FIELDS = `
   centro_costo:contable_centros_costo(nombre)
 `;
 
-const PAGE_SIZE = 30;
+const PAGE_SIZE = 50;
 
 export interface ComprobantesFilters {
     tipo: string;
@@ -165,6 +165,28 @@ export function useComprobantes(filters: ComprobantesFilters) {
         ));
         return true;
     }, []);
+
+    const resetRef = useRef(reset);
+    useEffect(() => { resetRef.current = reset; }, [reset]);
+
+    // Listen for real-time changes
+    useEffect(() => {
+        if (!tenant?.id) return;
+
+        const channel = supabase.channel('use-comprobantes-list')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'contable_comprobantes', filter: `tenant_id=eq.${tenant.id}` },
+                () => {
+                    resetRef.current();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [tenant?.id]);
 
     return { data, totalCount, isLoading, hasMore, loadMore, reset, updateEstado };
 }

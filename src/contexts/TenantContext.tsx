@@ -112,7 +112,13 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
     // If auth is loading, tenant is also loading
     if (authLoading) {
-        return null;
+        return (
+            <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc' }}>
+                <div style={{ padding: '20px', fontFamily: 'sans-serif', color: '#64748b' }}>
+                    Iniciando entorno seguro...
+                </div>
+            </div>
+        );
     }
 
     return (

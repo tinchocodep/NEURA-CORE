@@ -23,6 +23,13 @@ export default function Clientes() {
     const [form, setForm] = useState({ razon_social: '', cuit: '', segmento: '' });
     const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
 
+    // Pagination state
+    const [visibleCount, setVisibleCount] = useState(50);
+
+    useEffect(() => {
+        setVisibleCount(50);
+    }, [busqueda]);
+
     useEffect(() => {
         if (!tenant) return;
         load();
@@ -135,7 +142,7 @@ export default function Clientes() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filtered.map(c => (
+                                {filtered.slice(0, visibleCount).map(c => (
                                     <tr key={c.id} onClick={() => setSelectedCliente(c)} style={{ cursor: 'pointer' }}>
                                         <td style={{ fontWeight: 600 }}>{c.razon_social}</td>
                                         <td style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: c.cuit ? 'var(--text-sub)' : 'var(--text-faint)' }}>
@@ -159,6 +166,17 @@ export default function Clientes() {
                                 ))}
                             </tbody>
                         </table>
+                        {visibleCount < filtered.length && (
+                            <div style={{ padding: '1rem', textAlign: 'center', borderTop: '1px solid var(--color-border-subtle)' }}>
+                                <button
+                                    className="btn btn-secondary"
+                                    onClick={() => setVisibleCount(v => v + 50)}
+                                    style={{ background: 'var(--color-bg-surface-2)' }}
+                                >
+                                    Cargar más ({filtered.length - visibleCount} restantes)
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

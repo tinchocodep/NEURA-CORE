@@ -79,7 +79,33 @@ export default function Entity360Panel({ entity, entityType, onClose, onPdfPrevi
 
     useEffect(() => {
         loadComprobantes();
-    }, [entity.id]);
+
+        if (!tenant?.id || !entity?.id) return;
+
+        const columnId = entityType === 'proveedor' ? 'proveedor_id' : 'cliente_id';
+        const channel = supabase.channel(`entity360-${entity.id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'contable_comprobantes',
+                    filter: `tenant_id=eq.${tenant.id}`
+                },
+                (payload) => {
+                    // Only reload if the changed row belongs to this entity
+                    const record = (payload.new || payload.old) as any;
+                    if (record && record[columnId] === entity.id) {
+                        loadComprobantes();
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [entity.id, tenant?.id]);
 
     async function loadComprobantes() {
         setLoading(true);
