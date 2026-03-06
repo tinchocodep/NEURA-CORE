@@ -140,7 +140,7 @@ export default function GastoIngresoForm({ tipo, onSuccess }: Props) {
             if (dupes && dupes.length > 0) {
                 setDuplicateWarning({
                     count: dupes.length,
-                    existing: dupes.slice(0, 3) as typeof duplicateWarning.existing,
+                    existing: dupes.slice(0, 3) as { numero_comprobante: string; fecha: string; monto_ars: number }[],
                 });
                 return;
             }
