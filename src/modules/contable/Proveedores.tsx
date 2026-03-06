@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
 import { Search, Plus, Edit2, AlertTriangle, X, Save, Trash2, Loader, Globe, ChevronDown, ChevronRight, Download, Clock, FileText, Filter, Eye, Send, Star } from 'lucide-react';
+import { SkeletonTable } from '../../shared/components/SkeletonKit';
 
 // --- Types ---
 
@@ -766,7 +767,7 @@ export default function Proveedores() {
                 {/* Table */}
                 <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
                     {loading ? (
-                        <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Cargando proveedores...</div>
+                        <SkeletonTable rows={6} columns={4} />
                     ) : filtered.length === 0 ? (
                         <div style={{ padding: '3rem', textAlign: 'center' }}>
                             <p style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.25rem' }}>
@@ -901,309 +902,320 @@ export default function Proveedores() {
                 {/* Modal: Nuevo / Editar Proveedor */}
                 {showModal && (
                     <div style={{
-                        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)',
+                        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
                     }} onClick={() => setShowModal(false)}>
-                        <div className="card" style={{ width: 560, maxHeight: '85vh', overflow: 'auto', margin: 0 }} onClick={e => e.stopPropagation()}>
-                            <div className="card-header" style={{ marginBottom: '1.5rem' }}>
-                                <h3 className="card-title">{editando ? 'Editar Proveedor' : 'Nuevo Proveedor'}</h3>
-                                <button className="btn btn-secondary" style={{ padding: '0.3rem' }} onClick={() => setShowModal(false)}>
-                                    <X size={16} />
+                        <div
+                            style={{
+                                width: 680, maxWidth: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column',
+                                background: 'var(--bg-main, #fff)', borderRadius: 16, overflow: 'hidden',
+                                boxShadow: '0 25px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05)',
+                            }}
+                            onClick={e => e.stopPropagation()}
+                        >
+                            {/* ── Sticky Header ── */}
+                            <div style={{
+                                padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border-subtle, #e2e8f0)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0,
+                            }}>
+                                <div>
+                                    <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main, #0f172a)', margin: 0, letterSpacing: '-0.01em' }}>
+                                        {editando ? '✏️ Editar Proveedor' : '➕ Nuevo Proveedor'}
+                                    </h3>
+                                    <p style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)', marginTop: 2, margin: 0 }}>
+                                        {editando ? `Editando: ${editando.razon_social}` : 'Completá los datos del proveedor'}
+                                    </p>
+                                </div>
+                                <button className="btn btn-ghost btn-icon" onClick={() => setShowModal(false)} style={{ borderRadius: 99 }}>
+                                    <X size={18} />
                                 </button>
                             </div>
 
-                            {/* ARCA Search Section — only for new providers */}
-                            {!editando && (
-                                <div style={{
-                                    background: 'var(--bg-main)',
-                                    border: '1px solid var(--border)',
-                                    borderRadius: 8,
-                                    padding: '1rem 1.25rem',
-                                    marginBottom: '1.25rem',
-                                }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: '0.75rem' }}>
-                                        <Globe size={16} color="var(--primary)" />
-                                        <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Buscar en ARCA</span>
-                                    </div>
-                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                        <input
-                                            className="form-input"
-                                            value={form.cuit}
-                                            onChange={e => setForm({ ...form, cuit: e.target.value })}
-                                            placeholder="Ingresá el CUIT (ej: 30712345678)"
-                                            style={{ flex: 1, height: 40, fontFamily: 'monospace' }}
-                                            onKeyDown={e => { if (e.key === 'Enter') handleArcaSearch(); }}
-                                        />
-                                        <button
-                                            className="btn btn-primary"
-                                            onClick={handleArcaSearch}
-                                            disabled={arcaSearching || !form.cuit.trim()}
-                                            style={{ whiteSpace: 'nowrap', height: 40, gap: 6 }}
-                                        >
-                                            {arcaSearching
-                                                ? <><Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> Buscando...</>
-                                                : <><Search size={14} /> Buscar</>
-                                            }
-                                        </button>
-                                    </div>
+                            {/* ── Scrollable Body ── */}
+                            <div className="modal-scroll-body" style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 1.5rem' }}>
 
-                                    {/* ARCA Error */}
-                                    {arcaError && (
-                                        <div style={{
-                                            marginTop: '0.75rem', padding: '0.625rem 0.875rem',
-                                            background: 'var(--danger-bg)', border: '1px solid var(--danger-border)',
-                                            borderRadius: 6, fontSize: '0.8125rem', color: 'var(--danger)',
-                                        }}>
-                                            {arcaError}
+                                {/* ARCA Search — only for new */}
+                                {!editando && (
+                                    <div style={{
+                                        background: 'linear-gradient(135deg, rgba(99,102,241,0.04), rgba(59,130,246,0.06))',
+                                        border: '1px solid rgba(99,102,241,0.15)', borderRadius: 12,
+                                        padding: '1rem 1.25rem', marginBottom: '1.25rem',
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: '0.75rem' }}>
+                                            <Globe size={16} color="#6366f1" />
+                                            <span style={{ fontWeight: 700, fontSize: '0.8rem', color: '#6366f1' }}>Buscar en ARCA</span>
+                                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>Autocompletar datos fiscales</span>
                                         </div>
-                                    )}
-
-                                    {/* ARCA Result Card */}
-                                    {arcaResult && (
-                                        <div style={{
-                                            marginTop: '0.75rem', padding: '0.875rem',
-                                            background: 'var(--success-bg)', border: '1px solid var(--success-border)',
-                                            borderRadius: 6,
-                                        }}>
-                                            <div style={{ fontWeight: 700, fontSize: '0.9375rem', marginBottom: '0.5rem', color: 'var(--text-main)' }}>
-                                                {arcaResult.name}
-                                            </div>
-                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.375rem', fontSize: '0.8125rem', color: 'var(--text-sub)' }}>
-                                                <div>📍 {arcaResult.address}</div>
-                                                <div>🏛️ {arcaResult.jurisdiction}</div>
-                                                <div style={{ gridColumn: '1 / -1' }}>📋 {arcaResult.taxCondition}</div>
-                                            </div>
-                                            {form.razon_social !== arcaResult.name && (
-                                                <button
-                                                    className="btn btn-primary"
-                                                    onClick={applyArcaData}
-                                                    style={{ marginTop: '0.625rem', fontSize: '0.75rem', padding: '0.3rem 0.75rem' }}
-                                                >
-                                                    Usar esta razón social
-                                                </button>
-                                            )}
+                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                            <input
+                                                className="form-input"
+                                                value={form.cuit}
+                                                onChange={e => setForm({ ...form, cuit: e.target.value })}
+                                                placeholder="Ingresá el CUIT (ej: 30712345678)"
+                                                style={{ flex: 1, height: 40, fontFamily: 'monospace' }}
+                                                onKeyDown={e => { if (e.key === 'Enter') handleArcaSearch(); }}
+                                            />
+                                            <button
+                                                className="btn btn-primary"
+                                                onClick={handleArcaSearch}
+                                                disabled={arcaSearching || !form.cuit.trim()}
+                                                style={{ whiteSpace: 'nowrap', height: 40, gap: 6 }}
+                                            >
+                                                {arcaSearching
+                                                    ? <><Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> Buscando...</>
+                                                    : <><Search size={14} /> Buscar</>
+                                                }
+                                            </button>
                                         </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* Form Fields */}
-                            <div className="form-group">
-                                <label className="form-label">Razón Social *</label>
-                                <input className="form-input" value={form.razon_social} onChange={e => setForm({ ...form, razon_social: e.target.value })} placeholder="Ej: GOOGLE CLOUD ARGENTINA SRL" />
-                            </div>
-
-                            {/* Show CUIT field only when editing (for new, it's in the ARCA search section) */}
-                            {editando && (
-                                <div className="form-group">
-                                    <label className="form-label">CUIT</label>
-                                    <input className="form-input" value={form.cuit} onChange={e => setForm({ ...form, cuit: e.target.value })} placeholder="Ej: 30-12345678-9" />
-                                </div>
-                            )}
-
-                            <div className="form-group">
-                                <label className="form-label">Producto/Servicio Default</label>
-
-                                {/* Search */}
-                                <div style={{ position: 'relative', marginBottom: '0.5rem' }}>
-                                    <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                                    <input
-                                        className="form-input"
-                                        placeholder="Buscar producto/servicio..."
-                                        value={prodFilter}
-                                        onChange={e => setProdFilter(e.target.value)}
-                                        style={{ paddingLeft: 32, height: 36, fontSize: '0.8125rem' }}
-                                    />
-                                </div>
-
-                                {/* Accordion list */}
-                                <div style={{
-                                    maxHeight: 300, overflowY: 'auto',
-                                    border: '1px solid #cbd5e1', borderRadius: 10,
-                                    background: '#f8f9fc',
-                                }}>
-                                    {/* Folder groups */}
-                                    {productFolders.map((folder, idx) => {
-                                        const matchingItems = folder.items.filter(p =>
-                                            !prodFilter || p.nombre.toLowerCase().includes(prodFilter.toLowerCase())
-                                        );
-                                        if (matchingItems.length === 0) return null;
-                                        const isOpen = expandedFolders.has(folder.label) || !!prodFilter;
-                                        const hasSelected = matchingItems.some(p => p.id === form.producto_servicio_default_id);
-                                        return (
-                                            <div key={folder.label}>
-                                                {idx > 0 && <div style={{ height: 1, background: '#e2e8f0' }} />}
-                                                {/* Accordion header */}
-                                                <div
-                                                    onClick={() => toggleFolder(folder.label)}
-                                                    style={{
-                                                        display: 'flex', alignItems: 'center', gap: 8,
-                                                        padding: '0.6rem 0.75rem', cursor: 'pointer',
-                                                        background: hasSelected ? 'rgba(25,88,224,0.08)' : 'transparent',
-                                                        transition: 'background 0.15s ease',
-                                                    }}
-                                                >
-                                                    {isOpen
-                                                        ? <ChevronDown size={14} style={{ color: '#1958E0', flexShrink: 0 }} />
-                                                        : <ChevronRight size={14} style={{ color: '#94a3b8', flexShrink: 0 }} />
-                                                    }
-                                                    <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a' }}>
-                                                        {folder.label}
-                                                    </span>
-                                                    <span style={{
-                                                        marginLeft: 'auto', fontSize: '0.6875rem', fontWeight: 500,
-                                                        color: '#fff', background: hasSelected ? '#1958E0' : '#94a3b8',
-                                                        padding: '0.1rem 0.45rem', borderRadius: 99, minWidth: 20, textAlign: 'center',
-                                                    }}>
-                                                        {matchingItems.length}
-                                                    </span>
+                                        {arcaError && (
+                                            <div style={{ marginTop: '0.75rem', padding: '0.5rem 0.75rem', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, fontSize: '0.78rem', color: '#dc2626' }}>
+                                                {arcaError}
+                                            </div>
+                                        )}
+                                        {arcaResult && (
+                                            <div style={{ marginTop: '0.75rem', padding: '0.75rem', background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 8 }}>
+                                                <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.4rem', color: 'var(--text-main)' }}>{arcaResult.name}</div>
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem', fontSize: '0.75rem', color: 'var(--text-sub)' }}>
+                                                    <div>📍 {arcaResult.address}</div>
+                                                    <div>🏛️ {arcaResult.jurisdiction}</div>
+                                                    <div style={{ gridColumn: '1 / -1' }}>📋 {arcaResult.taxCondition}</div>
                                                 </div>
-                                                {/* Accordion body */}
-                                                {isOpen && (
-                                                    <div style={{
-                                                        padding: '0.375rem 0.75rem 0.5rem 2rem',
-                                                        display: 'flex', flexWrap: 'wrap', gap: '0.3rem',
-                                                        background: '#fff',
-                                                        borderTop: '1px solid #e2e8f0',
-                                                    }}>
-                                                        {matchingItems.map(p => {
-                                                            const sel = form.producto_servicio_default_id === p.id;
-                                                            return (
-                                                                <button
-                                                                    key={p.id} type="button"
-                                                                    onClick={() => setForm(prev => ({
-                                                                        ...prev,
-                                                                        producto_servicio_default_id: sel ? '' : p.id,
-                                                                    }))}
-                                                                    style={{
-                                                                        padding: '0.25rem 0.6rem', borderRadius: 14,
-                                                                        fontSize: '0.75rem', fontWeight: sel ? 600 : 400,
-                                                                        border: sel ? '2px solid #1958E0' : '1px solid #cbd5e1',
-                                                                        background: sel ? '#1958E0' : '#f1f5f9',
-                                                                        color: sel ? '#fff' : '#334155',
-                                                                        cursor: 'pointer', transition: 'all 0.15s ease',
-                                                                    }}
-                                                                >{p.nombre}</button>
-                                                            );
-                                                        })}
-                                                    </div>
+                                                {form.razon_social !== arcaResult.name && (
+                                                    <button className="btn btn-primary" onClick={applyArcaData} style={{ marginTop: '0.5rem', fontSize: '0.72rem', padding: '0.25rem 0.7rem' }}>
+                                                        Usar esta razón social
+                                                    </button>
                                                 )}
                                             </div>
-                                        );
-                                    })}
-                                    {/* Standalone items */}
-                                    {productStandalones
-                                        .filter(p => !prodFilter || p.nombre.toLowerCase().includes(prodFilter.toLowerCase()))
-                                        .map((p, idx) => {
-                                            const sel = form.producto_servicio_default_id === p.id;
-                                            return (
-                                                <div key={p.id}>
-                                                    {(productFolders.length > 0 || idx > 0) && <div style={{ height: 1, background: '#e2e8f0' }} />}
-                                                    <div
-                                                        onClick={() => setForm(prev => ({
-                                                            ...prev,
-                                                            producto_servicio_default_id: sel ? '' : p.id,
-                                                        }))}
-                                                        style={{
-                                                            padding: '0.6rem 0.75rem', cursor: 'pointer',
-                                                            display: 'flex', alignItems: 'center', gap: 8,
-                                                            background: sel ? 'rgba(25,88,224,0.08)' : 'transparent',
-                                                            transition: 'background 0.15s ease',
-                                                        }}
-                                                    >
-                                                        {sel
-                                                            ? <div style={{ width: 14, height: 14, borderRadius: 99, background: '#1958E0', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                                <div style={{ width: 6, height: 6, borderRadius: 99, background: '#fff' }} />
-                                                            </div>
-                                                            : <div style={{ width: 14, height: 14, borderRadius: 99, border: '2px solid #cbd5e1', flexShrink: 0 }} />
-                                                        }
-                                                        <span style={{
-                                                            fontSize: '0.8125rem', fontWeight: sel ? 600 : 400,
-                                                            color: sel ? '#1958E0' : '#334155',
-                                                        }}>{p.nombre}</span>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })
-                                    }
-                                    {productos.length === 0 && (
-                                        <div style={{ padding: '1rem', fontSize: '0.8125rem', color: '#94a3b8', fontStyle: 'italic', textAlign: 'center' }}>
-                                            No hay productos/servicios configurados
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* ── Section: Identidad ── */}
+                                <div style={{ marginBottom: '1.25rem' }}>
+                                    <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
+                                        Identidad
+                                    </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                        <div className="form-group" style={{ marginBottom: 0, gridColumn: editando ? '1' : '1 / -1' }}>
+                                            <label className="form-label">Razón Social *</label>
+                                            <input className="form-input" value={form.razon_social} onChange={e => setForm({ ...form, razon_social: e.target.value })} placeholder="Ej: GOOGLE CLOUD ARGENTINA SRL" />
                                         </div>
-                                    )}
+                                        {editando && (
+                                            <div className="form-group" style={{ marginBottom: 0 }}>
+                                                <label className="form-label">CUIT</label>
+                                                <input className="form-input" value={form.cuit} onChange={e => setForm({ ...form, cuit: e.target.value })} placeholder="Ej: 30-12345678-9" style={{ fontFamily: 'monospace' }} />
+                                            </div>
+                                        )}
+                                        <div className="form-group" style={{ marginBottom: 0 }}>
+                                            <label className="form-label">Condición Fiscal</label>
+                                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                                <select className="form-input" value={form.condicion_fiscal} onChange={e => setForm({ ...form, condicion_fiscal: e.target.value })} style={{ flex: 1 }}>
+                                                    <option value="">Sin definir</option>
+                                                    {CONDICIONES_FISCALES.map(c => <option key={c} value={c}>{c}</option>)}
+                                                </select>
+                                                {(() => {
+                                                    const sug = sugerirTipoFactura('Responsable Inscripto', form.condicion_fiscal);
+                                                    if (!sug) return null;
+                                                    return (
+                                                        <span style={{
+                                                            padding: '0.25rem 0.5rem', borderRadius: 99, fontSize: '0.68rem',
+                                                            fontWeight: 700, background: `${sug.color}15`, color: sug.color,
+                                                            border: `1.5px solid ${sug.color}40`, whiteSpace: 'nowrap', flexShrink: 0,
+                                                        }}>
+                                                            {sug.label}
+                                                        </span>
+                                                    );
+                                                })()}
+                                            </div>
+                                        </div>
+                                        <div className="form-group" style={{ marginBottom: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <input type="checkbox" id="caso-rojo-modal" checked={form.es_caso_rojo} onChange={e => setForm({ ...form, es_caso_rojo: e.target.checked })} />
+                                            <label htmlFor="caso-rojo-modal" style={{ fontSize: '0.8rem', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}>
+                                                <AlertTriangle size={14} color="var(--warning)" /> Caso rojo
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* ── Section: Clasificación ── */}
+                                <div style={{ marginBottom: '1.25rem' }}>
+                                    <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
+                                        Clasificación Contable
+                                    </div>
+                                    <div className="form-group" style={{ marginBottom: 0 }}>
+                                        <label className="form-label">Producto/Servicio Default</label>
+                                        <div style={{ position: 'relative', marginBottom: '0.4rem' }}>
+                                            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                                            <input
+                                                className="form-input"
+                                                placeholder="Buscar producto/servicio..."
+                                                value={prodFilter}
+                                                onChange={e => setProdFilter(e.target.value)}
+                                                style={{ paddingLeft: 32, height: 36, fontSize: '0.78rem' }}
+                                            />
+                                        </div>
+                                        <div style={{
+                                            maxHeight: 220, overflowY: 'auto', border: '1px solid var(--border-subtle, #cbd5e1)',
+                                            borderRadius: 10, background: 'var(--bg-subtle, #f8f9fc)',
+                                        }}>
+                                            {productFolders.map((folder, idx) => {
+                                                const matchingItems = folder.items.filter(p =>
+                                                    !prodFilter || p.nombre.toLowerCase().includes(prodFilter.toLowerCase())
+                                                );
+                                                if (matchingItems.length === 0) return null;
+                                                const isOpen = expandedFolders.has(folder.label) || !!prodFilter;
+                                                const hasSelected = matchingItems.some(p => p.id === form.producto_servicio_default_id);
+                                                return (
+                                                    <div key={folder.label}>
+                                                        {idx > 0 && <div style={{ height: 1, background: 'var(--border-subtle, #e2e8f0)' }} />}
+                                                        <div
+                                                            onClick={() => toggleFolder(folder.label)}
+                                                            style={{
+                                                                display: 'flex', alignItems: 'center', gap: 8,
+                                                                padding: '0.5rem 0.75rem', cursor: 'pointer',
+                                                                background: hasSelected ? 'rgba(25,88,224,0.06)' : 'transparent',
+                                                                transition: 'background 0.15s',
+                                                            }}
+                                                        >
+                                                            {isOpen
+                                                                ? <ChevronDown size={13} style={{ color: '#1958E0', flexShrink: 0 }} />
+                                                                : <ChevronRight size={13} style={{ color: '#94a3b8', flexShrink: 0 }} />
+                                                            }
+                                                            <span style={{ fontSize: '0.78rem', fontWeight: 600 }}>{folder.label}</span>
+                                                            <span style={{
+                                                                marginLeft: 'auto', fontSize: '0.62rem', fontWeight: 600,
+                                                                color: '#fff', background: hasSelected ? '#1958E0' : '#94a3b8',
+                                                                padding: '0 0.4rem', borderRadius: 99, minWidth: 18, textAlign: 'center',
+                                                            }}>{matchingItems.length}</span>
+                                                        </div>
+                                                        {isOpen && (
+                                                            <div style={{
+                                                                padding: '0.3rem 0.75rem 0.4rem 2rem',
+                                                                display: 'flex', flexWrap: 'wrap', gap: '0.25rem',
+                                                                background: 'var(--bg-main, #fff)', borderTop: '1px solid var(--border-subtle, #e2e8f0)',
+                                                            }}>
+                                                                {matchingItems.map(p => {
+                                                                    const sel = form.producto_servicio_default_id === p.id;
+                                                                    return (
+                                                                        <button
+                                                                            key={p.id} type="button"
+                                                                            onClick={() => setForm(prev => ({
+                                                                                ...prev,
+                                                                                producto_servicio_default_id: sel ? '' : p.id,
+                                                                            }))}
+                                                                            style={{
+                                                                                padding: '0.2rem 0.55rem', borderRadius: 12,
+                                                                                fontSize: '0.72rem', fontWeight: sel ? 600 : 400,
+                                                                                border: sel ? '2px solid var(--brand, #1958E0)' : '1px solid var(--border-subtle, #cbd5e1)',
+                                                                                background: sel ? 'var(--brand, #1958E0)' : 'var(--bg-subtle, #f1f5f9)',
+                                                                                color: sel ? '#fff' : 'var(--text-main, #334155)',
+                                                                                cursor: 'pointer', transition: 'all 0.15s',
+                                                                            }}
+                                                                        >{p.nombre}</button>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                            {productStandalones
+                                                .filter(p => !prodFilter || p.nombre.toLowerCase().includes(prodFilter.toLowerCase()))
+                                                .map((p, idx) => {
+                                                    const sel = form.producto_servicio_default_id === p.id;
+                                                    return (
+                                                        <div key={p.id}>
+                                                            {(productFolders.length > 0 || idx > 0) && <div style={{ height: 1, background: 'var(--border-subtle, #e2e8f0)' }} />}
+                                                            <div
+                                                                onClick={() => setForm(prev => ({
+                                                                    ...prev,
+                                                                    producto_servicio_default_id: sel ? '' : p.id,
+                                                                }))}
+                                                                style={{
+                                                                    padding: '0.5rem 0.75rem', cursor: 'pointer',
+                                                                    display: 'flex', alignItems: 'center', gap: 8,
+                                                                    background: sel ? 'rgba(25,88,224,0.06)' : 'transparent',
+                                                                    transition: 'background 0.15s',
+                                                                }}
+                                                            >
+                                                                {sel
+                                                                    ? <div style={{ width: 14, height: 14, borderRadius: 99, background: 'var(--brand, #1958E0)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                                        <div style={{ width: 6, height: 6, borderRadius: 99, background: '#fff' }} />
+                                                                    </div>
+                                                                    : <div style={{ width: 14, height: 14, borderRadius: 99, border: '2px solid var(--border-subtle, #cbd5e1)', flexShrink: 0 }} />
+                                                                }
+                                                                <span style={{
+                                                                    fontSize: '0.78rem', fontWeight: sel ? 600 : 400,
+                                                                    color: sel ? 'var(--brand, #1958E0)' : 'var(--text-main, #334155)',
+                                                                }}>{p.nombre}</span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })
+                                            }
+                                            {productos.length === 0 && (
+                                                <div style={{ padding: '1rem', fontSize: '0.78rem', color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>
+                                                    No hay productos/servicios configurados
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* ── Section: Contacto ── */}
+                                <div style={{ marginBottom: '1.25rem' }}>
+                                    <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
+                                        Contacto
+                                    </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                        <div className="form-group" style={{ marginBottom: 0 }}>
+                                            <label className="form-label">Teléfono</label>
+                                            <input className="form-input" placeholder="+54 11 1234-5678" value={form.telefono} onChange={e => setForm({ ...form, telefono: e.target.value })} />
+                                        </div>
+                                        <div className="form-group" style={{ marginBottom: 0 }}>
+                                            <label className="form-label">Email</label>
+                                            <input className="form-input" type="email" placeholder="proveedor@mail.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+                                        </div>
+                                        <div className="form-group" style={{ marginBottom: 0, gridColumn: '1 / -1' }}>
+                                            <label className="form-label">Dirección</label>
+                                            <input className="form-input" placeholder="Domicilio fiscal" value={form.direccion} onChange={e => setForm({ ...form, direccion: e.target.value })} />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* ── Section: Notas ── */}
+                                <div>
+                                    <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
+                                        Notas
+                                    </div>
+                                    <div className="form-group" style={{ marginBottom: 0 }}>
+                                        <textarea
+                                            className="form-input"
+                                            placeholder="Notas internas sobre este proveedor..."
+                                            value={form.observaciones}
+                                            onChange={e => setForm({ ...form, observaciones: e.target.value })}
+                                            rows={2}
+                                            style={{ resize: 'vertical' }}
+                                        />
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Condición Fiscal + Invoice suggestion */}
-                            <div className="form-group">
-                                <label>Condición Fiscal</label>
-                                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                    <select
-                                        className="form-input"
-                                        value={form.condicion_fiscal}
-                                        onChange={e => setForm({ ...form, condicion_fiscal: e.target.value })}
-                                        style={{ flex: 1 }}
-                                    >
-                                        <option value="">Sin definir</option>
-                                        {CONDICIONES_FISCALES.map(c => <option key={c} value={c}>{c}</option>)}
-                                    </select>
-                                    {(() => {
-                                        const sug = sugerirTipoFactura('Responsable Inscripto', form.condicion_fiscal);
-                                        if (!sug) return null;
-                                        return (
-                                            <span style={{
-                                                padding: '0.3rem 0.6rem', borderRadius: 99, fontSize: '0.75rem',
-                                                fontWeight: 700, background: `${sug.color}15`, color: sug.color,
-                                                border: `1.5px solid ${sug.color}40`, whiteSpace: 'nowrap',
-                                            }}>
-                                                📋 {sug.label}
-                                            </span>
-                                        );
-                                    })()}
+                            {/* ── Sticky Footer ── */}
+                            <div style={{
+                                padding: '1rem 1.5rem', borderTop: '1px solid var(--border-subtle, #e2e8f0)',
+                                display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0,
+                                background: 'var(--bg-subtle, #f8fafc)',
+                            }}>
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                                    {editando ? 'Los cambios se aplican inmediatamente' : 'Se creará con estado activo'}
+                                </span>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <button className="btn btn-ghost" onClick={() => setShowModal(false)}>Cancelar</button>
+                                    <button className="btn btn-primary" onClick={handleSave} disabled={!form.razon_social.trim()} style={{ gap: 6 }}>
+                                        <Save size={14} /> {editando ? 'Guardar cambios' : 'Crear proveedor'}
+                                    </button>
                                 </div>
-                            </div>
-
-                            {/* Contact info */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                                <div className="form-group">
-                                    <label>Teléfono</label>
-                                    <input className="form-input" placeholder="Ej: +54 11 1234-5678" value={form.telefono} onChange={e => setForm({ ...form, telefono: e.target.value })} />
-                                </div>
-                                <div className="form-group">
-                                    <label>Email</label>
-                                    <input className="form-input" type="email" placeholder="proveedor@mail.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
-                                </div>
-                            </div>
-
-                            <div className="form-group">
-                                <label>Dirección</label>
-                                <input className="form-input" placeholder="Domicilio fiscal" value={form.direccion} onChange={e => setForm({ ...form, direccion: e.target.value })} />
-                            </div>
-
-                            <div className="form-group">
-                                <label>Observaciones</label>
-                                <textarea
-                                    className="form-input"
-                                    placeholder="Notas internas sobre este proveedor..."
-                                    value={form.observaciones}
-                                    onChange={e => setForm({ ...form, observaciones: e.target.value })}
-                                    rows={2}
-                                    style={{ resize: 'vertical' }}
-                                />
-                            </div>
-
-                            <div className="form-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '0.75rem' }}>
-                                <input type="checkbox" id="caso-rojo" checked={form.es_caso_rojo} onChange={e => setForm({ ...form, es_caso_rojo: e.target.checked })} />
-                                <label htmlFor="caso-rojo" style={{ fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    <AlertTriangle size={14} color="var(--warning)" /> Caso rojo (múltiples clasificaciones posibles)
-                                </label>
-                            </div>
-
-                            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
-                                <button className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancelar</button>
-                                <button className="btn btn-primary" onClick={handleSave} disabled={!form.razon_social.trim()}>
-                                    <Save size={16} /> {editando ? 'Guardar' : 'Crear'}
-                                </button>
                             </div>
                         </div>
                     </div>

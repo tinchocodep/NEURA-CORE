@@ -1,25 +1,103 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
-import { LogIn, AlertCircle, Shield, TrendingUp, Building2 } from 'lucide-react';
+import { LogIn, AlertCircle, Eye, EyeOff, Zap, BarChart3, Shield, Users } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
+/* ─── Animation helpers ─── */
 const fadeUp = (delay = 0) => ({
-    initial: { opacity: 0, y: 20 },
-    animate: { opacity: 1, y: 0, transition: { duration: 0.5, delay, ease: 'easeOut' as const } },
+    initial: { opacity: 0, y: 24 },
+    animate: { opacity: 1, y: 0, transition: { duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] } },
 });
 
 const features = [
-    { icon: TrendingUp, text: 'Proyecciones en tiempo real' },
-    { icon: Building2, text: 'Multi-empresa nativo' },
-    { icon: Shield, text: 'Acceso por roles y permisos' },
+    { icon: Zap, title: 'Automatización', desc: 'Importación y clasificación automática de comprobantes' },
+    { icon: BarChart3, title: 'Análisis en tiempo real', desc: 'Dashboard con KPIs de tesorería y contabilidad' },
+    { icon: Shield, title: 'Seguridad', desc: 'Multi-tenant con aislamiento completo de datos' },
+    { icon: Users, title: 'Colaboración', desc: 'Múltiples usuarios con roles y permisos' },
 ];
+
+/* ─── Styles ─── */
+const styles = {
+    container: {
+        minHeight: '100vh',
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        fontFamily: "'Inter', -apple-system, sans-serif",
+    } as React.CSSProperties,
+    // Left: form side
+    leftPanel: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '3rem',
+        background: '#fafbfc',
+    } as React.CSSProperties,
+    formWrapper: {
+        width: '100%',
+        maxWidth: 420,
+    } as React.CSSProperties,
+    // Right: branding side
+    rightPanel: {
+        position: 'relative' as const,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '3rem',
+        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 40%, #0f172a 100%)',
+        overflow: 'hidden',
+        color: '#fff',
+    } as React.CSSProperties,
+    input: {
+        width: '100%',
+        padding: '0.8rem 1rem',
+        fontSize: '0.9rem',
+        border: '1.5px solid #e2e8f0',
+        borderRadius: 12,
+        background: '#fff',
+        color: '#1e293b',
+        outline: 'none',
+        transition: 'border-color 0.2s, box-shadow 0.2s',
+        boxSizing: 'border-box' as const,
+    },
+    inputFocus: {
+        borderColor: 'var(--brand, #6366f1)',
+        boxShadow: '0 0 0 3px rgba(99, 102, 241, 0.1)',
+    },
+    label: {
+        display: 'block',
+        fontSize: '0.78rem',
+        fontWeight: 600 as const,
+        color: '#475569',
+        marginBottom: 6,
+        letterSpacing: '0.02em',
+    },
+    submitBtn: {
+        width: '100%',
+        padding: '0.85rem',
+        fontSize: '0.9rem',
+        fontWeight: 700 as const,
+        color: '#fff',
+        background: 'var(--brand, #6366f1)',
+        border: 'none',
+        borderRadius: 12,
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        transition: 'transform 0.15s, box-shadow 0.15s',
+        boxShadow: '0 4px 14px rgba(99, 102, 241, 0.3)',
+    } as React.CSSProperties,
+};
 
 export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [focusedField, setFocusedField] = useState<string | null>(null);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -39,160 +117,232 @@ export default function Login() {
     };
 
     return (
-        <div className="auth-split-container">
-            {/* ── Left panel ── */}
-            <div className="auth-left">
-                <div className="auth-card">
-                    <motion.div {...fadeUp(0)} className="auth-header">
-                        {/* Neura logo */}
+        <div style={styles.container}>
+            {/* ── Left: Login Form ── */}
+            <div style={styles.leftPanel}>
+                <div style={styles.formWrapper}>
+                    <motion.div {...fadeUp(0)}>
                         <img
                             src="/neura-logo.png"
                             alt="Neura Core"
-                            style={{ width: '72px', height: '72px', objectFit: 'contain', marginBottom: '1.25rem' }}
+                            style={{ width: 56, height: 56, objectFit: 'contain', marginBottom: '1.5rem' }}
                         />
-                        <div style={{ marginBottom: '0.25rem', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--brand)', opacity: 0.8 }}>
-                            Neura Core
-                        </div>
-                        <h1 style={{ fontSize: '1.65rem', marginBottom: '0.35rem' }}>Bienvenido de nuevo</h1>
-                        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Ingresá a tu entorno de trabajo seguro</p>
+                        <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', marginBottom: 6, letterSpacing: '-0.02em' }}>
+                            Bienvenido
+                        </h1>
+                        <p style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: '2rem', lineHeight: 1.5 }}>
+                            Ingresá tus credenciales para acceder a tu espacio de trabajo
+                        </p>
                     </motion.div>
 
                     {error && (
                         <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
+                            initial={{ opacity: 0, y: -8 }}
+                            animate={{ opacity: 1, y: 0 }}
                             style={{
-                                padding: '0.875rem 1rem',
-                                background: 'var(--danger-bg)',
-                                color: 'var(--danger)',
-                                border: '1px solid var(--danger-border)',
-                                borderRadius: 'var(--r-md)',
-                                fontSize: '0.875rem',
-                                display: 'flex', alignItems: 'center', gap: '0.5rem',
-                                marginBottom: '0.5rem',
+                                padding: '0.75rem 1rem',
+                                background: '#fef2f2',
+                                color: '#dc2626',
+                                border: '1px solid #fecaca',
+                                borderRadius: 12,
+                                fontSize: '0.8rem',
+                                display: 'flex', alignItems: 'center', gap: 8,
+                                marginBottom: '1rem',
                             }}
                         >
-                            <AlertCircle size={16} />
-                            {error}
+                            <AlertCircle size={15} />
+                            {error === 'Invalid login credentials' ? 'Email o contraseña incorrectos' : error}
                         </motion.div>
                     )}
 
-                    <motion.form {...fadeUp(0.1)} onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <div className="form-group">
-                            <label className="form-label" htmlFor="email">Correo Electrónico</label>
+                    <motion.form {...fadeUp(0.1)} onSubmit={handleSubmit}>
+                        <div style={{ marginBottom: '1rem' }}>
+                            <label style={styles.label} htmlFor="email">Email</label>
                             <input
-                                id="email" type="email" className="form-input"
-                                value={email} onChange={(e) => setEmail(e.target.value)}
-                                placeholder="usuario@empresa.com" required
+                                id="email"
+                                type="email"
+                                value={email}
+                                onChange={e => setEmail(e.target.value)}
+                                onFocus={() => setFocusedField('email')}
+                                onBlur={() => setFocusedField(null)}
+                                placeholder="usuario@empresa.com"
+                                required
+                                style={{
+                                    ...styles.input,
+                                    ...(focusedField === 'email' ? styles.inputFocus : {}),
+                                }}
                             />
                         </div>
 
-                        <div className="form-group">
-                            <label className="form-label" htmlFor="password">Contraseña</label>
-                            <input
-                                id="password" type="password" className="form-input"
-                                value={password} onChange={(e) => setPassword(e.target.value)}
-                                placeholder="••••••••" required
-                            />
+                        <div style={{ marginBottom: '1.5rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <label style={styles.label} htmlFor="password">Contraseña</label>
+                            </div>
+                            <div style={{ position: 'relative' }}>
+                                <input
+                                    id="password"
+                                    type={showPassword ? 'text' : 'password'}
+                                    value={password}
+                                    onChange={e => setPassword(e.target.value)}
+                                    onFocus={() => setFocusedField('password')}
+                                    onBlur={() => setFocusedField(null)}
+                                    placeholder="••••••••"
+                                    required
+                                    style={{
+                                        ...styles.input,
+                                        paddingRight: 44,
+                                        ...(focusedField === 'password' ? styles.inputFocus : {}),
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    style={{
+                                        position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+                                        background: 'none', border: 'none', cursor: 'pointer',
+                                        color: '#94a3b8', padding: 4,
+                                    }}
+                                >
+                                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                </button>
+                            </div>
                         </div>
 
                         <motion.button
                             type="submit"
-                            className="btn btn-primary"
-                            style={{ marginTop: '1.25rem', width: '100%', padding: '0.85rem', fontSize: '0.95rem', gap: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            style={{
+                                ...styles.submitBtn,
+                                opacity: loading ? 0.7 : 1,
+                            }}
                             disabled={loading}
                             whileTap={{ scale: 0.97 }}
-                            whileHover={{ scale: 1.01 }}
+                            whileHover={{ scale: 1.01, boxShadow: '0 6px 20px rgba(99, 102, 241, 0.4)' }}
                         >
-                            {loading ? 'Validando...' : (
+                            {loading ? (
+                                <motion.div
+                                    animate={{ rotate: 360 }}
+                                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                                    style={{ width: 18, height: 18, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%' }}
+                                />
+                            ) : (
                                 <>
                                     <LogIn size={17} />
-                                    Ingresar a la Plataforma
+                                    Ingresar
                                 </>
                             )}
                         </motion.button>
                     </motion.form>
 
-                    <motion.div {...fadeUp(0.2)} style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                        ¿Primera vez?{' '}
-                        <Link to="/register" style={{ fontWeight: 700, color: 'var(--brand)' }}>Registrar mi empresa</Link>
+                    <motion.div {...fadeUp(0.2)} style={{ textAlign: 'center', marginTop: '2rem' }}>
+                        <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>¿Primera vez? </span>
+                        <Link to="/register" style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--brand, #6366f1)', textDecoration: 'none' }}>
+                            Registrar mi empresa
+                        </Link>
                     </motion.div>
 
-                    <motion.div {...fadeUp(0.3)} style={{ marginTop: '2rem', borderTop: '1px solid var(--border)', paddingTop: '1.25rem' }}>
-                        <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'center', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Powered by <a href="https://neuracall.net" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--brand)', textDecoration: 'none' }}>NeuraCall</a></p>
-
+                    <motion.div {...fadeUp(0.3)} style={{ textAlign: 'center', marginTop: '3rem' }}>
+                        <span style={{ fontSize: '0.68rem', color: '#cbd5e1' }}>
+                            Powered by{' '}
+                            <a href="https://neuracall.net" target="_blank" rel="noopener noreferrer" style={{ color: '#94a3b8', fontWeight: 600, textDecoration: 'none' }}>
+                                NeuraCall
+                            </a>
+                        </span>
                     </motion.div>
                 </div>
             </div>
 
-            {/* ── Right panel ── */}
-            <div className="auth-right">
-                {/* Decorative blobs */}
+            {/* ── Right: Branding Panel ── */}
+            <div style={styles.rightPanel}>
+                {/* Animated gradient orbs */}
                 <motion.div
-                    className="auth-decorative-circle"
-                    style={{ width: '520px', height: '520px', top: '-15%', right: '-8%' }}
-                    animate={{ scale: [1, 1.06, 1], rotate: [0, 5, 0] }}
-                    transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+                    style={{
+                        position: 'absolute', width: 500, height: 500, borderRadius: '50%',
+                        background: 'radial-gradient(circle, rgba(99,102,241,0.2) 0%, transparent 70%)',
+                        top: '-10%', right: '-5%', filter: 'blur(40px)',
+                    }}
+                    animate={{ scale: [1, 1.15, 1], x: [0, 20, 0] }}
+                    transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
                 />
                 <motion.div
-                    className="auth-decorative-circle"
-                    style={{ width: '360px', height: '360px', bottom: '-8%', left: '-8%', opacity: 0.12 }}
-                    animate={{ scale: [1, 1.08, 1], rotate: [0, -6, 0] }}
-                    transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+                    style={{
+                        position: 'absolute', width: 400, height: 400, borderRadius: '50%',
+                        background: 'radial-gradient(circle, rgba(14,165,233,0.15) 0%, transparent 70%)',
+                        bottom: '-5%', left: '-5%', filter: 'blur(40px)',
+                    }}
+                    animate={{ scale: [1, 1.1, 1], y: [0, -15, 0] }}
+                    transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
                 />
+                {/* Grid dots pattern */}
+                <div style={{
+                    position: 'absolute', inset: 0, opacity: 0.04,
+                    backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)',
+                    backgroundSize: '24px 24px',
+                }} />
 
                 <motion.div
-                    className="auth-right-content"
                     initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0, transition: { duration: 0.8, delay: 0.2, ease: 'easeOut' } }}
+                    animate={{ opacity: 1, y: 0, transition: { duration: 0.8, delay: 0.3 } }}
+                    style={{ position: 'relative', zIndex: 2, maxWidth: 400 }}
                 >
                     {/* Floating logo */}
                     <motion.div
-                        style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'center' }}
-                        animate={{ y: [0, -10, 0] }}
-                        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                        animate={{ y: [0, -8, 0] }}
+                        transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+                        style={{ marginBottom: '2.5rem' }}
                     >
                         <div style={{
-                            width: '100px', height: '100px',
-                            borderRadius: '28px',
-                            background: 'rgba(255,255,255,0.15)',
-                            backdropFilter: 'blur(16px)',
+                            width: 80, height: 80, borderRadius: 22,
+                            background: 'rgba(255,255,255,0.08)',
+                            backdropFilter: 'blur(20px)',
+                            border: '1px solid rgba(255,255,255,0.15)',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            border: '1.5px solid rgba(255,255,255,0.35)',
-                            boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
-                            padding: '12px',
+                            padding: 14, boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
                         }}>
                             <img src="/neura-logo.png" alt="Neura" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                         </div>
                     </motion.div>
 
-                    <h2 style={{ fontSize: '1.8rem', marginBottom: '0.75rem' }}>Tesorería Inteligente</h2>
-                    <p style={{ opacity: 0.85, marginBottom: '2rem', lineHeight: 1.6 }}>
-                        Gestioná flujos de caja, conciliaciones bancarias y múltiples empresas en tiempo real.
+                    <h2 style={{ fontSize: '2rem', fontWeight: 800, marginBottom: '0.5rem', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+                        Tu operación contable,<br />
+                        <span style={{ background: 'linear-gradient(135deg, #818cf8 0%, #38bdf8 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                            bajo control total.
+                        </span>
+                    </h2>
+                    <p style={{ fontSize: '0.9rem', color: '#94a3b8', marginBottom: '2.5rem', lineHeight: 1.7 }}>
+                        Plataforma integral de gestión contable y tesorería con automatización inteligente.
                     </p>
 
-                    {/* Feature list */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'flex-start', width: '100%', maxWidth: '320px' }}>
-                        {features.map(({ icon: Icon, text }, i) => (
+                    {/* Feature cards */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                        {features.map(({ icon: Icon, title, desc }, i) => (
                             <motion.div
-                                key={text}
-                                initial={{ opacity: 0, x: -16 }}
-                                animate={{ opacity: 1, x: 0, transition: { delay: 0.5 + i * 0.12, duration: 0.4 } }}
-                                style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}
+                                key={title}
+                                initial={{ opacity: 0, y: 16 }}
+                                animate={{ opacity: 1, y: 0, transition: { delay: 0.5 + i * 0.1, duration: 0.5 } }}
+                                style={{
+                                    padding: '1rem',
+                                    borderRadius: 14,
+                                    background: 'rgba(255,255,255,0.04)',
+                                    border: '1px solid rgba(255,255,255,0.08)',
+                                    backdropFilter: 'blur(8px)',
+                                }}
                             >
-                                <div style={{
-                                    width: '32px', height: '32px', borderRadius: '10px',
-                                    background: 'rgba(255,255,255,0.18)', display: 'flex',
-                                    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                                }}>
-                                    <Icon size={16} color="white" />
-                                </div>
-                                <span style={{ fontSize: '0.9rem', fontWeight: 500, opacity: 0.92 }}>{text}</span>
+                                <Icon size={18} color="#818cf8" style={{ marginBottom: 8 }} />
+                                <div style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: 4 }}>{title}</div>
+                                <div style={{ fontSize: '0.7rem', color: '#64748b', lineHeight: 1.4 }}>{desc}</div>
                             </motion.div>
                         ))}
                     </div>
                 </motion.div>
             </div>
+
+            {/* Responsive: hide right panel on small screens */}
+            <style>{`
+                @media (max-width: 900px) {
+                    .login-container { grid-template-columns: 1fr !important; }
+                    .login-right { display: none !important; }
+                }
+            `}</style>
         </div>
     );
 }

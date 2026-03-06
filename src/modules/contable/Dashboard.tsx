@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
+import { SkeletonKPI, SkeletonTable } from '../../shared/components/SkeletonKit';
 import { FileText, CheckCircle, Upload, AlertTriangle, Clock, ArrowUpRight, ArrowDownLeft, TrendingUp, Send, RefreshCw, DollarSign } from 'lucide-react';
 import { DolarService, type DolarResumen } from '../../services/DolarService';
 
@@ -106,13 +107,11 @@ export default function ContableDashboard() {
                 </div>
                 <div className="metrics-grid">
                     {[1, 2, 3, 4, 5].map(i => (
-                        <div key={i} className="metric-card" style={{ minHeight: 100 }}>
-                            <div>
-                                <div className="metric-title" style={{ width: 80, height: 12, background: 'var(--bg-main)', borderRadius: 6 }} />
-                                <div style={{ width: 60, height: 32, background: 'var(--bg-main)', borderRadius: 8, marginTop: 12 }} />
-                            </div>
-                        </div>
+                        <SkeletonKPI key={i} />
                     ))}
+                </div>
+                <div style={{ marginTop: '1.5rem' }}>
+                    <SkeletonTable rows={4} columns={3} />
                 </div>
             </div>
         );

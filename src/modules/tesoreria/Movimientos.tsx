@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { Pencil, LayoutList, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import TransactionForm from './components/TransactionForm';
 import EditTransactionModal from './components/EditTransactionModal';
+import { SkeletonTable } from '../../shared/components/SkeletonKit';
 
 const fmt = (n: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n);
 
@@ -227,7 +228,7 @@ export default function Movimientos() {
                         {viewMode === 'table' && (
                             <div className="table-container">
                                 {loading ? (
-                                    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Cargando datos...</div>
+                                    <SkeletonTable rows={5} columns={5} />
                                 ) : filteredTransactions.length === 0 ? (
                                     <table style={{ width: '100%' }}>
                                         <tbody>

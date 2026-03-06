@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
 import { Package, MapPin, ChevronRight, ChevronDown, Plus, Edit2, X, Save, Trash2 } from 'lucide-react';
+import { SkeletonTable } from '../../shared/components/SkeletonKit';
 
 type Tab = 'productos' | 'centros' | 'cuentas';
 
@@ -180,7 +181,7 @@ export default function Catalogos() {
             </div>
 
             {loading ? (
-                <div className="card" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Cargando catálogos...</div>
+                <SkeletonTable rows={5} columns={3} />
             ) : tab === 'productos' ? (
                 <div>
                     <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>

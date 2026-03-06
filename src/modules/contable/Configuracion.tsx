@@ -2,7 +2,9 @@ import { useEffect, useState, useRef } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
 import { Settings, Eye, EyeOff, Save, RefreshCw, CheckCircle, XCircle, Zap, Building2, Mail, Download, Users, Upload, Image, Palette } from 'lucide-react';
+import { SkeletonCard } from '../../shared/components/SkeletonKit';
 import { getXubioService } from '../../services/XubioService';
+import { useAuth } from '../../contexts/AuthContext';
 
 /* ─── Types ─────────────────── */
 interface Config {
@@ -30,6 +32,7 @@ const TABS: { key: TabKey; label: string; icon: any }[] = [
 /* ─── Component ─────────────── */
 export default function Configuracion() {
     const { tenant, refreshTenant } = useTenant();
+    const { refreshProfile } = useAuth();
     const [activeTab, setActiveTab] = useState<TabKey>('empresa');
     const [config, setConfig] = useState<Config | null>(null);
     const [loading, setLoading] = useState(true);
@@ -62,12 +65,18 @@ export default function Configuracion() {
     const logoInputRef = useRef<HTMLInputElement>(null);
 
     // User management state
-    const [tenantUsers, setTenantUsers] = useState<{ id: string; email: string; role: string; status: string; created_at: string }[]>([]);
+    const [tenantUsers, setTenantUsers] = useState<{ id: string; email: string; role: string; status: string; created_at: string; display_name: string | null }[]>([]);
     const [loadingUsers, setLoadingUsers] = useState(false);
     const [inviteEmail, setInviteEmail] = useState('');
     const [invitePassword, setInvitePassword] = useState('');
     const [inviting, setInviting] = useState(false);
     const [inviteResult, setInviteResult] = useState<{ ok: boolean; msg: string } | null>(null);
+    const [editingUserId, setEditingUserId] = useState<string | null>(null);
+    const [editName, setEditName] = useState('');
+    const [editRole, setEditRole] = useState('');
+    const [editPassword, setEditPassword] = useState('');
+    const [savingUser, setSavingUser] = useState(false);
+    const [userSaveResult, setUserSaveResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
     useEffect(() => {
         if (!tenant) return;
@@ -99,9 +108,56 @@ export default function Configuracion() {
     async function loadUsers() {
         if (!tenant) return;
         setLoadingUsers(true);
-        const { data } = await supabase.from('users').select('id, email, role, status, created_at').eq('tenant_id', tenant.id).order('created_at', { ascending: true });
+        const { data } = await supabase.from('users').select('id, email, role, status, created_at, display_name').eq('tenant_id', tenant.id).order('created_at', { ascending: true });
         setTenantUsers((data || []) as any);
         setLoadingUsers(false);
+    }
+
+    function startEditUser(u: typeof tenantUsers[0]) {
+        setEditingUserId(u.id);
+        setEditName(u.display_name || '');
+        setEditRole(u.role);
+        setEditPassword('');
+        setUserSaveResult(null);
+    }
+
+    function cancelEditUser() {
+        setEditingUserId(null);
+        setEditPassword('');
+        setUserSaveResult(null);
+    }
+
+    async function handleSaveUser() {
+        if (!editingUserId) return;
+        setSavingUser(true);
+        setUserSaveResult(null);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const res = await fetch(`https://fuytejvnwihghxymyayw.supabase.co/functions/v1/admin-update-user`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session?.access_token}`,
+                    'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+                },
+                body: JSON.stringify({
+                    user_id: editingUserId,
+                    display_name: editName,
+                    new_role: editRole,
+                    ...(editPassword.length >= 6 ? { new_password: editPassword } : {}),
+                }),
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || 'Error al guardar');
+            setUserSaveResult({ ok: true, msg: 'Usuario actualizado correctamente' });
+            setEditingUserId(null);
+            setEditPassword('');
+            await loadUsers();
+            await refreshProfile();
+        } catch (err) {
+            setUserSaveResult({ ok: false, msg: (err as Error).message });
+        }
+        setSavingUser(false);
     }
 
     /* ─── Handlers ─── */
@@ -243,6 +299,10 @@ export default function Configuracion() {
         return (
             <div>
                 <div className="page-header"><h1>Configuración</h1><p>Cargando...</p></div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                    <SkeletonCard lines={4} />
+                    <SkeletonCard lines={4} />
+                </div>
             </div>
         );
     }
@@ -499,33 +559,83 @@ export default function Configuracion() {
                 </div>
                 <div style={{ flex: 1 }}>
                     <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Usuarios de la Empresa</h3>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Personas con acceso al sistema bajo este tenant · {tenantUsers.length} usuario{tenantUsers.length !== 1 ? 's' : ''}</p>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Personas con acceso al sistema · {tenantUsers.length} usuario{tenantUsers.length !== 1 ? 's' : ''}</p>
                 </div>
             </div>
+
+            {userSaveResult && (
+                <div style={{ marginBottom: '1rem', fontSize: '0.8rem', padding: '0.625rem 0.875rem', borderRadius: 'var(--r-md)', background: userSaveResult.ok ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: userSaveResult.ok ? 'var(--success)' : 'var(--danger)' }}>
+                    {userSaveResult.msg}
+                </div>
+            )}
 
             {loadingUsers ? (
                 <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>Cargando usuarios...</div>
             ) : (
                 <div style={{ marginBottom: '1.5rem' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '0.5rem', padding: '0.5rem 0.75rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-subtle)' }}>
-                        <span>Email</span><span>Rol</span><span>Estado</span><span>Creado</span>
-                    </div>
-                    {tenantUsers.map(u => (
-                        <div key={u.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '0.5rem', padding: '0.6rem 0.75rem', fontSize: '0.8rem', borderBottom: '1px solid var(--border-subtle)', alignItems: 'center' }}>
-                            <span style={{ fontWeight: 600 }}>{u.email}</span>
-                            <span>
-                                <span style={{ padding: '2px 8px', borderRadius: 99, fontSize: '0.68rem', fontWeight: 700, background: u.role === 'admin' || u.role === 'superadmin' ? 'rgba(99,102,241,0.12)' : 'rgba(107,114,128,0.1)', color: u.role === 'admin' || u.role === 'superadmin' ? '#6366f1' : '#6b7280' }}>
-                                    {u.role === 'superadmin' ? 'Super Admin' : u.role === 'admin' ? 'Admin' : 'Usuario'}
-                                </span>
-                            </span>
-                            <span>
-                                <span style={{ padding: '2px 8px', borderRadius: 99, fontSize: '0.68rem', fontWeight: 700, background: u.status === 'active' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: u.status === 'active' ? '#10b981' : '#ef4444' }}>
-                                    {u.status === 'active' ? 'Activo' : 'Inactivo'}
-                                </span>
-                            </span>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{new Date(u.created_at).toLocaleDateString('es-AR')}</span>
-                        </div>
-                    ))}
+                    {tenantUsers.map(u => {
+                        const isEditing = editingUserId === u.id;
+                        return (
+                            <div key={u.id} style={{ borderBottom: '1px solid var(--border-subtle)', padding: '0.75rem 0' }}>
+                                {/* Row summary — always visible */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: '0.5rem', alignItems: 'center', cursor: 'pointer' }}
+                                    onClick={() => isEditing ? cancelEditUser() : startEditUser(u)}
+                                >
+                                    <div>
+                                        <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                                            {u.display_name || u.email.split('@')[0]}
+                                        </div>
+                                        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{u.email}</div>
+                                    </div>
+                                    <div>
+                                        <span style={{ padding: '2px 8px', borderRadius: 99, fontSize: '0.68rem', fontWeight: 700, background: u.role === 'admin' || u.role === 'superadmin' ? 'rgba(99,102,241,0.12)' : 'rgba(107,114,128,0.1)', color: u.role === 'admin' || u.role === 'superadmin' ? '#6366f1' : '#6b7280' }}>
+                                            {u.role === 'superadmin' ? 'Super Admin' : u.role === 'admin' ? 'Admin' : 'Usuario'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <span style={{ padding: '2px 8px', borderRadius: 99, fontSize: '0.68rem', fontWeight: 700, background: u.status === 'active' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: u.status === 'active' ? '#10b981' : '#ef4444' }}>
+                                            {u.status === 'active' ? 'Activo' : 'Inactivo'}
+                                        </span>
+                                    </div>
+                                    <span style={{ fontSize: '0.7rem', color: 'var(--brand)', fontWeight: 600 }}>
+                                        {isEditing ? '▲ Cerrar' : '✎ Editar'}
+                                    </span>
+                                </div>
+
+                                {/* Expandable edit form */}
+                                {isEditing && u.role !== 'superadmin' && (
+                                    <div style={{ marginTop: '0.75rem', padding: '1rem', background: 'var(--bg-subtle)', borderRadius: 10, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', alignItems: 'end' }}>
+                                        <div className="form-group" style={{ marginBottom: 0 }}>
+                                            <label className="form-label" style={{ fontSize: '0.7rem' }}>Nombre</label>
+                                            <input className="form-input" value={editName} onChange={e => setEditName(e.target.value)} placeholder="Nombre visible" />
+                                        </div>
+                                        <div className="form-group" style={{ marginBottom: 0 }}>
+                                            <label className="form-label" style={{ fontSize: '0.7rem' }}>Rol</label>
+                                            <select className="form-input" value={editRole} onChange={e => setEditRole(e.target.value)}>
+                                                <option value="user">Usuario</option>
+                                                <option value="admin">Admin</option>
+                                            </select>
+                                        </div>
+                                        <div className="form-group" style={{ marginBottom: 0 }}>
+                                            <label className="form-label" style={{ fontSize: '0.7rem' }}>Nueva contraseña</label>
+                                            <input className="form-input" type="text" value={editPassword} onChange={e => setEditPassword(e.target.value)} placeholder="Dejar vacío para no cambiar" />
+                                        </div>
+                                        <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                                            <button className="btn btn-ghost" onClick={cancelEditUser} style={{ fontSize: '0.75rem' }}>Cancelar</button>
+                                            <button className="btn btn-primary" onClick={handleSaveUser} disabled={savingUser} style={{ fontSize: '0.75rem' }}>
+                                                {savingUser ? 'Guardando...' : 'Guardar cambios'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                                {isEditing && u.role === 'superadmin' && (
+                                    <div style={{ marginTop: '0.5rem', padding: '0.75rem', background: 'var(--bg-subtle)', borderRadius: 8, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                        No se puede editar un Super Admin desde este panel.
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
                     {tenantUsers.length === 0 && <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>No hay usuarios registrados</div>}
                 </div>
             )}

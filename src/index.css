@@ -1488,3 +1488,48 @@ kbd {
   height: var(--grid-row-height, 44px);
   border-bottom: 1px solid var(--color-border-subtle);
 }
+
+/* Red scrollbar for modals — signals "more content below" */
+.modal-scroll-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-scroll-body::-webkit-scrollbar-track {
+  background: rgba(239, 68, 68, 0.08);
+  border-radius: 99px;
+}
+
+.modal-scroll-body::-webkit-scrollbar-thumb {
+  background: #ef4444;
+  border-radius: 99px;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.modal-scroll-body::-webkit-scrollbar-thumb:hover {
+  background: #dc2626;
+}
+
+.modal-scroll-body {
+  scrollbar-color: #ef4444 rgba(239, 68, 68, 0.08);
+  scrollbar-width: thin;
+}
+
+/* ── Skeleton Shimmer Animation ── */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+
+  100% {
+    background-position: 400px 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg,
+      var(--skeleton-bg, #e2e8f0) 25%,
+      var(--skeleton-shine, #f1f5f9) 37%,
+      var(--skeleton-bg, #e2e8f0) 63%);
+  background-size: 800px 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}

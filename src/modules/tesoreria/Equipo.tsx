@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import { useToast } from '../../contexts/ToastContext';
 import { UserPlus, X, Mail, Shield, Wallet, CheckCircle2, Clock, Users } from 'lucide-react';
+import { SkeletonTable } from '../../shared/components/SkeletonKit';
 
 const SUPABASE_URL = 'https://fuytejvnwihghxymyayw.supabase.co';
 
@@ -147,7 +148,7 @@ export default function Equipo() {
                     <h3 className="card-title" style={{ margin: 0 }}>Miembros del equipo</h3>
                 </div>
                 {loading ? (
-                    <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Cargando...</div>
+                    <SkeletonTable rows={4} columns={4} />
                 ) : users.length === 0 ? (
                     <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                         <UserPlus size={32} style={{ margin: '0 auto 0.75rem', opacity: 0.3 }} />

@@ -20,6 +20,7 @@ import ContableProveedores from './modules/contable/Proveedores';
 import ContableClientes from './modules/contable/Clientes';
 import ContableCatalogos from './modules/contable/Catalogos';
 import ContableConfiguracion from './modules/contable/Configuracion';
+import VisionGeneral from './modules/VisionGeneral';
 import { useAuth } from './contexts/AuthContext';
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -55,12 +56,7 @@ export default function App() {
             </PrivateRoute>
           }
         >
-          <Route index element={
-            <div className="page-header">
-              <h1>Visión General</h1>
-              <p>Selecciona un módulo operativo en el menú lateral para comenzar. El entorno se adaptará a tus permisos.</p>
-            </div>
-          } />
+          <Route index element={<VisionGeneral />} />
 
           <Route path="tesoreria">
             <Route index element={<TesoreriaIndexRoute />} />

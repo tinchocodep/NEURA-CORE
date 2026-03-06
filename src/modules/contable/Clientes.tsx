@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
-import { Search, Plus, Edit2, X, Save, Trash2, Building2, Eye } from 'lucide-react';
+import { Search, Plus, Building2, Edit2, X, Save, Trash2, Eye } from 'lucide-react';
+import { SkeletonTable } from '../../shared/components/SkeletonKit';
 import Entity360Panel from './Entity360Panel';
 
 interface Cliente {
@@ -111,7 +112,7 @@ export default function Clientes() {
 
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
                 {loading ? (
-                    <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Cargando clientes...</div>
+                    <SkeletonTable rows={5} columns={3} />
                 ) : filtered.length === 0 ? (
                     <div style={{ padding: '3rem', textAlign: 'center' }}>
                         <Building2 size={40} color="var(--text-faint)" style={{ marginBottom: '1rem' }} />

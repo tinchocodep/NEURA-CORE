@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react';
 import AgentMonitorPanel from '../../design-system/components/AgentMonitor/AgentMonitorPanel';
 
 export default function Layout() {
-    const { user, signOut, role, userModules } = useAuth() as any;
+    const { user, signOut, role, userModules, displayName } = useAuth() as any;
     const { tenant } = useTenant();
     const location = useLocation();
     const [pendingCount, setPendingCount] = useState(0);
@@ -90,7 +90,6 @@ export default function Layout() {
         { name: 'Proveedores', path: '/contable/proveedores', icon: Building2 },
         { name: 'Clientes', path: '/contable/clientes', icon: Building2 },
         { name: 'Catálogos', path: '/contable/catalogos', icon: Package },
-        { name: 'Configuración', path: '/contable/configuracion', icon: Settings, adminOnly: true },
     ];
 
     const contableItems = allContableItems.filter(
@@ -238,6 +237,19 @@ export default function Layout() {
                 {/* Spacer */}
                 <div style={{ flex: 1 }} />
 
+                {/* Configuración — always at bottom for admins */}
+                {(role === 'admin' || role === 'superadmin') && (
+                    <div style={{ padding: '0 0.75rem 0.25rem' }}>
+                        <Link
+                            to="/contable/configuracion"
+                            className={`sidebar-link${location.pathname === '/contable/configuracion' ? ' active' : ''}`}
+                        >
+                            <Settings size={16} />
+                            Configuración
+                        </Link>
+                    </div>
+                )}
+
                 {/* User footer */}
                 <div style={{
                     padding: '0.875rem 1rem',
@@ -252,11 +264,11 @@ export default function Layout() {
                         fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-accent)',
                         flexShrink: 0,
                     }}>
-                        {user.email?.charAt(0).toUpperCase()}
+                        {(displayName || user.email?.charAt(0) || '?').charAt(0).toUpperCase()}
                     </div>
                     <div style={{ flex: 1, overflow: 'hidden' }}>
                         <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {user.email}
+                            {displayName || user.email}
                         </div>
                         <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>
                             {displayRole}
