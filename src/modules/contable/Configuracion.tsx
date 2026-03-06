@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
-import { Settings, Eye, EyeOff, Save, RefreshCw, CheckCircle, XCircle, Zap, Building2, Mail, Download, Users, Upload, Image, Palette } from 'lucide-react';
+import { Settings, Eye, EyeOff, Save, RefreshCw, CheckCircle, XCircle, Zap, Building2, Mail, Download, Users, Upload, Image, Palette, Landmark, Plus, Trash2 } from 'lucide-react';
 import { SkeletonCard } from '../../shared/components/SkeletonKit';
 import { getXubioService } from '../../services/XubioService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -19,6 +19,14 @@ interface Config {
     auto_approve_threshold: number;
     sync_enabled: boolean;
     last_sync_at: string | null;
+}
+
+interface BankCredential {
+    id?: string;
+    bank_code: string;
+    client_id: string;
+    client_secret: string;
+    environment: string;
 }
 
 type TabKey = 'empresa' | 'integraciones' | 'usuarios';
@@ -44,6 +52,10 @@ export default function Configuracion() {
     const [xubioStatus, setXubioStatus] = useState<'idle' | 'ok' | 'error'>('idle');
     const [arcaStatus, setArcaStatus] = useState<'idle' | 'ok' | 'error'>('idle');
     const [xubioMessage, setXubioMessage] = useState('');
+
+    // Bank integration state
+    const [bankCreds, setBankCreds] = useState<BankCredential[]>([]);
+    const [showBankSecret, setShowBankSecret] = useState<Record<string, boolean>>({});
 
     // Sync state
     const [syncingClientes, setSyncingClientes] = useState(false);
@@ -102,6 +114,10 @@ export default function Configuracion() {
             const { data: newConfig } = await supabase.from('contable_config').insert({ tenant_id: tenant!.id }).select().single();
             setConfig(newConfig as any);
         }
+
+        const { data: bData } = await supabase.from('tesoreria_bank_credentials').select('*').eq('tenant_id', tenant!.id);
+        if (bData) setBankCreds(bData);
+
         setLoading(false);
     }
 
@@ -174,6 +190,43 @@ export default function Configuracion() {
             sync_enabled: config.sync_enabled,
         }).eq('id', config.id);
         setSaving(false);
+    }
+
+    async function handleSaveBankCred(index: number) {
+        if (!tenant) return;
+        setSaving(true);
+        const cred = bankCreds[index];
+        if (cred.id) {
+            await supabase.from('tesoreria_bank_credentials').update({
+                bank_code: cred.bank_code,
+                client_id: cred.client_id,
+                client_secret: cred.client_secret,
+                environment: cred.environment
+            }).eq('id', cred.id);
+        } else {
+            const { data } = await supabase.from('tesoreria_bank_credentials').insert({
+                tenant_id: tenant.id,
+                bank_code: cred.bank_code || 'supervielle',
+                client_id: cred.client_id,
+                client_secret: cred.client_secret,
+                environment: cred.environment || 'sandbox'
+            }).select().single();
+            if (data) {
+                const newCreds = [...bankCreds];
+                newCreds[index] = data;
+                setBankCreds(newCreds);
+            }
+        }
+        setSaving(false);
+    }
+
+    async function handleRemoveBankCred(index: number) {
+        if (!tenant) return;
+        const cred = bankCreds[index];
+        if (cred.id) {
+            await supabase.from('tesoreria_bank_credentials').delete().eq('id', cred.id);
+        }
+        setBankCreds(prev => prev.filter((_, i) => i !== index));
     }
 
     async function handleSaveTenant() {
@@ -547,6 +600,72 @@ export default function Configuracion() {
                 <button className="btn btn-secondary" onClick={testArca} disabled={testingArca} style={{ width: '100%' }}>
                     <RefreshCw size={14} className={testingArca ? 'spinning' : ''} /> {testingArca ? 'Probando...' : 'Probar conexión'}
                 </button>
+            </div>
+
+            {/* API Bancaria Directa (Host-to-Host) */}
+            <div className="card" style={{ padding: '1.5rem', gridColumn: '1 / -1' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '1.5rem' }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 'var(--r-md)', background: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Landmark size={20} color="#3b82f6" />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                        <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Conexión Bancaria Directa (Host-to-Host)</h3>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Configurá las credenciales API OAuth2 para conciliación en tiempo real.</p>
+                    </div>
+                    <button className="btn btn-secondary btn-sm" onClick={() => setBankCreds([...bankCreds, { bank_code: 'supervielle', client_id: '', client_secret: '', environment: 'sandbox' }])}>
+                        <Plus size={14} /> Añadir Banco
+                    </button>
+                </div>
+
+                {bankCreds.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--text-muted)', fontSize: '0.8rem', background: 'var(--bg-subtle)', borderRadius: 'var(--r-md)' }}>
+                        No hay credenciales bancarias configuradas.
+                    </div>
+                ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
+                        {bankCreds.map((cred, i) => (
+                            <div key={cred.id || i} style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-md)', padding: '1rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                                    <h4 style={{ fontSize: '0.85rem', fontWeight: 700 }}>Credencial #{i + 1}</h4>
+                                    <button onClick={() => handleRemoveBankCred(i)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}><Trash2 size={14} /></button>
+                                </div>
+                                <div className="form-group" style={{ marginBottom: '0.75rem' }}>
+                                    <label className="form-label" style={{ fontSize: '0.7rem' }}>Banco</label>
+                                    <select className="form-input" value={cred.bank_code} onChange={e => { const copy = [...bankCreds]; copy[i].bank_code = e.target.value; setBankCreds(copy); }} style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
+                                        <option value="supervielle">Banco Supervielle</option>
+                                        <option value="galicia">Banco Galicia</option>
+                                        <option value="santander">Banco Santander</option>
+                                        <option value="macro">Banco Macro</option>
+                                        <option value="ypf_ruta">YPF Ruta</option>
+                                    </select>
+                                </div>
+                                <div className="form-group" style={{ marginBottom: '0.75rem' }}>
+                                    <label className="form-label" style={{ fontSize: '0.7rem' }}>Entorno</label>
+                                    <select className="form-input" value={cred.environment} onChange={e => { const copy = [...bankCreds]; copy[i].environment = e.target.value; setBankCreds(copy); }} style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
+                                        <option value="sandbox">Sandbox (Pruebas)</option>
+                                        <option value="production">Producción</option>
+                                    </select>
+                                </div>
+                                <div className="form-group" style={{ marginBottom: '0.75rem' }}>
+                                    <label className="form-label" style={{ fontSize: '0.7rem' }}>Client ID</label>
+                                    <input className="form-input" value={cred.client_id} onChange={e => { const copy = [...bankCreds]; copy[i].client_id = e.target.value; setBankCreds(copy); }} style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }} />
+                                </div>
+                                <div className="form-group" style={{ marginBottom: '1rem' }}>
+                                    <label className="form-label" style={{ fontSize: '0.7rem' }}>Client Secret</label>
+                                    <div style={{ position: 'relative' }}>
+                                        <input className="form-input" type={showBankSecret[i] ? 'text' : 'password'} value={cred.client_secret} onChange={e => { const copy = [...bankCreds]; copy[i].client_secret = e.target.value; setBankCreds(copy); }} style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', paddingRight: 32 }} />
+                                        <button onClick={() => setShowBankSecret(prev => ({ ...prev, [i]: !prev[i] }))} style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                                            {showBankSecret[i] ? <EyeOff size={14} /> : <Eye size={14} />}
+                                        </button>
+                                    </div>
+                                </div>
+                                <button className="btn btn-primary" onClick={() => handleSaveBankCred(i)} disabled={saving} style={{ width: '100%', padding: '0.4rem', fontSize: '0.8rem' }}>
+                                    {saving ? 'Guardando...' : 'Guardar Credencial'}
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );
