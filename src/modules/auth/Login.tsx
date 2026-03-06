@@ -7,7 +7,7 @@ import { Link, useNavigate } from 'react-router-dom';
 /* ─── Animation helpers ─── */
 const fadeUp = (delay = 0) => ({
     initial: { opacity: 0, y: 24 },
-    animate: { opacity: 1, y: 0, transition: { duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] } },
+    animate: { opacity: 1, y: 0, transition: { duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] as const } },
 });
 
 const features = [
