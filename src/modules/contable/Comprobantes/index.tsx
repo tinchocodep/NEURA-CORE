@@ -37,7 +37,7 @@ export default function Comprobantes() {
 
     const { open: cmdOpen, setOpen: setCmdOpen } = useCommandBar();
 
-    const { data, totalCount, isLoading, hasMore, loadMore, reset, updateEstado } =
+    const { data, totalCount, isLoading, hasMore, loadMore, reset, updateEstado, eliminarComprobante } =
         useComprobantes({ tipo: filtroTipo, estado: filtroEstado, busqueda, fechaDesde, fechaHasta });
 
     // Load on mount, when filters change, or when tenant is available
@@ -119,7 +119,14 @@ export default function Comprobantes() {
         setSearchParams(tab === 'listado' ? {} : { tab });
     };
 
-    const handleAction = async (id: string, action: 'aprobar' | 'rechazar' | 'inyectar') => {
+    const handleAction = async (id: string, action: 'aprobar' | 'rechazar' | 'inyectar' | 'eliminar') => {
+        if (action === 'eliminar') {
+            if (confirm('¿Estás seguro de que deseas eliminar permanentemente este comprobante rechazado?')) {
+                await eliminarComprobante(id);
+            }
+            return;
+        }
+
         if (action === 'inyectar') {
             // Attempt real Xubio injection
             try {
@@ -183,7 +190,9 @@ export default function Comprobantes() {
             const map: Record<string, ComprobanteEstado> = {
                 aprobar: 'aprobado', rechazar: 'rechazado',
             };
-            await updateEstado(id, map[action]);
+            if (map[action]) {
+                await updateEstado(id, map[action]);
+            }
         }
     };
 

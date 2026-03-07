@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import {
     ArrowDownLeft, ArrowUpRight, CheckCircle, XCircle, Send,
-    Eye, Upload as UploadIcon,
+    Eye, Upload as UploadIcon, Trash2
 } from 'lucide-react';
 import { DataGrid } from '../../../design-system/components/DataGrid/DataGrid';
 import type { ColumnDef } from '../../../design-system/components/DataGrid/DataGrid';
@@ -26,7 +26,7 @@ interface Props {
     isLoading: boolean;
     hasMore: boolean;
     onLoadMore: () => void;
-    onAction: (id: string, action: 'aprobar' | 'rechazar' | 'inyectar') => void;
+    onAction: (id: string, action: 'aprobar' | 'rechazar' | 'inyectar' | 'eliminar') => void;
     onPdfPreview: (url: string) => void;
     selectedIds: Set<string>;
     onSelectionChange: (ids: Set<string>) => void;
@@ -282,6 +282,15 @@ export default function ComprobantesGrid({
                             style={{ gap: 4, padding: '0.2rem 0.5rem' }}
                         >
                             <Send size={11} /> Inyectar
+                        </button>
+                    )}
+                    {c.estado === 'rechazado' && (
+                        <button
+                            className="btn btn-ghost btn-icon btn-sm"
+                            onClick={() => onAction(c.id, 'eliminar')}
+                            title="Eliminar"
+                        >
+                            <Trash2 size={13} color="var(--color-danger)" />
                         </button>
                     )}
                 </div>

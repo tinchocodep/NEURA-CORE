@@ -168,6 +168,14 @@ export function useComprobantes(filters: ComprobantesFilters) {
         return true;
     }, []);
 
+    const eliminarComprobante = useCallback(async (id: string) => {
+        const { error } = await supabase.from('contable_comprobantes').delete().eq('id', id);
+        if (error) { console.error('eliminarComprobante:', error); return false; }
+        // Optimistically remove from state
+        setPages(prev => prev.map(page => page.filter(c => c.id !== id)));
+        return true;
+    }, []);
+
     const resetRef = useRef(reset);
     useEffect(() => { resetRef.current = reset; }, [reset]);
 
@@ -190,5 +198,5 @@ export function useComprobantes(filters: ComprobantesFilters) {
         };
     }, [tenant?.id]);
 
-    return { data, totalCount, isLoading, hasMore, loadMore, reset, updateEstado };
+    return { data, totalCount, isLoading, hasMore, loadMore, reset, updateEstado, eliminarComprobante };
 }
