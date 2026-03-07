@@ -86,6 +86,7 @@ export default function ComprobanteForm({ onSuccess }: Props) {
     // Clasificación
     const [productoId, setProductoId] = useState('');
     const [centroCostoId, setCentroId] = useState('');
+    const [categoriaId, setCategoriaId] = useState('');
 
     // Líneas de detalle
     const [lineas, setLineas] = useState<LineaDetalle[]>([
@@ -97,6 +98,7 @@ export default function ComprobanteForm({ onSuccess }: Props) {
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [productos, setProductos] = useState<ProductoServicio[]>([]);
     const [centros, setCentros] = useState<CentroCosto[]>([]);
+    const [categorias, setCategorias] = useState<{ id: string, nombre: string, color: string, tipo: string }[]>([]);
 
     // UI
     const [saving, setSaving] = useState(false);
@@ -140,12 +142,14 @@ export default function ComprobanteForm({ onSuccess }: Props) {
             supabase.from('contable_clientes').select('id, razon_social, cuit').eq('tenant_id', tenant.id).eq('activo', true).order('razon_social'),
             supabase.from('contable_productos_servicio').select('id, nombre, grupo').eq('tenant_id', tenant.id).eq('activo', true).order('nombre'),
             supabase.from('contable_centros_costo').select('id, nombre').eq('tenant_id', tenant.id).eq('activo', true).order('nombre'),
-        ]).then(([{ data: p }, { data: c }, { data: ps }, { data: cc }]) => {
+            supabase.from('contable_categorias').select('id, nombre, color, tipo').eq('tenant_id', tenant.id).order('nombre'),
+        ]).then(([{ data: p }, { data: c }, { data: ps }, { data: cc }, { data: cat }]) => {
             const provs = (p || []) as Proveedor[];
             setProveedores(provs);
             setClientes((c || []) as Cliente[]);
             setProductos((ps || []) as ProductoServicio[]);
             setCentros((cc || []) as CentroCosto[]);
+            setCategorias((cat || []) as any);
 
             // Pre-fill proveedor from URL param (quick action from Proveedores)
             const preProvId = searchParams.get('proveedor_id');
@@ -331,6 +335,7 @@ export default function ComprobanteForm({ onSuccess }: Props) {
             cliente_id: tipo === 'venta' ? (clienteId || null) : null,
             producto_servicio_id: productoId || (lineas.length === 1 && lineas[0].producto_servicio_id ? lineas[0].producto_servicio_id : null),
             centro_costo_id: centroCostoId || null,
+            categoria_id: categoriaId || null,
             moneda,
             monto_original: isRemito ? 0 : isRecibo ? recTotal : totalFinal,
             tipo_cambio: tipoCambioNum,
@@ -365,7 +370,7 @@ export default function ComprobanteForm({ onSuccess }: Props) {
 
         // Reset
         setNumero(''); setTipoComp(''); setDescripcion(''); setObs('');
-        setProveedorId(''); setClienteId(''); setProductoId(''); setCentroId('');
+        setProveedorId(''); setClienteId(''); setProductoId(''); setCentroId(''); setCategoriaId('');
         setTipoCambio(''); setEntitySearch('');
         setLineas([{ id: newId(), producto_servicio_id: '', descripcion: '', cantidad: 1, precio_unitario: 0, iva_porcentaje: 21 }]);
         setSuccess(true);
@@ -738,6 +743,43 @@ export default function ComprobanteForm({ onSuccess }: Props) {
                             <select className="form-input" value={moneda} onChange={e => setMoneda(e.target.value)}>
                                 <option value="ARS">ARS – Peso Argentino</option>
                                 <option value="USD">USD – Dólar</option>
+                            </select>
+                        </div>
+                        <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                            <label className="form-label">Concepto Facturable / Descripción Principal</label>
+                            <input
+                                className="form-input"
+                                placeholder={isRecibo ? "Ej: Cobro parcial de deuda" : `Ej: ${tipo === 'compra' ? 'Compra de Insumos' : 'Servicios de Consultoría'}`}
+                                value={descripcion}
+                                onChange={e => setDescripcion(e.target.value)}
+                            />
+                        </div>
+
+                        {!isRecibo && !isRemito && (
+                            <>
+                                <div className="form-group">
+                                    <label className="form-label">Categoría Automática (IA)</label>
+                                    <select className="form-input" value={categoriaId} onChange={e => setCategoriaId(e.target.value)}>
+                                        <option value="">Sin categoría...</option>
+                                        {categorias
+                                            .filter(c => c.tipo === 'ambos' || c.tipo === (tipo === 'compra' ? 'gasto' : 'ingreso'))
+                                            .map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Concepto Analítico Principal</label>
+                                    <select className="form-input" value={productoId} onChange={e => setProductoId(e.target.value)}>
+                                        <option value="">Diferenciado por Línea</option>
+                                        {productos.map(p => <option key={p.id} value={p.id}>{p.nombre} ({p.grupo})</option>)}
+                                    </select>
+                                </div>
+                            </>
+                        )}
+                        <div className="form-group" style={{ gridColumn: (isRecibo || isRemito) ? '1 / -1' : 'auto' }}>
+                            <label className="form-label">Centro de Costo</label>
+                            <select className="form-input" value={centroCostoId} onChange={e => setCentroId(e.target.value)}>
+                                <option value="">General</option>
+                                {centros.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
                             </select>
                         </div>
                         {/* Tipo de cambio (solo USD) */}

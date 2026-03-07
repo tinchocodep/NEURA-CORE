@@ -2,7 +2,7 @@ import { Outlet, Navigate, Link, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
     LogOut, LayoutDashboard, ArrowRightLeft, FileText, Activity, Landmark,
-    Briefcase, Zap, Users, BookOpen, Package, Building2, Settings, ClipboardList
+    Briefcase, Zap, Users, BookOpen, Tag, Building2, Settings, ClipboardList
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
@@ -106,7 +106,7 @@ export default function Layout() {
         { name: 'Comprobantes', path: '/contable/comprobantes', icon: ClipboardList },
         { name: 'Proveedores', path: '/contable/proveedores', icon: Building2 },
         { name: 'Clientes', path: '/contable/clientes', icon: Building2 },
-        { name: 'Catálogos', path: '/contable/catalogos', icon: Package },
+        { name: 'Categorías', path: '/contable/catalogos', icon: Tag },
     ];
 
     const contableItems = allContableItems.filter(

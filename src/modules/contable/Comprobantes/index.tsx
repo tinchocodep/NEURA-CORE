@@ -490,6 +490,9 @@ export default function Comprobantes() {
                             const formData = new FormData();
                             formData.append('data', file);
                             formData.append('filename', file.name);
+                            if (tenant) {
+                                formData.append('tenant_id', tenant.id);
+                            }
 
                             const resp = await fetch(N8N_WEBHOOK, { method: 'POST', body: formData });
 
@@ -582,21 +585,21 @@ export default function Comprobantes() {
                 const handleDrop = (e: React.DragEvent) => {
                     e.preventDefault();
                     setDragOver(false);
-                    const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
+                    const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf' || f.type.startsWith('image/'));
                     if (files.length > 0) setUploadFiles(prev => [...prev, ...files]);
                 };
 
                 const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-                    const files = Array.from(e.target.files || []).filter(f => f.type === 'application/pdf');
+                    const files = Array.from(e.target.files || []).filter(f => f.type === 'application/pdf' || f.type.startsWith('image/'));
                     if (files.length > 0) setUploadFiles(prev => [...prev, ...files]);
                     e.target.value = '';
                 };
 
                 return (
                     <div className="card" style={{ padding: '2rem', maxWidth: 700, margin: '0 auto' }}>
-                        <h2 style={{ fontSize: '1.125rem', fontWeight: 700, margin: '0 0 0.25rem' }}>Cargar Factura PDF</h2>
+                        <h2 style={{ fontSize: '1.125rem', fontWeight: 700, margin: '0 0 0.25rem' }}>Cargar Factura o Ticket</h2>
                         <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', margin: '0 0 1.5rem' }}>
-                            Arrastrá PDFs de facturas acá. Se envían a n8n para extraer datos automáticamente y crear el comprobante.
+                            Arrastrá PDFs o Fotos (Fotos de tickets/facturas) acá. Se envían a n8n para extraer datos automáticamente y crear el comprobante.
                         </p>
 
                         {/* Drop zone */}
@@ -615,13 +618,13 @@ export default function Comprobantes() {
                         >
                             <UploadIcon size={40} color={dragOver ? '#3b82f6' : '#94a3b8'} />
                             <p style={{ fontSize: '0.9rem', color: dragOver ? '#3b82f6' : 'var(--color-text-muted)', margin: '0.75rem 0 0.25rem', fontWeight: 600 }}>
-                                {dragOver ? 'Soltá el archivo acá' : 'Hacé click o arrastrá un PDF'}
+                                {dragOver ? 'Soltá el archivo acá' : 'Hacé click o arrastrá un PDF o Foto'}
                             </p>
-                            <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: 0 }}>Solo archivos .pdf</p>
+                            <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: 0 }}>Archivos .pdf, .jpg, .png</p>
                             <input
                                 id="pdf-file-input"
                                 type="file"
-                                accept=".pdf,application/pdf"
+                                accept=".pdf,application/pdf,image/png,image/jpeg,image/jpg"
                                 multiple
                                 onChange={handleFileInput}
                                 style={{ display: 'none' }}

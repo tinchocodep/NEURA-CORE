@@ -150,15 +150,35 @@ export default function ComprobantesGrid({
             minWidth: 140,
             accessor: (c) => {
                 const name = (c.producto_servicio as any)?.nombre;
-                if (name) {
-                    return <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.8125rem' }}>{name}</span>;
-                }
-                // Fallback: proveedor has a default product configured but comprobante wasn't linked
-                const hasDefault = (c.proveedor as any)?.producto_servicio_default_id;
-                if (hasDefault) {
-                    return <span style={{ color: 'var(--color-warning)', fontSize: '0.75rem', fontStyle: 'italic' }}>Pendiente vincular</span>;
-                }
-                return <span style={{ color: 'var(--color-text-muted)', fontSize: '0.8125rem' }}>Sin clasificar</span>;
+                const cat = (c.categoria as any);
+
+                return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {name ? (
+                            <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.8125rem' }}>{name}</span>
+                        ) : (
+                            (c.proveedor as any)?.producto_servicio_default_id ? (
+                                <span style={{ color: 'var(--color-warning)', fontSize: '0.75rem', fontStyle: 'italic' }}>Pendiente vincular</span>
+                            ) : (
+                                <span style={{ color: 'var(--color-text-muted)', fontSize: '0.8125rem' }}>Sin clasificar</span>
+                            )
+                        )}
+                        {cat && (
+                            <span style={{
+                                backgroundColor: `${cat.color}20`,
+                                color: cat.color,
+                                padding: '2px 6px',
+                                borderRadius: 4,
+                                fontSize: '0.65rem',
+                                fontWeight: 600,
+                                width: 'fit-content',
+                                whiteSpace: 'nowrap'
+                            }}>
+                                {cat.nombre}
+                            </span>
+                        )}
+                    </div>
+                );
             },
         },
         {

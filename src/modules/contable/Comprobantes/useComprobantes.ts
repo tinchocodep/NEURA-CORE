@@ -27,6 +27,7 @@ export interface Comprobante {
     proveedor: { razon_social: string; producto_servicio_default_id: string | null } | null;
     cliente: { razon_social: string } | null;
     producto_servicio: { nombre: string; grupo: string } | null;
+    categoria: { nombre: string; color: string } | null;
     centro_costo: { nombre: string } | null;
 }
 
@@ -38,6 +39,7 @@ const SELECT_FIELDS = `
   proveedor:contable_proveedores(razon_social, producto_servicio_default_id),
   cliente:contable_clientes(razon_social),
   producto_servicio:contable_productos_servicio(nombre, grupo),
+  categoria:contable_categorias(nombre, color),
   centro_costo:contable_centros_costo(nombre)
 `;
 
