@@ -10,6 +10,7 @@ import type { ComprobanteEstado } from './useComprobantes';
 import { CommandBar, useCommandBar } from '../../../design-system/components/CommandBar/CommandBar';
 import ComprobanteForm from './ComprobanteForm';
 import GastoIngresoForm from './GastoIngresoForm';
+import { DocumentViewer } from '../../../shared/components/DocumentViewer';
 
 type TabKey = 'listado' | 'crear' | 'upload' | 'gasto' | 'ingreso';
 
@@ -24,10 +25,15 @@ export default function Comprobantes() {
     const [busqueda, setBusqueda] = useState('');
     const [fechaDesde, setFechaDesde] = useState('');
     const [fechaHasta, setFechaHasta] = useState('');
-    const [pdfPreview, setPdfPreview] = useState<string | null>(null);
+    const [docPreview, setDocPreview] = useState<string | null>(null);
+
+
+
     const [exportando, setExportando] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [bulkProcessing, setBulkProcessing] = useState(false);
+    const [sortCol, setSortCol] = useState<string | null>('fecha');
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
     // Upload state
     const [uploadFiles, setUploadFiles] = useState<File[]>([]);
@@ -38,10 +44,10 @@ export default function Comprobantes() {
     const { open: cmdOpen, setOpen: setCmdOpen } = useCommandBar();
 
     const { data, totalCount, isLoading, hasMore, loadMore, reset, updateEstado, eliminarComprobante } =
-        useComprobantes({ tipo: filtroTipo, estado: filtroEstado, busqueda, fechaDesde, fechaHasta });
+        useComprobantes({ tipo: filtroTipo, estado: filtroEstado, busqueda, fechaDesde, fechaHasta, sortCol, sortDir });
 
     // Load on mount, when filters change, or when tenant is available
-    useEffect(() => { reset(); setSelectedIds(new Set()); }, [tenant?.id, filtroTipo, filtroEstado, busqueda, fechaDesde, fechaHasta]);
+    useEffect(() => { reset(); setSelectedIds(new Set()); }, [tenant?.id, filtroTipo, filtroEstado, busqueda, fechaDesde, fechaHasta, sortCol, sortDir]);
 
     const handleExportExcel = () => {
         if (data.length === 0) return;
@@ -219,26 +225,25 @@ export default function Comprobantes() {
             {/* Command Bar */}
             {cmdOpen && <CommandBar onClose={() => setCmdOpen(false)} />}
 
-            {/* PDF Preview Modal */}
-            {pdfPreview && (
+            {/* Document Preview Modal */}
+            {docPreview && (
                 <div
                     className="modal-overlay"
-                    onClick={() => setPdfPreview(null)}
+                    onClick={() => setDocPreview(null)}
                 >
                     <div
                         style={{ background: 'var(--color-bg-surface)', borderRadius: 'var(--radius-xl)', overflow: 'hidden', width: '90vw', maxWidth: 900, height: '90vh', display: 'flex', flexDirection: 'column' }}
                         onClick={e => e.stopPropagation()}
                     >
                         <div className="modal-header">
-                            <h2 className="modal-title">Comprobante PDF</h2>
-                            <button className="btn btn-ghost btn-icon" onClick={() => setPdfPreview(null)}>
+                            <h2 className="modal-title">Vista previa de documento</h2>
+                            <button className="btn btn-ghost btn-icon" onClick={() => setDocPreview(null)}>
                                 <X size={16} />
                             </button>
                         </div>
-                        <iframe
-                            src={pdfPreview}
-                            style={{ flex: 1, border: 'none', background: '#fff' }}
-                            title="PDF Comprobante"
+                        <DocumentViewer
+                            url={docPreview}
+                            style={{ flex: 1, width: '100%', height: '100%', background: '#fff' }}
                         />
                     </div>
                 </div>
@@ -445,9 +450,15 @@ export default function Comprobantes() {
                         hasMore={hasMore}
                         onLoadMore={loadMore}
                         onAction={handleAction}
-                        onPdfPreview={setPdfPreview}
+                        onDocPreview={setDocPreview}
                         selectedIds={selectedIds}
                         onSelectionChange={setSelectedIds}
+                        onSort={(col, dir) => {
+                            setSortCol(col);
+                            setSortDir(dir);
+                        }}
+                        sortCol={sortCol}
+                        sortDir={sortDir}
                     />
                 </>
             )}
@@ -732,9 +743,9 @@ export default function Comprobantes() {
                                                 {r.data.pdf_url && (
                                                     <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
                                                         <div style={{ background: '#f8fafc', padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e2e8f0' }}>
-                                                            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569' }}>📄 Vista previa del comprobante</span>
+                                                            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569' }}>📄 Vista previa del documento</span>
                                                             <button
-                                                                onClick={() => setPdfPreview(r.data!.pdf_url!)}
+                                                                onClick={() => setDocPreview(r.data!.pdf_url!)}
                                                                 style={{
                                                                     display: 'inline-flex', alignItems: 'center', gap: 4,
                                                                     color: '#2563eb', fontSize: '0.7rem', fontWeight: 600,
@@ -745,10 +756,9 @@ export default function Comprobantes() {
                                                                 <Eye size={12} /> Ampliar
                                                             </button>
                                                         </div>
-                                                        <iframe
-                                                            src={r.data.pdf_url}
-                                                            style={{ width: '100%', height: 350, border: 'none', background: '#fff' }}
-                                                            title={`Preview ${r.name}`}
+                                                        <DocumentViewer
+                                                            url={r.data.pdf_url}
+                                                            style={{ width: '100%', height: 350, background: '#fff' }}
                                                         />
                                                     </div>
                                                 )}

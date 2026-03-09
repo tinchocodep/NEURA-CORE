@@ -4,6 +4,7 @@ import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
 import { Search, Plus, Edit2, AlertTriangle, X, Save, Trash2, Loader, Globe, ChevronDown, ChevronRight, Download, Clock, FileText, Filter, Eye, Send, Star } from 'lucide-react';
 import { SkeletonTable } from '../../shared/components/SkeletonKit';
+import { DocumentViewer } from '../../shared/components/DocumentViewer';
 
 // --- Types ---
 
@@ -139,7 +140,7 @@ export default function Proveedores() {
     const [detailComprobantes, setDetailComprobantes] = useState<ComprobanteResumen[]>([]);
     const [detailLoading, setDetailLoading] = useState(false);
     const [expandedComprobante, setExpandedComprobante] = useState<string | null>(null);
-    const [pdfPreview, setPdfPreview] = useState<string | null>(null);
+    const [docPreview, setDocPreview] = useState<string | null>(null);
     const [activityFilter, setActivityFilter] = useState<'all' | 'recent' | 'month' | 'dormant' | 'none'>('all');
     const [productoFilter, setProductoFilter] = useState<string>('');
     const [showProdFilterDrop, setShowProdFilterDrop] = useState(false);
@@ -154,6 +155,8 @@ export default function Proveedores() {
     useEffect(() => {
         setVisibleCount(50);
     }, [busqueda, productoFilter, condicionFilter, casoRojoFilter, activityFilter]);
+
+
 
     useEffect(() => {
         if (!tenant) return;
@@ -247,6 +250,8 @@ export default function Proveedores() {
     function formatTimeAgo(dateStr: string | null): { text: string; color: string } {
         if (!dateStr) return { text: 'Sin actividad', color: '#f43f5e' };
         const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
+        if (diff < 0) return { text: `Hoy`, color: '#10b981' };
+        if (diff === 0) return { text: `Hoy`, color: '#10b981' };
         if (diff <= 7) return { text: `Hace ${diff}d`, color: '#10b981' };
         if (diff <= 30) return { text: `Hace ${Math.floor(diff / 7)}sem`, color: '#10b981' };
         if (diff <= 90) return { text: `Hace ${Math.floor(diff / 30)}m`, color: '#f59e0b' };
@@ -1378,14 +1383,14 @@ export default function Proveedores() {
                                                                     </div>
                                                                     {c.pdf_url && (
                                                                         <button
-                                                                            onClick={e => { e.stopPropagation(); setPdfPreview(c.pdf_url!.trim()); }}
+                                                                            onClick={e => { e.stopPropagation(); setDocPreview(c.pdf_url!.trim()); }}
                                                                             style={{
                                                                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                                                 width: 32, height: 32, borderRadius: 8, flexShrink: 0,
                                                                                 background: '#eff6ff', border: '1px solid #bfdbfe',
                                                                                 cursor: 'pointer',
                                                                             }}
-                                                                            title="Ver PDF"
+                                                                            title="Ver documento adjunto"
                                                                         >
                                                                             <Eye size={14} color="#2563eb" />
                                                                         </button>
@@ -1484,11 +1489,11 @@ export default function Proveedores() {
             `}</style>
             </div>
 
-            {/* PDF Preview Modal */}
+            {/* Document Preview Modal */}
             {
-                pdfPreview && (
+                docPreview && (
                     <div
-                        onClick={() => setPdfPreview(null)}
+                        onClick={() => setDocPreview(null)}
                         style={{
                             position: 'fixed', inset: 0, zIndex: 9999,
                             background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
@@ -1511,10 +1516,10 @@ export default function Proveedores() {
                                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                                 background: '#f8fafc',
                             }}>
-                                <span style={{ fontWeight: 600, fontSize: '0.875rem', color: '#0f172a' }}>Vista previa del PDF</span>
+                                <span style={{ fontWeight: 600, fontSize: '0.875rem', color: '#0f172a' }}>Vista previa de documento</span>
                                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                                     <a
-                                        href={pdfPreview}
+                                        href={encodeURI(docPreview)}
                                         download
                                         target="_blank"
                                         rel="noopener noreferrer"
@@ -1524,17 +1529,16 @@ export default function Proveedores() {
                                         <Download size={14} /> Descargar
                                     </a>
                                     <button
-                                        onClick={() => setPdfPreview(null)}
+                                        onClick={() => setDocPreview(null)}
                                         style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#64748b' }}
                                     >
                                         <X size={20} />
                                     </button>
                                 </div>
                             </div>
-                            <iframe
-                                src={pdfPreview}
-                                style={{ flex: 1, border: 'none', width: '100%' }}
-                                title="PDF Preview"
+                            <DocumentViewer
+                                url={docPreview}
+                                style={{ flex: 1, width: '100%', height: '100%', background: '#fff' }}
                             />
                         </div>
                     </div>

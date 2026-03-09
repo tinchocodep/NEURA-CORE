@@ -7,6 +7,7 @@ import {
     ChevronRight, ChevronDown, Package, Mail
 } from 'lucide-react';
 import jsPDF from 'jspdf';
+import { DocumentViewer } from '../../shared/components/DocumentViewer';
 
 // --- Types ---
 
@@ -152,7 +153,10 @@ export default function Comprobantes() {
     // Entity search
     const [entitySearch, setEntitySearch] = useState('');
     const [expandedRow, setExpandedRow] = useState<string | null>(null);
-    const [pdfPreview, setPdfPreview] = useState<string | null>(null);
+    const [docPreview, setDocPreview] = useState<string | null>(null);
+
+
+
     const [showEntityDropdown, setShowEntityDropdown] = useState(false);
 
     // Upload PDF state
@@ -733,10 +737,10 @@ export default function Comprobantes() {
                                                                 <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                                                                     {c.pdf_url && (
                                                                         <button
-                                                                            onClick={e => { e.stopPropagation(); setPdfPreview(c.pdf_url!.trim()); }}
+                                                                            onClick={e => { e.stopPropagation(); setDocPreview(c.pdf_url!.trim()); }}
                                                                             className="btn btn-secondary"
                                                                             style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem' }}
-                                                                            title="Ver PDF"
+                                                                            title="Ver documento adjunto"
                                                                         >
                                                                             <Eye size={14} color="#2563eb" />
                                                                         </button>
@@ -821,9 +825,9 @@ export default function Comprobantes() {
                                                                         {c.pdf_url && (
                                                                             <div style={{ gridColumn: '1 / -1' }}>
                                                                                 <button
-                                                                                    onClick={() => setPdfPreview(c.pdf_url!.trim())}
+                                                                                    onClick={() => setDocPreview(c.pdf_url!.trim())}
                                                                                     style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#2563eb', fontWeight: 600, fontSize: '0.8rem', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                                                                                    <Eye size={14} /> Ver PDF adjunto
+                                                                                    <Eye size={14} /> Ver documento adjunto
                                                                                 </button>
                                                                             </div>
                                                                         )}
@@ -1978,11 +1982,11 @@ export default function Comprobantes() {
                 })()}
             </div >
 
-            {/* PDF Preview Modal */}
+            {/* Document Preview Modal */}
             {
-                pdfPreview && (
+                docPreview && (
                     <div
-                        onClick={() => setPdfPreview(null)}
+                        onClick={() => setDocPreview(null)}
                         style={{
                             position: 'fixed', inset: 0, zIndex: 9999,
                             background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
@@ -2005,10 +2009,10 @@ export default function Comprobantes() {
                                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                                 background: '#f8fafc',
                             }}>
-                                <span style={{ fontWeight: 600, fontSize: '0.875rem', color: '#0f172a' }}>Vista previa del PDF</span>
+                                <span style={{ fontWeight: 600, fontSize: '0.875rem', color: '#0f172a' }}>Vista previa de documento</span>
                                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                                     <a
-                                        href={pdfPreview}
+                                        href={encodeURI(docPreview)}
                                         download
                                         target="_blank"
                                         rel="noopener noreferrer"
@@ -2018,17 +2022,16 @@ export default function Comprobantes() {
                                         <Download size={14} /> Descargar
                                     </a>
                                     <button
-                                        onClick={() => setPdfPreview(null)}
+                                        onClick={() => setDocPreview(null)}
                                         style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#64748b' }}
                                     >
                                         <X size={20} />
                                     </button>
                                 </div>
                             </div>
-                            <iframe
-                                src={pdfPreview}
-                                style={{ flex: 1, border: 'none', width: '100%' }}
-                                title="PDF Preview"
+                            <DocumentViewer
+                                url={docPreview}
+                                style={{ flex: 1, width: '100%', height: '100%', background: '#fff' }}
                             />
                         </div>
                     </div>
