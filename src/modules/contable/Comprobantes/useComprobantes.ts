@@ -51,6 +51,8 @@ export interface ComprobantesFilters {
     busqueda: string;
     fechaDesde: string;
     fechaHasta: string;
+    sortCol?: string | null;
+    sortDir?: 'asc' | 'desc';
 }
 
 export function useComprobantes(filters: ComprobantesFilters) {
@@ -63,6 +65,61 @@ export function useComprobantes(filters: ComprobantesFilters) {
 
     const data = useMemo(() => pages.flat(), [pages]);
 
+    const buildQuery = useCallback(async (isLoadMore: boolean) => {
+        if (!tenant) return null;
+
+        let query = supabase
+            .from('contable_comprobantes')
+            .select(SELECT_FIELDS, isLoadMore ? undefined : { count: 'exact' })
+            .eq('tenant_id', tenant.id)
+            .limit(PAGE_SIZE);
+
+        // Apply dynamic sorting
+        if (filters.sortCol === 'fecha') {
+            query = query.order('fecha', { ascending: filters.sortDir === 'asc' });
+        }
+        // Always fallback to created_at for stable pagination
+        query = query.order('created_at', { ascending: false });
+
+        if (isLoadMore && lastCreatedAt) {
+            query = query.lt('created_at', lastCreatedAt);
+        }
+
+        if (filters.tipo !== 'todos') query = query.eq('tipo', filters.tipo);
+        if (filters.estado !== 'todos') query = query.eq('estado', filters.estado);
+        if (filters.fechaDesde) query = query.gte('fecha', filters.fechaDesde);
+        if (filters.fechaHasta) query = query.lte('fecha', filters.fechaHasta);
+
+        if (filters.busqueda) {
+            const searchTerm = `%${filters.busqueda}%`;
+
+            // 1. Search matching entities first
+            const [provRes, cliRes] = await Promise.all([
+                supabase.from('contable_proveedores')
+                    .select('id').eq('tenant_id', tenant.id).ilike('razon_social', searchTerm),
+                supabase.from('contable_clientes')
+                    .select('id').eq('tenant_id', tenant.id).ilike('razon_social', searchTerm)
+            ]);
+
+            const provIds = provRes.data?.map(p => p.id) || [];
+            const cliIds = cliRes.data?.map(c => c.id) || [];
+
+            // 2. Build the OR condition combining numero_comprobante and matching entity IDs
+            const orConditions = [`numero_comprobante.ilike.${searchTerm}`];
+
+            if (provIds.length > 0) {
+                orConditions.push(`proveedor_id.in.(${provIds.join(',')})`);
+            }
+            if (cliIds.length > 0) {
+                orConditions.push(`cliente_id.in.(${cliIds.join(',')})`);
+            }
+
+            query = query.or(orConditions.join(','));
+        }
+
+        return query;
+    }, [tenant, filters.tipo, filters.estado, filters.busqueda, filters.fechaDesde, filters.fechaHasta, filters.sortCol, filters.sortDir, lastCreatedAt]);
+
     const reset = useCallback(async () => {
         if (!tenant) return;
         setIsLoading(true);
@@ -70,27 +127,12 @@ export function useComprobantes(filters: ComprobantesFilters) {
         setLastCreatedAt(null);
         setHasMore(true);
 
-        let query = supabase
-            .from('contable_comprobantes')
-            .select(SELECT_FIELDS, { count: 'exact' })
-            .eq('tenant_id', tenant.id)
-            .order('fecha', { ascending: false })
-            .order('created_at', { ascending: false })
-            .limit(PAGE_SIZE);
-
-        if (filters.tipo !== 'todos') query = query.eq('tipo', filters.tipo);
-        if (filters.estado !== 'todos') query = query.eq('estado', filters.estado);
-        if (filters.busqueda) {
-            query = query.or(
-                `numero_comprobante.ilike.%${filters.busqueda}%`
-            );
-        }
-        if (filters.fechaDesde) query = query.gte('fecha', filters.fechaDesde);
-        if (filters.fechaHasta) query = query.lte('fecha', filters.fechaHasta);
+        const query = await buildQuery(false);
+        if (!query) { setIsLoading(false); return; }
 
         const { data: rows, count, error } = await query;
         setIsLoading(false);
-        if (error) { console.error('useComprobantes:', error); return; }
+        if (error) { console.error('useComprobantes/reset:', error); return; }
 
         const freshRows = (rows || []) as unknown as Comprobante[];
         setPages([freshRows]);
@@ -110,43 +152,27 @@ export function useComprobantes(filters: ComprobantesFilters) {
                         .update({ producto_servicio_id: (c.proveedor as any).producto_servicio_default_id })
                         .eq('id', c.id)
                 )
-            ).then(() => {
+            ).then(async () => {
                 // Silently re-fetch to show linked products
-                supabase
-                    .from('contable_comprobantes')
-                    .select(SELECT_FIELDS, { count: 'exact' })
-                    .eq('tenant_id', tenant.id)
-                    .order('fecha', { ascending: false })
-                    .order('created_at', { ascending: false })
-                    .limit(PAGE_SIZE)
-                    .then(({ data: refreshed }) => {
-                        if (refreshed) setPages([(refreshed as unknown as Comprobante[])]);
-                    });
+                const q = await buildQuery(false);
+                if (q) {
+                    const { data: refreshed } = await q;
+                    if (refreshed) setPages([(refreshed as unknown as Comprobante[])]);
+                }
             });
         }
-    }, [tenant, filters.tipo, filters.estado, filters.busqueda, filters.fechaDesde, filters.fechaHasta]);
+    }, [tenant, buildQuery]);
 
     const loadMore = useCallback(async () => {
         if (!tenant || isLoading || !hasMore || !lastCreatedAt) return;
         setIsLoading(true);
 
-        let query = supabase
-            .from('contable_comprobantes')
-            .select(SELECT_FIELDS)
-            .eq('tenant_id', tenant.id)
-            .lt('created_at', lastCreatedAt)
-            .order('fecha', { ascending: false })
-            .order('created_at', { ascending: false })
-            .limit(PAGE_SIZE);
-
-        if (filters.tipo !== 'todos') query = query.eq('tipo', filters.tipo);
-        if (filters.estado !== 'todos') query = query.eq('estado', filters.estado);
-        if (filters.fechaDesde) query = query.gte('fecha', filters.fechaDesde);
-        if (filters.fechaHasta) query = query.lte('fecha', filters.fechaHasta);
+        const query = await buildQuery(true);
+        if (!query) { setIsLoading(false); return; }
 
         const { data: rows, error } = await query;
         setIsLoading(false);
-        if (error) { console.error('loadMore:', error); return; }
+        if (error) { console.error('useComprobantes/loadMore:', error); return; }
 
         const newRows = (rows || []) as unknown as Comprobante[];
         if (newRows.length < PAGE_SIZE) setHasMore(false);
@@ -154,7 +180,7 @@ export function useComprobantes(filters: ComprobantesFilters) {
             setPages(prev => [...prev, newRows]);
             setLastCreatedAt(newRows[newRows.length - 1].created_at);
         }
-    }, [tenant, isLoading, hasMore, lastCreatedAt, filters.tipo, filters.estado, filters.fechaDesde, filters.fechaHasta]);
+    }, [tenant, isLoading, hasMore, lastCreatedAt, buildQuery]);
 
     const updateEstado = useCallback(async (id: string, estado: ComprobanteEstado) => {
         const payload: Record<string, unknown> = { estado };

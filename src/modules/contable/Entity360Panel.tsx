@@ -38,7 +38,7 @@ interface Entity360PanelProps {
     entity: EntityInfo;
     entityType: 'proveedor' | 'cliente';
     onClose: () => void;
-    onPdfPreview?: (url: string) => void;
+    onDocPreview?: (url: string) => void;
 }
 
 /* ─── Helpers ────────────────────────────────────────── */
@@ -46,6 +46,8 @@ interface Entity360PanelProps {
 function formatTimeAgo(dateStr: string | null): { text: string; color: string } {
     if (!dateStr) return { text: 'Sin actividad', color: 'var(--color-danger)' };
     const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
+    if (diff < 0) return { text: `Hoy`, color: 'var(--color-success)' };
+    if (diff === 0) return { text: `Hoy`, color: 'var(--color-success)' };
     if (diff <= 7) return { text: `Hace ${diff}d`, color: 'var(--color-success)' };
     if (diff <= 30) return { text: `Hace ${Math.floor(diff / 7)}sem`, color: 'var(--color-success)' };
     if (diff <= 90) return { text: `Hace ${Math.floor(diff / 30)}m`, color: 'var(--color-warning)' };
@@ -71,7 +73,7 @@ const estadoBadge = (estado: string) => {
 
 /* ─── Component ─────────────────────────────────────── */
 
-export default function Entity360Panel({ entity, entityType, onClose, onPdfPreview }: Entity360PanelProps) {
+export default function Entity360Panel({ entity, entityType, onClose, onDocPreview }: Entity360PanelProps) {
     const { tenant } = useTenant();
     const [comprobantes, setComprobantes] = useState<ComprobanteResumen[]>([]);
     const [loading, setLoading] = useState(true);
@@ -372,12 +374,11 @@ export default function Entity360Panel({ entity, entityType, onClose, onPdfPrevi
                                                 ${Number(c.monto_ars || c.monto_original || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                                             </div>
 
-                                            {/* PDF */}
-                                            {c.pdf_url && onPdfPreview && (
+                                            {c.pdf_url && onDocPreview && (
                                                 <button
-                                                    onClick={e => { e.stopPropagation(); onPdfPreview(c.pdf_url!.trim()); }}
+                                                    onClick={e => { e.stopPropagation(); onDocPreview(c.pdf_url!.trim()); }}
                                                     className="btn btn-ghost btn-icon"
-                                                    title="Ver PDF"
+                                                    title="Ver documento adjunto"
                                                     style={{ flexShrink: 0 }}
                                                 >
                                                     <Eye size={14} color="var(--color-accent)" />

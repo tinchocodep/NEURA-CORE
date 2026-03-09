@@ -37,6 +37,9 @@ interface DataGridProps<T extends { id: string }> {
     renderExpanded?: (row: T) => React.ReactNode;
     emptyState?: React.ReactNode;
     keyboardShortcuts?: Record<string, (row: T) => void>; // e.g. { 'a': approve, 'r': reject }
+    onSort?: (colId: string, dir: 'asc' | 'desc') => void;
+    sortCol?: string | null;
+    sortDir?: 'asc' | 'desc';
 }
 
 /* ─── Component ─────────────────────────────────────── */
@@ -55,11 +58,17 @@ export function DataGrid<T extends { id: string }>({
     renderExpanded,
     emptyState,
     keyboardShortcuts,
+    onSort,
+    sortCol: controlledSortCol,
+    sortDir: controlledSortDir,
 }: DataGridProps<T>) {
     const [focusedIdx, setFocusedIdx] = useState<number>(-1);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-    const [sortCol, setSortCol] = useState<string | null>(null);
-    const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+    const [internalSortCol, setInternalSortCol] = useState<string | null>(null);
+    const [internalSortDir, setInternalSortDir] = useState<'asc' | 'desc'>('desc');
+
+    const sortCol = controlledSortCol !== undefined ? controlledSortCol : internalSortCol;
+    const sortDir = controlledSortDir !== undefined ? controlledSortDir : internalSortDir;
 
     const tbodyRef = useRef<HTMLTableSectionElement>(null);
     const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -90,12 +99,13 @@ export function DataGrid<T extends { id: string }>({
     }, []);
 
     const handleSort = (colId: string) => {
+        let newDir: 'asc' | 'desc' = 'desc';
         if (sortCol === colId) {
-            setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-        } else {
-            setSortCol(colId);
-            setSortDir('desc');
+            newDir = sortDir === 'asc' ? 'desc' : 'asc';
         }
+        setInternalSortCol(colId);
+        setInternalSortDir(newDir);
+        onSort?.(colId, newDir);
     };
 
     // Keyboard navigation

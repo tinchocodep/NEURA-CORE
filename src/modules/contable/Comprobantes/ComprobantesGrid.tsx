@@ -27,14 +27,17 @@ interface Props {
     hasMore: boolean;
     onLoadMore: () => void;
     onAction: (id: string, action: 'aprobar' | 'rechazar' | 'inyectar' | 'eliminar') => void;
-    onPdfPreview: (url: string) => void;
+    onDocPreview: (url: string) => void;
     selectedIds: Set<string>;
     onSelectionChange: (ids: Set<string>) => void;
+    onSort?: (colId: string, dir: 'asc' | 'desc') => void;
+    sortCol?: string | null;
+    sortDir?: 'asc' | 'desc';
 }
 
 export default function ComprobantesGrid({
-    data, totalCount, isLoading, hasMore, onLoadMore, onAction, onPdfPreview,
-    selectedIds, onSelectionChange,
+    data, totalCount, isLoading, hasMore, onLoadMore, onAction, onDocPreview,
+    selectedIds, onSelectionChange, onSort, sortCol, sortDir,
 }: Props) {
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -250,8 +253,8 @@ export default function ComprobantesGrid({
                     {c.pdf_url && (
                         <button
                             className="btn btn-ghost btn-icon btn-sm"
-                            onClick={() => onPdfPreview(c.pdf_url!.trim())}
-                            title="Ver PDF"
+                            onClick={() => onDocPreview(c.pdf_url!.trim())}
+                            title="Ver documento"
                         >
                             <Eye size={13} color="var(--color-info)" />
                         </button>
@@ -336,11 +339,11 @@ export default function ComprobantesGrid({
             {c.pdf_url && (
                 <div style={{ gridColumn: '1/-1' }}>
                     <button
-                        onClick={() => onPdfPreview(c.pdf_url!.trim())}
+                        onClick={() => onDocPreview(c.pdf_url!.trim())}
                         className="btn btn-ghost btn-sm"
                         style={{ gap: 6 }}
                     >
-                        <Eye size={13} /> Ver PDF adjunto
+                        <Eye size={13} /> Ver documento adjunto
                     </button>
                 </div>
             )}
@@ -367,6 +370,9 @@ export default function ComprobantesGrid({
             expandedRowId={expandedId}
             renderExpanded={renderExpanded}
             emptyState={emptyState}
+            onSort={onSort}
+            sortCol={sortCol}
+            sortDir={sortDir}
             keyboardShortcuts={{
                 a: (row) => onAction(row.id, 'aprobar'),
                 r: (row) => onAction(row.id, 'rechazar'),
