@@ -38,6 +38,7 @@ export default function GastoIngresoForm({ tipo, onSuccess }: Props) {
     const [productoId, setProductoId] = useState('');
     const [centroId, setCentroId] = useState('');
     const [categoriaId, setCategoriaId] = useState('');
+    const [accountId, setAccountId] = useState('');
 
     // Catalogs
     const [proveedores, setProveedores] = useState<Proveedor[]>([]);
@@ -45,6 +46,8 @@ export default function GastoIngresoForm({ tipo, onSuccess }: Props) {
     const [productos, setProductos] = useState<ProductoServicio[]>([]);
     const [centros, setCentros] = useState<CentroCosto[]>([]);
     const [categorias, setCategorias] = useState<{ id: string, nombre: string, color: string, tipo: string }[]>([]);
+    const [accounts, setAccounts] = useState<{ id: string, name: string, balance: number }[]>([]);
+    const [treasuryCategories, setTreasuryCategories] = useState<{ id: string, name: string, type: string }[]>([]);
 
     // UI
     const [saving, setSaving] = useState(false);
@@ -69,13 +72,17 @@ export default function GastoIngresoForm({ tipo, onSuccess }: Props) {
             supabase.from('contable_productos_servicio').select('id, nombre, grupo').eq('tenant_id', tenant.id).eq('activo', true).order('nombre'),
             supabase.from('contable_centros_costo').select('id, nombre').eq('tenant_id', tenant.id).eq('activo', true).order('nombre'),
             supabase.from('contable_categorias').select('id, nombre, color, tipo').eq('tenant_id', tenant.id).order('nombre'),
-        ]).then(([{ data: p }, { data: c }, { data: ps }, { data: cc }, { data: cat }]) => {
+            supabase.from('treasury_accounts').select('id, name, balance').eq('tenant_id', tenant.id).is('assigned_user_id', null).eq('is_active', true).order('name'),
+            supabase.from('treasury_categories').select('id, name, type').eq('tenant_id', tenant.id),
+        ]).then(([{ data: p }, { data: c }, { data: ps }, { data: cc }, { data: cat }, { data: acc }, { data: tCat }]) => {
             const provs = (p || []) as Proveedor[];
             setProveedores(provs);
             setClientes((c || []) as Cliente[]);
             setProductos((ps || []) as ProductoServicio[]);
             setCentros((cc || []) as CentroCosto[]);
             setCategorias((cat || []) as any);
+            setAccounts((acc || []) as any);
+            setTreasuryCategories((tCat || []) as any);
 
             const preProvId = searchParams.get('proveedor_id');
             if (preProvId && isGasto) {
@@ -193,13 +200,39 @@ export default function GastoIngresoForm({ tipo, onSuccess }: Props) {
         };
 
         const { error: err } = await supabase.from('contable_comprobantes').insert(payload);
-        setSaving(false);
 
-        if (err) { setError('Error al guardar: ' + err.message); return; }
+        if (err) { setSaving(false); setError('Error al guardar comprobante: ' + err.message); return; }
+
+        if (accountId) {
+            const tCat = treasuryCategories.find(c => c.type === (isGasto ? 'expense' : 'income'));
+            const txPayload = {
+                tenant_id: tenant.id,
+                account_id: accountId,
+                category_id: tCat?.id || null, // Best effort
+                type: isGasto ? 'expense' : 'income',
+                amount: montoArs,
+                description: descripcion.trim() || defaultDesc,
+                date: fecha,
+                status: 'completado',
+                source: 'manual',
+            };
+            const { error: txErr } = await supabase.from('treasury_transactions').insert(txPayload);
+            if (!txErr) {
+                const acc = accounts.find(a => a.id === accountId);
+                if (acc) {
+                    const newBal = isGasto ? acc.balance - montoArs : acc.balance + montoArs;
+                    await supabase.from('treasury_accounts').update({ balance: newBal }).eq('id', accountId);
+                }
+            } else {
+                console.error("Error inserting treasury tx:", txErr);
+            }
+        }
+
+        setSaving(false);
 
         // Reset
         setMonto(''); setDescripcion(''); setObs('');
-        setEntityId(''); setProductoId(''); setCentroId(''); setCategoriaId('');
+        setEntityId(''); setProductoId(''); setCentroId(''); setCategoriaId(''); setAccountId('');
         setTipoCambio(''); setEntitySearch('');
         setSuccess(true);
         setTimeout(() => setSuccess(false), 3500);
@@ -372,6 +405,23 @@ export default function GastoIngresoForm({ tipo, onSuccess }: Props) {
                                 <option value="">Sin asignar</option>
                                 {centros.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
                             </select>
+                        </div>
+                        <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                            <label className="form-label" style={{ color: 'var(--color-brand)', fontWeight: 600 }}>Impacto en Tesorería (Caja / Banco)</label>
+                            <select
+                                className="form-input"
+                                value={accountId}
+                                onChange={e => setAccountId(e.target.value)}
+                                style={{ borderColor: accountId ? 'var(--color-brand)' : undefined, background: accountId ? 'rgba(37,99,235,0.05)' : undefined }}
+                            >
+                                <option value="">Sin impacto inicial (Pendiente de pago)</option>
+                                {accounts.map(acc => (
+                                    <option key={acc.id} value={acc.id}>{acc.name} — ${acc.balance?.toLocaleString('es-AR')}</option>
+                                ))}
+                            </select>
+                            <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>
+                                Si seleccionás una cuenta, se creará un movimiento completado en Tesorería y se actualizará el saldo.
+                            </span>
                         </div>
                         <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                             <label className="form-label">Observaciones internas</label>

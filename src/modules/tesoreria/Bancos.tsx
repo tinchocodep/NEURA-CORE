@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import { useToast } from '../../contexts/ToastContext';
-import { Upload, Clock, RefreshCw, ChevronDown, ChevronUp, Link2 } from 'lucide-react';
+import { Landmark, Upload, ChevronRight, RefreshCw, ChevronDown, ChevronUp, Search, Filter, AlertTriangle, CheckCircle, Trash2, Clock, Link2 } from 'lucide-react';
 
 // ── Parse Argentinian number format ──────────────────────────────────────────
 function parseArgNum(s: string): number {
@@ -128,6 +128,56 @@ function parseSupervielleCSV(text: string): Array<{
     return rows;
 }
 
+// ── Parse Generic CSV ─────────────────────────────────────────────────────────
+function parseGenericCSV(text: string): Array<{
+    date: string; concept: string; detail: string;
+    debit: number; credit: number; balance: number;
+    nombre: string; documento: string; cheque: string;
+}> {
+    const lines = text.trim().split('\n');
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        const parts: string[] = [];
+        let cur = '', inQ = false;
+        for (const ch of line) {
+            if (ch === '"') { inQ = !inQ; }
+            else if (ch === ',' && !inQ) { parts.push(cur.trim()); cur = ''; }
+            else { cur += ch; }
+        }
+        parts.push(cur.trim());
+        if (parts.length < 3) continue; // Expects Date, Concept, Amount
+
+        const rawDate = parts[0].split(' ')[0];
+        const date = rawDate.replace(/\//g, '-');
+        const concept = parts[1] || '';
+        const amountStr = parts[2] || '0';
+
+        let amount = parseFloat(amountStr.replace(/\./g, '').replace(',', '.')) || 0;
+        // fallback parsing if dot is used for decimals and no thousands separator
+        if (Number.isNaN(amount) || amount === 0) {
+            amount = parseFloat(amountStr) || 0;
+        }
+
+        const isIncome = amount > 0;
+        const absAmount = Math.abs(amount);
+
+        rows.push({
+            date,
+            concept: concept,
+            detail: '',
+            debit: isIncome ? 0 : absAmount,
+            credit: isIncome ? absAmount : 0,
+            balance: 0,
+            nombre: '',
+            documento: '',
+            cheque: '',
+        });
+    }
+    return rows;
+}
+
 // ── Match status helpers ──────────────────────────────────────────────────────
 type MatchStatus = 'matched' | 'review' | 'unmatched' | 'registered';
 
@@ -157,6 +207,8 @@ export default function Bancos() {
     const [selectedPending, setSelectedPending] = useState<string | null>(null);
     const [categoryModal, setCategoryModal] = useState<any | null>(null);
     const [categoryId, setCategoryId] = useState('');
+    const [bankFormat, setBankFormat] = useState<'supervielle' | 'generico'>('supervielle');
+    const [deletingLine, setDeletingLine] = useState<string | null>(null);
     const fileRef = useRef<HTMLInputElement>(null);
 
     const fetchData = useCallback(async () => {
@@ -195,8 +247,10 @@ export default function Bancos() {
         }
         setImporting(true);
         const text = await file.text();
-        const rows = parseSupervielleCSV(text);
-        if (rows.length === 0) { addToast('error', 'Error', 'No se pudo parsear el CSV'); setImporting(false); return; }
+        const rows = bankFormat === 'supervielle'
+            ? parseSupervielleCSV(text)
+            : parseGenericCSV(text);
+        if (rows.length === 0) { addToast('error', 'Error', 'No se pudo parsear el CSV o está vacío.'); setImporting(false); return; }
 
         // ── Auto-match por scoring ──────────────────────────────────────────
         const pendingSnap = [...pendingTx];
@@ -245,15 +299,36 @@ export default function Bancos() {
         else {
             // Mark auto-matched pending transactions as completado
             const autoMatched = toInsert.filter(r => r.status === 'matched' && r.matched_transaction_id);
+            const reviewMatched = toInsert.filter(r => r.status === 'review');
+            const unmatched = toInsert.filter(r => r.status === 'unmatched');
+
             for (const r of autoMatched) {
                 await supabase.from('treasury_transactions').update({ status: 'completado' }).eq('id', r.matched_transaction_id!);
             }
-            addToast('success', 'Extracto importado', `${rows.length} líneas procesadas. ${autoMatched.length} conciliadas automáticamente.`);
+
+            addToast('success', 'Extracto importado',
+                `Se procesaron ${rows.length} líneas: ${autoMatched.length} auto-conciliadas, ${reviewMatched.length} en revisión y ${unmatched.length} sin coincidencias.`);
+
             await fetchStatements();
             setActiveTab('reconcile');
         }
         setImporting(false);
         if (fileRef.current) fileRef.current.value = '';
+    };
+
+    // ── Delete Statement Line ───────────────────────────────────────────────
+    const handleDeleteLine = async (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!confirm('¿Estás seguro de que querés eliminar permanentemente este registro del banco?')) return;
+        setDeletingLine(id);
+        const { error } = await supabase.from('bank_statement_lines').delete().eq('id', id);
+        setDeletingLine(null);
+        if (error) {
+            addToast('error', 'Error', 'No se pudo eliminar el registro.');
+        } else {
+            addToast('success', 'Eliminado', 'El registro fue borrado correctamente.');
+            fetchStatements(); // refrescar
+        }
     };
 
     // ── Manual match ────────────────────────────────────────────────────────
@@ -325,18 +400,38 @@ export default function Bancos() {
             {/* ── IMPORT TAB ── */}
             {activeTab === 'import' && (
                 <div className="card" style={{ padding: '2rem', maxWidth: '560px' }}>
-                    <h3 style={{ marginBottom: '0.5rem' }}>Importar extracto de Supervielle</h3>
+                    <h3 style={{ marginBottom: '0.5rem' }}>Importar extracto bancario</h3>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
                         Subí el CSV descargado desde el home banking. El sistema lo parsea automáticamente y cruza con tus proyecciones.
                     </p>
+
+                    <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                        <label className="form-label" style={{ fontWeight: 600 }}>Formato del Banco</label>
+                        <select className="form-input" value={bankFormat} onChange={e => setBankFormat(e.target.value as any)}>
+                            <option value="supervielle">Banco Supervielle</option>
+                            <option value="generico">Formato Genérico Estándar</option>
+                        </select>
+                    </div>
+
                     <input ref={fileRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={handleFile} />
-                    <button className="btn btn-primary" style={{ gap: '0.5rem' }} disabled={importing} onClick={() => fileRef.current?.click()}>
+                    <button className="btn btn-primary" style={{ gap: '0.5rem', width: '100%', justifyContent: 'center' }} disabled={importing} onClick={() => fileRef.current?.click()}>
                         <Upload size={17} />
-                        {importing ? 'Procesando...' : 'Seleccionar CSV de Supervielle'}
+                        {importing ? 'Procesando archivo...' : `Seleccionar CSV (${bankFormat === 'supervielle' ? 'Supervielle' : 'Genérico'})`}
                     </button>
-                    <p style={{ marginTop: '1rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        Formato: <code>Fecha, Concepto, Detalle, Débito, Crédito, Saldo</code>
-                    </p>
+
+                    <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'var(--bg-subtle)', borderRadius: 8, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        <span style={{ fontWeight: 600, color: 'var(--text-main)', display: 'block', marginBottom: 6 }}>
+                            Formato esperado:
+                        </span>
+                        {bankFormat === 'supervielle' ? (
+                            <code>Fecha, Concepto, Detalle, Débito, Crédito, Saldo</code>
+                        ) : (
+                            <div>
+                                <code style={{ display: 'block', marginBottom: 4 }}>Fecha, Concepto, Monto</code>
+                                <em>Nota: El monto debe ser negativo para gastos/retiros y positivo para ingresos/depósitos.</em>
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 
@@ -394,14 +489,27 @@ export default function Bancos() {
                                                             <td style={{ padding: '0.6rem 0.5rem', textAlign: 'right', color: 'var(--danger)', fontWeight: 600 }}>{line.debit > 0 ? fmt(line.debit) : '—'}</td>
                                                             <td style={{ padding: '0.6rem 0.5rem', textAlign: 'right', color: 'var(--success)', fontWeight: 600 }}>{line.credit > 0 ? fmt(line.credit) : '—'}</td>
                                                             <td style={{ padding: '0.6rem 1rem', textAlign: 'right' }}>
-                                                                {st === 'unmatched' && (
-                                                                    <button className="btn btn-secondary" style={{ fontSize: '0.72rem', padding: '0.2rem 0.6rem' }} onClick={e => { e.stopPropagation(); setCategoryModal(line); }}>
-                                                                        Registrar
-                                                                    </button>
-                                                                )}
-                                                                {st === 'review' && (
-                                                                    <span style={{ fontSize: '0.72rem', color: 'var(--warning)', fontWeight: 600 }}>Seleccionar</span>
-                                                                )}
+                                                                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                                                    {st === 'unmatched' && (
+                                                                        <button className="btn btn-secondary" style={{ fontSize: '0.72rem', padding: '0.2rem 0.6rem' }} onClick={e => { e.stopPropagation(); setCategoryModal(line); }}>
+                                                                            Registrar
+                                                                        </button>
+                                                                    )}
+                                                                    {st === 'review' && (
+                                                                        <span style={{ fontSize: '0.72rem', color: 'var(--warning)', fontWeight: 600 }}>Seleccionar</span>
+                                                                    )}
+                                                                    {(st === 'unmatched' || st === 'review') && (
+                                                                        <button
+                                                                            className="btn"
+                                                                            style={{ padding: '0.35rem', color: 'var(--danger)', background: 'transparent', border: 'none', opacity: deletingLine === line.id ? 0.5 : 1 }}
+                                                                            title="Eliminar este registro"
+                                                                            onClick={e => handleDeleteLine(line.id, e)}
+                                                                            disabled={deletingLine === line.id}
+                                                                        >
+                                                                            <Trash2 size={16} />
+                                                                        </button>
+                                                                    )}
+                                                                </div>
                                                             </td>
                                                         </tr>
                                                     );

@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import { useTenant } from '../../../contexts/TenantContext';
+import { useToast } from '../../../contexts/ToastContext';
 import { Search, Filter, Plus, Upload as UploadIcon, X, Send, FileText, CheckCircle, XCircle, Eye, Calendar, Download, AlertTriangle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import ComprobantesGrid from './ComprobantesGrid';
@@ -14,8 +15,9 @@ import { DocumentViewer } from '../../../shared/components/DocumentViewer';
 
 type TabKey = 'listado' | 'crear' | 'upload' | 'gasto' | 'ingreso';
 
-export default function Comprobantes() {
+export default function ComprobantesIndex() {
     const { tenant } = useTenant();
+    const { addToast } = useToast();
     const [searchParams, setSearchParams] = useSearchParams();
     const tabParam = (searchParams.get('tab') as TabKey) || 'listado';
 
@@ -40,6 +42,10 @@ export default function Comprobantes() {
     const [uploading, setUploading] = useState(false);
     const [dragOver, setDragOver] = useState(false);
     const [uploadResults, setUploadResults] = useState<{ name: string; status: 'ok' | 'error'; msg: string; duplicate?: boolean; duplicateCount?: number; data?: { numero_comprobante?: string; tipo?: string; tipo_comprobante?: string; fecha?: string; monto?: number; proveedor_nombre?: string; proveedor_cuit?: string; proveedor_nuevo?: boolean; pdf_url?: string; descripcion?: string } }[]>([]);
+
+    // Attach to existing state
+    const [attachingToId, setAttachingToId] = useState<string | null>(null);
+    const attachFileInputRef = useRef<HTMLInputElement>(null);
 
     const { open: cmdOpen, setOpen: setCmdOpen } = useCommandBar();
 
@@ -182,7 +188,7 @@ export default function Comprobantes() {
                     }).eq('id', id);
                     reset(); // Refresh list
                 } else {
-                    alert(`Error al inyectar en Xubio: ${result.error}`);
+                    addToast('error', 'Error Xubio', `Error al inyectar en Xubio: ${result.error}`);
                     // Still allow marking as inyectado if user wants
                     if (confirm('¿Marcar como inyectado de todas formas?')) {
                         await updateEstado(id, 'inyectado');
@@ -190,7 +196,7 @@ export default function Comprobantes() {
                 }
             } catch (err) {
                 console.error('[Xubio] Injection error:', err);
-                alert(`Error: ${(err as Error).message}`);
+                addToast('error', 'Error', (err as Error).message);
             }
         } else {
             const map: Record<string, ComprobanteEstado> = {
@@ -199,6 +205,145 @@ export default function Comprobantes() {
             if (map[action]) {
                 await updateEstado(id, map[action]);
             }
+        }
+    };
+
+    const handleAttachInvoiceClick = (id: string) => {
+        setAttachingToId(id);
+        attachFileInputRef.current?.click();
+    };
+
+    const handleAttachInvoiceFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !attachingToId || !tenant) return;
+
+        try {
+            setUploading(true);
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+            const filePath = `${tenant.id}/${fileName}`;
+
+            const { error: uploadErr } = await supabase.storage
+                .from('comprobantes')
+                .upload(filePath, file);
+
+            if (uploadErr) throw uploadErr;
+
+            const { data: publicUrlData } = supabase.storage
+                .from('comprobantes')
+                .getPublicUrl(filePath);
+
+            const fileUrl = publicUrlData.publicUrl;
+
+            // Actualizamos la url en supabase al instante en el registro original
+            const { data: compOriginal } = await supabase.from('contable_comprobantes')
+                .update({ pdf_url: fileUrl })
+                .eq('id', attachingToId)
+                .select('monto_original, cuit_emisor, pdf_url')
+                .single();
+
+            // Llamamos a n8n
+            const formData = new FormData();
+            formData.append('data', file);
+            formData.append('filename', file.name);
+            formData.append('tenant_id', tenant.id);
+            formData.append('comprobante_id', attachingToId);
+            formData.append('update_mode', 'true');
+
+            try {
+                const N8N_WEBHOOK = '/api/n8n-comprobantes';
+                const resp = await fetch(N8N_WEBHOOK, { method: 'POST', body: formData });
+                if (resp.ok) {
+                    // Darle tiempo a n8n de procesar el archivo y crear/actualizar
+                    setTimeout(async () => {
+                        // 1. Buscamos el comprobante modificado por nosotros
+                        const { data: compPost } = await supabase.from('contable_comprobantes')
+                            .select('monto_original, cuit_emisor, numero_comprobante')
+                            .eq('id', attachingToId)
+                            .single();
+
+                        // 2. Buscamos proactivamente si N8N clonó/creó un TERCER comprobante ignorando 'update_mode'
+                        // Busquemos comprobantes recientes con el MISMO pdf_url que el nuestro O un cuit/monto parecido que no sea este ID
+                        // Como N8N quizas recarga el archivo, busquemos el mas reciente del mismo tenant hecho por n8n (o simplemente los de ultimos minutos)
+                        const fiveMinsAgo = new Date(Date.now() - 5 * 60000).toISOString();
+                        const { data: duplicates } = await supabase.from('contable_comprobantes')
+                            .select('id, pdf_url, monto_original, cuit_emisor')
+                            .eq('tenant_id', tenant.id)
+                            .gt('created_at', fiveMinsAgo)
+                            .neq('id', attachingToId)
+                            .order('created_at', { ascending: false })
+                            .limit(5);
+
+                        // Si hay un duplicado claro originado ahora mismo por upload del CSV
+                        // N8n en su webhook inserta basandose en la subida, asumimos que el primer result reciente coincidente es el culpable
+                        const culpableDuplicado = duplicates?.find(d =>
+                            // Puede que N8N haya usado nuestro fileUrl exacto o uno parecido, o tenga montos parecidos
+                            (compPost && Number(d.monto_original) === Number(compPost.monto_original)) ||
+                            (compPost && d.cuit_emisor && d.cuit_emisor === compPost.cuit_emisor) ||
+                            (d.pdf_url && fileUrl && d.pdf_url.includes(fileName))
+                        );
+
+                        if (compOriginal && compPost) {
+                            const errs = [];
+                            if (Math.abs(Number(compOriginal.monto_original) - Number(compPost.monto_original)) > 1) {
+                                errs.push(`El importe original ($${compOriginal.monto_original}) no coincide con el extraído del PDF ($${compPost.monto_original}).`);
+                            }
+                            if (compOriginal.cuit_emisor && compPost.cuit_emisor && compOriginal.cuit_emisor !== compPost.cuit_emisor) {
+                                errs.push(`El CUIT original (${compOriginal.cuit_emisor}) no coincide con la factura (${compPost.cuit_emisor}).`);
+                            }
+
+                            if (errs.length > 0) {
+                                const confirmar = confirm(`ATENCIÓN - Discrepancias en la factura cargada:\n\n${errs.join('\n')}\n\n¿Desea mantener la factura vinculada a este comprobante de todos modos? (Cancelar desvinculará el PDF)`);
+
+                                if (!confirmar) {
+                                    // Rollback: quitamos el pdf_url del comprobante al que se lo adjuntamos
+                                    await supabase.from('contable_comprobantes')
+                                        .update({ pdf_url: null })
+                                        .eq('id', attachingToId);
+                                    addToast('warning', 'Cancelado', 'Se ha cancelado la vinculación y el pdf fue retirado.');
+
+                                    // Y si N8N nos traicionó creando uno secundario, lo matamos
+                                    if (culpableDuplicado) {
+                                        await supabase.from('contable_comprobantes').delete().eq('id', culpableDuplicado.id);
+                                    }
+
+                                } else {
+                                    // Aceptó las diferencias, pero igual matamos el clon si n8n lo creó
+                                    if (culpableDuplicado) {
+                                        console.log("Limpiando duplicado residual de n8n", culpableDuplicado.id);
+                                        await supabase.from('contable_comprobantes').delete().eq('id', culpableDuplicado.id);
+                                    }
+                                }
+                            } else {
+                                // Coinciden, pero si n8n igual nos clonó el comprobante, lo matamos
+                                if (culpableDuplicado) {
+                                    console.log("Limpiando duplicado residual de n8n", culpableDuplicado.id);
+                                    await supabase.from('contable_comprobantes').delete().eq('id', culpableDuplicado.id);
+                                }
+                                addToast('success', 'Factura procesada', 'El comprobante fue adjuntado correctamente y los datos coinciden.');
+                            }
+                        } else if (culpableDuplicado) {
+                            // Caso raro, limpiamos duplicado por las dudas
+                            await supabase.from('contable_comprobantes').delete().eq('id', culpableDuplicado.id);
+                        }
+
+                        reset();
+                    }, 4000); // 4 secs para darle respiro a n8n
+                } else {
+                    console.warn("n8n no respondió correctamente al adjuntar factura.");
+                    reset();
+                }
+            } catch (n8nErr) {
+                console.error('Error enviando a n8n update:', n8nErr);
+                reset(); // Refrescamos pase lo que pase
+            }
+        } catch (err: any) {
+            console.error('Error attaching file:', err);
+            addToast('error', 'Error Upload', err.message);
+        } finally {
+            setUploading(false);
+            setAttachingToId(null);
+            if (attachFileInputRef.current) attachFileInputRef.current.value = '';
         }
     };
 
@@ -222,6 +367,14 @@ export default function Comprobantes() {
 
     return (
         <>
+            <input
+                type="file"
+                ref={attachFileInputRef}
+                style={{ display: 'none' }}
+                accept=".pdf,image/*"
+                onChange={handleAttachInvoiceFile}
+            />
+
             {/* Command Bar */}
             {cmdOpen && <CommandBar onClose={() => setCmdOpen(false)} />}
 
@@ -280,7 +433,7 @@ export default function Comprobantes() {
                 {tabs.map(tab => (
                     <button
                         key={tab.key}
-                        className={`tab-btn${activeTab === tab.key ? ' active' : ''}`}
+                        className={`tab - btn${activeTab === tab.key ? ' active' : ''} `}
                         onClick={() => handleTab(tab.key)}
                     >
                         {tab.icon} {tab.label}
@@ -459,6 +612,7 @@ export default function Comprobantes() {
                         }}
                         sortCol={sortCol}
                         sortDir={sortDir}
+                        onAttachInvoice={handleAttachInvoiceClick}
                     />
                 </>
             )}
@@ -578,7 +732,7 @@ export default function Comprobantes() {
                                         if (dupes && dupes.length > 0) {
                                             results.push({
                                                 name: file.name, status: 'ok',
-                                                msg: `⚠️ Procesado, pero ya existe${dupes.length > 1 ? 'n' : ''} ${dupes.length} comprobante${dupes.length > 1 ? 's' : ''} con el mismo número (${row.numero_comprobante})`,
+                                                msg: `⚠️ Procesado, pero ya existe${dupes.length > 1 ? 'n' : ''} ${dupes.length} comprobante${dupes.length > 1 ? 's' : ''} con el mismo número(${row.numero_comprobante})`,
                                                 duplicate: true, duplicateCount: dupes.length, data,
                                             });
                                             continue; // skip the normal push below
@@ -588,7 +742,7 @@ export default function Comprobantes() {
                                 results.push({ name: file.name, status: 'ok', msg: 'Procesado correctamente', data });
                             } else {
                                 const errText = await resp.text().catch(() => resp.statusText);
-                                results.push({ name: file.name, status: 'error', msg: `Error ${resp.status}: ${errText}` });
+                                results.push({ name: file.name, status: 'error', msg: `Error ${resp.status}: ${errText} ` });
                             }
                         } catch (err: unknown) {
                             const errMsg = err instanceof Error ? err.message : 'Error de red';
@@ -629,7 +783,7 @@ export default function Comprobantes() {
                             onDragLeave={() => setDragOver(false)}
                             onClick={() => document.getElementById('pdf-file-input')?.click()}
                             style={{
-                                border: `2px dashed ${dragOver ? '#3b82f6' : '#cbd5e1'}`,
+                                border: `2px dashed ${dragOver ? '#3b82f6' : '#cbd5e1'} `,
                                 borderRadius: 12, padding: '2.5rem 2rem', textAlign: 'center',
                                 background: dragOver ? '#eff6ff' : '#f8fafc',
                                 cursor: 'pointer', transition: 'all 0.2s ease',
@@ -697,7 +851,7 @@ export default function Comprobantes() {
                                     <div key={i} style={{
                                         borderRadius: 10, marginBottom: 12, overflow: 'hidden',
                                         background: r.duplicate ? '#fffbeb' : r.status === 'ok' ? '#f0fdf4' : '#fef2f2',
-                                        border: `1px solid ${r.duplicate ? '#fde68a' : r.status === 'ok' ? '#bbf7d0' : '#fecaca'}`,
+                                        border: `1px solid ${r.duplicate ? '#fde68a' : r.status === 'ok' ? '#bbf7d0' : '#fecaca'} `,
                                     }}>
                                         {/* Header */}
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px' }}>

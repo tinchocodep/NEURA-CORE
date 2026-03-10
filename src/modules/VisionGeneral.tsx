@@ -112,12 +112,12 @@ export default function VisionGeneral() {
         if (!tenant) return;
         loadAll();
 
-        const channel = supabase.channel('vision-general-comprobantes')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'contable_comprobantes', filter: `tenant_id=eq.${tenant.id}` },
-                () => loadAll()
-            )
+        const channel = supabase.channel('vision-general-metrics')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'contable_comprobantes', filter: `tenant_id=eq.${tenant.id}` }, () => loadAll())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'contable_proveedores', filter: `tenant_id=eq.${tenant.id}` }, () => loadAll())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'contable_clientes', filter: `tenant_id=eq.${tenant.id}` }, () => loadAll())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'treasury_accounts', filter: `tenant_id=eq.${tenant.id}` }, () => loadAll())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'treasury_transactions', filter: `tenant_id=eq.${tenant.id}` }, () => loadAll())
             .subscribe();
 
         return () => { supabase.removeChannel(channel); };

@@ -7,6 +7,7 @@ import {
     ChevronRight, ChevronDown, Package, Mail
 } from 'lucide-react';
 import jsPDF from 'jspdf';
+import { useSearchParams } from 'react-router-dom';
 import { DocumentViewer } from '../../shared/components/DocumentViewer';
 
 // --- Types ---
@@ -105,9 +106,13 @@ function newLineaId() {
 
 export default function Comprobantes() {
     const { tenant } = useTenant();
+    const [searchParams, setSearchParams] = useSearchParams();
 
     // Tab state
-    const [activeTab, setActiveTab] = useState<TabKey>('listado');
+    const [activeTab, setActiveTab] = useState<TabKey>(() => {
+        const t = searchParams.get('tab');
+        return (t === 'crear' || t === 'upload' || t === 'listado') ? t as TabKey : 'listado';
+    });
 
     // Listado state
     const [comprobantes, setComprobantes] = useState<Comprobante[]>([]);
@@ -124,10 +129,11 @@ export default function Comprobantes() {
     const [formTipoComprobante, setFormTipoComprobante] = useState('');
     const [formMoneda, setFormMoneda] = useState('ARS');
     const [formTipoCambio, setFormTipoCambio] = useState('');
-    const [formProveedorId, setFormProveedorId] = useState('');
-    const [formClienteId, setFormClienteId] = useState('');
+    const [formProveedorId, setFormProveedorId] = useState(searchParams.get('proveedor_id') || '');
+    const [formClienteId, setFormClienteId] = useState(searchParams.get('cliente_id') || '');
     const [formProductoServicioId, setFormProductoServicioId] = useState('');
     const [formCentroCostoId, setFormCentroCostoId] = useState('');
+    const [formCategoriaId, setFormCategoriaId] = useState('');
     const [formDescripcion, setFormDescripcion] = useState('');
     const [formObservaciones, setFormObservaciones] = useState('');
     const [lineas, setLineas] = useState<LineaDetalle[]>([
@@ -187,6 +193,19 @@ export default function Comprobantes() {
         loadCatalogs();
     }, [tenant, filtroTipo, filtroEstado]);
 
+    useEffect(() => {
+        if (searchParams.get('cliente_id')) {
+            setFormTipo('venta');
+        } else if (searchParams.get('proveedor_id') && activeTab !== 'upload') {
+            setFormTipo('compra');
+        }
+
+        // Clean up search params after initialization to prevent sticky state
+        if (searchParams.has('tab') || searchParams.has('proveedor_id') || searchParams.has('cliente_id')) {
+            setSearchParams({}, { replace: true });
+        }
+    }, []);
+
     async function loadComprobantes() {
         setLoading(true);
         let query = supabase
@@ -212,16 +231,39 @@ export default function Comprobantes() {
     }
 
     async function loadCatalogs() {
-        const [{ data: provs }, { data: clis }, { data: prods }, { data: centros }] = await Promise.all([
-            supabase.from('contable_proveedores').select('id, razon_social, cuit, condicion_fiscal, email, producto_servicio_default_id').eq('tenant_id', tenant!.id).eq('activo', true).order('razon_social'),
-            supabase.from('contable_clientes').select('id, razon_social, cuit').eq('tenant_id', tenant!.id).eq('activo', true).order('razon_social'),
+        const [{ data: provs }, { data: clis }, { data: prods }, { data: centros }, { data: cats }] = await Promise.all([
+            supabase.from('contable_proveedores').select('id, razon_social, cuit, condicion_fiscal, email, producto_servicio_default_id, categoria_default_id').eq('tenant_id', tenant!.id).eq('activo', true).order('razon_social'),
+            supabase.from('contable_clientes').select('id, razon_social, cuit, categoria_default_id').eq('tenant_id', tenant!.id).eq('activo', true).order('razon_social'),
             supabase.from('contable_productos_servicio').select('id, nombre, grupo').eq('tenant_id', tenant!.id).eq('activo', true).order('nombre'),
             supabase.from('contable_centros_costo').select('id, nombre').eq('tenant_id', tenant!.id).eq('activo', true).order('nombre'),
+            supabase.from('contable_categorias').select('id, nombre, tipo').eq('tenant_id', tenant!.id).order('nombre'),
         ]);
-        setProveedores((provs || []) as Proveedor[]);
-        setClientes((clis || []) as Cliente[]);
+        const pList = (provs || []) as Proveedor[];
+        const cList = (clis || []) as Cliente[];
+        setProveedores(pList);
+        setClientes(cList);
         setProductosServicio((prods || []) as ProductoServicio[]);
         setCentrosCosto((centros || []) as CentroCosto[]);
+        setCategorias((cats || []) as { id: string, nombre: string, tipo: string }[]);
+
+        if (formClienteId) {
+            const cli = cList.find(x => x.id === formClienteId);
+            if (cli) {
+                setEntitySearch(cli.razon_social);
+                // Also autofill categoria if possible and empty
+                if (cli.categoria_default_id && !formCategoriaId) {
+                    setFormCategoriaId(cli.categoria_default_id);
+                }
+            }
+        } else if (formProveedorId) {
+            const prov = pList.find(x => x.id === formProveedorId);
+            if (prov) {
+                setEntitySearch(prov.razon_social);
+                if (prov.categoria_default_id && !formCategoriaId) {
+                    setFormCategoriaId(prov.categoria_default_id);
+                }
+            }
+        }
     }
 
     async function handleAction(id: string, action: ComprobanteAction) {
@@ -256,15 +298,24 @@ export default function Comprobantes() {
         }
     }, [formProveedorId, formClienteId]);
 
-    // Auto-fill producto/servicio from proveedor's default config
+    // Auto-fill producto/servicio and categoria from entity's default config
     useEffect(() => {
         if (formTipo === 'compra' && formProveedorId) {
             const prov = proveedores.find(p => p.id === formProveedorId);
             if (prov?.producto_servicio_default_id && !formProductoServicioId) {
                 setFormProductoServicioId(prov.producto_servicio_default_id);
             }
+            if (prov?.categoria_default_id && !formCategoriaId) {
+                setFormCategoriaId(prov.categoria_default_id);
+            }
         }
-    }, [formProveedorId, formTipo]);
+        if (formTipo === 'venta' && formClienteId) {
+            const cli = clientes.find(c => c.id === formClienteId);
+            if (cli?.categoria_default_id && !formCategoriaId) {
+                setFormCategoriaId(cli.categoria_default_id);
+            }
+        }
+    }, [formProveedorId, formClienteId, formTipo, proveedores, clientes]);
 
     function addLinea() {
         setLineas(prev => [...prev, { id: newLineaId(), producto_servicio_id: '', descripcion: '', cantidad: 1, precio_unitario: 0, iva_porcentaje: 21 }]);
@@ -493,6 +544,7 @@ export default function Comprobantes() {
             cliente_id: formTipo === 'venta' ? (formClienteId || null) : null,
             producto_servicio_id: formProductoServicioId || (lineas.length === 1 && lineas[0].producto_servicio_id ? lineas[0].producto_servicio_id : null),
             centro_costo_id: formCentroCostoId || null,
+            categoria_id: formCategoriaId || null,
             moneda: formMoneda,
             monto_original: montoOriginal,
             tipo_cambio: tipoCambio,
@@ -533,6 +585,7 @@ export default function Comprobantes() {
         setFormClienteId('');
         setFormProductoServicioId('');
         setFormCentroCostoId('');
+        setFormCategoriaId('');
         setFormTipoCambio('');
         setLineas([{ id: newLineaId(), producto_servicio_id: '', descripcion: '', cantidad: 1, precio_unitario: 0, iva_porcentaje: 21 }]);
         setEntitySearch('');
@@ -1198,6 +1251,15 @@ export default function Comprobantes() {
                                     <select className="form-input" value={formCentroCostoId} onChange={e => setFormCentroCostoId(e.target.value)}>
                                         <option value="">Sin asignar</option>
                                         {centrosCosto.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label>Categoría</label>
+                                    <select className="form-input" value={formCategoriaId} onChange={e => setFormCategoriaId(e.target.value)}>
+                                        <option value="">Sin asignar</option>
+                                        {categorias.filter(c => c.tipo === (formTipo === 'compra' ? 'egreso' : 'ingreso') || c.tipo === 'ambos').map(c => (
+                                            <option key={c.id} value={c.id}>{c.nombre}</option>
+                                        ))}
                                     </select>
                                 </div>
                             </div>

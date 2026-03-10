@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
-import { Search, Plus, Building2, Edit2, X, Save, Trash2, Eye } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Plus, Building2, Edit2, X, Save, Trash2, Eye, Send } from 'lucide-react';
 import { SkeletonTable } from '../../shared/components/SkeletonKit';
 import Entity360Panel from './Entity360Panel';
 
@@ -11,16 +12,27 @@ interface Cliente {
     razon_social: string;
     segmento: string | null;
     activo: boolean;
+    categoria_default: { id: string; nombre: string; color: string; tipo: string; } | null;
+}
+
+interface Categoria {
+    id: string;
+    nombre: string;
+    tipo: 'ingreso' | 'gasto' | 'ambos';
+    color: string;
 }
 
 export default function Clientes() {
     const { tenant } = useTenant();
+    const navigate = useNavigate();
     const [clientes, setClientes] = useState<Cliente[]>([]);
+    const [categorias, setCategorias] = useState<Categoria[]>([]);
     const [loading, setLoading] = useState(true);
     const [busqueda, setBusqueda] = useState('');
+    const [categoriaFilter, setCategoriaFilter] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [editando, setEditando] = useState<Cliente | null>(null);
-    const [form, setForm] = useState({ razon_social: '', cuit: '', segmento: '' });
+    const [form, setForm] = useState({ razon_social: '', cuit: '', segmento: '', categoria_default_id: '' });
     const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
 
     // Pagination state
@@ -28,7 +40,7 @@ export default function Clientes() {
 
     useEffect(() => {
         setVisibleCount(50);
-    }, [busqueda]);
+    }, [busqueda, categoriaFilter]);
 
     useEffect(() => {
         if (!tenant) return;
@@ -37,24 +49,31 @@ export default function Clientes() {
 
     async function load() {
         setLoading(true);
-        const { data } = await supabase.from('contable_clientes')
-            .select('id, cuit, razon_social, segmento, activo')
-            .eq('tenant_id', tenant!.id)
-            .eq('activo', true)
-            .order('razon_social');
-        setClientes((data || []) as any);
+        const [{ data: clis }, { data: cats }] = await Promise.all([
+            supabase.from('contable_clientes')
+                .select('id, cuit, razon_social, segmento, activo, categoria_default:contable_categorias(id, nombre, color, tipo)')
+                .eq('tenant_id', tenant!.id)
+                .eq('activo', true)
+                .order('razon_social'),
+            supabase.from('contable_categorias')
+                .select('id, nombre, tipo, color')
+                .eq('tenant_id', tenant!.id)
+                .order('nombre')
+        ]);
+        setClientes((clis || []) as any);
+        setCategorias((cats || []) as Categoria[]);
         setLoading(false);
     }
 
     function openNew() {
         setEditando(null);
-        setForm({ razon_social: '', cuit: '', segmento: '' });
+        setForm({ razon_social: '', cuit: '', segmento: '', categoria_default_id: '' });
         setShowModal(true);
     }
 
     function openEdit(c: Cliente) {
         setEditando(c);
-        setForm({ razon_social: c.razon_social, cuit: c.cuit || '', segmento: c.segmento || '' });
+        setForm({ razon_social: c.razon_social, cuit: c.cuit || '', segmento: c.segmento || '', categoria_default_id: c.categoria_default?.id || '' });
         setShowModal(true);
     }
 
@@ -64,6 +83,7 @@ export default function Clientes() {
             razon_social: form.razon_social.trim(),
             cuit: form.cuit.trim() || null,
             segmento: form.segmento || null,
+            categoria_default_id: form.categoria_default_id || null,
         };
         if (editando) {
             await supabase.from('contable_clientes').update(payload).eq('id', editando.id);
@@ -80,11 +100,17 @@ export default function Clientes() {
         load();
     }
 
-    const filtered = busqueda
-        ? clientes.filter(c =>
-            c.razon_social.toLowerCase().includes(busqueda.toLowerCase()) ||
-            (c.cuit || '').includes(busqueda)
-        ) : clientes;
+    const filtered = clientes.filter(c => {
+        if (busqueda && !c.razon_social.toLowerCase().includes(busqueda.toLowerCase()) && !(c.cuit || '').includes(busqueda)) return false;
+        if (categoriaFilter) {
+            if (categoriaFilter === '__none__') {
+                if (c.categoria_default) return false;
+            } else {
+                if (c.categoria_default?.id !== categoriaFilter) return false;
+            }
+        }
+        return true;
+    });
 
     const segmentoBadge = (s: string | null) => {
         if (s === 'corp') return <span className="badge badge-info">Corp</span>;
@@ -105,15 +131,30 @@ export default function Clientes() {
             </div>
 
             <div className="card" style={{ padding: '0.75rem 1.25rem', marginBottom: '1.25rem' }}>
-                <div style={{ position: 'relative' }}>
-                    <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
-                    <input
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ position: 'relative', flex: 1, minWidth: 250 }}>
+                        <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+                        <input
+                            className="form-input"
+                            placeholder="Buscar por razón social o CUIT..."
+                            value={busqueda}
+                            onChange={e => setBusqueda(e.target.value)}
+                            style={{ paddingLeft: 38, height: 40 }}
+                        />
+                    </div>
+
+                    <select
                         className="form-input"
-                        placeholder="Buscar por razón social o CUIT..."
-                        value={busqueda}
-                        onChange={e => setBusqueda(e.target.value)}
-                        style={{ paddingLeft: 38, height: 40 }}
-                    />
+                        value={categoriaFilter}
+                        onChange={e => setCategoriaFilter(e.target.value)}
+                        style={{ height: 40, fontSize: '0.85rem', padding: '0 0.5rem', minWidth: 200, maxWidth: 260, borderRadius: 8, border: categoriaFilter ? '2px solid #1958E0' : '1px solid #e2e8f0', background: categoriaFilter ? 'rgba(25, 88, 224, 0.08)' : '#fff', color: categoriaFilter ? '#1958E0' : '#64748b' }}
+                    >
+                        <option value="">Categoría: Todas</option>
+                        <option value="__none__">⚠️ Sin asignar</option>
+                        {categorias.filter(c => c.tipo !== 'gasto').map(c => (
+                            <option key={c.id} value={c.id}>{c.nombre}</option>
+                        ))}
+                    </select>
                 </div>
             </div>
 
@@ -138,19 +179,36 @@ export default function Clientes() {
                                     <th>Razón Social</th>
                                     <th>CUIT</th>
                                     <th>Segmento</th>
-                                    <th style={{ width: 80 }}></th>
+                                    <th style={{ width: 140 }}></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {filtered.slice(0, visibleCount).map(c => (
                                     <tr key={c.id} onClick={() => setSelectedCliente(c)} style={{ cursor: 'pointer' }}>
-                                        <td style={{ fontWeight: 600 }}>{c.razon_social}</td>
+                                        <td style={{ fontWeight: 600 }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                                <span>{c.razon_social}</span>
+                                                {c.categoria_default && (
+                                                    <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '0.15rem 0.5rem', borderRadius: 99, background: `${c.categoria_default.color}15`, color: c.categoria_default.color, border: `1px solid ${c.categoria_default.color}30`, alignSelf: 'flex-start' }}>
+                                                        {c.categoria_default.nombre}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
                                         <td style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: c.cuit ? 'var(--text-sub)' : 'var(--text-faint)' }}>
                                             {c.cuit || 'Sin CUIT'}
                                         </td>
                                         <td>{segmentoBadge(c.segmento)}</td>
                                         <td>
-                                            <div style={{ display: 'flex', gap: 4 }}>
+                                            <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); navigate(`/contable/comprobantes?tab=crear&cliente_id=${c.id}`); }}
+                                                    className="btn btn-primary"
+                                                    style={{ padding: '0.3rem 0.5rem', fontSize: '0.7rem', gap: 4 }}
+                                                    title="Emitir factura a este cliente"
+                                                >
+                                                    <Send size={12} /> Factura
+                                                </button>
                                                 <button onClick={e => { e.stopPropagation(); setSelectedCliente(c); }} className="btn btn-secondary" style={{ padding: '0.3rem 0.5rem' }} title="Vista 360°">
                                                     <Eye size={14} />
                                                 </button>
@@ -210,6 +268,20 @@ export default function Clientes() {
                                 <option value="">Sin definir</option>
                                 <option value="biz">Biz (PyME)</option>
                                 <option value="corp">Corp (Corporativo)</option>
+                            </select>
+                        </div>
+
+                        <div className="form-group">
+                            <label className="form-label">Categoría Default</label>
+                            <select
+                                className="form-input"
+                                value={form.categoria_default_id}
+                                onChange={e => setForm({ ...form, categoria_default_id: e.target.value })}
+                            >
+                                <option value="">Seleccione una categoría</option>
+                                {categorias.filter(c => c.tipo !== 'gasto').map(c => (
+                                    <option key={c.id} value={c.id}>{c.nombre}</option>
+                                ))}
                             </select>
                         </div>
 

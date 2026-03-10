@@ -33,11 +33,12 @@ interface Props {
     onSort?: (colId: string, dir: 'asc' | 'desc') => void;
     sortCol?: string | null;
     sortDir?: 'asc' | 'desc';
+    onAttachInvoice?: (id: string) => void;
 }
 
 export default function ComprobantesGrid({
     data, totalCount, isLoading, hasMore, onLoadMore, onAction, onDocPreview,
-    selectedIds, onSelectionChange, onSort, sortCol, sortDir,
+    selectedIds, onSelectionChange, onSort, sortCol, sortDir, onAttachInvoice
 }: Props) {
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -257,6 +258,15 @@ export default function ComprobantesGrid({
                             title="Ver documento"
                         >
                             <Eye size={13} color="var(--color-info)" />
+                        </button>
+                    )}
+                    {!c.pdf_url && (c.tipo_comprobante === 'Sin Factura' || !c.numero_comprobante) && onAttachInvoice && (
+                        <button
+                            className="btn btn-ghost btn-icon btn-sm"
+                            onClick={() => onAttachInvoice(c.id)}
+                            title="Adjuntar PDF/Comprobante"
+                        >
+                            <UploadIcon size={13} color="var(--color-text-secondary)" />
                         </button>
                     )}
                     {(c.estado === 'clasificado' || c.estado === 'pendiente') && (

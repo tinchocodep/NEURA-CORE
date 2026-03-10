@@ -21,6 +21,7 @@ interface Proveedor {
     email: string | null;
     direccion: string | null;
     observaciones: string | null;
+    categoria_default: { id: string; nombre: string; color: string; tipo: string; } | null;
 }
 
 interface ProductoServicio {
@@ -28,6 +29,13 @@ interface ProductoServicio {
     nombre: string;
     grupo: string | null;
     tipo: string;
+}
+
+interface Categoria {
+    id: string;
+    nombre: string;
+    tipo: 'ingreso' | 'gasto' | 'ambos';
+    color: string;
 }
 
 interface ProviderStats {
@@ -72,6 +80,7 @@ interface ProveedorForm {
     email: string;
     direccion: string;
     observaciones: string;
+    categoria_default_id: string;
 }
 
 // --- Constants ---
@@ -96,6 +105,7 @@ const INITIAL_FORM: ProveedorForm = {
     email: '',
     direccion: '',
     observaciones: '',
+    categoria_default_id: '',
 };
 
 /** Invoice type suggestion based on fiscal conditions */
@@ -119,6 +129,7 @@ export default function Proveedores() {
     const navigate = useNavigate();
     const [proveedores, setProveedores] = useState<Proveedor[]>([]);
     const [productos, setProductos] = useState<ProductoServicio[]>([]);
+    const [categorias, setCategorias] = useState<Categoria[]>([]);
     const [loading, setLoading] = useState(true);
     const [busqueda, setBusqueda] = useState('');
     const [showModal, setShowModal] = useState(false);
@@ -147,6 +158,7 @@ export default function Proveedores() {
     const [prodFilterSearch, setProdFilterSearch] = useState('');
     const [condicionFilter, setCondicionFilter] = useState<string>('');
     const [casoRojoFilter, setCasoRojoFilter] = useState<'all' | 'si' | 'no'>('all');
+    const [categoriaFilter, setCategoriaFilter] = useState<string>('');
 
     // Pagination state
     const [visibleCount, setVisibleCount] = useState(50);
@@ -154,7 +166,7 @@ export default function Proveedores() {
     // Reset pagination on filter change
     useEffect(() => {
         setVisibleCount(50);
-    }, [busqueda, productoFilter, condicionFilter, casoRojoFilter, activityFilter]);
+    }, [busqueda, productoFilter, condicionFilter, casoRojoFilter, activityFilter, categoriaFilter]);
 
 
 
@@ -165,9 +177,9 @@ export default function Proveedores() {
 
     async function load() {
         setLoading(true);
-        const [{ data: provs }, { data: prods }] = await Promise.all([
+        const [{ data: provs }, { data: prods }, { data: cats }] = await Promise.all([
             supabase.from('contable_proveedores')
-                .select('id, cuit, razon_social, es_caso_rojo, es_favorito, activo, condicion_fiscal, telefono, email, direccion, observaciones, producto_servicio_default:contable_productos_servicio(id, nombre, grupo)')
+                .select('id, cuit, razon_social, es_caso_rojo, es_favorito, activo, condicion_fiscal, telefono, email, direccion, observaciones, producto_servicio_default:contable_productos_servicio(id, nombre, grupo), categoria_default:contable_categorias(id, nombre, color, tipo)')
                 .eq('tenant_id', tenant!.id)
                 .eq('activo', true)
                 .order('es_favorito', { ascending: false })
@@ -178,9 +190,14 @@ export default function Proveedores() {
                 .eq('activo', true)
                 .order('grupo', { nullsFirst: false })
                 .order('nombre'),
+            supabase.from('contable_categorias')
+                .select('id, nombre, tipo, color')
+                .eq('tenant_id', tenant!.id)
+                .order('nombre')
         ]);
         setProveedores((provs || []) as unknown as Proveedor[]);
         setProductos((prods || []) as ProductoServicio[]);
+        setCategorias((cats || []) as Categoria[]);
 
         // Load activity stats
         if (provs && provs.length > 0) {
@@ -284,6 +301,7 @@ export default function Proveedores() {
             email: p.email || '',
             direccion: p.direccion || '',
             observaciones: p.observaciones || '',
+            categoria_default_id: p.categoria_default?.id || '',
         });
         resetArcaState();
         setProdFilter('');
@@ -393,6 +411,7 @@ export default function Proveedores() {
             email: form.email.trim() || null,
             direccion: form.direccion.trim() || null,
             observaciones: form.observaciones.trim() || null,
+            categoria_default_id: form.categoria_default_id || null,
         };
         if (editando) {
             await supabase.from('contable_proveedores').update(payload).eq('id', editando.id);
@@ -439,6 +458,14 @@ export default function Proveedores() {
                 if (p.condicion_fiscal) return false;
             } else {
                 if (p.condicion_fiscal !== condicionFilter) return false;
+            }
+        }
+        // Categoria filter
+        if (categoriaFilter) {
+            if (categoriaFilter === '__none__') {
+                if (p.categoria_default) return false;
+            } else {
+                if (p.categoria_default?.id !== categoriaFilter) return false;
             }
         }
         // Caso rojo filter
@@ -753,6 +780,19 @@ export default function Proveedores() {
 
                         <select
                             className="form-input"
+                            value={categoriaFilter}
+                            onChange={e => setCategoriaFilter(e.target.value)}
+                            style={{ height: 32, fontSize: '0.75rem', padding: '0 0.5rem', minWidth: 160, maxWidth: 220, borderRadius: 8, border: categoriaFilter ? '2px solid #1958E0' : '1px solid #e2e8f0', background: categoriaFilter ? 'rgba(25, 88, 224, 0.08)' : '#fff', color: categoriaFilter ? '#1958E0' : '#64748b' }}
+                        >
+                            <option value="">Categoría: Todas</option>
+                            <option value="__none__">⚠️ Sin asignar</option>
+                            {categorias.filter(c => c.tipo !== 'ingreso').map(c => (
+                                <option key={c.id} value={c.id}>{c.nombre}</option>
+                            ))}
+                        </select>
+
+                        <select
+                            className="form-input"
                             value={casoRojoFilter}
                             onChange={e => setCasoRojoFilter(e.target.value as 'all' | 'si' | 'no')}
                             style={{ height: 32, fontSize: '0.75rem', padding: '0 0.5rem', minWidth: 130, maxWidth: 160, borderRadius: 8 }}
@@ -835,6 +875,11 @@ export default function Proveedores() {
                                                         {p.es_caso_rojo && (
                                                             <span className="badge badge-warning" style={{ fontSize: '0.6rem', flexShrink: 0 }}>ROJO</span>
                                                         )}
+                                                        {p.categoria_default && (
+                                                            <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '0.15rem 0.5rem', borderRadius: 99, background: `${p.categoria_default.color}15`, color: p.categoria_default.color, border: `1px solid ${p.categoria_default.color}30` }}>
+                                                                {p.categoria_default.nombre}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 </td>
                                                 <td style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: p.cuit ? 'var(--text-sub)' : 'var(--text-faint)' }}>
@@ -888,7 +933,7 @@ export default function Proveedores() {
                                                 <td>
                                                     <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
                                                         <button
-                                                            onClick={(e) => { e.stopPropagation(); navigate(`/contable/comprobantes?tab=crear&proveedor_id=${p.id}`); }}
+                                                            onClick={(e) => { e.stopPropagation(); navigate(`/contable/comprobantes?tab=upload&proveedor_id=${p.id}`); }}
                                                             className="btn btn-primary"
                                                             style={{ padding: '0.3rem 0.5rem', fontSize: '0.7rem', gap: 4 }}
                                                             title="Emitir factura a este proveedor"
@@ -1065,6 +1110,19 @@ export default function Proveedores() {
                                 <div style={{ marginBottom: '1.25rem' }}>
                                     <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
                                         Clasificación Contable
+                                    </div>
+                                    <div className="form-group" style={{ marginBottom: '1rem' }}>
+                                        <label className="form-label">Categoría Default</label>
+                                        <select
+                                            className="form-input"
+                                            value={form.categoria_default_id}
+                                            onChange={e => setForm({ ...form, categoria_default_id: e.target.value })}
+                                        >
+                                            <option value="">Seleccione una categoría</option>
+                                            {categorias.filter(c => c.tipo !== 'ingreso').map(c => (
+                                                <option key={c.id} value={c.id}>{c.nombre}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                     <div className="form-group" style={{ marginBottom: 0 }}>
                                         <label className="form-label">Producto/Servicio Default</label>
@@ -1487,7 +1545,7 @@ export default function Proveedores() {
                     to { transform: translateX(0); }
                 }
             `}</style>
-            </div>
+            </div >
 
             {/* Document Preview Modal */}
             {

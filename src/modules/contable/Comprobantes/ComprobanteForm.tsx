@@ -145,11 +145,15 @@ export default function ComprobanteForm({ onSuccess }: Props) {
             supabase.from('contable_categorias').select('id, nombre, color, tipo').eq('tenant_id', tenant.id).order('nombre'),
         ]).then(([{ data: p }, { data: c }, { data: ps }, { data: cc }, { data: cat }]) => {
             const provs = (p || []) as Proveedor[];
+            const clis = (c || []) as Cliente[];
             setProveedores(provs);
-            setClientes((c || []) as Cliente[]);
+            setClientes(clis);
             setProductos((ps || []) as ProductoServicio[]);
             setCentros((cc || []) as CentroCosto[]);
             setCategorias((cat || []) as any);
+
+            let changedParams = false;
+            const newParams = new URLSearchParams(searchParams);
 
             // Pre-fill proveedor from URL param (quick action from Proveedores)
             const preProvId = searchParams.get('proveedor_id');
@@ -160,9 +164,24 @@ export default function ComprobanteForm({ onSuccess }: Props) {
                     setEntitySearch(prov.razon_social);
                     setTipo('compra');
                 }
-                // Clean the param so it doesn't persist
-                const newParams = new URLSearchParams(searchParams);
                 newParams.delete('proveedor_id');
+                changedParams = true;
+            }
+
+            // Pre-fill cliente from URL param (quick action from Clientes)
+            const preCliId = searchParams.get('cliente_id');
+            if (preCliId) {
+                const cli = clis.find(x => x.id === preCliId);
+                if (cli) {
+                    setClienteId(cli.id);
+                    setEntitySearch(cli.razon_social);
+                    setTipo('venta');
+                }
+                newParams.delete('cliente_id');
+                changedParams = true;
+            }
+
+            if (changedParams) {
                 setSearchParams(newParams, { replace: true });
             }
         });
