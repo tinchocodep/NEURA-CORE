@@ -2,7 +2,8 @@ import { Outlet, Navigate, Link, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
     LogOut, LayoutDashboard, ArrowRightLeft, FileText, Activity, Landmark,
-    Briefcase, Zap, Users, BookOpen, Tag, Building2, Settings, ClipboardList
+    Briefcase, Zap, Users, BookOpen, Tag, Building2, Settings, ClipboardList,
+    Receipt
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
@@ -94,6 +95,7 @@ export default function Layout() {
     const allTesoreriaItems = [
         { name: 'Proyecciones', path: '/tesoreria', icon: LayoutDashboard },
         { name: 'Movimientos', path: '/tesoreria/movimientos', icon: ArrowRightLeft },
+        { name: 'Órdenes de Pago', path: '/tesoreria/ordenes-pago', icon: Receipt },
         { name: 'Comprobantes', path: '/tesoreria/comprobantes', icon: FileText },
         { name: 'Cajas', path: '/tesoreria/cajas', icon: Landmark },
         { name: 'Bancos', path: '/tesoreria/bancos', icon: Landmark },
