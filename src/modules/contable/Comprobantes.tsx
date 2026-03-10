@@ -41,8 +41,8 @@ interface Comprobante {
     centro_costo: { nombre: string } | null;
 }
 
-interface Proveedor { id: string; razon_social: string; cuit: string | null; condicion_fiscal: string | null; email: string | null; producto_servicio_default_id: string | null; }
-interface Cliente { id: string; razon_social: string; cuit: string | null; }
+interface Proveedor { id: string; razon_social: string; cuit: string | null; condicion_fiscal: string | null; email: string | null; producto_servicio_default_id: string | null; categoria_default_id: string | null; }
+interface Cliente { id: string; razon_social: string; cuit: string | null; categoria_default_id: string | null; }
 interface ProductoServicio { id: string; nombre: string; grupo: string; }
 interface CentroCosto { id: string; nombre: string; }
 
@@ -147,6 +147,7 @@ export default function Comprobantes() {
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [productosServicio, setProductosServicio] = useState<ProductoServicio[]>([]);
     const [centrosCosto, setCentrosCosto] = useState<CentroCosto[]>([]);
+    const [categorias, setCategorias] = useState<{ id: string, nombre: string, tipo: string }[]>([]);
     const [expandedProductFolders, setExpandedProductFolders] = useState<Set<string>>(new Set());
     const [prodSearchFilter, setProdSearchFilter] = useState('');
     const [showProductSelector, setShowProductSelector] = useState(false);

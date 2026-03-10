@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import { useToast } from '../../contexts/ToastContext';
-import { Landmark, Upload, ChevronRight, RefreshCw, ChevronDown, ChevronUp, Search, Filter, AlertTriangle, CheckCircle, Trash2, Clock, Link2 } from 'lucide-react';
+import { Upload, RefreshCw, ChevronDown, ChevronUp, Trash2, Clock, Link2 } from 'lucide-react';
 
 // ── Parse Argentinian number format ──────────────────────────────────────────
 function parseArgNum(s: string): number {
