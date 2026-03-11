@@ -13,6 +13,10 @@
             "destination": "https://n8n.neuracall.net/webhook/enviar_por_mail"
         },
         {
+            "source": "/api/webhook-chatbot",
+            "destination": "https://n8n.neuracall.net/webhook-test/neuracore-chat"
+        },
+        {
             "source": "/(.*)",
             "destination": "/index.html"
         }
