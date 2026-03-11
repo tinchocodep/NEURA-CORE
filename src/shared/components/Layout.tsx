@@ -130,11 +130,12 @@ export default function Layout() {
     const sectionItems = isContable ? contableItems : isTesoreria ? tesoreriaItems : [];
 
     return (
-        <div
-            className={`app-shell${agentCollapsed ? ' agent-collapsed' : ''}`}
-        >
-            {/* ──────────────── SIDEBAR ──────────────── */}
-            <aside className="sidebar">
+        <>
+            <div
+                className={`app-shell${agentCollapsed ? ' agent-collapsed' : ''}`}
+            >
+                {/* ──────────────── SIDEBAR ──────────────── */}
+                <aside className="sidebar">
                 {/* Logo */}
                 <div className="sidebar-logo">
                     {tenant?.logo_url ? (
@@ -326,9 +327,10 @@ export default function Layout() {
                 collapsed={agentCollapsed}
                 onToggle={() => setAgentCollapsed(c => !c)}
             />
+            </div>
 
             {/* ──────────────── N8N CHATBOT ──────────────── */}
             <ChatbotAsistente />
-        </div>
+        </>
     );
 }
