@@ -17,7 +17,7 @@ export default defineConfig({
       '/api/n8n-comprobantes': {
         target: 'https://n8n.neuracall.net',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/n8n-comprobantes/, '/webhook/CargaDeComprobantes'),
+        rewrite: (path) => path.replace(/^\/api\/n8n-comprobantes/, '/webhook-test/CargaDeComprobantes'),
       },
       // Proxy email sending to n8n
       '/api/n8n-send-email': {
