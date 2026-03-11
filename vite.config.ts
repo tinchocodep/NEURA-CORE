@@ -25,6 +25,12 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/n8n-send-email/, '/webhook/enviar_por_mail'),
       },
+      // Proxy Chatbot to n8n (Test)
+      '/api/webhook-chatbot': {
+        target: 'https://n8n.neuracall.net',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/webhook-chatbot/, '/webhook-test/neuracore-chat'),
+      }
     },
   },
 })

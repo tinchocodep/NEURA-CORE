@@ -37,7 +37,8 @@ export const ChatbotAsistente: React.FC = () => {
         setIsTyping(true);
 
         try {
-            const webhookUrl = 'https://n8n.neuracall.net/webhook-test/neuracore-chat'; 
+            // Se usa el proxy interno para evitar problemas de CORS en Vercel
+            const webhookUrl = '/api/webhook-chatbot'; 
             
             const response = await fetch(webhookUrl, {
                 method: 'POST',
