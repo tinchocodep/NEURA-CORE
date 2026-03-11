@@ -10,6 +10,7 @@ import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
 import { useEffect, useState } from 'react';
 import AgentMonitorPanel from '../../design-system/components/AgentMonitor/AgentMonitorPanel';
+import ChatbotAsistente from './ChatbotAsistente';
 
 export default function Layout() {
     const { user, signOut, role, userModules, displayName } = useAuth() as any;
@@ -325,6 +326,9 @@ export default function Layout() {
                 collapsed={agentCollapsed}
                 onToggle={() => setAgentCollapsed(c => !c)}
             />
+
+            {/* ──────────────── N8N CHATBOT ──────────────── */}
+            <ChatbotAsistente />
         </div>
     );
 }
