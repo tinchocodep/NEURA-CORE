@@ -14,7 +14,7 @@
         },
         {
             "source": "/api/webhook-chatbot",
-            "destination": "https://n8n.neuracall.net/webhook-test/neuracore-chat"
+            "destination": "https://n8n.neuracall.net/webhook/neuracore-chat"
         },
         {
             "source": "/(.*)",
