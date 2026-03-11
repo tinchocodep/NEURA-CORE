@@ -83,12 +83,15 @@ export const ChatbotAsistente: React.FC = () => {
             position: 'fixed',
             bottom: '2rem',
             right: '2rem',
-            zIndex: 9999,
+            zIndex: 999999, // Superponer sobre cualquier layout
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'flex-end',
-            gap: '1rem'
+            gap: '1rem',
+            pointerEvents: 'auto'
         }}>
+            {/* Mensaje oculto de debug en el source code para vercel */}
+            <span style={{ display:'none' }}>Chatbot Mounted</span>
             {/* Chat Window */}
             {isOpen && (
                 <div className="card" style={{
