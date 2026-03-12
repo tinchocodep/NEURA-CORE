@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
 import { Search, Plus, Edit2, AlertTriangle, X, Save, Trash2, Loader, Globe, ChevronDown, ChevronRight, Download, Clock, FileText, Filter, Eye, Send, Star } from 'lucide-react';
@@ -60,6 +60,9 @@ interface ComprobanteResumen {
     source: string | null;
     created_at: string;
     observaciones: string | null;
+    is_op?: boolean;
+    op_monto_retenciones?: number;
+    op_monto_bruto?: number;
 }
 
 /** Shape returned by the ARCA n8n webhook */
@@ -127,6 +130,7 @@ function sugerirTipoFactura(condEmisor: string | null, condReceptor: string | nu
 export default function Proveedores() {
     const { tenant } = useTenant();
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [proveedores, setProveedores] = useState<Proveedor[]>([]);
     const [productos, setProductos] = useState<ProductoServicio[]>([]);
     const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -174,6 +178,21 @@ export default function Proveedores() {
         if (!tenant) return;
         load();
     }, [tenant]);
+
+    // Auto-open detail if navigated with ?id=
+    useEffect(() => {
+        const idParam = searchParams.get('id');
+        if (idParam && proveedores.length > 0 && !selectedProvider) {
+            const p = proveedores.find(x => x.id === idParam);
+            if (p) {
+                openDetail(p);
+                // Clear the id from URL so it doesn't reopen on close
+                const newParams = new URLSearchParams(searchParams);
+                newParams.delete('id');
+                setSearchParams(newParams, { replace: true });
+            }
+        }
+    }, [searchParams, proveedores, selectedProvider, setSearchParams]);
 
     async function load() {
         setLoading(true);
@@ -254,13 +273,56 @@ export default function Proveedores() {
     async function openDetail(p: Proveedor) {
         setSelectedProvider(p);
         setDetailLoading(true);
-        const { data } = await supabase
-            .from('contable_comprobantes')
-            .select('id, fecha, tipo_comprobante, numero_comprobante, monto_ars, monto_original, estado, descripcion, pdf_url, cuit_emisor, cuit_receptor, source, created_at, observaciones')
-            .eq('proveedor_id', p.id)
-            .order('fecha', { ascending: false })
-            .limit(20);
-        setDetailComprobantes((data || []) as ComprobanteResumen[]);
+        const [{ data: facturas }, { data: ordenes }] = await Promise.all([
+            supabase
+                .from('contable_comprobantes')
+                .select('id, fecha, tipo_comprobante, numero_comprobante, monto_ars, monto_original, estado, descripcion, pdf_url, cuit_emisor, cuit_receptor, source, created_at, observaciones')
+                .eq('proveedor_id', p.id)
+                .order('fecha', { ascending: false })
+                .limit(20),
+            
+            supabase
+                .from('tesoreria_ordenes_pago')
+                .select('id, numero_op, fecha, estado, monto_neto, monto_bruto, monto_retenciones, archivo_url, created_at')
+                .eq('proveedor_id', p.id)
+                .order('fecha', { ascending: false })
+                .limit(20)
+        ]);
+
+        let combined: ComprobanteResumen[] = [];
+        
+        if (facturas) {
+            combined = combined.concat(facturas.map(f => ({ ...f, is_op: false })));
+        }
+        
+        if (ordenes) {
+            combined = combined.concat(ordenes.map(o => ({
+                id: o.id,
+                fecha: o.fecha,
+                tipo_comprobante: 'Orden de Pago',
+                numero_comprobante: o.numero_op,
+                monto_ars: o.monto_neto,
+                monto_original: o.monto_neto,
+                estado: o.estado,
+                descripcion: 'Pago a Proveedor',
+                pdf_url: o.archivo_url,
+                cuit_emisor: null,
+                cuit_receptor: null,
+                source: null,
+                created_at: o.created_at,
+                observaciones: null,
+                is_op: true,
+                op_monto_retenciones: o.monto_retenciones,
+                op_monto_bruto: o.monto_bruto
+            })));
+        }
+
+        combined.sort((a, b) => {
+            if (a.fecha !== b.fecha) return new Date(b.fecha).getTime() - new Date(a.fecha).getTime();
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
+
+        setDetailComprobantes(combined.slice(0, 30));
         setDetailLoading(false);
     }
 
@@ -1410,34 +1472,41 @@ export default function Proveedores() {
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                                     {detailComprobantes.map(c => {
                                                         const expanded = expandedComprobante === c.id;
+                                                        const isOp = !!c.is_op;
+                                                        
+                                                        // Styles based on type
+                                                        const iconContainerBg = isOp ? '#fdf4ff' : (c.estado === 'inyectado' ? '#f0fdf4' : c.estado === 'aprobado' ? '#eff6ff' : '#f8f9fc');
+                                                        const iconColor = isOp ? '#d946ef' : (c.estado === 'inyectado' ? '#10b981' : c.estado === 'aprobado' ? '#1958E0' : '#94a3b8');
+                                                        const itemBg = isOp ? (expanded ? '#faf5ff' : '#fdfbff') : (expanded ? '#f0f4ff' : '#fafbfd');
+                                                        
                                                         return (
-                                                            <div key={c.id} style={{ borderRadius: 10, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                                                            <div key={`${c.id}-${isOp ? 'op' : 'comp'}`} style={{ borderRadius: 10, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
                                                                 <div
                                                                     onClick={() => setExpandedComprobante(expanded ? null : c.id)}
                                                                     style={{
-                                                                        padding: '0.75rem', background: expanded ? '#f0f4ff' : '#fafbfd',
+                                                                        padding: '0.75rem', background: itemBg,
                                                                         display: 'flex', alignItems: 'center', gap: 12,
                                                                         cursor: 'pointer',
                                                                     }}
                                                                 >
                                                                     <div style={{
                                                                         width: 36, height: 36, borderRadius: 8,
-                                                                        background: c.estado === 'inyectado' ? '#f0fdf4' : c.estado === 'aprobado' ? '#eff6ff' : '#f8f9fc',
+                                                                        background: iconContainerBg,
                                                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                                         flexShrink: 0,
                                                                     }}>
-                                                                        <FileText size={16} color={c.estado === 'inyectado' ? '#10b981' : c.estado === 'aprobado' ? '#1958E0' : '#94a3b8'} />
+                                                                        {isOp ? <Send size={16} color={iconColor} /> : <FileText size={16} color={iconColor} />}
                                                                     </div>
                                                                     <div style={{ flex: 1, minWidth: 0 }}>
                                                                         <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a' }}>
-                                                                            {c.tipo_comprobante || 'Comprobante'} {c.numero_comprobante && `#${c.numero_comprobante}`}
+                                                                            {c.tipo_comprobante || (isOp ? 'Orden de Pago' : 'Comprobante')} {c.numero_comprobante && `#${c.numero_comprobante}`}
                                                                         </div>
                                                                         <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
-                                                                            {new Date(c.fecha).toLocaleDateString('es-AR')} · {c.estado}
+                                                                            {new Date(c.fecha).toLocaleDateString('es-AR')} · <span style={{ color: isOp ? '#d946ef' : '' }}>{c.estado}</span>
                                                                         </div>
                                                                     </div>
                                                                     <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', flexShrink: 0 }}>
-                                                                        ${Number(c.monto_ars || c.monto_original || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                                                                        {isOp ? '-' : ''}${Number(c.monto_ars || c.monto_original || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                                                                     </div>
                                                                     {c.pdf_url && (
                                                                         <button
@@ -1456,8 +1525,14 @@ export default function Proveedores() {
                                                                     <button
                                                                         onClick={async (e) => {
                                                                             e.stopPropagation();
-                                                                            if (!confirm(`¿Eliminar comprobante ${c.numero_comprobante || ''}? Esta acción no se puede deshacer.`)) return;
-                                                                            await supabase.from('contable_comprobantes').delete().eq('id', c.id);
+                                                                            const tipoStr = isOp ? 'Orden de Pago' : 'Comprobante';
+                                                                            if (!confirm(`¿Eliminar ${tipoStr} ${c.numero_comprobante || ''}? Esta acción no se puede deshacer.`)) return;
+                                                                            
+                                                                            if (isOp) {
+                                                                                await supabase.from('tesoreria_ordenes_pago').delete().eq('id', c.id);
+                                                                            } else {
+                                                                                await supabase.from('contable_comprobantes').delete().eq('id', c.id);
+                                                                            }
                                                                             setDetailComprobantes(prev => prev.filter(x => x.id !== c.id));
                                                                         }}
                                                                         style={{
@@ -1466,7 +1541,7 @@ export default function Proveedores() {
                                                                             background: '#fef2f2', border: '1px solid #fecaca',
                                                                             cursor: 'pointer', transition: 'background 0.15s',
                                                                         }}
-                                                                        title="Eliminar comprobante"
+                                                                        title={isOp ? "Eliminar Orden de Pago" : "Eliminar comprobante"}
                                                                     >
                                                                         <X size={14} color="#ef4444" />
                                                                     </button>
@@ -1485,18 +1560,33 @@ export default function Proveedores() {
                                                                                 <div style={{ color: '#0f172a', marginTop: 1 }}>{c.descripcion}</div>
                                                                             </div>
                                                                         )}
-                                                                        {c.cuit_emisor && (
+                                                                        
+                                                                        {isOp && (
+                                                                             <>
+                                                                                <div>
+                                                                                    <span style={{ color: '#64748b', fontWeight: 600, fontSize: '0.68rem', textTransform: 'uppercase' }}>Monto Bruto</span>
+                                                                                    <div style={{ color: '#0f172a', marginTop: 1 }}>${Number(c.op_monto_bruto || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>
+                                                                                </div>
+                                                                                <div>
+                                                                                    <span style={{ color: '#64748b', fontWeight: 600, fontSize: '0.68rem', textTransform: 'uppercase' }}>Total Retenciones</span>
+                                                                                    <div style={{ color: '#ef4444', marginTop: 1 }}>-${Number(c.op_monto_retenciones || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>
+                                                                                </div>
+                                                                             </>
+                                                                        )}
+
+                                                                        {c.cuit_emisor && !isOp && (
                                                                             <div>
                                                                                 <span style={{ color: '#64748b', fontWeight: 600, fontSize: '0.68rem', textTransform: 'uppercase' }}>CUIT Emisor</span>
                                                                                 <div style={{ color: '#0f172a', fontFamily: 'monospace', marginTop: 1 }}>{c.cuit_emisor}</div>
                                                                             </div>
                                                                         )}
-                                                                        {c.cuit_receptor && (
+                                                                        {c.cuit_receptor && !isOp && (
                                                                             <div>
                                                                                 <span style={{ color: '#64748b', fontWeight: 600, fontSize: '0.68rem', textTransform: 'uppercase' }}>CUIT Receptor</span>
                                                                                 <div style={{ color: '#0f172a', fontFamily: 'monospace', marginTop: 1 }}>{c.cuit_receptor}</div>
                                                                             </div>
                                                                         )}
+                                                                        
                                                                         {c.source && (
                                                                             <div>
                                                                                 <span style={{ color: '#64748b', fontWeight: 600, fontSize: '0.68rem', textTransform: 'uppercase' }}>Source</span>
@@ -1516,7 +1606,7 @@ export default function Proveedores() {
                                                                         {c.observaciones && (
                                                                             <div style={{ gridColumn: '1 / -1' }}>
                                                                                 <span style={{ color: '#64748b', fontWeight: 600, fontSize: '0.68rem', textTransform: 'uppercase' }}>Observaciones</span>
-                                                                                <div style={{ color: '#0f172a', marginTop: 1 }}>{c.observaciones}</div>
+                                                                                <div style={{ color: '#0f172a', marginTop: 1, whiteSpace: 'pre-line' }}>{c.observaciones}</div>
                                                                             </div>
                                                                         )}
                                                                     </div>

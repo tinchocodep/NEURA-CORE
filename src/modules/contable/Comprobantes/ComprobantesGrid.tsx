@@ -11,13 +11,14 @@ import TagPicker from './TagPicker';
 const fmt = (n: number) =>
     new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n);
 
-const ESTADO_BADGE: Record<ComprobanteEstado, { bg: string; color: string; label: string }> = {
+const ESTADO_BADGE: Record<string, { bg: string; color: string; label: string }> = {
     pendiente: { bg: 'var(--color-warning-dim)', color: 'var(--color-warning)', label: 'Pendiente' },
     clasificado: { bg: 'var(--color-info-dim)', color: 'var(--color-info)', label: 'Clasificado' },
     aprobado: { bg: 'var(--color-success-dim)', color: 'var(--color-success)', label: 'Aprobado' },
     inyectado: { bg: 'var(--color-success-dim)', color: 'var(--color-success)', label: 'Inyectado' },
     error: { bg: 'var(--color-danger-dim)', color: 'var(--color-danger)', label: 'Error' },
     rechazado: { bg: 'var(--color-danger-dim)', color: 'var(--color-danger)', label: 'Rechazado' },
+    pagado: { bg: 'var(--color-success-dim)', color: 'var(--color-success)', label: 'Pagado' },
 };
 
 interface Props {
@@ -237,7 +238,7 @@ export default function ComprobantesGrid({
             header: 'Estado',
             width: 110,
             accessor: (c) => {
-                const cfg = ESTADO_BADGE[c.estado];
+                const cfg = ESTADO_BADGE[c.estado] || { bg: 'var(--color-warning-dim)', color: 'var(--color-warning)', label: c.estado || 'Desconocido' };
                 return (
                     <span className="badge" style={{ background: cfg.bg, color: cfg.color }}>
                         {cfg.label}

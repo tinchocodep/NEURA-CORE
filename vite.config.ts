@@ -31,6 +31,12 @@ export default defineConfig({
         target: 'https://n8n.neuracall.net',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/webhook-chatbot/, '/webhook/neuracore-chat'),
+      },
+      // Proxy Ordenes de Pago a n8n
+      '/api/n8n-ordenes-pago': {
+        target: 'https://n8n.neuracall.net',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/n8n-ordenes-pago/, '/webhook/ordenes%20de%20pago'),
       }
     },
   },

@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import { useTenant } from '../../../contexts/TenantContext';
 import { useToast } from '../../../contexts/ToastContext';
-import { Building2, Save, FileText, Plus, Trash2, Calendar } from 'lucide-react';
+import { Building2, Save, FileText, Plus, Trash2, Calendar, X, Download, Mail, Send, Loader, User } from 'lucide-react';
+import { DocumentViewer } from '../../../shared/components/DocumentViewer';
 
 interface Proveedor {
     id: string;
@@ -16,6 +18,8 @@ interface Comprobante {
     numero_comprobante: string;
     tipo_comprobante: string;
     monto_ars: number;
+    monto_original: number;
+    moneda: string;
     estado: string;
 }
 
@@ -37,6 +41,7 @@ const TIPOS_RETENCION = [
 export default function NuevaOrdenPago({ onAceptar }: { onAceptar?: () => void }) {
     const { tenant } = useTenant();
     const { addToast } = useToast();
+    const navigate = useNavigate();
     
     const [proveedores, setProveedores] = useState<Proveedor[]>([]);
     const [proveedorId, setProveedorId] = useState('');
@@ -51,6 +56,12 @@ export default function NuevaOrdenPago({ onAceptar }: { onAceptar?: () => void }
     const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
     const [observaciones, setObservaciones] = useState('');
     const [generando, setGenerando] = useState(false);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+    // Email state
+    const [showEmailInput, setShowEmailInput] = useState(false);
+    const [emailDestino, setEmailDestino] = useState('');
+    const [enviandoEmail, setEnviandoEmail] = useState(false);
 
     useEffect(() => {
         if (!tenant) return;
@@ -71,7 +82,7 @@ export default function NuevaOrdenPago({ onAceptar }: { onAceptar?: () => void }
         setLoadingComprobantes(true);
         // Traer facturas de compra pendientes o aprobadas
         supabase.from('contable_comprobantes')
-            .select('id, fecha, numero_comprobante, tipo_comprobante, monto_ars, estado')
+            .select('id, fecha, numero_comprobante, tipo_comprobante, monto_ars, monto_original, moneda, estado')
             .eq('tenant_id', tenant.id)
             .eq('proveedor_id', proveedorId)
             // Solo asegurarnos de que sean compras y no ventas mal asignadas
@@ -119,9 +130,9 @@ export default function NuevaOrdenPago({ onAceptar }: { onAceptar?: () => void }
         setRetenciones(prev => prev.filter(r => r.id !== id));
     };
 
-    // Computations
     const comprobantesSeleccionados = comprobantes.filter(c => selectedIds.has(c.id));
-    const montoBruto = comprobantesSeleccionados.reduce((acc, c) => acc + (c.monto_ars || 0), 0);
+    // Fallback: usar monto_original si monto_ars es 0 o null
+    const montoBruto = comprobantesSeleccionados.reduce((acc, c) => acc + (c.monto_ars || c.monto_original || 0), 0);
     const montoRetenciones = retenciones.reduce((acc, r) => acc + (r.monto || 0), 0);
     const montoNeto = montoBruto - montoRetenciones;
 
@@ -159,7 +170,7 @@ export default function NuevaOrdenPago({ onAceptar }: { onAceptar?: () => void }
                 tenant_id: tenant.id,
                 op_id: opId,
                 comprobante_id: c.id,
-                monto_pagado: c.monto_ars
+                monto_pagado: c.monto_ars || c.monto_original || 0
             }));
             const { error: compError } = await supabase.from('tesoreria_op_comprobantes').insert(compInserts);
             if (compError) throw compError;
@@ -178,10 +189,18 @@ export default function NuevaOrdenPago({ onAceptar }: { onAceptar?: () => void }
                 if (retError) throw retError;
             }
             
-            // 4. Actualizar estado de las facturas (para que viajen a pagado o en_proceso_pago)
-            await supabase.from('contable_comprobantes')
-                .update({ estado: 'en_proceso_pago' })
-                .in('id', Array.from(selectedIds));
+            // 4. Actualizar estado de las facturas (marcarlas como pagadas)
+            const idsArray = Array.from(selectedIds);
+            if (idsArray.length > 0) {
+                const { error: updErr } = await supabase
+                    .from('contable_comprobantes')
+                    .update({ estado: 'pagado' })
+                    .in('id', idsArray);
+                if (updErr) {
+                    console.error('Error actualizando estado de comprobantes:', updErr);
+                    // No cortamos el flujo para que termine de generar la OP
+                }
+            }
 
             // 5. Postear a N8N Webhook para la Orden de Pago
             try {
@@ -196,11 +215,61 @@ export default function NuevaOrdenPago({ onAceptar }: { onAceptar?: () => void }
                     observaciones: observaciones,
                     tenant_id: tenant.id
                 };
-                await fetch('/api/n8n-ordenes-pago', {
+
+                const response = await fetch('/api/n8n-ordenes-pago', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
+                
+                // N8n responde un JSON con el path del archivo subido a Supabase Storage
+                if (response.ok) {
+                    try {
+                        const responseText = await response.text();
+                        if (!responseText) {
+                            addToast('warning', 'N8n se ejecutó pero devolvió una respuesta vacía.');
+                        } else {
+                            const jsonResArray = JSON.parse(responseText);
+                            
+                            // N8n puede devolver el array completo o un objeto directo dependiendo el nodo final
+                            const storageData = Array.isArray(jsonResArray) ? jsonResArray[0] : jsonResArray;
+
+                            // Revisamos si devuelve directamente la URL publica o el Key de AWS
+                            const publicUrl = storageData.archivo_url 
+                                ? storageData.archivo_url 
+                                : (storageData.Key 
+                                    ? `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/comprobantes/${storageData.Key.replace('comprobantes/', '')}` 
+                                    : null);
+
+                            if (publicUrl) {
+                                // Guardar la URL en la orden de pago para acceder luego
+                                const { error: updateErr } = await supabase
+                                    .from('tesoreria_ordenes_pago')
+                                    .update({ archivo_url: publicUrl })
+                                    .eq('id', opId);
+                                    
+                                if (updateErr) {
+                                    console.error('Error guardando la URL oficial en DB:', updateErr);
+                                    addToast('warning', 'OP Generada pero hubo un error enlazando el PDF. Revisa N8n.');
+                                } else {
+                                    addToast('success', 'PDF resguardado en Supabase exitosamente.');
+                                }
+                                
+                                // Mostrar el PDF localmente en la App en vez de nueva pestaña
+                                setPreviewUrl(publicUrl);
+                                
+                            } else {
+                                addToast('warning', 'N8n se ejecutó pero no devolvió ninguna URL válida esperada.');
+                                console.log('Respuesta cruda de N8N:', storageData);
+                            }
+                        }
+                    } catch (err) {
+                        console.error('Error procesando la respuesta de N8n:', err);
+                        addToast('error', 'Error interpretando respuesta de n8n');
+                    }
+                } else {
+                    addToast('error', `Fallo al disparar N8N: ${response.status}`);
+                }
             } catch (webhookErr) {
                 console.warn('El webhook de N8N falló o no está disponible, pero la OP se creó en BD.', webhookErr);
             }
@@ -222,6 +291,38 @@ export default function NuevaOrdenPago({ onAceptar }: { onAceptar?: () => void }
             setGenerando(false);
         }
     };
+
+    const handleSendEmail = async () => {
+        if (!emailDestino) return;
+        setEnviandoEmail(true);
+        try {
+            const resp = await fetch('/api/n8n-send-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    to: emailDestino,
+                    subject: `Orden de Pago Generada - Administracion`,
+                    body: `Adjuntamos la orden de pago oficial emitida a través de NeuraCore.`,
+                    pdf_url: previewUrl,
+                    from_name: tenant?.name || 'Administración',
+                    from_email: tenant?.email || undefined
+                })
+            });
+            if (resp.ok) {
+                addToast('success', 'Email enviado con éxito');
+                setShowEmailInput(false);
+                setEmailDestino('');
+            } else {
+                throw new Error('Error en el envío');
+            }
+        } catch (err) {
+            console.error('[Orden Pago] Email error:', err);
+            addToast('error', 'No se pudo enviar el correo');
+        } finally {
+             setEnviandoEmail(false);
+        }
+    };
+
 
     return (
         <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2rem', animation: 'fadeIn 0.3s ease-out', paddingBottom: '3rem' }}>
@@ -304,11 +405,15 @@ export default function NuevaOrdenPago({ onAceptar }: { onAceptar?: () => void }
                                             <td style={{ verticalAlign: 'middle' }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                                     <FileText size={14} color="var(--color-text-muted)" />
-                                                    <span>{c.tipo_comprobante} {c.numero_comprobante}</span>
+                                                    <span>{c.tipo_comprobante || 'Factura'} {c.numero_comprobante || 'S/N'}</span>
                                                 </div>
                                             </td>
                                             <td style={{ textAlign: 'right', fontWeight: 600, verticalAlign: 'middle' }}>
-                                                ${c.monto_ars?.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                                                {c.monto_ars ? (
+                                                    `$${c.monto_ars.toLocaleString('es-AR', { minimumFractionDigits: 2 })} ARS`
+                                                ) : (
+                                                    `${c.moneda === 'USD' ? 'u$s' : '$'} ${(c.monto_original || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })} ${c.moneda || 'ARS'}`
+                                                )}
                                             </td>
                                             <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
                                                 <span className={`badge badge-${c.estado === 'pendiente' ? 'warning' : c.estado === 'error' || c.estado === 'rechazado' ? 'danger' : c.estado === 'clasificado' ? 'info' : 'success'}`}>
@@ -419,6 +524,99 @@ export default function NuevaOrdenPago({ onAceptar }: { onAceptar?: () => void }
                                     </>
                                 )}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* PREVIEW MODAL DE ORDEN DE PAGO */}
+            {previewUrl && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/75 backdrop-blur-sm sm:p-6" style={{ margin: 0 }}>
+                    <div className="w-full max-w-5xl bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col" style={{ height: '90vh' }}>
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50 relative">
+                            <div>
+                                <h3 className="text-lg font-semibold text-slate-800">Orden de Pago Generada</h3>
+                                <p className="text-sm text-slate-500">Visualizando documento desde Supabase Storage</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => {
+                                        navigate(`/contable/proveedores?id=${proveedorId}`);
+                                        setPreviewUrl(null);
+                                        if (onAceptar) onAceptar(); 
+                                    }}
+                                    className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg shadow-sm hover:bg-blue-100 transition-colors"
+                                >
+                                    <User className="w-4 h-4" /> 
+                                    <span>Ver Proveedor</span>
+                                </button>
+
+                                <div className="w-px h-6 bg-slate-200 mx-1"></div>
+
+                                {/* Email Dropdown */}
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setShowEmailInput(!showEmailInput)}
+                                        className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg shadow-sm hover:bg-slate-50 transition-colors"
+                                    >
+                                        <Mail className="w-4 h-4" /> 
+                                        <span>Email</span>
+                                    </button>
+                                    {showEmailInput && (
+                                        <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-100 p-4 z-50">
+                                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                                                Enviar al Proveedor
+                                            </label>
+                                            <div className="flex gap-2">
+                                                <input 
+                                                    type="email" 
+                                                    className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    placeholder="correo@ejemplo.com"
+                                                    value={emailDestino}
+                                                    onChange={e => setEmailDestino(e.target.value)}
+                                                />
+                                                <button 
+                                                    onClick={handleSendEmail}
+                                                    disabled={!emailDestino || enviandoEmail}
+                                                    className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                                                >
+                                                    {enviandoEmail ? <Loader className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <a 
+                                    href={previewUrl}
+                                    download
+                                    target="_blank"
+                                    className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg shadow-sm hover:bg-slate-50 transition-colors cursor-pointer"
+                                    rel="noreferrer"
+                                >
+                                    <Download className="w-4 h-4" />
+                                    <span>Descargar</span>
+                                </a>
+
+                                <div className="w-px h-6 bg-slate-200 mx-1"></div>
+
+                                <button
+                                    onClick={() => {
+                                        setPreviewUrl(null);
+                                        if (onAceptar) onAceptar(); 
+                                    }}
+                                    className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
+                                    title="Cerrar y volver"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </div>
+                        <div className="flex-1 bg-slate-100 overflow-hidden relative">
+                            <DocumentViewer 
+                                url={previewUrl as string} 
+                                style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' }}
+                            />
                         </div>
                     </div>
                 </div>

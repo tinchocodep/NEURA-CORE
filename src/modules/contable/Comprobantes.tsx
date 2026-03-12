@@ -12,7 +12,7 @@ import { DocumentViewer } from '../../shared/components/DocumentViewer';
 
 // --- Types ---
 
-type ComprobanteEstado = 'pendiente' | 'clasificado' | 'aprobado' | 'inyectado' | 'error' | 'rechazado';
+type ComprobanteEstado = 'pendiente' | 'clasificado' | 'aprobado' | 'inyectado' | 'error' | 'rechazado' | 'pagado';
 type ComprobanteAction = 'aprobar' | 'rechazar' | 'inyectar';
 type TabKey = 'listado' | 'crear' | 'upload';
 
@@ -83,6 +83,7 @@ const estadoBadge: Record<string, { cls: string; label: string }> = {
     inyectado: { cls: 'badge-success', label: 'Inyectado' },
     error: { cls: 'badge-danger', label: 'Error' },
     rechazado: { cls: 'badge-danger', label: 'Rechazado' },
+    pagado: { cls: 'badge-success', label: 'Pagado' },
 };
 
 function sugerirTipoFactura(condEmisor: string | null, condReceptor: string | null): string | null {
@@ -598,12 +599,12 @@ export default function Comprobantes() {
     // Filtered entities for dropdown
     const entityList = formTipo === 'compra' ? proveedores : clientes;
     const filteredEntities = entitySearch
-        ? entityList.filter(e => e.razon_social.toLowerCase().includes(entitySearch.toLowerCase()) || (e.cuit || '').includes(entitySearch))
+        ? entityList.filter(e => (e.razon_social || '').toLowerCase().includes(entitySearch.toLowerCase()) || (e.cuit || '').includes(entitySearch))
         : entityList;
 
     const filtered = busqueda
         ? comprobantes.filter(c =>
-            c.numero_comprobante.toLowerCase().includes(busqueda.toLowerCase()) ||
+            (c.numero_comprobante || '').toLowerCase().includes(busqueda.toLowerCase()) ||
             ((c.proveedor as any)?.razon_social || '').toLowerCase().includes(busqueda.toLowerCase()) ||
             ((c.cliente as any)?.razon_social || '').toLowerCase().includes(busqueda.toLowerCase())
         ) : comprobantes;

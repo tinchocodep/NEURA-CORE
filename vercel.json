@@ -17,6 +17,10 @@
             "destination": "https://n8n.neuracall.net/webhook/neuracore-chat"
         },
         {
+            "source": "/api/n8n-ordenes-pago",
+            "destination": "https://n8n.neuracall.net/webhook-test/ordenes%20de%20pago"
+        },
+        {
             "source": "/(.*)",
             "destination": "/index.html"
         }
