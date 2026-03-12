@@ -1,0 +1,1 @@
+﻿src/modules/contable/Comprobantes/ComprobantesGrid.tsx(8,28): error TS6196: 'ComprobanteEstado' is declared but never used.

@@ -7,7 +7,7 @@ import { Search, Filter, Plus, Upload as UploadIcon, X, Send, FileText, CheckCir
 import * as XLSX from 'xlsx';
 import ComprobantesGrid from './ComprobantesGrid';
 import { useComprobantes } from './useComprobantes';
-import type { ComprobanteEstado } from './useComprobantes';
+
 import { CommandBar, useCommandBar } from '../../../design-system/components/CommandBar/CommandBar';
 import ComprobanteForm from './ComprobanteForm';
 import GastoIngresoForm from './GastoIngresoForm';
@@ -199,11 +199,11 @@ export default function ComprobantesIndex() {
                 addToast('error', 'Error', (err as Error).message);
             }
         } else {
-            const map: Record<string, ComprobanteEstado> = {
+            const map: Record<string, string> = {
                 aprobar: 'aprobado', rechazar: 'rechazado',
             };
             if (map[action]) {
-                await updateEstado(id, map[action]);
+                await updateEstado(id, map[action] as any);
             }
         }
     };

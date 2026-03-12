@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { DataGrid } from '../../../design-system/components/DataGrid/DataGrid';
 import type { ColumnDef } from '../../../design-system/components/DataGrid/DataGrid';
-import type { Comprobante, ComprobanteEstado } from './useComprobantes';
+import type { Comprobante } from './useComprobantes';
 import TagPicker from './TagPicker';
 
 const fmt = (n: number) =>

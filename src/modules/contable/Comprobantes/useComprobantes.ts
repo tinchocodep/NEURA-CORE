@@ -3,7 +3,7 @@ import { supabase } from '../../../lib/supabase';
 import { useTenant } from '../../../contexts/TenantContext';
 
 /* ─── Types ─────────────────────────────────────────── */
-export type ComprobanteEstado = 'pendiente' | 'clasificado' | 'aprobado' | 'inyectado' | 'error' | 'rechazado';
+export type ComprobanteEstado = 'pendiente' | 'clasificado' | 'aprobado' | 'inyectado' | 'error' | 'rechazado' | 'pagado';
 
 export interface Comprobante {
     id: string;
