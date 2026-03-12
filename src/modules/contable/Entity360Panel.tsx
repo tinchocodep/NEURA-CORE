@@ -8,18 +8,24 @@ import {
 
 /* ─── Types ─────────────────────────────────────────── */
 
-interface ComprobanteResumen {
+interface TimelineItem {
     id: string;
+    itemType: 'comprobante' | 'orden_pago';
     fecha: string;
-    tipo_comprobante: string;
-    numero_comprobante: string;
-    monto_ars: number;
-    monto_original: number;
+    titulo: string;
+    subtitulo: string;
+    monto: number;
     estado: string;
-    descripcion: string | null;
     pdf_url: string | null;
-    source: string | null;
     created_at: string;
+    
+    // Extra para comprobantes
+    source?: string | null;
+    descripcion?: string | null;
+    
+    // Extra para OPs
+    payment_method?: string | null;
+    account_name?: string | null;
 }
 
 interface EntityInfo {
@@ -75,7 +81,7 @@ const estadoBadge = (estado: string) => {
 
 export default function Entity360Panel({ entity, entityType, onClose, onDocPreview }: Entity360PanelProps) {
     const { tenant } = useTenant();
-    const [comprobantes, setComprobantes] = useState<ComprobanteResumen[]>([]);
+    const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -112,26 +118,86 @@ export default function Entity360Panel({ entity, entityType, onClose, onDocPrevi
     async function loadComprobantes() {
         setLoading(true);
         const columnId = entityType === 'proveedor' ? 'proveedor_id' : 'cliente_id';
-        const { data } = await supabase
+        
+        // 1. Fetch Comprobantes
+        const { data: compData } = await supabase
             .from('contable_comprobantes')
             .select('id, fecha, tipo_comprobante, numero_comprobante, monto_ars, monto_original, estado, descripcion, pdf_url, source, created_at')
             .eq(columnId, entity.id)
             .eq('tenant_id', tenant!.id)
             .order('fecha', { ascending: false })
             .limit(30);
-        setComprobantes((data || []) as ComprobanteResumen[]);
+            
+        // 2. Fetch OPs (only for proveedores)
+        let opData: any[] = [];
+        if (entityType === 'proveedor') {
+            const { data } = await supabase
+                .from('tesoreria_ordenes_pago')
+                .select(`
+                    id, numero_op, fecha, estado, monto_neto, archivo_url, created_at,
+                    treasury_transactions ( payment_method, treasury_accounts ( name ) )
+                `)
+                .eq('proveedor_id', entity.id)
+                .eq('tenant_id', tenant!.id)
+                .order('fecha', { ascending: false })
+                .limit(30);
+            opData = data || [];
+        }
+
+        // 3. Normalize into TimelineItem array
+        const items: TimelineItem[] = [];
+        
+        compData?.forEach((c: any) => {
+            items.push({
+                id: c.id,
+                itemType: 'comprobante',
+                fecha: c.fecha,
+                titulo: c.tipo_comprobante || 'Comprobante',
+                subtitulo: c.numero_comprobante ? `#${c.numero_comprobante}` : '',
+                monto: Number(c.monto_ars || c.monto_original || 0),
+                estado: c.estado,
+                pdf_url: c.pdf_url,
+                created_at: c.created_at,
+                source: c.source,
+                descripcion: c.descripcion
+            });
+        });
+
+        opData.forEach((op: any) => {
+            const tx = op.treasury_transactions?.[0];
+            items.push({
+                id: op.id,
+                itemType: 'orden_pago',
+                fecha: op.fecha,
+                titulo: 'Orden de Pago',
+                subtitulo: `#${op.numero_op}`,
+                monto: Number(op.monto_neto || 0),
+                estado: op.estado === 'pagada' ? 'pagada' : 'aprobada', // simplify status for timeline
+                pdf_url: op.archivo_url,
+                created_at: op.created_at,
+                payment_method: tx?.payment_method,
+                account_name: tx?.treasury_accounts?.name
+            });
+        });
+
+        // 4. Sort by date descending
+        items.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+
+        setTimelineItems(items);
         setLoading(false);
     }
 
-    // Computed stats
-    const totalComprobantes = comprobantes.length;
-    const montoTotal = comprobantes.reduce((sum, c) => sum + Number(c.monto_ars || c.monto_original || 0), 0);
-    const lastDate = comprobantes.length > 0 ? comprobantes[0].fecha : null;
+    // Computed stats (based ONLY on comprobantes to not double count debt vs payment if we don't handle balance correctly yet)
+    // For now we will show total facturado
+    const comprobantesOnly = timelineItems.filter(i => i.itemType === 'comprobante');
+    const totalComprobantes = comprobantesOnly.length;
+    const montoTotal = comprobantesOnly.reduce((sum, c) => sum + c.monto, 0);
+    const lastDate = timelineItems.length > 0 ? timelineItems[0].fecha : null;
     const activity = formatTimeAgo(lastDate);
 
-    // Group by estado
+    // Group by estado (only comprobantes)
     const byEstado: Record<string, number> = {};
-    comprobantes.forEach(c => { byEstado[c.estado] = (byEstado[c.estado] || 0) + 1; });
+    comprobantesOnly.forEach(c => { byEstado[c.estado] = (byEstado[c.estado] || 0) + 1; });
 
     const hasContactInfo = entity.telefono || entity.email || entity.direccion;
     const entityLabel = entityType === 'proveedor' ? 'Proveedor' : 'Cliente';
@@ -313,25 +379,36 @@ export default function Entity360Panel({ entity, entityType, onClose, onDocPrevi
                                 </div>
                             ))}
                         </div>
-                    ) : comprobantes.length === 0 ? (
+                    ) : timelineItems.length === 0 ? (
                         <div style={{
                             padding: '2.5rem 1rem', textAlign: 'center', borderRadius: 'var(--radius-lg)',
                             border: '1px dashed var(--color-border-subtle)', color: 'var(--color-text-muted)',
                         }}>
                             <Building2 size={32} style={{ marginBottom: 8, opacity: 0.4 }} />
-                            <div style={{ fontSize: '0.8125rem' }}>Sin comprobantes registrados</div>
+                            <div style={{ fontSize: '0.8125rem' }}>Sin historial registrado</div>
                         </div>
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            {comprobantes.map(c => {
-                                const isExpanded = expandedId === c.id;
+                            {timelineItems.map(item => {
+                                const isExpanded = expandedId === item.id;
+                                const isOp = item.itemType === 'orden_pago';
+                                
+                                // Determinar icono y color basado en tipo
+                                const IconComp = isOp ? DollarSign : FileText;
+                                const iconBg = isOp 
+                                    ? (item.estado === 'pagada' ? 'var(--color-success-dim)' : 'var(--color-warning-dim)')
+                                    : (item.estado === 'inyectado' ? 'var(--color-success-dim)' : item.estado === 'aprobado' ? 'var(--color-info-dim)' : 'var(--color-bg-surface-2)');
+                                const iconColor = isOp
+                                    ? (item.estado === 'pagada' ? 'var(--color-success)' : 'var(--color-warning)')
+                                    : (item.estado === 'inyectado' ? 'var(--color-success)' : item.estado === 'aprobado' ? 'var(--color-info)' : 'var(--color-text-muted)');
+
                                 return (
-                                    <div key={c.id} style={{
+                                    <div key={`${item.itemType}-${item.id}`} style={{
                                         borderRadius: 'var(--radius-md)',
                                         border: '1px solid var(--color-border-subtle)', overflow: 'hidden',
                                     }}>
                                         <div
-                                            onClick={() => setExpandedId(isExpanded ? null : c.id)}
+                                            onClick={() => setExpandedId(isExpanded ? null : item.id)}
                                             style={{
                                                 padding: '0.75rem', background: isExpanded ? 'var(--color-accent-dim)' : 'var(--color-bg-surface)',
                                                 display: 'flex', alignItems: 'center', gap: 10,
@@ -341,42 +418,37 @@ export default function Entity360Panel({ entity, entityType, onClose, onDocPrevi
                                             {/* Icon */}
                                             <div style={{
                                                 width: 34, height: 34, borderRadius: 'var(--radius-md)',
-                                                background: c.estado === 'inyectado' ? 'var(--color-success-dim)'
-                                                    : c.estado === 'aprobado' ? 'var(--color-info-dim)'
-                                                        : 'var(--color-bg-surface-2)',
+                                                background: iconBg,
                                                 display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                                             }}>
-                                                <FileText size={15} color={
-                                                    c.estado === 'inyectado' ? 'var(--color-success)'
-                                                        : c.estado === 'aprobado' ? 'var(--color-info)'
-                                                            : 'var(--color-text-muted)'
-                                                } />
+                                                <IconComp size={15} color={iconColor} />
                                             </div>
 
                                             {/* Info */}
                                             <div style={{ flex: 1, minWidth: 0 }}>
                                                 <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                                                    {c.tipo_comprobante || 'Comprobante'}{c.numero_comprobante && ` #${c.numero_comprobante}`}
+                                                    {item.titulo} {item.subtitulo}
                                                 </div>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.6875rem', color: 'var(--color-text-muted)', marginTop: 2 }}>
                                                     <Calendar size={10} />
-                                                    {new Date(c.fecha).toLocaleDateString('es-AR')}
+                                                    {new Date(item.fecha).toLocaleDateString('es-AR')}
                                                     <span style={{ margin: '0 2px' }}>·</span>
-                                                    {estadoBadge(c.estado)}
+                                                    {estadoBadge(item.estado)}
                                                 </div>
                                             </div>
 
                                             {/* Amount */}
                                             <div style={{
-                                                fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-primary)',
+                                                fontSize: '0.875rem', fontWeight: 700, 
+                                                color: isOp ? 'var(--color-accent)' : 'var(--color-text-primary)',
                                                 fontFamily: 'var(--font-mono)', flexShrink: 0,
                                             }}>
-                                                ${Number(c.monto_ars || c.monto_original || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                                                ${item.monto.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                                             </div>
 
-                                            {c.pdf_url && onDocPreview && (
+                                            {item.pdf_url && onDocPreview && (
                                                 <button
-                                                    onClick={e => { e.stopPropagation(); onDocPreview(c.pdf_url!.trim()); }}
+                                                    onClick={e => { e.stopPropagation(); onDocPreview(item.pdf_url!.trim()); }}
                                                     className="btn btn-ghost btn-icon"
                                                     title="Ver documento adjunto"
                                                     style={{ flexShrink: 0 }}
@@ -399,34 +471,35 @@ export default function Entity360Panel({ entity, entityType, onClose, onDocPrevi
                                                 display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem 1.5rem',
                                                 fontSize: '0.78rem',
                                             }}>
-                                                {c.descripcion && (
+                                                {item.descripcion && (
                                                     <div style={{ gridColumn: '1 / -1' }}>
                                                         <span style={{ color: 'var(--color-text-muted)', fontWeight: 600, fontSize: '0.68rem', textTransform: 'uppercase' }}>Descripción</span>
-                                                        <div style={{ color: 'var(--color-text-primary)', marginTop: 2 }}>{c.descripcion}</div>
+                                                        <div style={{ color: 'var(--color-text-primary)', marginTop: 2 }}>{item.descripcion}</div>
                                                     </div>
                                                 )}
-                                                {c.source && (
+                                                {item.source && (
                                                     <div>
                                                         <span style={{ color: 'var(--color-text-muted)', fontWeight: 600, fontSize: '0.68rem', textTransform: 'uppercase' }}>Origen</span>
                                                         <div style={{ marginTop: 2 }}>
-                                                            <span className="badge badge-muted">{c.source}</span>
+                                                            <span className="badge badge-muted">{item.source}</span>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {isOp && item.payment_method && (
+                                                    <div style={{ gridColumn: '1 / -1' }}>
+                                                        <span style={{ color: 'var(--color-text-muted)', fontWeight: 600, fontSize: '0.68rem', textTransform: 'uppercase' }}>Detalles de Pago</span>
+                                                        <div style={{ color: 'var(--color-text-primary)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                            <strong style={{textTransform: 'capitalize'}}>{item.payment_method}</strong>
+                                                            {item.account_name && <span>({item.account_name})</span>}
                                                         </div>
                                                     </div>
                                                 )}
                                                 <div>
-                                                    <span style={{ color: 'var(--color-text-muted)', fontWeight: 600, fontSize: '0.68rem', textTransform: 'uppercase' }}>Fecha Carga</span>
+                                                    <span style={{ color: 'var(--color-text-muted)', fontWeight: 600, fontSize: '0.68rem', textTransform: 'uppercase' }}>Fecha Registro</span>
                                                     <div style={{ color: 'var(--color-text-primary)', marginTop: 2 }}>
-                                                        {new Date(c.created_at).toLocaleString('es-AR')}
+                                                        {new Date(item.created_at).toLocaleString('es-AR')}
                                                     </div>
                                                 </div>
-                                                {c.monto_original !== c.monto_ars && c.monto_original > 0 && (
-                                                    <div>
-                                                        <span style={{ color: 'var(--color-text-muted)', fontWeight: 600, fontSize: '0.68rem', textTransform: 'uppercase' }}>Monto Original</span>
-                                                        <div style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
-                                                            ${Number(c.monto_original).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                                                        </div>
-                                                    </div>
-                                                )}
                                             </div>
                                         )}
                                     </div>

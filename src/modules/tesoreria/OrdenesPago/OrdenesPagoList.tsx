@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import { useTenant } from '../../../contexts/TenantContext';
-import { Calendar, Search, FileText, CheckCircle, Clock, XCircle, Trash2, X, Download, Mail, Send, Loader, User } from 'lucide-react';
+import { Calendar, Search, FileText, CheckCircle, Clock, XCircle, Trash2, X, Download, Mail, Send, Loader, User, DollarSign, Building2 } from 'lucide-react';
 import { useToast } from '../../../contexts/ToastContext';
 import { DocumentViewer } from '../../../shared/components/DocumentViewer';
+import PaymentModal from './PaymentModal';
 
 interface OrdenPago {
     id: string;
@@ -19,6 +20,7 @@ interface OrdenPago {
     proveedor: {
         razon_social: string;
     };
+    treasury_transactions?: any[];
 }
 
 export default function OrdenesPagoList() {
@@ -31,6 +33,9 @@ export default function OrdenesPagoList() {
     
     // Almacenamos toda la OP seleccionada para tener contexto en el modal (email, pdf url, id prov)
     const [selectedOp, setSelectedOp] = useState<OrdenPago | null>(null);
+    
+    // Almacenamos la OP que se va a pagar
+    const [opToPay, setOpToPay] = useState<OrdenPago | null>(null);
 
     // Email state
     const [showEmailInput, setShowEmailInput] = useState(false);
@@ -49,7 +54,12 @@ export default function OrdenesPagoList() {
                 .from('tesoreria_ordenes_pago')
                 .select(`
                     id, numero_op, fecha, estado, monto_neto, monto_bruto, monto_retenciones, archivo_url, proveedor_id,
-                    proveedor:contable_proveedores(razon_social)
+                    proveedor:contable_proveedores(razon_social),
+                    treasury_transactions(
+                        id,
+                        payment_method,
+                        treasury_accounts ( name )
+                    )
                 `)
                 .eq('tenant_id', tenant.id)
                 .order('fecha', { ascending: false })
@@ -57,12 +67,6 @@ export default function OrdenesPagoList() {
 
             if (filtroEstado !== 'todas') {
                 query = query.eq('estado', filtroEstado);
-            }
-
-            if (busqueda) {
-                // simple search doesn't work perfectly on relations without RPC, but we can do a naive filter in JS 
-                // or just search by numero_op
-                query = query.ilike('numero_op', `%${busqueda}%`);
             }
 
             const { data, error } = await query;
@@ -78,7 +82,7 @@ export default function OrdenesPagoList() {
 
     useEffect(() => {
         fetchOrdenes();
-    }, [tenant, filtroEstado, busqueda]);
+    }, [tenant, filtroEstado]);
 
     const eliminarOP = async (id: string, numero_op: string) => {
         if (!confirm(`¿Estás seguro que deseas eliminar la Orden de Pago ${numero_op} y liberar sus facturas?`)) return;
@@ -158,6 +162,11 @@ export default function OrdenesPagoList() {
         }
     };
 
+    const ordenesFiltradas = ordenes.filter(op => 
+        (op.numero_op || '').toLowerCase().includes(busqueda.toLowerCase()) || 
+        (op.proveedor?.razon_social || '').toLowerCase().includes(busqueda.toLowerCase())
+    );
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', animation: 'fadeIn 0.3s ease-out' }}>
             <div className="card" style={{ padding: '0.875rem 1rem', display: 'flex', gap: '0.625rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -165,7 +174,7 @@ export default function OrdenesPagoList() {
                     <Search size={14} color="var(--color-text-muted)" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
                     <input
                         className="form-input"
-                        placeholder="Buscar por N° OP..."
+                        placeholder="Buscar por OP o Proveedor..."
                         value={busqueda}
                         onChange={e => setBusqueda(e.target.value)}
                         style={{ paddingLeft: 32, height: 36 }}
@@ -204,30 +213,63 @@ export default function OrdenesPagoList() {
                         <tbody>
                             {loading ? (
                                 <tr><td colSpan={8} style={{ textAlign: 'center', padding: '2rem' }}>Cargando Órdenes...</td></tr>
-                            ) : ordenes.length === 0 ? (
-                                <tr><td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)' }}>No hay Órdenes de Pago emitidas</td></tr>
+                            ) : ordenesFiltradas.length === 0 ? (
+                                <tr><td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)' }}>No hay coincidencias</td></tr>
                             ) : (
-                                ordenes.map(op => (
+                                ordenesFiltradas.map(op => (
                                     <tr key={op.id}>
                                         <td>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}>
-                                                <Calendar size={14} color="var(--color-text-muted)" />
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap', color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
+                                                <Calendar size={14} />
                                                 {op.fecha}
                                             </div>
                                         </td>
-                                        <td style={{ fontWeight: 600 }}>{op.numero_op}</td>
-                                        <td>{op.proveedor?.razon_social}</td>
-                                        <td style={{ textAlign: 'right', color: 'var(--color-text-muted)' }}>
+                                        <td style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{op.numero_op}</td>
+                                        <td>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                <div style={{ width: 26, height: 26, borderRadius: '6px', background: 'var(--color-bg-surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)', flexShrink: 0 }}>
+                                                    <Building2 size={13} />
+                                                </div>
+                                                <span style={{ fontWeight: 500, color: 'var(--color-text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>{op.proveedor?.razon_social}</span>
+                                            </div>
+                                        </td>
+                                        <td style={{ textAlign: 'right', color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>
                                             ${op.monto_bruto?.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                                         </td>
-                                        <td style={{ textAlign: 'right', color: 'var(--color-danger)' }}>
+                                        <td style={{ textAlign: 'right', color: 'var(--color-danger)', fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>
                                             {op.monto_retenciones > 0 ? `-$${op.monto_retenciones.toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : '-'}
                                         </td>
-                                        <td style={{ textAlign: 'right', fontWeight: 800, color: 'var(--color-accent)' }}>
+                                        <td style={{ textAlign: 'right', fontWeight: 800, color: 'var(--color-text-primary)', fontFamily: 'var(--font-mono)', fontSize: '0.95rem' }}>
                                             ${op.monto_neto?.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                                         </td>
-                                        <td>{getEstadoBadge(op.estado)}</td>
+                                        <td>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '150px' }}>
+                                                <div style={{ display: 'flex' }}>{getEstadoBadge(op.estado)}</div>
+                                                {op.estado === 'pagada' && op.treasury_transactions && op.treasury_transactions.length > 0 && (
+                                                    <div style={{ 
+                                                        display: 'inline-flex', alignItems: 'center', gap: '4px', 
+                                                        color: 'var(--color-text-muted)', fontSize: '0.65rem', lineHeight: 1,
+                                                        background: 'var(--color-bg-surface-2)', padding: '3px 6px', borderRadius: '4px', width: 'fit-content'
+                                                    }}>
+                                                        <span style={{ textTransform: 'capitalize', fontWeight: 600 }}>{op.treasury_transactions[0]?.payment_method}</span>
+                                                        <span>•</span>
+                                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '90px' }} title={op.treasury_transactions[0]?.treasury_accounts?.name || 'Caja'}>
+                                                            {op.treasury_transactions[0]?.treasury_accounts?.name || 'Caja'}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </td>
                                         <td style={{ textAlign: 'right', display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
+                                            {op.estado === 'aprobada' && (
+                                                <button 
+                                                    className="btn btn-primary btn-sm btn-icon" 
+                                                    title="Efectivizar Pago"
+                                                    onClick={() => setOpToPay(op)}
+                                                >
+                                                    <DollarSign size={16} />
+                                                </button>
+                                            )}
                                             <button 
                                                 className="btn btn-ghost btn-sm btn-icon" 
                                                 title="Ver Detalles / PDF"
@@ -250,6 +292,7 @@ export default function OrdenesPagoList() {
                                                 <Trash2 size={16} />
                                             </button>
                                         </td>
+
                                     </tr>
                                 ))
                             )}
@@ -345,6 +388,18 @@ export default function OrdenesPagoList() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* PAYMENT MODAL */}
+            {opToPay && (
+                <PaymentModal 
+                    op={opToPay} 
+                    onClose={() => setOpToPay(null)} 
+                    onSuccess={() => {
+                        setOpToPay(null);
+                        fetchOrdenes();
+                    }} 
+                />
             )}
         </div>
     );
