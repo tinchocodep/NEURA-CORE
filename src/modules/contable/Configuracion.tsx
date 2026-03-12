@@ -5,6 +5,7 @@ import { Settings, Eye, EyeOff, Save, RefreshCw, CheckCircle, XCircle, Zap, Buil
 import { SkeletonCard } from '../../shared/components/SkeletonKit';
 import { getXubioService } from '../../services/XubioService';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 
 /* ─── Types ─────────────────── */
 interface Config {
@@ -41,6 +42,7 @@ const TABS: { key: TabKey; label: string; icon: any }[] = [
 export default function Configuracion() {
     const { tenant, refreshTenant } = useTenant();
     const { refreshProfile } = useAuth();
+    const { theme, setTheme } = useTheme();
     const [activeTab, setActiveTab] = useState<TabKey>('empresa');
     const [config, setConfig] = useState<Config | null>(null);
     const [loading, setLoading] = useState(true);
@@ -418,8 +420,8 @@ export default function Configuracion() {
                         </div>
                     </div>
                 </div>
-                {/* Font size + Density */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1.25rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem' }}>
+                {/* Font size + Density + Theme */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginTop: '1.25rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem' }}>
                     <div>
                         <label className="form-label" style={{ fontSize: '0.7rem' }}>Tamaño de texto</label>
                         <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
@@ -442,6 +444,19 @@ export default function Configuracion() {
                                     fontWeight: uiDensity === val ? 700 : 500, border: 'none', cursor: 'pointer',
                                     background: uiDensity === val ? 'var(--brand)' : 'var(--bg-subtle)',
                                     color: uiDensity === val ? '#fff' : 'var(--text-muted)', transition: 'all 0.15s',
+                                }}>{lbl}</button>
+                            ))}
+                        </div>
+                    </div>
+                    <div>
+                        <label className="form-label" style={{ fontSize: '0.7rem' }}>Tema</label>
+                        <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
+                            {([['light', 'Claro'], ['dark', 'Oscuro'], ['system', 'Auto']] as const).map(([val, lbl]) => (
+                                <button key={val} onClick={() => setTheme(val)} style={{
+                                    flex: 1, padding: '6px 0', fontSize: '0.72rem',
+                                    fontWeight: theme === val ? 700 : 500, border: 'none', cursor: 'pointer',
+                                    background: theme === val ? 'var(--brand)' : 'var(--bg-subtle)',
+                                    color: theme === val ? '#fff' : 'var(--text-muted)', transition: 'all 0.15s',
                                 }}>{lbl}</button>
                             ))}
                         </div>

@@ -652,9 +652,9 @@ export default function Proveedores() {
                                     style={{
                                         padding: '0.25rem 0.6rem', borderRadius: 99,
                                         fontSize: '0.75rem', fontWeight: isActive ? 600 : 400,
-                                        border: isActive ? '2px solid #1958E0' : '1px solid #e2e8f0',
-                                        background: isActive ? 'rgba(25, 88, 224, 0.08)' : '#fff',
-                                        color: isActive ? '#1958E0' : '#64748b',
+                                        border: isActive ? '2px solid var(--color-accent)' : '1px solid var(--color-border)',
+                                        background: isActive ? 'var(--color-accent-dim)' : 'var(--color-bg-surface)',
+                                        color: isActive ? 'var(--color-accent)' : 'var(--color-text-secondary)',
                                         cursor: 'pointer', transition: 'all 0.15s ease',
                                         display: 'flex', alignItems: 'center', gap: 4,
                                     }}
@@ -663,8 +663,8 @@ export default function Proveedores() {
                                     {f.label}
                                     <span style={{
                                         fontSize: '0.65rem', fontWeight: 600,
-                                        color: isActive ? '#fff' : '#94a3b8',
-                                        background: isActive ? '#1958E0' : '#f1f5f9',
+                                        color: isActive ? '#fff' : 'var(--color-text-muted)',
+                                        background: isActive ? 'var(--color-accent)' : 'var(--color-bg-surface-2)',
                                         padding: '0 0.35rem', borderRadius: 99, minWidth: 18, textAlign: 'center',
                                     }}>{count}</span>
                                 </button>
@@ -681,9 +681,9 @@ export default function Proveedores() {
                                 style={{
                                     height: 32, fontSize: '0.75rem', padding: '0 0.75rem', minWidth: 200,
                                     borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
-                                    border: productoFilter ? '2px solid #1958E0' : '1px solid #e2e8f0',
-                                    background: productoFilter ? 'rgba(25, 88, 224, 0.08)' : '#fff',
-                                    color: productoFilter ? '#1958E0' : '#64748b',
+                                    border: productoFilter ? '2px solid var(--color-accent)' : '1px solid var(--color-border)',
+                                    background: productoFilter ? 'var(--color-accent-dim)' : 'var(--color-bg-surface)',
+                                    color: productoFilter ? 'var(--color-accent)' : 'var(--color-text-secondary)',
                                     fontWeight: productoFilter ? 600 : 400,
                                 }}
                             >
@@ -702,8 +702,8 @@ export default function Proveedores() {
                                     <div style={{
                                         position: 'absolute', top: '100%', left: 0, marginTop: 4,
                                         width: 300, maxHeight: 360, overflowY: 'auto',
-                                        background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12,
-                                        boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 100,
+                                        background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: 12,
+                                        boxShadow: 'var(--shadow-md)', zIndex: 100,
                                     }}>
                                         {/* Search */}
                                         <div style={{ padding: '0.5rem', borderBottom: '1px solid #e2e8f0' }}>
@@ -844,7 +844,7 @@ export default function Proveedores() {
                             className="form-input"
                             value={categoriaFilter}
                             onChange={e => setCategoriaFilter(e.target.value)}
-                            style={{ height: 32, fontSize: '0.75rem', padding: '0 0.5rem', minWidth: 160, maxWidth: 220, borderRadius: 8, border: categoriaFilter ? '2px solid #1958E0' : '1px solid #e2e8f0', background: categoriaFilter ? 'rgba(25, 88, 224, 0.08)' : '#fff', color: categoriaFilter ? '#1958E0' : '#64748b' }}
+                            style={{ height: 32, fontSize: '0.75rem', padding: '0 0.5rem', minWidth: 160, maxWidth: 220, borderRadius: 8, border: categoriaFilter ? '2px solid var(--color-accent)' : '1px solid var(--color-border)', background: categoriaFilter ? 'var(--color-accent-dim)' : 'var(--color-bg-surface)', color: categoriaFilter ? 'var(--color-accent)' : 'var(--color-text-secondary)' }}
                         >
                             <option value="">Categoría: Todas</option>
                             <option value="__none__">⚠️ Sin asignar</option>
@@ -1372,8 +1372,8 @@ export default function Proveedores() {
                         display: 'flex', justifyContent: 'flex-end', zIndex: 1000,
                     }} onClick={() => setSelectedProvider(null)}>
                         <div style={{
-                            width: 480, maxWidth: '90vw', height: '100vh', background: '#fff',
-                            boxShadow: '-8px 0 30px rgba(0,0,0,0.1)', overflowY: 'auto',
+                            width: 480, maxWidth: '90vw', height: '100vh', background: 'var(--color-bg-surface)',
+                            boxShadow: 'var(--shadow-lg)', overflowY: 'auto',
                             animation: 'slideIn 0.2s ease-out',
                         }} onClick={e => e.stopPropagation()}>
                             {/* Header */}
@@ -1425,17 +1425,17 @@ export default function Proveedores() {
                                 return (
                                     <div style={{ padding: '1rem 1.5rem' }}>
                                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginBottom: '1.5rem' }}>
-                                            <div style={{ padding: '0.75rem', borderRadius: 10, background: '#f0f9ff', border: '1px solid #bae6fd' }}>
-                                                <div style={{ fontSize: '0.7rem', color: '#0284c7', fontWeight: 600, marginBottom: 4 }}>COMPROBANTES</div>
-                                                <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a' }}>{stats?.total_comprobantes || 0}</div>
+                                            <div style={{ padding: '0.75rem', borderRadius: 10, background: 'var(--color-bg-surface-2)', border: '1px solid var(--color-border)' }}>
+                                                <div style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)', fontWeight: 600, marginBottom: 4 }}>COMPROBANTES</div>
+                                                <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>{stats?.total_comprobantes || 0}</div>
                                             </div>
-                                            <div style={{ padding: '0.75rem', borderRadius: 10, background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-                                                <div style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: 600, marginBottom: 4 }}>TOTAL ARS</div>
-                                                <div style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
+                                            <div style={{ padding: '0.75rem', borderRadius: 10, background: 'var(--color-bg-surface-2)', border: '1px solid var(--color-border)' }}>
+                                                <div style={{ fontSize: '0.7rem', color: 'var(--color-success)', fontWeight: 600, marginBottom: 4 }}>TOTAL ARS</div>
+                                                <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
                                                     ${Number(stats?.monto_total || 0).toLocaleString('es-AR', { minimumFractionDigits: 0 })}
                                                 </div>
                                             </div>
-                                            <div style={{ padding: '0.75rem', borderRadius: 10, background: activity.color === '#10b981' ? '#f0fdf4' : activity.color === '#f59e0b' ? '#fffbeb' : '#fef2f2', border: `1px solid ${activity.color}22` }}>
+                                            <div style={{ padding: '0.75rem', borderRadius: 10, background: 'var(--color-bg-surface-2)', border: '1px solid var(--color-border)' }}>
                                                 <div style={{ fontSize: '0.7rem', color: activity.color, fontWeight: 600, marginBottom: 4 }}>ACTIVIDAD</div>
                                                 <div style={{ fontSize: '1rem', fontWeight: 700, color: activity.color }}>{activity.text}</div>
                                             </div>
@@ -1653,9 +1653,9 @@ export default function Proveedores() {
                             onClick={e => e.stopPropagation()}
                             style={{
                                 width: '90%', maxWidth: 900, height: '85vh',
-                                background: '#fff', borderRadius: 12,
+                                background: 'var(--color-bg-surface)', borderRadius: 12,
                                 display: 'flex', flexDirection: 'column',
-                                boxShadow: '0 25px 60px rgba(0,0,0,0.3)',
+                                boxShadow: 'var(--shadow-lg)',
                                 overflow: 'hidden',
                             }}
                         >

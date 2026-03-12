@@ -72,3 +72,33 @@
     --header-height: 52px;
     --grid-row-height: 44px;
 }
+
+/* =====================================================
+   DARK MODE OVERRIDES
+   ===================================================== */
+.dark {
+    /* ── Fondo base ── */
+    --color-bg-base: #0D1117;
+    --color-bg-surface: #161B22;
+    --color-bg-surface-2: #21262D;
+    --color-bg-hover: #30363D;
+    --color-bg-active: #484F58;
+
+    /* ── Texto ── */
+    --color-text-primary: #E6EDF3;
+    --color-text-secondary: #8D96A0;
+    --color-text-muted: #7D8590;
+    --color-text-faint: #484F58;
+
+    /* ── Bordes ── */
+    --color-border: #30363D;
+    --color-border-subtle: #21262D;
+
+    /* ── AFIP (Ajustes de contraste para fondos oscuros) ── */
+    --color-afip-offline: #7D8590;
+
+    /* ── Shadows (Variantes más oscuras para blend con BG oscuro) ── */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.55);
+}
