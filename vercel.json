@@ -6,7 +6,7 @@
         },
         {
             "source": "/api/n8n-comprobantes",
-            "destination": "https://n8n.neuracall.net/webhook-test/CargaDeComprobantes"
+            "destination": "https://n8n.neuracall.net/webhook/CargaDeComprobantes"
         },
         {
             "source": "/api/n8n-send-email",
@@ -18,7 +18,7 @@
         },
         {
             "source": "/api/n8n-ordenes-pago",
-            "destination": "https://n8n.neuracall.net/webhook-test/ordenes%20de%20pago"
+            "destination": "https://n8n.neuracall.net/webhook/ordenes%20de%20pago"
         },
         {
             "source": "/(.*)",
