@@ -11,6 +11,7 @@
  */
 
 import { supabase } from '../lib/supabase';
+import md5 from 'md5';
 
 /* ─── Types ────────────────────────────────────────── */
 
@@ -49,6 +50,7 @@ const COLPY_ENDPOINT = 'https://login.colppy.com/lib/frontera2/service.php';
 export class ColpyService {
     private config: ColpyConfig | null = null;
     private tenantId: string;
+    private claveSesion: string | null = null;
 
     constructor(tenantId: string) {
         this.tenantId = tenantId;
@@ -95,11 +97,32 @@ export class ColpyService {
             throw new Error('Credenciales Colpy no configuradas');
         }
 
+        // If not logging in, and we don't have a session, log in first
+        if (operacion !== 'iniciar_sesion' && !this.claveSesion) {
+            await this.login();
+        }
+
         const devUser = import.meta.env.VITE_COLPY_DEV_USER;
         const devPass = import.meta.env.VITE_COLPY_DEV_PASSWORD;
 
         if (!devUser || !devPass) {
             console.warn('Faltan variables de entorno VITE_COLPY_DEV_USER o VITE_COLPY_DEV_PASSWORD. El request fallará en Colpy.');
+        }
+
+        let requestParameters = {};
+        if (operacion === 'iniciar_sesion') {
+             requestParameters = {
+                 "usuario": this.config!.colpy_username,
+                 "password": md5(this.config!.colpy_password!)
+             };
+        } else {
+             requestParameters = {
+                 "sesion": {
+                     "usuario": this.config!.colpy_username,
+                     "claveSesion": this.claveSesion
+                 },
+                 ...parametros
+             };
         }
 
         const payload = {
@@ -111,12 +134,7 @@ export class ColpyService {
                 "provision": serviceName,
                 "operacion": operacion
             },
-            "parameters": {
-                "usuario": this.config!.colpy_username,
-                "password": this.config!.colpy_password,
-                "empresa": this.config!.colpy_empresa_id || "", 
-                ...parametros
-            }
+            "parameters": requestParameters
         };
 
         const response = await fetch(COLPY_ENDPOINT, {
@@ -145,16 +163,24 @@ export class ColpyService {
         return resultJson as T;
     }
 
+    private async login(): Promise<void> {
+        const resp = await this.apiRequest<any>('Usuario', 'iniciar_sesion');
+        if (resp && resp.data && resp.data.claveSesion) {
+            this.claveSesion = resp.data.claveSesion;
+        } else {
+            throw new Error('Login en Colpy no devolvió claveSesion');
+        }
+    }
+
     /* ── Test Connection ────────────────────── */
 
     /** Test the connection by hitting the user validation mechanism */
     async testConnection(): Promise<{ success: boolean; message: string }> {
         try {
-            // "usuario" service with "read_perfil" is a standard way to test if credentials exist and are valid.
-            await this.apiRequest<any>('usuario', 'read_perfil');
+            await this.login();
             return {
                 success: true,
-                message: `Conectado a Colpy ✓ — Perfil Validado`,
+                message: `Conectado a Colpy ✓ — Sesión Iniciada`,
             };
         } catch (err) {
             return { success: false, message: `Error en Autenticación Colpy: ${(err as Error).message}` };
