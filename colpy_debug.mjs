@@ -34,17 +34,46 @@ async function login() {
     });
 
     const text = await response.text();
-    fs.appendFileSync("debug_out.txt", "RESPUESTA:\n" + text);
+    fs.appendFileSync("debug_out.txt", "RESPUESTA LOGIN:\n" + text + "\n");
     try {
         const json = JSON.parse(text);
-        if (json.data && json.data.claveSesion) {
-            return json.data.claveSesion;
+        if (json.response && json.response.data && json.response.data.claveSesion) {
+            return json.response.data.claveSesion;
         }
     } catch(e) {}
     return null;
 }
 
 async function run() {
-    await login();
+    const ses = await login();
+    if(ses) {
+        fs.appendFileSync("debug_out.txt", "SESION OBTENIDA: " + ses + "\n\n");
+        const payload2 = {
+            "auth": {
+                "usuario": devUser,
+                "password": md5(devPass)
+            },
+            "service": {
+                "provision": "Usuario",
+                "operacion": "validar_sesion"
+            },
+            "parameters": {
+                "sesion": {
+                    "usuario": tenantUser,
+                    "claveSesion": ses
+                }
+            }
+        };
+
+        fs.appendFileSync("debug_out.txt", "PAYLOAD VALIDAR_SESION: " + JSON.stringify(payload2) + "\n");
+        const response2 = await fetch(COLPY_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload2)
+        });
+
+        const text2 = await response2.text();
+        fs.appendFileSync("debug_out.txt", "RESPUESTA VALIDAR_SESION:\n" + text2 + "\n");
+    }
 }
 run();
