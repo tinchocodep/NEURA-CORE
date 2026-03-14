@@ -137,11 +137,17 @@ export class ColpyService {
             "parameters": requestParameters
         };
 
-        const response = await fetch(COLPY_ENDPOINT, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
+        let response;
+        try {
+            response = await fetch(COLPY_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        } catch (error: any) {
+            console.error("Colpy fetch network/CORS error:", error);
+            throw new Error(`Error de Red/CORS conectando. ¿Instalaste la Edge Function?: ${error.message}`);
+        }
 
         if (!response.ok) {
             const errorText = await response.text();
