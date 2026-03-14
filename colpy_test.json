@@ -1,0 +1,12 @@
+{
+  "service": {
+    "provision": null,
+    "operacion": null,
+    "response_date": "2026-03-14 12:17:16"
+  },
+  "result": {
+    "estado": 502,
+    "mensaje": "Request inválida: Datos de autenticación no suministrados"
+  },
+  "response": null
+}

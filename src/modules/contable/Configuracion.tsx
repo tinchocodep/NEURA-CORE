@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { Settings, Eye, EyeOff, Save, RefreshCw, CheckCircle, XCircle, Zap, Building2, Mail, Download, Users, Upload, Image, Palette, Landmark, Plus, Trash2 } from 'lucide-react';
 import { SkeletonCard } from '../../shared/components/SkeletonKit';
 import { getXubioService } from '../../services/XubioService';
+import { getColpyService } from '../../services/ColpyService';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 
@@ -12,6 +13,9 @@ interface Config {
     id: string;
     xubio_client_id: string | null;
     xubio_client_secret: string | null;
+    colpy_username: string | null;
+    colpy_password: string | null;
+    colpy_empresa_id: string | null;
     xubio_token: string | null;
     xubio_token_expires_at: string | null;
     arca_cuit: string | null;
@@ -50,10 +54,13 @@ export default function Configuracion() {
     const [showSecret, setShowSecret] = useState(false);
     const [showKey, setShowKey] = useState(false);
     const [testingXubio, setTestingXubio] = useState(false);
+    const [testingColpy, setTestingColpy] = useState(false);
     const [testingArca, setTestingArca] = useState(false);
     const [xubioStatus, setXubioStatus] = useState<'idle' | 'ok' | 'error'>('idle');
+    const [colpyStatus, setColpyStatus] = useState<'idle' | 'ok' | 'error'>('idle');
     const [arcaStatus, setArcaStatus] = useState<'idle' | 'ok' | 'error'>('idle');
     const [xubioMessage, setXubioMessage] = useState('');
+    const [colpyMessage, setColpyMessage] = useState('');
 
     // Bank integration state
     const [bankCreds, setBankCreds] = useState<BankCredential[]>([]);
@@ -63,6 +70,10 @@ export default function Configuracion() {
     const [syncingClientes, setSyncingClientes] = useState(false);
     const [syncingProveedores, setSyncingProveedores] = useState(false);
     const [syncResult, setSyncResult] = useState('');
+
+    const [syncingColpyClientes, setSyncingColpyClientes] = useState(false);
+    const [syncingColpyProveedores, setSyncingColpyProveedores] = useState(false);
+    const [syncColpyResult, setSyncColpyResult] = useState('');
 
     // Tenant company data
     const [tenantRazonSocial, setTenantRazonSocial] = useState('');
@@ -104,7 +115,7 @@ export default function Configuracion() {
         setLogoUrl(tenant.logo_url || '');
         setUiFontSize((tenant as any).ui_font_size || 'medium');
         setUiDensity((tenant as any).ui_density || 'normal');
-    }, [tenant]);
+    }, [tenant?.id]);
 
     /* ─── Data Loaders ─── */
     async function loadConfig() {
@@ -185,6 +196,9 @@ export default function Configuracion() {
         await supabase.from('contable_config').update({
             xubio_client_id: config.xubio_client_id,
             xubio_client_secret: config.xubio_client_secret,
+            colpy_username: config.colpy_username,
+            colpy_password: config.colpy_password,
+            colpy_empresa_id: config.colpy_empresa_id,
             arca_cuit: config.arca_cuit,
             arca_certificate: config.arca_certificate,
             arca_private_key: config.arca_private_key,
@@ -322,6 +336,39 @@ export default function Configuracion() {
         setXubioMessage(result.message);
         setTestingXubio(false);
         if (result.success) await loadConfig();
+    }
+
+    async function testColpy() {
+        setTestingColpy(true); setColpyStatus('idle'); setColpyMessage('');
+        if (config) {
+            await supabase.from('contable_config').update({ 
+                colpy_username: config.colpy_username, 
+                colpy_password: config.colpy_password,
+                colpy_empresa_id: config.colpy_empresa_id
+            }).eq('id', config.id);
+        }
+        const colpy = getColpyService(tenant!.id);
+        await colpy.loadConfig();
+        if (!colpy.isConfigured) { setColpyStatus('error'); setColpyMessage('Ingresá Usuario y Contraseña'); setTestingColpy(false); return; }
+        const result = await colpy.testConnection();
+        setColpyStatus(result.success ? 'ok' : 'error');
+        setColpyMessage(result.message);
+        setTestingColpy(false);
+        if (result.success) await loadConfig();
+    }
+
+    async function handleSyncColpyClientes() {
+        setSyncingColpyClientes(true); setSyncColpyResult('');
+        try { const colpy = getColpyService(tenant!.id); await colpy.loadConfig(); const r = await colpy.syncClientesFromColpy(); setSyncColpyResult(`Clientes: ${r.imported} importados, ${r.updated} actualizados${r.errors.length ? ` (${r.errors.length} errores)` : ''}`); }
+        catch (e: any) { setSyncColpyResult(`Error: ${e.message}`); }
+        finally { setSyncingColpyClientes(false); }
+    }
+
+    async function handleSyncColpyProveedores() {
+        setSyncingColpyProveedores(true); setSyncColpyResult('');
+        try { const colpy = getColpyService(tenant!.id); await colpy.loadConfig(); const r = await colpy.syncProveedoresFromColpy(); setSyncColpyResult(`Proveedores: ${r.imported} importados, ${r.updated} actualizados${r.errors.length ? ` (${r.errors.length} errores)` : ''}`); }
+        catch (e: any) { setSyncColpyResult(`Error: ${e.message}`); }
+        finally { setSyncingColpyProveedores(false); }
     }
 
     async function handleSyncClientes() {
@@ -526,7 +573,13 @@ export default function Configuracion() {
     );
 
     const renderIntegraciones = () => (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', alignItems: 'start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            {/* SECCIÓN 1: ERPs Contables */}
+            <details open style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-lg)', overflow: 'hidden' }}>
+                <summary style={{ padding: '1rem 1.5rem', fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', cursor: 'pointer', background: 'var(--bg-subtle)' }}>
+                    Sistemas ERP Contables
+                </summary>
+                <div style={{ padding: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1.5rem', alignItems: 'start', background: 'var(--bg-main)' }}>
             {/* Xubio */}
             <div className="card" style={{ padding: '1.5rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '1.5rem' }}>
@@ -580,6 +633,69 @@ export default function Configuracion() {
                 )}
             </div>
 
+            {/* Colpy */}
+            <div className="card" style={{ padding: '1.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '1.5rem' }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 'var(--r-md)', background: 'rgba(234, 88, 12, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Building2 size={20} color="#ea580c" />
+                    </div>
+                    <div>
+                        <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Colpy</h3>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>ERP Contable · Transaccional</p>
+                    </div>
+                    {colpyStatus === 'ok' && <CheckCircle size={20} color="var(--success)" style={{ marginLeft: 'auto' }} />}
+                    {colpyStatus === 'error' && <XCircle size={20} color="var(--danger)" style={{ marginLeft: 'auto' }} />}
+                </div>
+                <div className="form-group">
+                    <label className="form-label">Usuario (Email)</label>
+                    <input className="form-input" value={config?.colpy_username || ''} onChange={e => updateConfig('colpy_username', e.target.value)} placeholder="Email de acceso a Colpy" />
+                </div>
+                <div className="form-group">
+                    <label className="form-label">Contraseña</label>
+                    <div style={{ position: 'relative' }}>
+                        <input className="form-input" type={showSecret ? 'text' : 'password'} value={config?.colpy_password || ''} onChange={e => updateConfig('colpy_password', e.target.value)} placeholder="Contraseña de Colpy" style={{ paddingRight: 40 }} />
+                        <button onClick={() => setShowSecret(!showSecret)} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                            {showSecret ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                    </div>
+                </div>
+                <div className="form-group">
+                    <label className="form-label">Alias / ID de Empresa (Opcional)</label>
+                    <input className="form-input" value={config?.colpy_empresa_id || ''} onChange={e => updateConfig('colpy_empresa_id', e.target.value)} placeholder="Ej: MiPymeSRL" />
+                </div>
+                <button className="btn btn-secondary" onClick={testColpy} disabled={testingColpy} style={{ width: '100%' }}>
+                    <RefreshCw size={14} className={testingColpy ? 'spinning' : ''} /> {testingColpy ? 'Conectando...' : 'Probar conexión al ERP'}
+                </button>
+                {colpyMessage && (
+                    <div style={{ marginTop: '0.75rem', fontSize: '0.8rem', padding: '0.625rem 0.875rem', borderRadius: 'var(--r-md)', background: colpyStatus === 'ok' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: colpyStatus === 'ok' ? 'var(--success)' : 'var(--danger)' }}>
+                        {colpyMessage}
+                    </div>
+                )}
+                
+                {colpyStatus === 'ok' && (
+                    <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem' }}>
+                        <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Sincronización</div>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button className="btn btn-secondary btn-sm" onClick={handleSyncColpyClientes} disabled={syncingColpyClientes} style={{ flex: 1 }}>
+                                <Users size={13} /> {syncingColpyClientes ? 'Sincronizando...' : 'Sync Clientes'}
+                            </button>
+                            <button className="btn btn-secondary btn-sm" onClick={handleSyncColpyProveedores} disabled={syncingColpyProveedores} style={{ flex: 1 }}>
+                                <Download size={13} /> {syncingColpyProveedores ? 'Sincronizando...' : 'Sync Proveedores'}
+                            </button>
+                        </div>
+                        {syncColpyResult && <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)', padding: '0.5rem 0.75rem', background: 'var(--bg-subtle)', borderRadius: 'var(--r-sm)' }}>{syncColpyResult}</div>}
+                    </div>
+                )}
+            </div>
+                </div>
+            </details>
+
+            {/* SECCIÓN 2: ARCA */}
+            <details style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-lg)', overflow: 'hidden' }}>
+                <summary style={{ padding: '1rem 1.5rem', fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', cursor: 'pointer', background: 'var(--bg-subtle)' }}>
+                    Reguladores y Facturación Electrónica
+                </summary>
+                <div style={{ padding: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1.5rem', alignItems: 'start', background: 'var(--bg-main)' }}>
             {/* ARCA */}
             <div className="card" style={{ padding: '1.5rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '1.5rem' }}>
@@ -616,9 +732,17 @@ export default function Configuracion() {
                     <RefreshCw size={14} className={testingArca ? 'spinning' : ''} /> {testingArca ? 'Probando...' : 'Probar conexión'}
                 </button>
             </div>
+                </div>
+            </details>
 
+            {/* SECCIÓN 3: BANCOS */}
+            <details style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-lg)', overflow: 'hidden' }}>
+                <summary style={{ padding: '1rem 1.5rem', fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', cursor: 'pointer', background: 'var(--bg-subtle)' }}>
+                    Conexiones Bancarias (Host-to-Host)
+                </summary>
+                <div style={{ padding: '1.5rem', background: 'var(--bg-main)' }}>
             {/* API Bancaria Directa (Host-to-Host) */}
-            <div className="card" style={{ padding: '1.5rem', gridColumn: '1 / -1' }}>
+            <div className="card" style={{ padding: '1.5rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '1.5rem' }}>
                     <div style={{ width: 40, height: 40, borderRadius: 'var(--r-md)', background: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <Landmark size={20} color="#3b82f6" />
@@ -682,6 +806,8 @@ export default function Configuracion() {
                     </div>
                 )}
             </div>
+                </div>
+            </details>
         </div>
     );
 

@@ -168,7 +168,7 @@ export default function Clientes() {
                             {busqueda ? 'Sin resultados' : 'Sin clientes aún'}
                         </p>
                         <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                            {busqueda ? 'Probá con otra búsqueda' : 'Agregá clientes manualmente o sincronizá desde Xubio'}
+                            {busqueda ? 'Probá con otra búsqueda' : 'Agregá clientes manualmente o sincronizá desde tu ERP (Xubio/Colpy)'}
                         </p>
                     </div>
                 ) : (

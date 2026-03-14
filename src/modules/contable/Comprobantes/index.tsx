@@ -140,62 +140,101 @@ export default function ComprobantesIndex() {
         }
 
         if (action === 'inyectar') {
-            // Attempt real Xubio injection
+            // Attempt real Injection (Xubio or Colpy)
             try {
                 const { getXubioService } = await import('../../../services/XubioService');
+                const { getColpyService } = await import('../../../services/ColpyService');
+
                 const xubio = getXubioService(tenant!.id);
                 await xubio.loadConfig();
 
-                if (!xubio.isConfigured) {
+                const colpy = getColpyService(tenant!.id);
+                await colpy.loadConfig();
+
+                if (!xubio.isConfigured && !colpy.isConfigured) {
                     // No credentials — just update status without injection
                     await updateEstado(id, 'inyectado');
                     return;
                 }
 
-                // Fetch full comprobante with entity xubio_id
+                // Fetch full comprobante with entity external IDs
                 const { data: comp } = await supabase
                     .from('contable_comprobantes')
-                    .select('*, proveedor:contable_proveedores(xubio_id), cliente:contable_clientes(xubio_id)')
+                    .select('*, proveedor:contable_proveedores(xubio_id, colpy_id), cliente:contable_clientes(xubio_id, colpy_id)')
                     .eq('id', id)
                     .single();
 
                 if (!comp) { await updateEstado(id, 'inyectado'); return; }
 
-                const result = await xubio.injectComprobante({
-                    tipo: comp.tipo,
-                    tipo_comprobante: comp.tipo_comprobante || 'Factura A',
-                    fecha: comp.fecha,
-                    numero_comprobante: comp.numero_comprobante,
-                    moneda: comp.moneda || 'ARS',
-                    tipo_cambio: comp.tipo_cambio,
-                    observaciones: comp.observaciones,
-                    proveedor_xubio_id: comp.proveedor?.xubio_id,
-                    cliente_xubio_id: comp.cliente?.xubio_id,
-                    lineas: (comp.lineas || []).map((l: any) => ({
-                        descripcion: l.descripcion || '',
-                        cantidad: l.cantidad || 1,
-                        precio_unitario: l.precio_unitario || l.subtotal || 0,
-                        iva_porcentaje: l.iva_porcentaje || 21,
-                    })),
-                });
+                if (xubio.isConfigured) {
+                    // --- XUBIO INJECTION ---
+                    const result = await xubio.injectComprobante({
+                        tipo: comp.tipo,
+                        tipo_comprobante: comp.tipo_comprobante || 'Factura A',
+                        fecha: comp.fecha,
+                        numero_comprobante: comp.numero_comprobante,
+                        moneda: comp.moneda || 'ARS',
+                        tipo_cambio: comp.tipo_cambio,
+                        observaciones: comp.observaciones,
+                        proveedor_xubio_id: comp.proveedor?.xubio_id,
+                        cliente_xubio_id: comp.cliente?.xubio_id,
+                        lineas: (comp.lineas || []).map((l: any) => ({
+                            descripcion: l.descripcion || '',
+                            cantidad: l.cantidad || 1,
+                            precio_unitario: l.precio_unitario || l.subtotal || 0,
+                            iva_porcentaje: l.iva_porcentaje || 21,
+                        })),
+                    });
 
-                if (result.success) {
-                    // Mark as inyectado + save xubio_id
-                    await supabase.from('contable_comprobantes').update({
-                        estado: 'inyectado',
-                        xubio_id: result.xubioId,
-                        xubio_synced_at: new Date().toISOString(),
-                    }).eq('id', id);
-                    reset(); // Refresh list
-                } else {
-                    addToast('error', 'Error Xubio', `Error al inyectar en Xubio: ${result.error}`);
-                    // Still allow marking as inyectado if user wants
-                    if (confirm('¿Marcar como inyectado de todas formas?')) {
-                        await updateEstado(id, 'inyectado');
+                    if (result.success) {
+                        await supabase.from('contable_comprobantes').update({
+                            estado: 'inyectado',
+                            xubio_id: result.xubioId,
+                            xubio_synced_at: new Date().toISOString(),
+                        }).eq('id', id);
+                        reset(); // Refresh list
+                    } else {
+                        addToast('error', 'Error Xubio', `Error al inyectar en Xubio: ${result.error}`);
+                        if (confirm('¿Marcar como inyectado de todas formas?')) {
+                            await updateEstado(id, 'inyectado');
+                        }
+                    }
+                } else if (colpy.isConfigured) {
+                    // --- COLPY INJECTION ---
+                    const result = await colpy.injectComprobante({
+                        tipo: comp.tipo,
+                        tipo_comprobante: comp.tipo_comprobante || 'Factura A',
+                        fecha: comp.fecha,
+                        numero_comprobante: comp.numero_comprobante,
+                        moneda: comp.moneda || 'ARS',
+                        tipo_cambio: comp.tipo_cambio,
+                        observaciones: comp.observaciones,
+                        proveedor_colpy_id: comp.proveedor?.colpy_id,
+                        cliente_colpy_id: comp.cliente?.colpy_id,
+                        lineas: (comp.lineas || []).map((l: any) => ({
+                            descripcion: l.descripcion || '',
+                            cantidad: l.cantidad || 1,
+                            precio_unitario: l.precio_unitario || l.subtotal || 0,
+                            iva_porcentaje: l.iva_porcentaje || 21,
+                        })),
+                    });
+
+                    if (result.success) {
+                        await supabase.from('contable_comprobantes').update({
+                            estado: 'inyectado',
+                            colpy_id: result.colpyId,
+                            xubio_synced_at: new Date().toISOString(), // Usamos la misma columna para indicar sync time
+                        }).eq('id', id);
+                        reset(); // Refresh list
+                    } else {
+                        addToast('error', 'Error Colpy', `Error al inyectar en Colpy: ${result.error}`);
+                        if (confirm('¿Marcar como inyectado de todas formas?')) {
+                            await updateEstado(id, 'inyectado');
+                        }
                     }
                 }
             } catch (err) {
-                console.error('[Xubio] Injection error:', err);
+                console.error('[Injection] Error:', err);
                 addToast('error', 'Error', (err as Error).message);
             }
         } else {

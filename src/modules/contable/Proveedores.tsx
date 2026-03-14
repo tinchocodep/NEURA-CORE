@@ -889,7 +889,7 @@ export default function Proveedores() {
                                 {busqueda ? 'Sin resultados' : 'Sin proveedores aún'}
                             </p>
                             <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                                {busqueda ? 'Probá con otra búsqueda' : 'Agregá proveedores manualmente o sincronizá desde ARCA'}
+                                {busqueda ? 'Probá con otra búsqueda' : 'Agregá proveedores manualmente o sincronizá desde tu ERP (Xubio/Colpy)'}
                             </p>
                         </div>
                     ) : (
