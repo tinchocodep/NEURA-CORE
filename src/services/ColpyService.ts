@@ -128,7 +128,7 @@ export class ColpyService {
         const payload = {
             "auth": {
                 "usuario": devUser || "",
-                "password": devPass || ""
+                "password": devPass ? md5(devPass) : ""
             },
             "service": {
                 "provision": serviceName,
