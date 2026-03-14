@@ -102,8 +102,8 @@ export class ColpyService {
             await this.login();
         }
 
-        const devUser = import.meta.env.VITE_COLPY_DEV_USER;
-        const devPass = import.meta.env.VITE_COLPY_DEV_PASSWORD;
+        const devUser = "bautistadiaz93@gmail.com";
+        const devPass = "BautistaDiaz2004";
 
         if (!devUser || !devPass) {
             console.warn('Faltan variables de entorno VITE_COLPY_DEV_USER o VITE_COLPY_DEV_PASSWORD. El request fallará en Colpy.');
@@ -199,15 +199,22 @@ export class ColpyService {
     /* ── Clientes ────────────────────────────── */
 
     async getClientes(): Promise<ColpyCliente[]> {
-        // Example payload for reading clients. This is mock logic for now.
-        // E.g., provision service "cliente", operacion "leer_lista"
         try {
-            const resp = await this.apiRequest<any>('cliente', 'listar');
-            // Assuming response has a list of items inside
+            const resp = await this.apiRequest<any>('Cliente', 'listar_cliente');
             return resp.data || resp.clientes || [];
         } catch (e) {
             console.error("Colpy getClientes error: ", e);
-            return [];
+            throw e;
+        }
+    }
+
+    async getProveedores(): Promise<ColpyProveedor[]> {
+        try {
+            const resp = await this.apiRequest<any>('Proveedor', 'listar_proveedor');
+            return resp.data || resp.proveedores || [];
+        } catch (e) {
+            console.error("Colpy getProveedores error: ", e);
+            throw e;
         }
     }
 
@@ -261,16 +268,6 @@ export class ColpyService {
     }
 
     /* ── Proveedores ────────────────────────────── */
-
-    async getProveedores(): Promise<ColpyProveedor[]> {
-        try {
-            const resp = await this.apiRequest<any>('proveedor', 'listar');
-            return resp.data || resp.proveedores || [];
-        } catch (e) {
-            console.error("Colpy getProveedores error: ", e);
-            return [];
-        }
-    }
 
     async syncProveedoresFromColpy(): Promise<{ imported: number; updated: number; errors: string[] }> {
         const colpyProveedores = await this.getProveedores();
