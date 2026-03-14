@@ -150,9 +150,11 @@ export class ColpyService {
 
         const resultJson = await response.json();
         
+        const apiResponse = resultJson.response;
+        
         // Colpy usually returns a generic structure. If login fails, it says success: false
-        if (resultJson.success === false || resultJson.success === 0) {
-            throw new Error(`Colpy Error: ${resultJson.message || JSON.stringify(resultJson.errors)}`);
+        if (apiResponse && (apiResponse.success === false || apiResponse.success === 0)) {
+            throw new Error(`Colpy Error: ${apiResponse.message || JSON.stringify(apiResponse.errors)}`);
         }
 
         // Colpy sometimes returns errors inside a "result" object
@@ -160,7 +162,8 @@ export class ColpyService {
             throw new Error(`${resultJson.result.mensaje || 'Error desconocido'}`);
         }
 
-        return resultJson as T;
+        // We return the actual apiResponse object which contains data
+        return (apiResponse || resultJson) as T;
     }
 
     private async login(): Promise<void> {

@@ -1,0 +1,3 @@
+PAYLOAD: {"auth":{"usuario":"bautistadiaz93@gmail.com","password":"3e4248aa2ea8a54d8e63673da1b24b5d"},"service":{"provision":"Usuario","operacion":"iniciar_sesion"},"parameters":{"usuario":"bautistadiaz93@gmail.com","password":"3e4248aa2ea8a54d8e63673da1b24b5d"}}
+RESPUESTA:
+{"service":{"provision":"Usuario","operacion":"iniciar_sesion","version":"1_0_0_0","response_date":"2026-03-14 12:55:38"},"result":{"estado":0,"mensaje":"La operaci\u00f3n se realiz\u00f3 correctamente"},"response":{"success":true,"message":"La operaci\u00f3n se realiz\u00f3 con \u00e9xito.","data":{"claveSesion":"0e2ed3621f8b4585e6160657c25a2481"}}}
