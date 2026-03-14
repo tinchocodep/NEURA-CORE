@@ -79,23 +79,52 @@ export default function NuevaOrdenPago({ onAceptar }: { onAceptar?: () => void }
             return;
         }
 
-        setLoadingComprobantes(true);
-        // Traer facturas de compra pendientes o aprobadas
-        supabase.from('contable_comprobantes')
-            .select('id, fecha, numero_comprobante, tipo_comprobante, monto_ars, monto_original, moneda, estado')
-            .eq('tenant_id', tenant.id)
-            .eq('proveedor_id', proveedorId)
-            // Solo asegurarnos de que sean compras y no ventas mal asignadas
-            .eq('tipo', 'compra')
-            // Se incluyen facturas en varios estados válidos pre-pago
-            .in('estado', ['pendiente', 'clasificado', 'aprobado', 'inyectado'])
-            .order('fecha', { ascending: false })
-            .then(({ data, error }) => {
-                setLoadingComprobantes(false);
-                if (data) setComprobantes(data);
-                if (error) addToast('error', 'Error al cargar facturas');
-            });
-    }, [tenant, proveedorId]);
+        const fetchComprobantes = async () => {
+            setLoadingComprobantes(true);
+            // Traer facturas de compra pendientes o aprobadas
+            const { data, error } = await supabase.from('contable_comprobantes')
+                .select('id, fecha, numero_comprobante, tipo_comprobante, monto_ars, monto_original, moneda, estado')
+                .eq('tenant_id', tenant.id)
+                .eq('proveedor_id', proveedorId)
+                // Solo asegurarnos de que sean compras y no ventas mal asignadas
+                .eq('tipo', 'compra')
+                // Se incluyen facturas en varios estados válidos pre-pago
+                .in('estado', ['pendiente', 'clasificado', 'aprobado', 'inyectado'])
+                .order('fecha', { ascending: false });
+                
+            setLoadingComprobantes(false);
+            if (data) {
+                setComprobantes(data);
+                // Clean up selectedIds if they no longer exist in the fetched data
+                setSelectedIds(prev => {
+                    const next = new Set(prev);
+                    const currentIds = new Set(data.map(c => c.id));
+                    for (const id of next) {
+                        if (!currentIds.has(id)) next.delete(id);
+                    }
+                    return next;
+                });
+            }
+            if (error) addToast('error', 'Error al cargar facturas');
+        };
+
+        fetchComprobantes();
+
+        // set up realtime subscription for this tenant's comprobantes
+        const channel = supabase.channel(`op-comprobantes-${proveedorId}`)
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'contable_comprobantes', filter: `tenant_id=eq.${tenant.id}` },
+                () => {
+                    fetchComprobantes();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [tenant, proveedorId, addToast]);
 
     const toggleComprobante = (id: string) => {
         const next = new Set(selectedIds);

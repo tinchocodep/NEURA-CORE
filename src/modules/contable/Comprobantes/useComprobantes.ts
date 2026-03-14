@@ -85,8 +85,8 @@ export function useComprobantes(filters: ComprobantesFilters) {
             query = query.lt('created_at', lastCreatedAt);
         }
 
-        if (filters.tipo !== 'todos') query = query.eq('tipo', filters.tipo);
-        if (filters.estado !== 'todos') query = query.eq('estado', filters.estado);
+        if (filters.tipo && filters.tipo !== 'todos') query = query.eq('tipo', filters.tipo);
+        if (filters.estado && filters.estado !== 'todos') query = query.eq('estado', filters.estado);
         if (filters.fechaDesde) query = query.gte('fecha', filters.fechaDesde);
         if (filters.fechaHasta) query = query.lte('fecha', filters.fechaHasta);
 
