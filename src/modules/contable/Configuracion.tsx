@@ -1,7 +1,10 @@
 import { useEffect, useState, useRef } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
-import { Settings, Eye, EyeOff, Save, RefreshCw, CheckCircle, XCircle, Zap, Building2, Mail, Download, Users, Upload, Image, Palette, Landmark, Plus, Trash2 } from 'lucide-react';
+import { 
+    Users, Plus, Search, FileText, Settings, Key, Database, RefreshCw, Archive, Hash, Calendar, Building, Building2, MapPin, Loader2, Save, Trash2, ShieldAlert, CheckCircle, XCircle, Eye, EyeOff, LayoutGrid, AlertTriangle, ArrowRight, DollarSign, Wallet, FilePlus, Copy, LogOut, CheckSquare, FolderTree,
+    Zap, Mail, Download, Upload, Image, Palette, Landmark
+} from 'lucide-react';
 import { SkeletonCard } from '../../shared/components/SkeletonKit';
 import { getXubioService } from '../../services/XubioService';
 import { getColpyService } from '../../services/ColpyService';
@@ -63,6 +66,26 @@ export default function Configuracion() {
     const [colpyMessage, setColpyMessage] = useState('');
     const [colpyEmpresas, setColpyEmpresas] = useState<{ idEmpresa: string, RazonSocial: string }[] | null>(null);
     const [loadingColpyEmpresas, setLoadingColpyEmpresas] = useState(false);
+
+    const [testingArbol, setTestingArbol] = useState(false);
+    const testArbolColpy = async () => {
+        if (!tenant?.id) return;
+        setTestingArbol(true);
+        try {
+            const colpy = getColpyService(tenant.id);
+            await colpy.loadConfig();
+            const arbol = await colpy.getArbolContable();
+            console.log("\n====== RESULTADO DE CUENTAS ======");
+            console.log(arbol);
+            console.log("==================================\n");
+            alert("Árbol contable obtenido con éxito. Consultá la Consola (F12) para ver la lista completa de cuentas.");
+        } catch (error: any) {
+            console.error('Error testeando Árbol Contable:', error);
+            alert(`Error al traer Cuentas: ${error.message}`);
+        } finally {
+            setTestingArbol(false);
+        }
+    };
 
     // Bank integration state
     const [bankCreds, setBankCreds] = useState<BankCredential[]>([]);
@@ -723,8 +746,11 @@ export default function Configuracion() {
                     )}
                     <input className="form-input" value={config?.colpy_empresa_id || ''} onChange={e => updateConfig('colpy_empresa_id', e.target.value)} placeholder="Ej: 118337 (Ingresar a mano u obtener desde 'Buscar mis empresas')" />
                 </div>
-                <button className="btn btn-secondary" onClick={testColpy} disabled={testingColpy} style={{ width: '100%' }}>
+                <button className="btn btn-secondary" onClick={testColpy} disabled={testingColpy} style={{ width: '100%', marginBottom: '0.5rem' }}>
                     <RefreshCw size={14} className={testingColpy ? 'spinning' : ''} /> {testingColpy ? 'Conectando...' : 'Probar conexión al ERP'}
+                </button>
+                <button className="btn btn-outline" onClick={testArbolColpy} disabled={testingArbol} style={{ width: '100%' }}>
+                    <FolderTree size={14} className={testingArbol ? 'spinning' : ''} /> {testingArbol ? 'Descargando...' : 'Prueba: Leer Árbol Contable'}
                 </button>
                 {colpyMessage && (
                     <div style={{ marginTop: '0.75rem', fontSize: '0.8rem', padding: '0.625rem 0.875rem', borderRadius: 'var(--r-md)', background: colpyStatus === 'ok' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: colpyStatus === 'ok' ? 'var(--success)' : 'var(--danger)' }}>

@@ -16,7 +16,6 @@ import md5 from 'md5';
 /* ─── Types ────────────────────────────────────────── */
 
 interface ColpyConfig {
-    id: string;
     tenant_id: string;
     colpy_username: string | null;
     colpy_password: string | null;
@@ -74,11 +73,15 @@ export class ColpyService {
 
     /** Load config from contable_config table */
     async loadConfig(): Promise<boolean> {
-        const { data } = await supabase
+        const { data, error } = await supabase
             .from('contable_config')
-            .select('id, tenant_id, colpy_username, colpy_password, colpy_empresa_id')
+            .select('tenant_id, colpy_username, colpy_password, colpy_empresa_id')
             .eq('tenant_id', this.tenantId)
             .single();
+
+        if (error) {
+           console.error("Colpy loadConfig Error: ", error);
+        }
 
         if (!data) return false;
         this.config = data as ColpyConfig;
@@ -261,6 +264,30 @@ export class ColpyService {
         }
     }
 
+    /**
+     * Trae el arbol de cuentas contables de Colppy (necesarias para inyectar comprobantes)
+     */
+    async getArbolContable() {
+        if (!this.config?.colpy_username || !this.config?.colpy_password || !this.config?.colpy_empresa_id) {
+            throw new Error("Colppy credentials missing. Call loadConfig() and ensure they are set in DB.");
+        }
+
+        try {
+            const props = {
+                idEmpresa: this.config.colpy_empresa_id
+            };
+            
+            // Utilizamos la operación oficial de Colppy para obtener el árbol de cuentas
+            const resp = await this.apiRequest<any>('Contabilidad', 'leer_arbol_contabilidad', props);
+            console.log("Colppy getArbolContable crudo:", resp);
+            return resp.data || resp.Arbol || resp; 
+        } catch (e) {
+            console.error("Colpy getArbolContable error: ", e);
+            throw e;
+        }
+    }
+
+    // === MÉTODOS DE SINCRONIZACIÓN Y MUTACIÓN ===
     async syncClientesFromColpy(): Promise<{ imported: number; updated: number; errors: string[] }> {
         console.log("Iniciando descarga de clientes desde Colppy...");
         const colpyClientes = await this.getClientes();
@@ -432,6 +459,7 @@ export class ColpyService {
             cantidad: number;
             precio_unitario: number;
             iva_porcentaje: number;
+            colpy_cuenta_id?: string;
         }>;
     }): Promise<{ success: boolean; colpyId?: string; error?: string }> {
         try {
@@ -451,7 +479,8 @@ export class ColpyService {
                         detalle: l.descripcion,
                         cantidad: l.cantidad,
                         precioUnitario: l.precio_unitario,
-                        porcentajeIva: l.iva_porcentaje
+                        porcentajeIva: l.iva_porcentaje,
+                        idPlanCuenta: l.colpy_cuenta_id || ""
                     }))
                 };
 
@@ -475,7 +504,8 @@ export class ColpyService {
                         detalle: l.descripcion,
                         cantidad: l.cantidad,
                         precioUnitario: l.precio_unitario,
-                        porcentajeIva: l.iva_porcentaje
+                        porcentajeIva: l.iva_porcentaje,
+                        idPlanCuenta: l.colpy_cuenta_id || ""
                     }))
                 };
 

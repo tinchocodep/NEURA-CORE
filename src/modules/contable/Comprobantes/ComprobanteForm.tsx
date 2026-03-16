@@ -4,6 +4,7 @@ import { Plus, Trash2, Save, ChevronDown, ChevronRight, CheckCircle, Download, M
 import { supabase } from '../../../lib/supabase';
 import { useTenant } from '../../../contexts/TenantContext';
 import { DolarService } from '../../../services/DolarService';
+import { getColpyService } from '../../../services/ColpyService';
 import jsPDF from 'jspdf';
 
 /* ─── Types ─────────────────────────────────────────── */
@@ -20,6 +21,7 @@ interface LineaDetalle {
     cantidad: number;
     precio_unitario: number;
     iva_porcentaje: number;
+    colpy_cuenta_id?: string;
 }
 
 interface Props {
@@ -61,6 +63,22 @@ function sugerirTipo(condEmisor: string | null): string | null {
 const fmt = (n: number) =>
     new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 }).format(n);
 
+const renderColppyOptions = (nodes: any[], depth = 0): React.ReactElement[] => {
+    return nodes.flatMap(node => {
+        const isLeaf = !node.children || node.children.length === 0 || node.leaf;
+        const indent = "\u00A0\u00A0".repeat(depth * 2);
+        const options: React.ReactElement[] = [
+             <option key={node.Id} value={node.Id} disabled={!isLeaf} style={{ fontWeight: isLeaf ? 'normal' : 'bold', color: isLeaf ? 'inherit' : 'var(--color-text-muted)' }}>
+                  {indent}{node.Descripcion}
+             </option>
+        ];
+        if (node.children && node.children.length > 0) {
+             options.push(...renderColppyOptions(node.children, depth + 1));
+        }
+        return options;
+    });
+};
+
 /* ─── Component ─────────────────────────────────────── */
 
 export default function ComprobanteForm({ onSuccess }: Props) {
@@ -90,7 +108,7 @@ export default function ComprobanteForm({ onSuccess }: Props) {
 
     // Líneas de detalle
     const [lineas, setLineas] = useState<LineaDetalle[]>([
-        { id: newId(), producto_servicio_id: '', descripcion: '', cantidad: 1, precio_unitario: 0, iva_porcentaje: 21 },
+        { id: newId(), producto_servicio_id: '', descripcion: '', cantidad: 1, precio_unitario: 0, iva_porcentaje: 21, colpy_cuenta_id: '' },
     ]);
 
     // Catalogs
@@ -99,6 +117,7 @@ export default function ComprobanteForm({ onSuccess }: Props) {
     const [productos, setProductos] = useState<ProductoServicio[]>([]);
     const [centros, setCentros] = useState<CentroCosto[]>([]);
     const [categorias, setCategorias] = useState<{ id: string, nombre: string, color: string, tipo: string }[]>([]);
+    const [arbolContable, setArbolContable] = useState<any[]>([]);
 
     // UI
     const [saving, setSaving] = useState(false);
@@ -133,6 +152,14 @@ export default function ComprobanteForm({ onSuccess }: Props) {
 
     const isRemito = tipoComp === 'Remito';
     const isRecibo = tipoComp === 'Recibo';
+
+    // Cargar Árbol Contable de Colppy
+    useEffect(() => {
+        if (!tenant) return;
+        getColpyService(tenant.id).getArbolContable()
+            .then(res => setArbolContable(res.data || []))
+            .catch(err => console.log("Árbol Colppy no disponible:", err));
+    }, [tenant]);
 
     /* Load catalogs */
     useEffect(() => {
@@ -369,6 +396,7 @@ export default function ComprobanteForm({ onSuccess }: Props) {
                         cantidad: l.cantidad,
                         precio_unitario: l.precio_unitario,
                         iva_porcentaje: l.iva_porcentaje,
+                        colpy_cuenta_id: l.colpy_cuenta_id || null,
                         subtotal: l.cantidad * l.precio_unitario,
                         iva: l.cantidad * l.precio_unitario * l.iva_porcentaje / 100,
                         total: l.cantidad * l.precio_unitario * (1 + l.iva_porcentaje / 100),
@@ -391,7 +419,7 @@ export default function ComprobanteForm({ onSuccess }: Props) {
         setNumero(''); setTipoComp(''); setDescripcion(''); setObs('');
         setProveedorId(''); setClienteId(''); setProductoId(''); setCentroId(''); setCategoriaId('');
         setTipoCambio(''); setEntitySearch('');
-        setLineas([{ id: newId(), producto_servicio_id: '', descripcion: '', cantidad: 1, precio_unitario: 0, iva_porcentaje: 21 }]);
+        setLineas([{ id: newId(), producto_servicio_id: '', descripcion: '', cantidad: 1, precio_unitario: 0, iva_porcentaje: 21, colpy_cuenta_id: '' }]);
         setSuccess(true);
         setTimeout(() => setSuccess(false), 3500);
         onSuccess?.();
@@ -980,15 +1008,23 @@ export default function ComprobanteForm({ onSuccess }: Props) {
                             {showLineas && (
                                 <>
                                     {/* Header row */}
-                                    <div style={{ display: 'grid', gridTemplateColumns: '3fr 80px 120px 90px 30px', gap: '0.5rem', padding: '0 0 0.375rem', borderBottom: '1px solid var(--color-border-subtle)', marginBottom: '0.5rem' }}>
-                                        {['Descripción', 'Cant.', 'Precio Unit.', 'IVA', ''].map(h => (
+                                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 70px 110px 80px 30px', gap: '0.5rem', padding: '0 0 0.375rem', borderBottom: '1px solid var(--color-border-subtle)', marginBottom: '0.5rem' }}>
+                                        {['Descripción', 'Imputación Colppy', 'Cant.', 'P. Unit.', 'IVA', ''].map(h => (
                                             <div key={h} style={{ fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--color-text-muted)' }}>{h}</div>
                                         ))}
                                     </div>
 
                                     {lineas.map((l, i) => (
-                                        <div key={l.id} style={{ display: 'grid', gridTemplateColumns: '3fr 80px 120px 90px 30px', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'center' }}>
+                                        <div key={l.id} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 70px 110px 80px 30px', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'center' }}>
                                             <input className="form-input" placeholder={`Línea ${i + 1}`} value={l.descripcion} onChange={e => updateLinea(l.id, 'descripcion', e.target.value)} style={{ fontSize: '0.8125rem' }} tabIndex={0} />
+                                            {arbolContable.length > 0 ? (
+                                                <select className="form-input" value={l.colpy_cuenta_id || ''} onChange={e => updateLinea(l.id, 'colpy_cuenta_id', e.target.value)} style={{ fontSize: '0.75rem', textOverflow: 'ellipsis' }}>
+                                                    <option value="">Seleccionar cuenta...</option>
+                                                    {renderColppyOptions(arbolContable)}
+                                                </select>
+                                            ) : (
+                                                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontStyle: 'italic', padding: '0 0.5rem' }}>Sin Colppy conf.</div>
+                                            )}
                                             <input type="number" className="form-input" min={1} value={l.cantidad} onChange={e => updateLinea(l.id, 'cantidad', parseFloat(e.target.value) || 1)} style={{ fontSize: '0.8125rem', textAlign: 'right', fontFamily: 'var(--font-mono)' }} />
                                             <input type="number" className="form-input" min={0} step={0.01} value={l.precio_unitario === 0 ? '' : l.precio_unitario} placeholder="0.00" onChange={e => updateLinea(l.id, 'precio_unitario', parseFloat(e.target.value) || 0)} style={{ fontSize: '0.8125rem', textAlign: 'right', fontFamily: 'var(--font-mono)' }} />
                                             <select className="form-input" value={l.iva_porcentaje} onChange={e => updateLinea(l.id, 'iva_porcentaje', parseFloat(e.target.value))} style={{ fontSize: '0.8125rem' }}>
