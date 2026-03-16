@@ -61,6 +61,8 @@ export default function Configuracion() {
     const [arcaStatus, setArcaStatus] = useState<'idle' | 'ok' | 'error'>('idle');
     const [xubioMessage, setXubioMessage] = useState('');
     const [colpyMessage, setColpyMessage] = useState('');
+    const [colpyEmpresas, setColpyEmpresas] = useState<{ idEmpresa: string, RazonSocial: string }[] | null>(null);
+    const [loadingColpyEmpresas, setLoadingColpyEmpresas] = useState(false);
 
     // Bank integration state
     const [bankCreds, setBankCreds] = useState<BankCredential[]>([]);
@@ -355,6 +357,40 @@ export default function Configuracion() {
         setColpyMessage(result.message);
         setTestingColpy(false);
         if (result.success) await loadConfig();
+    }
+
+    async function buscarEmpresasColpy() {
+        setLoadingColpyEmpresas(true);
+        setColpyMessage('');
+        try {
+            if (config) {
+                await supabase.from('contable_config').update({ 
+                    colpy_username: config.colpy_username, 
+                    colpy_password: config.colpy_password
+                }).eq('id', config.id);
+            }
+            const colpy = getColpyService(tenant!.id);
+            await colpy.loadConfig();
+            if (!colpy.isConfigured) { 
+                setColpyStatus('error'); 
+                setColpyMessage('Primero debés ingresar tu Usuario y Contraseña'); 
+                setLoadingColpyEmpresas(false); 
+                return; 
+            }
+            const empresas = await colpy.getEmpresas();
+            setColpyEmpresas(empresas);
+            if(empresas.length === 0) {
+                 setColpyStatus('error');
+                 setColpyMessage('No se encontraron empresas para este usuario');
+            } else {
+                 setColpyStatus('ok');
+                 setColpyMessage('Empresas generadas con éxito. Seleccioná una abajo.');
+            }
+        } catch(e:any) {
+            setColpyStatus('error');
+            setColpyMessage('Error al buscar empresas: ' + e.message);
+        }
+        setLoadingColpyEmpresas(false);
     }
 
     async function handleSyncColpyClientes() {
@@ -660,8 +696,32 @@ export default function Configuracion() {
                     </div>
                 </div>
                 <div className="form-group">
-                    <label className="form-label">Alias / ID de Empresa (Opcional)</label>
-                    <input className="form-input" value={config?.colpy_empresa_id || ''} onChange={e => updateConfig('colpy_empresa_id', e.target.value)} placeholder="Ej: MiPymeSRL" />
+                    <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        ID de Empresa
+                        <button 
+                             onClick={buscarEmpresasColpy} 
+                             disabled={loadingColpyEmpresas}
+                             style={{ background: 'none', border: 'none', color: 'var(--brand)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                        >
+                            {loadingColpyEmpresas ? 'Buscando...' : 'Buscar mis empresas'}
+                        </button>
+                    </label>
+                    {colpyEmpresas && colpyEmpresas.length > 0 && (
+                        <select 
+                            className="form-input" 
+                            style={{ marginBottom: '0.5rem' }}
+                            value={config?.colpy_empresa_id || ''} 
+                            onChange={e => updateConfig('colpy_empresa_id', e.target.value)}
+                        >
+                            <option value="">Seleccioná una empresa de la lista...</option>
+                            {colpyEmpresas.map((emp: any, idx) => (
+                                <option key={emp.IdEmpresa ? `${emp.IdEmpresa}-${idx}` : idx} value={emp.IdEmpresa}>
+                                    {emp.razonSocial || emp.Nombre || emp.RazonSocial} (ID: {emp.IdEmpresa})
+                                </option>
+                            ))}
+                        </select>
+                    )}
+                    <input className="form-input" value={config?.colpy_empresa_id || ''} onChange={e => updateConfig('colpy_empresa_id', e.target.value)} placeholder="Ej: 118337 (Ingresar a mano u obtener desde 'Buscar mis empresas')" />
                 </div>
                 <button className="btn btn-secondary" onClick={testColpy} disabled={testingColpy} style={{ width: '100%' }}>
                     <RefreshCw size={14} className={testingColpy ? 'spinning' : ''} /> {testingColpy ? 'Conectando...' : 'Probar conexión al ERP'}

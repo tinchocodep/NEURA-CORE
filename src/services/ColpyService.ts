@@ -24,21 +24,35 @@ interface ColpyConfig {
 }
 
 export interface ColpyCliente {
-    id: string; // Colpy usually returns string or number identifiers
-    nombre: string;
-    cuit: string;
-    email: string;
-    telefono: string;
-    direccion: string;
+    id?: string;
+    idCliente?: string;
+    idcliente?: string;
+    nombre?: string;
+    RazonSocial?: string;
+    cuit?: string;
+    CUIT?: string;
+    email?: string;
+    Email?: string;
+    telefono?: string;
+    Telefono?: string;
+    direccion?: string;
+    DirPostal?: string;
 }
 
 export interface ColpyProveedor {
-    id: string;
-    nombre: string;
-    cuit: string;
-    email: string;
-    telefono: string;
-    direccion: string;
+    id?: string;
+    idProveedor?: string;
+    idproveedor?: string;
+    nombre?: string;
+    RazonSocial?: string;
+    cuit?: string;
+    CUIT?: string;
+    email?: string;
+    Email?: string;
+    telefono?: string;
+    Telefono?: string;
+    direccion?: string;
+    DirPostal?: string;
 }
 
 /* ─── Constants ────────────────────────────────────── */
@@ -87,7 +101,8 @@ export class ColpyService {
     private async apiRequest<T>(
         serviceName: string, 
         operacion: string, 
-        parametros: Record<string, any> = {}
+        parametros: Record<string, any> = {},
+        rootProps: Record<string, any> = {}
     ): Promise<T> {
         if (!this.config) {
             await this.loadConfig();
@@ -134,7 +149,8 @@ export class ColpyService {
                 "provision": serviceName,
                 "operacion": operacion
             },
-            "parameters": requestParameters
+            "parameters": requestParameters,
+            ...rootProps
         };
 
         let response;
@@ -200,7 +216,13 @@ export class ColpyService {
 
     async getClientes(): Promise<ColpyCliente[]> {
         try {
-            const resp = await this.apiRequest<any>('Cliente', 'listar_cliente');
+            const resp = await this.apiRequest<any>('Cliente', 'listar_cliente', {
+                idEmpresa: this.config?.colpy_empresa_id || "",
+                start: 0,
+                limit: 500,
+                filter: [],
+                order: [{ field: "RazonSocial", dir: "asc" }]
+            });
             return resp.data || resp.clientes || [];
         } catch (e) {
             console.error("Colpy getClientes error: ", e);
@@ -210,7 +232,13 @@ export class ColpyService {
 
     async getProveedores(): Promise<ColpyProveedor[]> {
         try {
-            const resp = await this.apiRequest<any>('Proveedor', 'listar_proveedor');
+            const resp = await this.apiRequest<any>('Proveedor', 'listar_proveedor', {
+                idEmpresa: this.config?.colpy_empresa_id || "",
+                start: 0,
+                limit: 500,
+                filter: [],
+                order: [{ field: "RazonSocial", dir: "asc" }]
+            });
             return resp.data || resp.proveedores || [];
         } catch (e) {
             console.error("Colpy getProveedores error: ", e);
@@ -218,48 +246,90 @@ export class ColpyService {
         }
     }
 
+    async getEmpresas(): Promise<{ idEmpresa: string, RazonSocial: string }[]> {
+        try {
+            const rootProps = {
+                filter: [{ field: "IdEmpresa", op: "<>", value: "1" }],
+                order: { field: ["IdEmpresa"], order: "asc" }
+            };
+            const resp = await this.apiRequest<any>('Empresa', 'listar_empresa', { start: 0, limit: 100 }, rootProps);
+            console.log("Colppy getEmpresas crudo:", resp);
+            return resp.data || [];
+        } catch (e) {
+            console.error("Colpy getEmpresas error: ", e);
+            throw e;
+        }
+    }
+
     async syncClientesFromColpy(): Promise<{ imported: number; updated: number; errors: string[] }> {
+        console.log("Iniciando descarga de clientes desde Colppy...");
         const colpyClientes = await this.getClientes();
+        console.log(`¡Colppy respondió! Se encontraron ${colpyClientes.length} clientes en total.`);
+        
         let imported = 0;
         let updated = 0;
         const errors: string[] = [];
 
+        // Obtener todos los clientes existentes en 1 consulta
+        const { data: existingClients, error: fetchErr } = await supabase
+            .from('contable_clientes')
+            .select('id, colpy_id, razon_social, cuit')
+            .eq('tenant_id', this.tenantId);
+            
+        if (fetchErr) {
+            throw new Error(`Error obteniendo clientes previos: ${fetchErr.message}`);
+        }
+
+        const existingByColpyId = new Map(existingClients?.filter(c => c.colpy_id).map(c => [c.colpy_id, c]));
+        const existingByRazonSocial = new Map(existingClients?.filter(c => c.razon_social).map(c => [c.razon_social.toLowerCase(), c]));
+        const existingByCuit = new Map(existingClients?.filter(c => c.cuit).map(c => [c.cuit, c]));
+
+        console.log("Comenzando el proceso de guardado y actualización de clientes en base de datos...");
+        let processed = 0;
+
         for (const cc of colpyClientes) {
-            const razonSocial = cc.nombre || `Sin Nombre (ID: ${cc.id})`;
-            const cuit = cc.cuit || null;
+            processed++;
+            if (processed % 50 === 0) {
+                console.log(`Progreso: Procesados ${processed} de ${colpyClientes.length} clientes... (Importados: ${imported}, Actualizados: ${updated})`);
+            }
+
+            const idColppy = cc.id || cc.idCliente || cc.idcliente;
+            let razonSocial = cc.RazonSocial || cc.nombre || `Sin Nombre (ID: ${idColppy})`;
+            razonSocial = razonSocial.replace(/"/g, '').replace(/'/g, '').trim();
+            const cuit = cc.CUIT || cc.cuit || null;
+
+            if (!idColppy) continue;
 
             try {
-                // Check if exists by CUIT or colpy_id
-                let orCondition = `colpy_id.eq.${cc.id}`;
-                if (cuit) {
-                    orCondition += `,cuit.eq.${cuit}`;
-                }
-
-                const { data: existing } = await supabase
-                    .from('contable_clientes')
-                    .select('id, colpy_id')
-                    .eq('tenant_id', this.tenantId)
-                    .or(orCondition)
-                    .maybeSingle();
-
                 const clienteData = {
                     tenant_id: this.tenantId,
                     razon_social: razonSocial,
                     cuit,
-                    email: cc.email || null,
-                    telefono: cc.telefono || null,
-                    direccion: cc.direccion || null,
-                    colpy_id: cc.id,
+                    colpy_id: idColppy.toString(),
                 };
 
+                let existing = existingByColpyId.get(clienteData.colpy_id) || 
+                               existingByRazonSocial.get(razonSocial.toLowerCase()) || 
+                               (cuit ? existingByCuit.get(cuit) : undefined);
+
                 if (existing) {
-                    await supabase.from('contable_clientes').update(clienteData).eq('id', existing.id);
+                    const { error } = await supabase.from('contable_clientes').update(clienteData).eq('id', existing.id);
+                    if (error) throw new Error(error.message);
                     updated++;
                 } else {
-                    await supabase.from('contable_clientes').insert(clienteData);
+                    const { data: inserted, error } = await supabase.from('contable_clientes').insert(clienteData).select('id').single();
+                    if (error) throw new Error(error.message);
+                    
+                    if (inserted) {
+                        const newEntry = { id: inserted.id, colpy_id: clienteData.colpy_id, razon_social: razonSocial, cuit };
+                        existingByColpyId.set(clienteData.colpy_id, newEntry);
+                        existingByRazonSocial.set(razonSocial.toLowerCase(), newEntry);
+                        if (cuit) existingByCuit.set(cuit, newEntry);
+                    }
                     imported++;
                 }
             } catch (err) {
+                console.error("Error importando cliente colppy: ", cc, err);
                 errors.push(`Cliente "${razonSocial}": ${(err as Error).message}`);
             }
         }
@@ -270,46 +340,74 @@ export class ColpyService {
     /* ── Proveedores ────────────────────────────── */
 
     async syncProveedoresFromColpy(): Promise<{ imported: number; updated: number; errors: string[] }> {
+        console.log("Iniciando descarga de proveedores desde Colppy...");
         const colpyProveedores = await this.getProveedores();
+        console.log(`¡Colppy respondió! Se encontraron ${colpyProveedores.length} proveedores en total.`);
+
         let imported = 0;
         let updated = 0;
         const errors: string[] = [];
 
+        // Obtener todos los proveedores existentes en 1 consulta
+        const { data: existingProvs, error: fetchErr } = await supabase
+            .from('contable_proveedores')
+            .select('id, colpy_id, razon_social, cuit')
+            .eq('tenant_id', this.tenantId);
+            
+        if (fetchErr) {
+            throw new Error(`Error obteniendo proveedores previos: ${fetchErr.message}`);
+        }
+
+        const existingByColpyId = new Map(existingProvs?.filter(p => p.colpy_id).map(p => [p.colpy_id, p]));
+        const existingByRazonSocial = new Map(existingProvs?.filter(p => p.razon_social).map(p => [p.razon_social.toLowerCase(), p]));
+        const existingByCuit = new Map(existingProvs?.filter(p => p.cuit).map(p => [p.cuit, p]));
+
+        console.log("Comenzando el proceso de guardado y actualización de proveedores en base de datos...");
+        let processed = 0;
+
         for (const cp of colpyProveedores) {
-            const razonSocial = cp.nombre || `Sin Nombre (ID: ${cp.id})`;
-            const cuit = cp.cuit || null;
+            processed++;
+            if (processed % 50 === 0) {
+                console.log(`Progreso: Procesados ${processed} de ${colpyProveedores.length} proveedores... (Importados: ${imported}, Actualizados: ${updated})`);
+            }
+
+            const idColppy = cp.id || cp.idProveedor || cp.idproveedor;
+            let razonSocial = cp.RazonSocial || cp.nombre || `Sin Nombre (ID: ${idColppy})`;
+            razonSocial = razonSocial.replace(/"/g, '').replace(/'/g, '').trim();
+            const cuit = cp.CUIT || cp.cuit || null;
+
+            if (!idColppy) continue;
 
             try {
-                let orCondition = `colpy_id.eq.${cp.id}`;
-                if (cuit) {
-                    orCondition += `,cuit.eq.${cuit}`;
-                }
-
-                const { data: existing } = await supabase
-                    .from('contable_proveedores')
-                    .select('id, colpy_id')
-                    .eq('tenant_id', this.tenantId)
-                    .or(orCondition)
-                    .maybeSingle();
-
                 const provData = {
                     tenant_id: this.tenantId,
                     razon_social: razonSocial,
                     cuit,
-                    email: cp.email || null,
-                    telefono: cp.telefono || null,
-                    direccion: cp.direccion || null,
-                    colpy_id: cp.id,
+                    colpy_id: idColppy.toString(),
                 };
 
+                let existing = existingByColpyId.get(provData.colpy_id) || 
+                               existingByRazonSocial.get(razonSocial.toLowerCase()) || 
+                               (cuit ? existingByCuit.get(cuit) : undefined);
+
                 if (existing) {
-                    await supabase.from('contable_proveedores').update(provData).eq('id', existing.id);
+                    const { error } = await supabase.from('contable_proveedores').update(provData).eq('id', existing.id);
+                    if (error) throw new Error(error.message);
                     updated++;
                 } else {
-                    await supabase.from('contable_proveedores').insert(provData);
+                    const { data: inserted, error } = await supabase.from('contable_proveedores').insert(provData).select('id').single();
+                    if (error) throw new Error(error.message);
+                    
+                    if (inserted) {
+                        const newEntry = { id: inserted.id, colpy_id: provData.colpy_id, razon_social: razonSocial, cuit };
+                        existingByColpyId.set(provData.colpy_id, newEntry);
+                        existingByRazonSocial.set(razonSocial.toLowerCase(), newEntry);
+                        if (cuit) existingByCuit.set(cuit, newEntry);
+                    }
                     imported++;
                 }
             } catch (err) {
+                console.error("Error importando proveedor colppy: ", cp, err);
                 errors.push(`Proveedor "${razonSocial}": ${(err as Error).message}`);
             }
         }
