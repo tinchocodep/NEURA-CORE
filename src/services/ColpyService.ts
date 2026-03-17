@@ -350,7 +350,8 @@ export class ColpyService {
             const idColppy = cc.id || cc.idCliente || cc.idcliente;
             let razonSocial = cc.RazonSocial || cc.nombre || `Sin Nombre (ID: ${idColppy})`;
             razonSocial = razonSocial.replace(/"/g, '').replace(/'/g, '').trim();
-            const cuit = cc.CUIT || cc.cuit || null;
+            let cuit = cc.CUIT || cc.cuit || null;
+            if (cuit) cuit = cuit.replace(/-/g, '').trim();
 
             if (!idColppy) continue;
 
@@ -428,7 +429,8 @@ export class ColpyService {
             const idColppy = cp.id || cp.idProveedor || cp.idproveedor;
             let razonSocial = cp.RazonSocial || cp.nombre || `Sin Nombre (ID: ${idColppy})`;
             razonSocial = razonSocial.replace(/"/g, '').replace(/'/g, '').trim();
-            const cuit = cp.CUIT || cp.cuit || null;
+            let cuit = cp.CUIT || cp.cuit || null;
+            if (cuit) cuit = cuit.replace(/-/g, '').trim();
 
             if (!idColppy) continue;
 

@@ -11,7 +11,7 @@ BEGIN
     UPDATE messaging_connections
     SET status = 'inactive'
     WHERE external_id = p_external_id
-      AND provider = p_provider::messaging_provider
+      AND provider = p_provider
       AND id != p_exclude_id
       AND status = 'active';
 END;
