@@ -24,6 +24,13 @@ export interface Comprobante {
     cuit_emisor: string | null;
     cuit_receptor: string | null;
     created_at: string;
+    fecha_vencimiento?: string | null;
+    neto_gravado?: number | null;
+    neto_no_gravado?: number | null;
+    total_iva?: number | null;
+    percepciones_iibb?: number | null;
+    percepciones_iva?: number | null;
+    colpy_synced_at?: string | null;
     proveedor: { razon_social: string; producto_servicio_default_id: string | null } | null;
     cliente: { razon_social: string } | null;
     producto_servicio: { nombre: string; grupo: string } | null;
@@ -36,6 +43,8 @@ const SELECT_FIELDS = `
   monto_original, monto_ars, moneda, tipo_cambio,
   estado, clasificacion_score, descripcion, observaciones,
   pdf_url, source, cuit_emisor, cuit_receptor, created_at,
+  fecha_vencimiento, neto_gravado, neto_no_gravado, total_iva,
+  percepciones_iibb, percepciones_iva, colpy_synced_at,
   proveedor:contable_proveedores(razon_social, producto_servicio_default_id),
   cliente:contable_clientes(razon_social),
   producto_servicio:contable_productos_servicio(nombre, grupo),
@@ -120,18 +129,27 @@ export function useComprobantes(filters: ComprobantesFilters) {
         return query;
     }, [tenant, filters.tipo, filters.estado, filters.busqueda, filters.fechaDesde, filters.fechaHasta, filters.sortCol, filters.sortDir, lastCreatedAt]);
 
+    const isFetchingRef = useRef(false);
+
     const reset = useCallback(async () => {
-        if (!tenant) return;
+        if (!tenant || isFetchingRef.current) return;
+        isFetchingRef.current = true;
         setIsLoading(true);
         setPages([]);
         setLastCreatedAt(null);
         setHasMore(true);
 
         const query = await buildQuery(false);
-        if (!query) { setIsLoading(false); return; }
+        if (!query) { 
+            setIsLoading(false); 
+            isFetchingRef.current = false;
+            return; 
+        }
 
         const { data: rows, count, error } = await query;
         setIsLoading(false);
+        isFetchingRef.current = false;
+        
         if (error) { console.error('useComprobantes/reset:', error); return; }
 
         const freshRows = (rows || []) as unknown as Comprobante[];
@@ -164,20 +182,34 @@ export function useComprobantes(filters: ComprobantesFilters) {
     }, [tenant, buildQuery]);
 
     const loadMore = useCallback(async () => {
-        if (!tenant || isLoading || !hasMore || !lastCreatedAt) return;
+        if (!tenant || isLoading || !hasMore || !lastCreatedAt || isFetchingRef.current) return;
+        isFetchingRef.current = true;
         setIsLoading(true);
 
         const query = await buildQuery(true);
-        if (!query) { setIsLoading(false); return; }
+        if (!query) { 
+            setIsLoading(false); 
+            isFetchingRef.current = false;
+            return; 
+        }
 
         const { data: rows, error } = await query;
         setIsLoading(false);
+        isFetchingRef.current = false;
+
         if (error) { console.error('useComprobantes/loadMore:', error); return; }
 
         const newRows = (rows || []) as unknown as Comprobante[];
         if (newRows.length < PAGE_SIZE) setHasMore(false);
+        
         if (newRows.length > 0) {
-            setPages(prev => [...prev, newRows]);
+            setPages(prev => {
+                // Prevenir duplicidades asegurando que la primera id de newRows no esté ya en prev
+                const existingIds = new Set(prev.flat().map(r => r.id));
+                const uniqueNewRows = newRows.filter(r => !existingIds.has(r.id));
+                if (uniqueNewRows.length === 0) return prev;
+                return [...prev, uniqueNewRows];
+            });
             setLastCreatedAt(newRows[newRows.length - 1].created_at);
         }
     }, [tenant, isLoading, hasMore, lastCreatedAt, buildQuery]);

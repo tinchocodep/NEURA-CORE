@@ -69,6 +69,23 @@ export class ColpyService {
         this.tenantId = tenantId;
     }
 
+    /* ── Cancelación de Sync ────────────────────────── */
+    private _abortController: AbortController | null = null;
+    public isAborted = false;
+
+    public abortSync() {
+        console.warn("[ColpyService] 🛑 SEÑAL DE ABORTO RECIBIDA. Deteniendo próximos requests...");
+        this.isAborted = true;
+        if (this._abortController) {
+            this._abortController.abort();
+        }
+    }
+
+    public resetAbort() {
+        this.isAborted = false;
+        this._abortController = null;
+    }
+
     /* ── Config & Auth State ────────────────────────── */
 
     /** Load config from contable_config table */
@@ -157,13 +174,23 @@ export class ColpyService {
         };
 
         let response;
+        console.log(`[ColpyService] 📡 Enviando POST a ${serviceName}/${operacion}...`, requestParameters);
+        
+        // Crear un controlador nuevo para cada request, a menos que ya estemos abortados
+        if (this.isAborted) throw new Error("Petición cancelada manualmente.");
+        this._abortController = new AbortController();
+
         try {
             response = await fetch(COLPY_ENDPOINT, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: JSON.stringify(payload),
+                signal: this._abortController.signal
             });
         } catch (error: any) {
+            if (error.name === 'AbortError' || this.isAborted) {
+                throw new Error("Petición cancelada manualmente.");
+            }
             console.error("Colpy fetch network/CORS error:", error);
             throw new Error(`Error de Red/CORS conectando. ¿Instalaste la Edge Function?: ${error.message}`);
         }
@@ -440,6 +467,98 @@ export class ColpyService {
         }
 
         return { imported, updated, errors };
+    }
+
+    /* ── Comprobantes (Lectura desde Colpy) ───── */
+
+    async getFacturasVenta(desde?: string, hasta?: string): Promise<any[]> {
+        await this.loadConfig();
+        try {
+            const allFacturas: any[] = [];
+            let start = 0;
+            const limit = 500;
+            let hasMore = true;
+
+            const filtrosVenta = [];
+            if (desde) filtrosVenta.push({ field: "fechaFactura", op: ">=", value: desde });
+            if (hasta) filtrosVenta.push({ field: "fechaFactura", op: "<=", value: hasta });
+
+            console.log(`[ColpyService] 🚀 Iniciando Batch Descarga Ventas (Filtros: ${JSON.stringify(filtrosVenta)})`);
+
+            while (hasMore) {
+                if (this.isAborted) {
+                    console.log("[ColpyService] 🛑 Sincronización de ventas abortada. Rompiendo while...");
+                    break;
+                }
+
+                const data = await this.apiRequest<any>('FacturaVenta', 'listar_facturasventa', {
+                    idEmpresa: this.config!.colpy_empresa_id,
+                    start: start,
+                    limit: limit,
+                    ...(filtrosVenta.length > 0 ? { filter: filtrosVenta } : {})
+                });
+                
+                const facturasData = Array.isArray(data) ? data : (data?.facturas || data?.data || []);
+                allFacturas.push(...facturasData);
+
+                // Si la cantidad recibida es inferior al limite, ya no hay mas paginas
+                if (facturasData.length < limit) {
+                    hasMore = false;
+                } else {
+                    start += limit;
+                }
+            }
+
+            return allFacturas;
+        } catch (e: any) {
+            console.error("Error al obtener facturas de venta de Colppy:", e);
+            throw e;
+        }
+    }
+
+    async getFacturasCompra(desde?: string, hasta?: string): Promise<any[]> {
+        await this.loadConfig();
+        try {
+            const allFacturas: any[] = [];
+            let start = 0;
+            const limit = 500;
+            let hasMore = true;
+
+            const filtrosCompra = [];
+            if (desde) filtrosCompra.push({ field: "fechaFactura", op: ">=", value: desde });
+            if (hasta) filtrosCompra.push({ field: "fechaFactura", op: "<=", value: hasta });
+
+            console.log(`[ColpyService] 🚀 Iniciando Batch Descarga Compras (Filtros: ${JSON.stringify(filtrosCompra)})`);
+
+            while (hasMore) {
+                if (this.isAborted) {
+                    console.log("[ColpyService] 🛑 Sincronización de compras abortada. Rompiendo while...");
+                    break;
+                }
+                
+                const data = await this.apiRequest<any>('FacturaCompra', 'listar_facturascompra', {
+                    idEmpresa: this.config!.colpy_empresa_id,
+                    start: start,
+                    limit: limit,
+                    filter: filtrosCompra // Compras pide arreglo aunque sea vacio []
+                });
+                
+                const facturasData = Array.isArray(data) ? data : (data?.facturas || data?.data || []);
+                allFacturas.push(...facturasData);
+
+                // Si la cantidad recibida es inferior al limite, ya no hay mas paginas
+                if (facturasData.length < limit) {
+                    hasMore = false;
+                } else {
+                    start += limit;
+                }
+            }
+
+            return allFacturas;
+        } catch (e: any) {
+            console.error("Error al obtener facturas de compra de Colppy:", e);
+            throw e;
+        }
     }
 
     /* ── Comprobantes (Inyección a Colpy) ───── */

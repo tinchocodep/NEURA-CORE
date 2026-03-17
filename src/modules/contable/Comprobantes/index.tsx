@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import { useTenant } from '../../../contexts/TenantContext';
 import { useToast } from '../../../contexts/ToastContext';
-import { Search, Filter, Plus, Upload as UploadIcon, X, Send, FileText, CheckCircle, XCircle, Eye, Calendar, Download, AlertTriangle } from 'lucide-react';
+import { Search, Filter, Plus, Upload as UploadIcon, X, Send, FileText, CheckCircle, XCircle, Eye, Calendar, Download, AlertTriangle, RefreshCw } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import ComprobantesGrid from './ComprobantesGrid';
 import { useComprobantes } from './useComprobantes';
@@ -32,6 +32,11 @@ export default function ComprobantesIndex() {
 
 
     const [exportando, setExportando] = useState(false);
+    const [syncingColpy, setSyncingColpy] = useState(false);
+    const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+    const [syncDesde, setSyncDesde] = useState('');
+    const [syncHasta, setSyncHasta] = useState('');
+    
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [bulkProcessing, setBulkProcessing] = useState(false);
     const [sortCol, setSortCol] = useState<string | null>('fecha');
@@ -386,6 +391,159 @@ export default function ComprobantesIndex() {
         }
     };
 
+    const handleSyncColpy = async (desde: string, hasta: string) => {
+        if (!tenant) return;
+        setIsSyncModalOpen(false);
+        setSyncingColpy(true);
+        addToast('info', 'Sincronización', `Conectando con Colppy (Desde: ${desde || 'Histórico'}, Hasta: ${hasta || 'Hoy'})...`);
+        
+        try {
+            const { getColpyService } = await import('../../../services/ColpyService');
+            const colpy = getColpyService(tenant.id);
+            colpy.resetAbort(); // Reiniciar estado al inicio
+            await colpy.loadConfig();
+            
+            if (!colpy.isConfigured) {
+                addToast('error', 'Error', 'Colppy no está configurado. Ve a Configuración.');
+                setSyncingColpy(false);
+                return;
+            }
+
+            let effectiveDesde = desde;
+            
+            // Auto-Discovery: Si el usuario dejó "Desde" en blanco, buscamos la últ. factura de Colppy
+            if (!effectiveDesde) {
+                const { data: lastInvoice } = await supabase
+                    .from('contable_comprobantes')
+                    .select('fecha')
+                    .eq('tenant_id', tenant.id)
+                    .eq('source', 'colpy')
+                    .order('fecha', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+                
+                if (lastInvoice && lastInvoice.fecha) {
+                    const d = new Date(lastInvoice.fecha + "T12:00:00Z"); // Fix de Timezone
+                    d.setDate(d.getDate() - 15); // Margen de seguridad (15 días atras)
+                    effectiveDesde = d.toISOString().split('T')[0];
+                    console.log("[Sync] Auto-detectado inicio desde historial Supabase:", effectiveDesde);
+                } else {
+                    effectiveDesde = '2023-01-01'; // Fallback base general si la BD está virgen
+                }
+            }
+
+            let importados = 0;
+            const ventas = await colpy.getFacturasVenta(effectiveDesde, hasta);
+            const compras = await colpy.getFacturasCompra(effectiveDesde, hasta);
+
+            // Combinar e insertar
+            const todos = [...ventas.map(v => ({ ...v, _tipo: 'venta' })), ...compras.map(c => ({ ...c, _tipo: 'compra' }))];
+
+            // Traemos las entidades base para vincular
+            const { data: clientes } = await supabase.from('contable_clientes').select('id, colpy_id').eq('tenant_id', tenant.id).not('colpy_id', 'is', null);
+            const { data: proveedores } = await supabase.from('contable_proveedores').select('id, colpy_id').eq('tenant_id', tenant.id).not('colpy_id', 'is', null);
+            
+            // Mapas para busqueda rapida
+            const mapClientes = new Map(clientes?.map(c => [c.colpy_id, c.id]));
+            const mapProveedores = new Map(proveedores?.map(p => [p.colpy_id, p.id]));
+
+            for (const c of todos) {
+                if (colpy.isAborted) {
+                    console.log("Cortando inserción de Supabase porque se abortó");
+                    break;
+                }
+                
+                try {
+                    // Mapeo básico
+                    const nro = c.numeroFactura || c.nroFactura || c.nroComprobante || c.idFactura || c.id;
+                    const fecha = c.fechaEmision || c.fechaFactura || c.fecha || new Date().toISOString().split('T')[0];
+                    const importeTotal = c.totalFactura || c.importeTotal || c.total || c.importe || c.montoTotal || c.netoTotal || 0;
+                    const entidadNombre = c.RazonSocial || c.NombreFantasia || c.nombreCliente || c.nombreProveedor || 'Desconocido';
+                    
+                    const isVenta = c._tipo === 'venta';
+                    
+                    // Intentamos matchear cliente/proveedor
+                    const idEntidadColpy = c.idCliente || c.idProveedor || c.idcliente || c.idproveedor;
+                    let uuid_cliente = null;
+                    let uuid_proveedor = null;
+
+                    if (idEntidadColpy) {
+                        if (isVenta) {
+                            uuid_cliente = mapClientes.get(idEntidadColpy.toString());
+                        } else {
+                            uuid_proveedor = mapProveedores.get(idEntidadColpy.toString());
+                        }
+                    }
+
+                    // Intentar upsert o ignore si ya existe el colpy_id
+                    const colpyIdStr = (c.idFactura || c.id || '').toString();
+                    const { data: existe } = await supabase
+                        .from('contable_comprobantes')
+                        .select('id')
+                        .eq('tenant_id', tenant.id)
+                        .eq('colpy_id', colpyIdStr)
+                        .maybeSingle();
+
+                    // Fecha de vencimiento (Colppy usa fechaPago a veces como vencimiento en ventas o fechaVencimiento explícita)
+                    const fechaVencimiento = c.fechaPago || c.fechaVencimiento || fecha.split(' ')[0];
+
+                    if (!existe) {
+                        const payload = {
+                            tenant_id: tenant.id,
+                            tipo: isVenta ? 'venta' : 'compra',
+                            tipo_comprobante: c.tipoFactura || 'Factura',
+                            numero_comprobante: nro ? nro.toString().padStart(8, '0') : null,
+                            fecha: fecha.split(' ')[0],
+                            fecha_vencimiento: fechaVencimiento.split(' ')[0],
+                            monto_original: Number(importeTotal) || 0,
+                            monto_ars: Number(importeTotal) || 0, // Fallback asumiendo ARS
+                            moneda: 'ARS',
+                            estado: 'aprobado',
+                            source: 'colpy',
+                            colpy_id: colpyIdStr,
+                            colpy_synced_at: new Date().toISOString(),
+                            cliente_id: uuid_cliente || null,
+                            proveedor_id: uuid_proveedor || null,
+                            descripcion: `Sincronizado desde Colppy. Entidad: ${entidadNombre}`,
+                            // Advanced tracking: Impositivos y Netos
+                            neto_gravado: Number(c.netoGravado) || 0,
+                            neto_no_gravado: Number(c.netoNoGravado) || 0,
+                            total_iva: Number(c.totalIVA) || 0,
+                            percepciones_iibb: (Number(c.percepcionIIBB) || 0) + (Number(c.IIBBLocal) || 0) + (Number(c.IIBBOtro) || 0),
+                            percepciones_iva: Number(c.percepcionIVA) || 0,
+                        };
+
+                        const { error } = await supabase.from('contable_comprobantes').insert(payload);
+                        if (error) {
+                            console.error("Supabase insert error for Colppy sync:", error, "Payload:", payload);
+                        } else {
+                            importados++;
+                        }
+                    }
+                } catch(e) {
+                   console.warn("Ignorado comprobante", c, e);
+                }
+            }
+
+            if (colpy.isAborted) {
+                addToast('warning', 'Abortado', `Sincronización detenida. Se insertaron ${importados} antes de parar.`);
+            } else if (importados === 0) {
+                addToast('info', 'Al Día', 'Sincronización completada. No se encontraron comprobantes nuevos o faltantes en el rango.');
+            } else {
+                addToast('success', 'Completado', `Sincronizados ${importados} comprobantes nuevos de Colppy.`);
+            }
+            reset();
+        } catch (e: any) {
+            if (e.message && e.message.includes('cancelada')) {
+                addToast('warning', 'Sincronización Detenida', 'Has frenado la descarga de inmediato.');
+            } else {
+                addToast('error', 'Error Colppy', e.message);
+            }
+        } finally {
+            setSyncingColpy(false);
+        }
+    };
+
     // Hotkeys: Cmd+N → crear, Cmd+U → upload
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
@@ -441,6 +599,63 @@ export default function ComprobantesIndex() {
                 </div>
             )}
 
+            {/* Modal de Rangos para Colppy */}
+            {isSyncModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-slate-900 border border-slate-700/50 p-6 rounded-2xl shadow-2xl max-w-sm w-full mx-auto relative animate-in zoom-in-95 duration-200">
+                        <button onClick={() => setIsSyncModalOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white transition">
+                            <X size={20} />
+                        </button>
+                        
+                        <div className="flex items-center gap-3 mb-4 text-indigo-400">
+                            <RefreshCw size={24} />
+                            <h2 className="text-xl font-semibold text-white">Sincronizar Colppy</h2>
+                        </div>
+                        
+                        <p className="text-sm text-slate-300 mb-6">
+                            Selecciona el rango de fechas para descargar comprobantes. Si dejas los campos en blanco, descargará **TODO** el historial (puede demorar).
+                        </p>
+                        
+                        <div className="space-y-4 mb-6">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-400 mb-1">Fecha Desde</label>
+                                <input 
+                                    type="date" 
+                                    autoFocus
+                                    value={syncDesde} 
+                                    onChange={(e) => setSyncDesde(e.target.value)} 
+                                    className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-400 mb-1">Fecha Hasta</label>
+                                <input 
+                                    type="date" 
+                                    value={syncHasta} 
+                                    onChange={(e) => setSyncHasta(e.target.value)} 
+                                    className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition"
+                                />
+                            </div>
+                        </div>
+                        
+                        <div className="flex gap-3 justify-end">
+                            <button 
+                                onClick={() => setIsSyncModalOpen(false)}
+                                className="px-4 py-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                onClick={() => handleSyncColpy(syncDesde, syncHasta)}
+                                className="px-5 py-2 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-lg shadow-lg shadow-indigo-500/20 font-medium hover:from-indigo-500 hover:to-blue-500 transition-all flex items-center gap-2"
+                            >
+                                <RefreshCw size={16} /> Descargar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
             {/* Page header */}
             <div className="page-header">
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
@@ -449,6 +664,29 @@ export default function ComprobantesIndex() {
                         <p>Facturas de compra y venta · {totalCount.toLocaleString('es-AR')} registros</p>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        {syncingColpy ? (
+                            <button
+                                className="btn btn-sm"
+                                onClick={async () => {
+                                    if (!tenant) return;
+                                    const { getColpyService } = await import('../../../services/ColpyService');
+                                    getColpyService(tenant.id).abortSync();
+                                    addToast('warning', 'Cancelando', 'Deteniendo sincronización en breve...');
+                                }}
+                                title="Frenar descarga de Colppy"
+                                style={{ background: 'var(--color-danger)', color: 'white', borderColor: 'var(--color-danger)' }}
+                            >
+                                <XCircle size={13} /> Parar Sincronización
+                            </button>
+                        ) : (
+                            <button
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => setIsSyncModalOpen(true)}
+                                title="Descargar comprobantes de Colppy"
+                            >
+                                <RefreshCw size={13} /> Sincronizar Colppy
+                            </button>
+                        )}
                         <button
                             className="btn btn-secondary btn-sm"
                             onClick={() => setCmdOpen(true)}
@@ -610,6 +848,23 @@ export default function ComprobantesIndex() {
                                 }}
                             >
                                 <XCircle size={13} /> Rechazar todos
+                            </button>
+                            <button
+                                className="btn btn-sm"
+                                style={{ background: 'transparent', color: 'var(--color-danger)', border: '1px solid var(--color-danger)', gap: 4 }}
+                                disabled={bulkProcessing}
+                                onClick={async () => {
+                                    if (!confirm(`¿Estás seguro de que deseas eliminar permanentemente estos ${selectedIds.size} comprobantes? Esta acción sólo borra los registros locales, no en Colppy.`)) return;
+                                    setBulkProcessing(true);
+                                    for (const id of selectedIds) {
+                                        await eliminarComprobante(id);
+                                    }
+                                    setSelectedIds(new Set());
+                                    setBulkProcessing(false);
+                                    reset();
+                                }}
+                            >
+                                <X size={13} /> Eliminar todos
                             </button>
                             <button
                                 className="btn btn-sm btn-primary"

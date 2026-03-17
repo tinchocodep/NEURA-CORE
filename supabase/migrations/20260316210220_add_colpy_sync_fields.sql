@@ -1,0 +1,1 @@
+ALTER TABLE public.contable_comprobantes ADD COLUMN IF NOT EXISTS origen VARCHAR(50) DEFAULT 'manual'; ALTER TABLE public.contable_comprobantes ADD COLUMN IF NOT EXISTS colpy_synced_at TIMESTAMP WITH TIME ZONE;

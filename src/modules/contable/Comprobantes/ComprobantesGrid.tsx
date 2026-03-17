@@ -143,9 +143,18 @@ export default function ComprobantesGrid({
             minWidth: 160,
             className: 'cell-primary',
             accessor: (c) => {
-                const name = c.tipo === 'compra'
+                let name = c.tipo === 'compra'
                     ? (c.proveedor as any)?.razon_social
                     : (c.cliente as any)?.razon_social;
+                
+                // Si viene de colpy y no matcheó un UUID, intentamos rescatarlo del string guardado
+                if (!name && c.source === 'colpy' && c.descripcion) {
+                    const match = c.descripcion.match(/Entidad:\s*(.+)/i);
+                    if (match && match[1]) {
+                        name = match[1].trim();
+                     }
+                }
+
                 return name || <span style={{ color: 'var(--color-text-muted)' }}>—</span>;
             },
         },
@@ -288,7 +297,7 @@ export default function ComprobantesGrid({
                             </button>
                         </>
                     )}
-                    {c.estado === 'aprobado' && (
+                    {c.estado === 'aprobado' && c.source !== 'colpy' && (
                         <button
                             className="btn btn-sm btn-primary"
                             onClick={() => onAction(c.id, 'inyectar')}
@@ -329,10 +338,16 @@ export default function ComprobantesGrid({
             {[
                 { label: 'Monto Original', value: `${c.moneda} ${Number(c.monto_original).toLocaleString('es-AR', { minimumFractionDigits: 2 })}` },
                 { label: 'Monto ARS', value: `$${Number(c.monto_ars || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}` },
+                { label: 'Neto Gravado', value: c.neto_gravado ? `$${Number(c.neto_gravado).toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : null },
+                { label: 'Neto No Gravado', value: c.neto_no_gravado ? `$${Number(c.neto_no_gravado).toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : null },
+                { label: 'Total IVA', value: c.total_iva ? `$${Number(c.total_iva).toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : null },
+                { label: 'Percep. IIBB', value: c.percepciones_iibb ? `$${Number(c.percepciones_iibb).toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : null },
+                { label: 'Percep. IVA', value: c.percepciones_iva ? `$${Number(c.percepciones_iva).toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : null },
+                { label: 'Fecha Vencimiento', value: c.fecha_vencimiento ? new Date(c.fecha_vencimiento).toLocaleDateString('es-AR') : null },
                 { label: 'CUIT Emisor', value: c.cuit_emisor, mono: true },
                 { label: 'CUIT Receptor', value: c.cuit_receptor, mono: true },
                 { label: 'Fuente', value: c.source },
-                { label: 'Fecha de Carga', value: new Date(c.created_at).toLocaleString('es-AR') },
+                { label: 'Sincronizado/Carga', value: new Date(c.colpy_synced_at || c.created_at).toLocaleString('es-AR') },
             ].filter(f => f.value).map(f => (
                 <div key={f.label}>
                     <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{f.label}</div>
