@@ -88,8 +88,10 @@ export default function Layout() {
     const tenantModules = tenant?.enabled_modules || [];
 
     const hasModuleAccess = (moduleId: string) => {
-        if (!tenantModules.includes(moduleId)) return false;
+        // Los dueños de plataforma siempre tienen acceso a todos los módulos nativos
         if (role === 'admin' || role === 'superadmin') return true;
+        // Si no es admin, exigimos doble chequeo: que el tenant lo tenga pagado/habilitado Y que el empleado lo tenga
+        if (!tenantModules.includes(moduleId)) return false;
         return (userModules || []).includes(moduleId);
     };
 
@@ -123,11 +125,12 @@ export default function Layout() {
     ).filter((i: any) => !i.adminOnly || role === 'admin' || role === 'superadmin');
 
     const displayRole = role === 'superadmin' ? 'Super Admin' : role === 'admin' ? 'Admin' : 'Usuario';
-    const isContable = location.pathname.startsWith('/contable');
+    const isConfiguracion = location.pathname === '/configuracion';
+    const isContable = location.pathname.startsWith('/contable') || isConfiguracion;
     const isTesoreria = location.pathname.startsWith('/tesoreria');
 
-    // Determine current section nav items
-    const sectionItems = isContable ? contableItems : isTesoreria ? tesoreriaItems : [];
+    // Determine current section nav items (Ocultamos sub-opciones en configuración)
+    const sectionItems = (isContable && !isConfiguracion) ? contableItems : isTesoreria ? tesoreriaItems : [];
 
     return (
         <>
@@ -262,8 +265,8 @@ export default function Layout() {
                 {(role === 'admin' || role === 'superadmin') && (
                     <div style={{ padding: '0 0.75rem 0.25rem' }}>
                         <Link
-                            to="/contable/configuracion"
-                            className={`sidebar-link${location.pathname === '/contable/configuracion' ? ' active' : ''}`}
+                            to="/configuracion"
+                            className={`sidebar-link${location.pathname === '/configuracion' ? ' active' : ''}`}
                         >
                             <Settings size={16} />
                             Configuración

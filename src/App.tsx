@@ -79,8 +79,11 @@ export default function App() {
               <Route path="proveedores" element={<ContableProveedores />} />
               <Route path="clientes" element={<ContableClientes />} />
               <Route path="catalogos" element={<ContableCatalogos />} />
-              <Route path="configuracion" element={<ContableConfiguracion />} />
             </Route>
+            
+            {/* Global Configuracion */}
+            <Route path="configuracion" element={<ContableConfiguracion />} />
+            
             {/* Modulo Super Admin */}
             <Route path="superadmin" element={<SuperAdminDashboard />} />
           </Route>
