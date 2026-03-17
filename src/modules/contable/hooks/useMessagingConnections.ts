@@ -134,14 +134,34 @@ export function useMessagingConnections(provider: MessagingProvider) {
 
     const toggleConnection = useCallback(async (id: string, currentStatus: ConnectionStatus) => {
         const newStatus: ConnectionStatus = currentStatus === 'active' ? 'inactive' : 'active';
+        
+        if (newStatus === 'active') {
+            const target = connections.find(c => c.id === id);
+            if (target && target.external_id) {
+                const { error: rpcErr } = await supabase.rpc('deactivate_other_messaging_connections', {
+                    p_external_id: target.external_id,
+                    p_provider: target.provider,
+                    p_exclude_id: id
+                });
+                if (rpcErr) console.error('Error al desactivar otras conexiones:', rpcErr);
+            }
+        }
+
         const { error } = await supabase
             .from('messaging_connections')
             .update({ status: newStatus })
             .eq('id', id);
 
         if (error) { addToast('error', 'Error', 'No se pudo actualizar el estado.'); return; }
+        
+        if (newStatus === 'active') {
+            addToast('success', 'Conexión Activada', 'Esta cuenta es ahora la receptora principal.');
+        } else {
+            addToast('info', 'Conexión Pausada', 'Se ha pausado la recepción de comprobantes.');
+        }
+
         setConnections(prev => prev.map(c => c.id === id ? { ...c, status: newStatus } : c));
-    }, [addToast]);
+    }, [connections, addToast]);
 
     // ── Renovar código si expiró (sin perder el registro) ───────────────────
     const renewCode = useCallback(async (id: string) => {

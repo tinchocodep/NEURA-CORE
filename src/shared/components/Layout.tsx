@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
     LogOut, LayoutDashboard, ArrowRightLeft, FileText, Activity, Landmark,
     Briefcase, Zap, Users, BookOpen, Tag, Building2, Settings, ClipboardList,
-    Receipt, GitMerge
+    Receipt, GitMerge, PanelLeftClose, PanelLeftOpen
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
@@ -19,6 +19,7 @@ export default function Layout() {
     const [pendingCount, setPendingCount] = useState(0);
     const [pendingComprobantes, setPendingComprobantes] = useState(0);
     const [agentCollapsed, setAgentCollapsed] = useState(true);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
     useEffect(() => {
         if (!tenant || (role !== 'admin' && role !== 'superadmin')) return;
@@ -136,10 +137,19 @@ export default function Layout() {
     return (
         <>
             <div
-                className={`app-shell${agentCollapsed ? ' agent-collapsed' : ''}`}
+                className={`app-shell${agentCollapsed ? ' agent-collapsed' : ''}${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}
             >
                 {/* ──────────────── SIDEBAR ──────────────── */}
                 <aside className="sidebar">
+                {/* Hamburger toggle */}
+                <button
+                    onClick={() => setSidebarCollapsed(c => !c)}
+                    className="sidebar-toggle-btn"
+                    title={sidebarCollapsed ? 'Expandir menú' : 'Colapsar menú'}
+                >
+                    {sidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+                </button>
+
                 {/* Logo */}
                 <div className="sidebar-logo">
                     {tenant?.logo_url ? (
@@ -276,29 +286,20 @@ export default function Layout() {
                 )}
 
                 {/* User footer */}
-                <div style={{
-                    padding: '0.875rem 1rem',
-                    borderTop: '1px solid var(--color-border-subtle)',
-                    display: 'flex', alignItems: 'center', gap: '0.625rem',
-                }}>
-                    <div style={{
-                        width: 30, height: 30, borderRadius: '50%',
-                        background: 'var(--color-accent-dim)',
-                        border: '1px solid var(--color-accent-border)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-accent)',
-                        flexShrink: 0,
-                    }}>
+                <div className={`sidebar-user-footer${sidebarCollapsed ? ' collapsed' : ''}`}>
+                    <div className="sidebar-user-avatar">
                         {(displayName || user.email?.charAt(0) || '?').charAt(0).toUpperCase()}
                     </div>
-                    <div style={{ flex: 1, overflow: 'hidden' }}>
-                        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {displayName || user.email}
+                    {!sidebarCollapsed && (
+                        <div style={{ flex: 1, overflow: 'hidden' }}>
+                            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {displayName || user.email}
+                            </div>
+                            <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>
+                                {displayRole}
+                            </div>
                         </div>
-                        <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>
-                            {displayRole}
-                        </div>
-                    </div>
+                    )}
                     <button
                         onClick={signOut}
                         className="btn btn-ghost btn-icon"

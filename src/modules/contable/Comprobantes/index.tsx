@@ -725,12 +725,6 @@ export default function ComprobantesIndex() {
                         {tab.icon} {tab.label}
                     </button>
                 ))}
-                {/* Keyboard hint */}
-                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem', paddingBottom: 2 }}>
-                    <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>
-                        <kbd>↑↓</kbd> navegar · <kbd>Enter</kbd> detalle · <kbd>A</kbd> aprobar · <kbd>R</kbd> rechazar · <kbd>I</kbd> inyectar
-                    </span>
-                </div>
             </div>
 
             {/* ── TAB: LISTADO ── */}
@@ -815,6 +809,24 @@ export default function ComprobantesIndex() {
                         >
                             <Download size={13} /> {exportando ? 'Exportando...' : 'Descargar Excel'}
                         </button>
+                    </div>
+
+                    {/* Keyboard hint */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '0.5rem', opacity: 0.55 }}>
+                        <kbd style={{ fontSize: '0.55rem', padding: '1px 4px', borderRadius: 3, background: 'var(--color-bg-hover)', border: '1px solid var(--color-border-subtle)', color: 'var(--color-text-muted)' }}>↑↓</kbd>
+                        <span style={{ fontSize: '0.55rem', color: 'var(--color-text-muted)' }}>navegar</span>
+                        <span style={{ fontSize: '0.55rem', color: 'var(--color-border-subtle)', margin: '0 2px' }}>·</span>
+                        <kbd style={{ fontSize: '0.55rem', padding: '1px 4px', borderRadius: 3, background: 'var(--color-bg-hover)', border: '1px solid var(--color-border-subtle)', color: 'var(--color-text-muted)' }}>Enter</kbd>
+                        <span style={{ fontSize: '0.55rem', color: 'var(--color-text-muted)' }}>detalle</span>
+                        <span style={{ fontSize: '0.55rem', color: 'var(--color-border-subtle)', margin: '0 2px' }}>·</span>
+                        <kbd style={{ fontSize: '0.55rem', padding: '1px 4px', borderRadius: 3, background: 'var(--color-bg-hover)', border: '1px solid var(--color-border-subtle)', color: 'var(--color-text-muted)' }}>A</kbd>
+                        <span style={{ fontSize: '0.55rem', color: 'var(--color-text-muted)' }}>aprobar</span>
+                        <span style={{ fontSize: '0.55rem', color: 'var(--color-border-subtle)', margin: '0 2px' }}>·</span>
+                        <kbd style={{ fontSize: '0.55rem', padding: '1px 4px', borderRadius: 3, background: 'var(--color-bg-hover)', border: '1px solid var(--color-border-subtle)', color: 'var(--color-text-muted)' }}>R</kbd>
+                        <span style={{ fontSize: '0.55rem', color: 'var(--color-text-muted)' }}>rechazar</span>
+                        <span style={{ fontSize: '0.55rem', color: 'var(--color-border-subtle)', margin: '0 2px' }}>·</span>
+                        <kbd style={{ fontSize: '0.55rem', padding: '1px 4px', borderRadius: 3, background: 'var(--color-bg-hover)', border: '1px solid var(--color-border-subtle)', color: 'var(--color-text-muted)' }}>I</kbd>
+                        <span style={{ fontSize: '0.55rem', color: 'var(--color-text-muted)' }}>inyectar</span>
                     </div>
 
                     {/* Bulk Action Bar */}
