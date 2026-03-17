@@ -48,6 +48,14 @@ export default function ComprobantesIndex() {
     const [dragOver, setDragOver] = useState(false);
     const [uploadResults, setUploadResults] = useState<{ name: string; status: 'ok' | 'error'; msg: string; duplicate?: boolean; duplicateCount?: number; data?: { numero_comprobante?: string; tipo?: string; tipo_comprobante?: string; fecha?: string; monto?: number; proveedor_nombre?: string; proveedor_cuit?: string; proveedor_nuevo?: boolean; pdf_url?: string; descripcion?: string } }[]>([]);
 
+    // CUIT de la empresa (de contable_config → arca_cuit)
+    const [empresaCuit, setEmpresaCuit] = useState<string | null>(null);
+    useEffect(() => {
+        if (!tenant?.id) return;
+        supabase.from('contable_config').select('arca_cuit').eq('tenant_id', tenant.id).maybeSingle()
+            .then(({ data }) => { if (data?.arca_cuit) setEmpresaCuit(data.arca_cuit); });
+    }, [tenant?.id]);
+
     // Attach to existing state
     const [attachingToId, setAttachingToId] = useState<string | null>(null);
     const attachFileInputRef = useRef<HTMLInputElement>(null);
@@ -293,6 +301,7 @@ export default function ComprobantesIndex() {
             formData.append('tenant_id', tenant.id);
             formData.append('comprobante_id', attachingToId);
             formData.append('update_mode', 'true');
+            if (empresaCuit) formData.append('cuit_empresa', empresaCuit);
 
             try {
                 const N8N_WEBHOOK = '/api/n8n-comprobantes';
@@ -960,6 +969,7 @@ export default function ComprobantesIndex() {
                             formData.append('filename', file.name);
                             if (tenant) {
                                 formData.append('tenant_id', tenant.id);
+                                if (empresaCuit) formData.append('cuit_empresa', empresaCuit);
                             }
 
                             const resp = await fetch(N8N_WEBHOOK, { method: 'POST', body: formData });

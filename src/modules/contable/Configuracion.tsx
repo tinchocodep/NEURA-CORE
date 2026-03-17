@@ -1,11 +1,12 @@
 import { useEffect, useState, useRef } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
-import { 
+import {
     Users, Plus, Settings, RefreshCw, Building2, Save, Trash2, CheckCircle, XCircle, Eye, EyeOff, FolderTree,
-    Zap, Mail, Download, Upload, Image, Palette, Landmark
+    Zap, Mail, Download, Upload, Image, Palette, Landmark, MessageCircle
 } from 'lucide-react';
 import { SkeletonCard } from '../../shared/components/SkeletonKit';
+import MessagingTab from './components/MessagingTab';
 import { getXubioService } from '../../services/XubioService';
 import { getColpyService } from '../../services/ColpyService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -37,11 +38,12 @@ interface BankCredential {
     environment: string;
 }
 
-type TabKey = 'empresa' | 'integraciones' | 'usuarios';
+type TabKey = 'empresa' | 'integraciones' | 'usuarios' | 'mensajeria';
 
 const TABS: { key: TabKey; label: string; icon: any }[] = [
     { key: 'empresa', label: 'Empresa', icon: Building2 },
     { key: 'integraciones', label: 'Integraciones', icon: Zap },
+    { key: 'mensajeria', label: 'Mensajería', icon: MessageCircle },
     { key: 'usuarios', label: 'Usuarios', icon: Users },
 ];
 
@@ -1056,6 +1058,7 @@ export default function Configuracion() {
             {activeTab === 'empresa' && renderEmpresa()}
             {activeTab === 'integraciones' && renderIntegraciones()}
             {activeTab === 'usuarios' && renderUsuarios()}
+            {activeTab === 'mensajeria' && <MessagingTab />}
         </div>
     );
 }

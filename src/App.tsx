@@ -21,6 +21,7 @@ import ContableProveedores from './modules/contable/Proveedores';
 import ContableClientes from './modules/contable/Clientes';
 import ContableCatalogos from './modules/contable/Catalogos';
 import ContableConfiguracion from './modules/contable/Configuracion';
+import Conciliacion from './modules/contable/Conciliacion/index';
 import VisionGeneral from './modules/VisionGeneral';
 import { useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -79,6 +80,7 @@ export default function App() {
               <Route path="proveedores" element={<ContableProveedores />} />
               <Route path="clientes" element={<ContableClientes />} />
               <Route path="catalogos" element={<ContableCatalogos />} />
+              <Route path="conciliacion" element={<Conciliacion />} />
             </Route>
             
             {/* Global Configuracion */}

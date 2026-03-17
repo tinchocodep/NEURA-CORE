@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
     LogOut, LayoutDashboard, ArrowRightLeft, FileText, Activity, Landmark,
     Briefcase, Zap, Users, BookOpen, Tag, Building2, Settings, ClipboardList,
-    Receipt
+    Receipt, GitMerge
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
@@ -112,6 +112,7 @@ export default function Layout() {
         { name: 'Proveedores', path: '/contable/proveedores', icon: Building2 },
         { name: 'Clientes', path: '/contable/clientes', icon: Building2 },
         { name: 'Categorías', path: '/contable/catalogos', icon: Tag },
+        { name: 'Conciliación', path: '/contable/conciliacion', icon: GitMerge, adminOnly: true },
     ];
 
     const contableItems = allContableItems.filter(
