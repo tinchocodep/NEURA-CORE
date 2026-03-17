@@ -108,8 +108,8 @@ function parseArcaCSV(text: string): Omit<ArcaRow, 'matchStatus' | 'matchedBankI
 // ── Run matching algorithm ────────────────────────────────────────────────────
 function computeMatches(arcaRows: ArcaRow[], bankRows: BankRow[]): { newArca: ArcaRow[]; newBank: BankRow[] } {
     // Reset all statuses
-    const arca = arcaRows.map(r => ({ ...r, matchStatus: 'unmatched' as MatchStatus, matchedBankId: null, matchScore: 0 }));
-    const bank = bankRows.map(r => ({ ...r, matchStatus: 'unmatched' as MatchStatus, matchedArcaId: null, matchScore: 0 }));
+    const arca: ArcaRow[] = arcaRows.map(r => ({ ...r, matchStatus: 'unmatched' as MatchStatus, matchedBankId: null, matchScore: 0 }));
+    const bank: BankRow[] = bankRows.map(r => ({ ...r, matchStatus: 'unmatched' as MatchStatus, matchedArcaId: null, matchScore: 0 }));
 
     // For each arca row, find best available bank row
     const usedBankIds = new Set<string>();
