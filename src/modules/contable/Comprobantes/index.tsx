@@ -179,7 +179,25 @@ export default function ComprobantesIndex() {
 
                 if (!comp) { await updateEstado(id, 'inyectado'); return; }
 
-                if (xubio.isConfigured) {
+                let targetERP: 'xubio' | 'colppy' | null = null;
+
+                if (xubio.isConfigured && colpy.isConfigured) {
+                    const choice = window.prompt('Ambos ERP (Xubio y Colppy) están configurados. Escriba "Xubio" o "Colppy" para elegir a cuál inyectar:');
+                    if (choice?.toLowerCase().includes('xubio')) {
+                        targetERP = 'xubio';
+                    } else if (choice?.toLowerCase().includes('colp')) {
+                        targetERP = 'colppy';
+                    } else {
+                        addToast('info', 'Cancelado', 'Selección de ERP cancelada');
+                        return;
+                    }
+                } else if (xubio.isConfigured) {
+                    targetERP = 'xubio';
+                } else if (colpy.isConfigured) {
+                    targetERP = 'colppy';
+                }
+
+                if (targetERP === 'xubio') {
                     // --- XUBIO INJECTION ---
                     const result = await xubio.injectComprobante({
                         tipo: comp.tipo,
@@ -200,19 +218,20 @@ export default function ComprobantesIndex() {
                     });
 
                     if (result.success) {
-                        await supabase.from('contable_comprobantes').update({
-                            estado: 'inyectado',
-                            xubio_id: result.xubioId,
-                            xubio_synced_at: new Date().toISOString(),
-                        }).eq('id', id);
-                        reset(); // Refresh list
+                         await supabase.from('contable_comprobantes').update({
+                             estado: 'inyectado',
+                             xubio_id: result.xubioId,
+                             xubio_synced_at: new Date().toISOString(),
+                         }).eq('id', id);
+                         reset(); // Refresh list
+                         addToast('success', 'Éxito', 'Comprobante inyectado en Xubio');
                     } else {
-                        addToast('error', 'Error Xubio', `Error al inyectar en Xubio: ${result.error}`);
-                        if (confirm('¿Marcar como inyectado de todas formas?')) {
-                            await updateEstado(id, 'inyectado');
-                        }
+                         addToast('error', 'Error Xubio', `Error al inyectar en Xubio: ${result.error}`);
+                         if (confirm(`FALLÓ LA INYECCIÓN EN XUBIO:\n${result.error}\n\n¿Desea forzar el estado a 'inyectado' de todas formas?`)) {
+                             await updateEstado(id, 'inyectado');
+                         }
                     }
-                } else if (colpy.isConfigured) {
+                } else if (targetERP === 'colppy') {
                     // --- COLPY INJECTION ---
                     const result = await colpy.injectComprobante({
                         tipo: comp.tipo,
@@ -239,9 +258,10 @@ export default function ComprobantesIndex() {
                             xubio_synced_at: new Date().toISOString(), // Usamos la misma columna para indicar sync time
                         }).eq('id', id);
                         reset(); // Refresh list
+                        addToast('success', 'Éxito', 'Comprobante inyectado en Colppy');
                     } else {
                         addToast('error', 'Error Colpy', `Error al inyectar en Colpy: ${result.error}`);
-                        if (confirm('¿Marcar como inyectado de todas formas?')) {
+                        if (confirm(`FALLÓ LA INYECCIÓN EN COLPPY:\n${result.error}\n\n¿Desea forzar el estado a 'inyectado' de todas formas?`)) {
                             await updateEstado(id, 'inyectado');
                         }
                     }
