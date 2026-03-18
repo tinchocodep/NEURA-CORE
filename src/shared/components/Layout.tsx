@@ -88,43 +88,70 @@ export default function Layout() {
 
     const tenantModules = tenant?.enabled_modules || [];
 
+    // Checks access to a module or submodule (e.g. 'tesoreria' or 'tesoreria.bancos').
+    // Submodule logic: if tenant has no submodule constraints for a parent, all submodules are allowed.
     const hasModuleAccess = (moduleId: string) => {
-        // Los dueños de plataforma siempre tienen acceso a todos los módulos nativos
+        const [parentId] = moduleId.split('.');
+        const isSubmodule = moduleId.includes('.');
+
+        // Tenant must have parent enabled
+        if (!tenantModules.includes(parentId)) return false;
+
+        // Check tenant submodule constraint
+        if (isSubmodule) {
+            const tenantHasConstraints = tenantModules.some((m: string) => m.startsWith(`${parentId}.`));
+            if (tenantHasConstraints && !tenantModules.includes(moduleId)) return false;
+        }
+
+        // Admins bypass user-level check
         if (role === 'admin' || role === 'superadmin') return true;
-        // Si no es admin, exigimos doble chequeo: que el tenant lo tenga pagado/habilitado Y que el empleado lo tenga
-        if (!tenantModules.includes(moduleId)) return false;
-        return (userModules || []).includes(moduleId);
+
+        // User must have parent enabled
+        const uMods = userModules || [];
+        if (!uMods.includes(parentId)) return false;
+
+        // Check user submodule constraint
+        if (isSubmodule) {
+            const userHasConstraints = uMods.some((m: string) => m.startsWith(`${parentId}.`));
+            if (userHasConstraints && !uMods.includes(moduleId)) return false;
+        }
+
+        return true;
     };
 
     const allTesoreriaItems = [
         { name: 'Proyecciones', path: '/tesoreria', icon: LayoutDashboard },
-        { name: 'Movimientos', path: '/tesoreria/movimientos', icon: ArrowRightLeft },
-        { name: 'Órdenes de Pago', path: '/tesoreria/ordenes-pago', icon: Receipt },
-        { name: 'Comprobantes', path: '/tesoreria/comprobantes', icon: FileText },
-        { name: 'Cajas', path: '/tesoreria/cajas', icon: Landmark },
-        { name: 'Bancos', path: '/tesoreria/bancos', icon: Landmark },
-        { name: 'Monitor', path: '/tesoreria/monitor', icon: Activity },
-        { name: 'Equipo', path: '/tesoreria/equipo', icon: Users, adminOnly: true },
+        { name: 'Movimientos', path: '/tesoreria/movimientos', icon: ArrowRightLeft, submodule: 'tesoreria.movimientos' },
+        { name: 'Órdenes de Pago', path: '/tesoreria/ordenes-pago', icon: Receipt, submodule: 'tesoreria.ordenes-pago' },
+        { name: 'Comprobantes', path: '/tesoreria/comprobantes', icon: FileText, submodule: 'tesoreria.comprobantes' },
+        { name: 'Cajas', path: '/tesoreria/cajas', icon: Landmark, submodule: 'tesoreria.cajas' },
+        { name: 'Bancos', path: '/tesoreria/bancos', icon: Landmark, submodule: 'tesoreria.bancos' },
+        { name: 'Monitor', path: '/tesoreria/monitor', icon: Activity, submodule: 'tesoreria.monitor' },
+        { name: 'Equipo', path: '/tesoreria/equipo', icon: Users, adminOnly: true, submodule: 'tesoreria.equipo' },
     ];
 
     const allContableItems = [
         { name: 'Dashboard', path: '/contable', icon: LayoutDashboard },
-        { name: 'Comprobantes', path: '/contable/comprobantes', icon: ClipboardList },
-        { name: 'Proveedores', path: '/contable/proveedores', icon: Building2 },
-        { name: 'Clientes', path: '/contable/clientes', icon: Building2 },
-        { name: 'Categorías', path: '/contable/catalogos', icon: Tag },
-        { name: 'Conciliación', path: '/contable/conciliacion', icon: GitMerge, adminOnly: true },
+        { name: 'Comprobantes', path: '/contable/comprobantes', icon: ClipboardList, submodule: 'contable.comprobantes' },
+        { name: 'Proveedores', path: '/contable/proveedores', icon: Building2, submodule: 'contable.proveedores' },
+        { name: 'Clientes', path: '/contable/clientes', icon: Building2, submodule: 'contable.clientes' },
+        { name: 'Categorías', path: '/contable/catalogos', icon: Tag, submodule: 'contable.catalogos' },
+        { name: 'Conciliación', path: '/contable/conciliacion', icon: GitMerge, adminOnly: true, submodule: 'contable.conciliacion' },
     ];
 
     const contableItems = allContableItems.filter(
-        (i: any) => !i.adminOnly || role === 'admin' || role === 'superadmin'
+        (i: any) => (!i.adminOnly || role === 'admin' || role === 'superadmin')
+            && (!i.submodule || hasModuleAccess(i.submodule))
     );
     const tesoreriaItems = (role === 'admin' || role === 'superadmin'
         ? allTesoreriaItems
         : allTesoreriaItems.filter(i =>
-            i.path === '/tesoreria/movimientos' || i.path === '/tesoreria/comprobantes'
+            (i as any).path === '/tesoreria/movimientos' || (i as any).path === '/tesoreria/comprobantes'
         )
-    ).filter((i: any) => !i.adminOnly || role === 'admin' || role === 'superadmin');
+    ).filter((i: any) =>
+        (!i.adminOnly || role === 'admin' || role === 'superadmin')
+        && (!i.submodule || hasModuleAccess(i.submodule))
+    );
 
     const displayRole = role === 'superadmin' ? 'Super Admin' : role === 'admin' ? 'Admin' : 'Usuario';
     const isConfiguracion = location.pathname === '/configuracion';

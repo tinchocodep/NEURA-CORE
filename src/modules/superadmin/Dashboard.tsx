@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Activity, Settings, CheckCircle, Users } from 'lucide-react';
+import { Activity, Settings, CheckCircle, Users, ChevronDown, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 
@@ -22,12 +22,90 @@ interface User {
     enabled_modules?: string[];
 }
 
-const AVAILABLE_MODULES = [
-    { id: 'tesoreria', name: 'Tesorería' },
-    { id: 'crm', name: 'CRM' },
-    { id: 'administracion', name: 'Administración' },
-    { id: 'logistica', name: 'Logística' }
+interface Submodule {
+    id: string;
+    name: string;
+}
+
+interface ModuleNode {
+    id: string;
+    name: string;
+    submodules: Submodule[];
+}
+
+const MODULE_TREE: ModuleNode[] = [
+    {
+        id: 'tesoreria',
+        name: 'Tesorería',
+        submodules: [
+            { id: 'tesoreria.movimientos', name: 'Movimientos' },
+            { id: 'tesoreria.ordenes-pago', name: 'Órdenes de Pago' },
+            { id: 'tesoreria.comprobantes', name: 'Comprobantes' },
+            { id: 'tesoreria.cajas', name: 'Cajas Chicas' },
+            { id: 'tesoreria.bancos', name: 'Bancos' },
+            { id: 'tesoreria.monitor', name: 'Monitor Fiscal' },
+            { id: 'tesoreria.equipo', name: 'Equipo' },
+        ],
+    },
+    {
+        id: 'contable',
+        name: 'Contable',
+        submodules: [
+            { id: 'contable.comprobantes', name: 'Comprobantes' },
+            { id: 'contable.proveedores', name: 'Proveedores' },
+            { id: 'contable.clientes', name: 'Clientes' },
+            { id: 'contable.catalogos', name: 'Categorías' },
+        ],
+    },
+    { id: 'crm', name: 'CRM', submodules: [] },
+    { id: 'administracion', name: 'Administración', submodules: [] },
+    { id: 'logistica', name: 'Logística', submodules: [] },
 ];
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+const isParentActive = (modules: string[], parentId: string) =>
+    modules.includes(parentId);
+
+const isSubActive = (modules: string[], parentId: string, subId: string) => {
+    if (!modules.includes(parentId)) return false;
+    const hasConstraints = modules.some(m => m.startsWith(`${parentId}.`));
+    if (!hasConstraints) return true; // no constraints = all submodules allowed
+    return modules.includes(subId);
+};
+
+const applyToggleParent = (modules: string[], mod: ModuleNode): string[] => {
+    if (modules.includes(mod.id)) {
+        // Turn OFF: remove parent + all submodule entries
+        return modules.filter(m => m !== mod.id && !m.startsWith(`${mod.id}.`));
+    }
+    // Turn ON: add parent only (absence of sub-entries = all submodules allowed)
+    return [...modules, mod.id];
+};
+
+const applyToggleSub = (
+    modules: string[],
+    parentId: string,
+    subId: string,
+    allSubIds: string[]
+): string[] => {
+    const active = isSubActive(modules, parentId, subId);
+    const hasConstraints = modules.some(m => m.startsWith(`${parentId}.`));
+
+    if (active) {
+        // Turn OFF
+        if (!hasConstraints) {
+            // Materialize: explicitly enable all others, disable this one
+            return [...modules, ...allSubIds.filter(s => s !== subId)];
+        }
+        return modules.filter(m => m !== subId);
+    } else {
+        // Turn ON
+        return [...modules, subId];
+    }
+};
+
+// ── component ─────────────────────────────────────────────────────────────────
 
 export default function SuperAdminDashboard() {
     const { role, loading: authLoading } = useAuth() as any;
@@ -35,85 +113,79 @@ export default function SuperAdminDashboard() {
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState<string | null>(null);
+    // expanded: key = `${tenantId}.${moduleId}`
+    const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
-        if (role === 'superadmin') {
-            loadData();
-        }
+        if (role === 'superadmin') loadData();
     }, [role]);
 
     const loadData = async () => {
         setLoading(true);
         const [tenantsRes, usersRes] = await Promise.all([
             supabase.from('tenants').select('*').order('created_at', { ascending: false }),
-            supabase.from('users').select('id, email, role, status, tenant_id, enabled_modules')
+            supabase.from('users').select('id, email, role, status, tenant_id, enabled_modules'),
         ]);
-
-        if (!tenantsRes.error && tenantsRes.data) {
-            setTenants(tenantsRes.data);
-        }
-        if (!usersRes.error && usersRes.data) {
-            setUsers(usersRes.data);
-        }
+        if (!tenantsRes.error && tenantsRes.data) setTenants(tenantsRes.data);
+        if (!usersRes.error && usersRes.data) setUsers(usersRes.data);
         setLoading(false);
     };
 
-    const handleSaveTenant = async (tenantId: string, updates: Partial<Tenant>) => {
+    const saveTenant = async (tenantId: string, updates: Partial<Tenant>) => {
         setSaving(tenantId);
-        const { error } = await supabase
-            .from('tenants')
-            .update(updates)
-            .eq('id', tenantId);
-
+        const { error } = await supabase.from('tenants').update(updates).eq('id', tenantId);
         if (!error) {
-            setTenants(tenants.map(t => t.id === tenantId ? { ...t, ...updates } : t));
+            setTenants(prev => prev.map(t => t.id === tenantId ? { ...t, ...updates } : t));
         } else {
             alert('Error al guardar: ' + error.message);
         }
-
-        setTimeout(() => setSaving(null), 1000); // Visual feedback
+        setTimeout(() => setSaving(null), 1200);
     };
 
-    const toggleModule = (tenant: Tenant, moduleId: string) => {
-        const currentModules = tenant.enabled_modules || [];
-        const newModules = currentModules.includes(moduleId)
-            ? currentModules.filter(m => m !== moduleId)
-            : [...currentModules, moduleId];
-
-        handleSaveTenant(tenant.id, { enabled_modules: newModules });
-    };
-
-    const handleSaveUser = async (userId: string, updates: Partial<User>) => {
-        const { error } = await supabase
-            .from('users')
-            .update(updates)
-            .eq('id', userId);
-
+    const saveUser = async (userId: string, updates: Partial<User>) => {
+        const { error } = await supabase.from('users').update(updates).eq('id', userId);
         if (!error) {
-            setUsers(users.map(u => u.id === userId ? { ...u, ...updates } : u));
+            setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updates } : u));
         } else {
             alert('Error al actualizar usuario: ' + error.message);
         }
     };
 
-    const toggleUserModule = (userObj: User, moduleId: string) => {
-        const currentModules = userObj.enabled_modules || [];
-        const newModules = currentModules.includes(moduleId)
-            ? currentModules.filter(m => m !== moduleId)
-            : [...currentModules, moduleId];
+    const toggleParent = (tenant: Tenant, mod: ModuleNode) => {
+        const newModules = applyToggleParent(tenant.enabled_modules || [], mod);
+        saveTenant(tenant.id, { enabled_modules: newModules });
+    };
 
-        handleSaveUser(userObj.id, { enabled_modules: newModules });
+    const toggleSub = (tenant: Tenant, parentId: string, subId: string, allSubIds: string[]) => {
+        const newModules = applyToggleSub(tenant.enabled_modules || [], parentId, subId, allSubIds);
+        saveTenant(tenant.id, { enabled_modules: newModules });
+    };
+
+    const toggleUserModule = (u: User, moduleId: string) => {
+        const current = u.enabled_modules || [];
+        const next = current.includes(moduleId)
+            ? current.filter(m => m !== moduleId)
+            : [...current, moduleId];
+        saveUser(u.id, { enabled_modules: next });
+    };
+
+    const toggleExpand = (tenantId: string, modId: string) => {
+        const key = `${tenantId}.${modId}`;
+        setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
+    };
+
+    const isExpanded = (tenantId: string, modId: string) => {
+        const key = `${tenantId}.${modId}`;
+        // Default to expanded if parent is active and has submodules
+        return expanded[key] !== undefined ? expanded[key] : true;
     };
 
     if (authLoading) return <div className="p-8">Verificando credenciales...</div>;
-
-    if (role !== 'superadmin') {
-        return <Navigate to="/" replace />;
-    }
+    if (role !== 'superadmin') return <Navigate to="/" replace />;
 
     return (
-        <div className="superadmin-dashboard" style={{ padding: '2rem' }}>
-            <div className="page-header" style={{ marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ padding: '2rem' }}>
+            <div style={{ marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 <Activity size={32} color="var(--primary)" />
                 <div>
                     <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Panel Super Admin</h1>
@@ -127,44 +199,105 @@ export default function SuperAdminDashboard() {
                 <div style={{ display: 'grid', gap: '1.5rem' }}>
                     {tenants.map(tenant => (
                         <div key={tenant.id} style={{
-                            background: 'white',
+                            background: 'var(--bg-card, white)',
                             borderRadius: 'var(--radius-md)',
                             padding: '1.5rem',
                             boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                            border: '1px solid var(--border-color)'
+                            border: '1px solid var(--border-color)',
                         }}>
+                            {/* Tenant header */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)' }}>
                                 <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>{tenant.name}</h2>
                                 <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                                    ID: {tenant.id.slice(0, 8)}...
+                                    ID: {tenant.id.slice(0, 8)}…
                                 </span>
                             </div>
 
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
-                                {/* Módulos */}
+
+                                {/* ── Módulos con submódulos ── */}
                                 <div>
                                     <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem', fontWeight: 600, marginBottom: '1rem' }}>
                                         <Settings size={18} /> Módulos Activos
                                     </h3>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                        {AVAILABLE_MODULES.map(mod => {
-                                            const isActive = (tenant.enabled_modules || []).includes(mod.id);
+
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                        {MODULE_TREE.map(mod => {
+                                            const parentOn = isParentActive(tenant.enabled_modules || [], mod.id);
+                                            const open = isExpanded(tenant.id, mod.id);
+                                            const allSubIds = mod.submodules.map(s => s.id);
+
                                             return (
-                                                <label key={mod.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={isActive}
-                                                        onChange={() => toggleModule(tenant, mod.id)}
-                                                        style={{ width: '1.2rem', height: '1.2rem', accentColor: 'var(--primary)' }}
-                                                    />
-                                                    <span>{mod.name}</span>
-                                                </label>
-                                            )
+                                                <div key={mod.id} style={{
+                                                    border: '1px solid var(--border-color)',
+                                                    borderRadius: 'var(--radius-sm)',
+                                                    overflow: 'hidden',
+                                                }}>
+                                                    {/* Parent row */}
+                                                    <div style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.75rem',
+                                                        padding: '0.6rem 0.75rem',
+                                                        background: parentOn ? 'rgba(79,70,229,0.06)' : 'transparent',
+                                                        cursor: 'default',
+                                                    }}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={parentOn}
+                                                            onChange={() => toggleParent(tenant, mod)}
+                                                            style={{ width: '1.1rem', height: '1.1rem', accentColor: 'var(--primary)', cursor: 'pointer', flexShrink: 0 }}
+                                                        />
+                                                        <span style={{ fontWeight: 600, flex: 1, fontSize: '0.9rem' }}>{mod.name}</span>
+
+                                                        {mod.submodules.length > 0 && parentOn && (
+                                                            <button
+                                                                onClick={() => toggleExpand(tenant.id, mod.id)}
+                                                                style={{
+                                                                    background: 'none', border: 'none', cursor: 'pointer',
+                                                                    color: 'var(--text-muted)', padding: '0 0.25rem',
+                                                                    display: 'flex', alignItems: 'center',
+                                                                }}
+                                                                title={open ? 'Colapsar' : 'Expandir'}
+                                                            >
+                                                                {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                                                            </button>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Submodule rows */}
+                                                    {parentOn && open && mod.submodules.length > 0 && (
+                                                        <div style={{
+                                                            borderTop: '1px solid var(--border-color)',
+                                                            padding: '0.5rem 0.75rem 0.5rem 2.25rem',
+                                                            display: 'flex',
+                                                            flexDirection: 'column',
+                                                            gap: '0.4rem',
+                                                            background: 'var(--bg-subtle, #f9fafb)',
+                                                        }}>
+                                                            {mod.submodules.map(sub => {
+                                                                const subOn = isSubActive(tenant.enabled_modules || [], mod.id, sub.id);
+                                                                return (
+                                                                    <label key={sub.id} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', fontSize: '0.85rem' }}>
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={subOn}
+                                                                            onChange={() => toggleSub(tenant, mod.id, sub.id, allSubIds)}
+                                                                            style={{ width: '0.95rem', height: '0.95rem', accentColor: 'var(--primary)', cursor: 'pointer' }}
+                                                                        />
+                                                                        <span style={{ color: subOn ? 'var(--text-main)' : 'var(--text-muted)' }}>{sub.name}</span>
+                                                                    </label>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
                                         })}
                                     </div>
                                 </div>
 
-                                {/* Facturación */}
+                                {/* ── Facturación ── */}
                                 <div>
                                     <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem', fontWeight: 600, marginBottom: '1rem' }}>
                                         <Activity size={18} /> Configuración de Cobro
@@ -176,7 +309,7 @@ export default function SuperAdminDashboard() {
                                                 type="number"
                                                 className="form-input"
                                                 defaultValue={tenant.installation_fee || 0}
-                                                onBlur={(e) => handleSaveTenant(tenant.id, { installation_fee: parseFloat(e.target.value) || 0 })}
+                                                onBlur={(e) => saveTenant(tenant.id, { installation_fee: parseFloat(e.target.value) || 0 })}
                                             />
                                         </div>
                                         <div className="form-group">
@@ -185,7 +318,7 @@ export default function SuperAdminDashboard() {
                                                 type="number"
                                                 className="form-input"
                                                 defaultValue={tenant.monthly_fee || 0}
-                                                onBlur={(e) => handleSaveTenant(tenant.id, { monthly_fee: parseFloat(e.target.value) || 0 })}
+                                                onBlur={(e) => saveTenant(tenant.id, { monthly_fee: parseFloat(e.target.value) || 0 })}
                                             />
                                         </div>
                                     </div>
@@ -196,25 +329,26 @@ export default function SuperAdminDashboard() {
                                     )}
                                 </div>
 
-                                {/* Usuarios */}
+                                {/* ── Usuarios ── */}
                                 <div style={{ gridColumn: '1 / -1' }}>
                                     <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem', fontWeight: 600, marginBottom: '1rem' }}>
-                                        <Users size={18} /> Administración de Usuarios ({users.filter(u => u.tenant_id === tenant.id).length})
+                                        <Users size={18} /> Usuarios ({users.filter(u => u.tenant_id === tenant.id).length})
                                     </h3>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '0.5rem' }}>
                                         {users.filter(u => u.tenant_id === tenant.id).length === 0 ? (
                                             <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', fontStyle: 'italic' }}>No hay usuarios en esta empresa.</div>
                                         ) : (
                                             users.filter(u => u.tenant_id === tenant.id).map(u => (
-                                                <div key={u.id} style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', padding: '1rem', background: '#f8fafc', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', fontSize: '0.875rem' }}>
+                                                <div key={u.id} style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', padding: '1rem', background: 'var(--bg-subtle, #f8fafc)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', fontSize: '0.875rem' }}>
+                                                    {/* User info + role */}
                                                     <div style={{ flex: '1 1 200px' }}>
-                                                        <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-main)', wordBreak: 'break-all' }}>{u.email || 'Usuario sin correo'}</div>
+                                                        <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-main)', wordBreak: 'break-all' }}>{u.email || 'Sin correo'}</div>
                                                         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
                                                             <select
                                                                 className="form-input"
                                                                 style={{ padding: '0.25rem', fontSize: '0.8rem', height: 'auto' }}
                                                                 value={u.role || 'user'}
-                                                                onChange={(e) => handleSaveUser(u.id, { role: e.target.value })}
+                                                                onChange={(e) => saveUser(u.id, { role: e.target.value })}
                                                             >
                                                                 <option value="user">Usuario Bás.</option>
                                                                 <option value="admin">Administrador</option>
@@ -224,7 +358,7 @@ export default function SuperAdminDashboard() {
                                                                 className="form-input"
                                                                 style={{ padding: '0.25rem', fontSize: '0.8rem', height: 'auto', color: u.status === 'active' ? 'var(--success)' : 'var(--danger)' }}
                                                                 value={u.status || 'active'}
-                                                                onChange={(e) => handleSaveUser(u.id, { status: e.target.value })}
+                                                                onChange={(e) => saveUser(u.id, { status: e.target.value })}
                                                             >
                                                                 <option value="active">Activo</option>
                                                                 <option value="suspended">Suspendido</option>
@@ -232,17 +366,18 @@ export default function SuperAdminDashboard() {
                                                         </div>
                                                     </div>
 
+                                                    {/* User modules (parent-level) */}
                                                     <div style={{ flex: '2 1 300px' }}>
                                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                                                             <div style={{ fontWeight: 500, fontSize: '0.8rem', color: 'var(--text-muted)' }}>Módulos del Usuario</div>
                                                             {(u.role === 'admin' || u.role === 'superadmin') && (
-                                                                <span style={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 600, background: 'rgba(79, 70, 229, 0.1)', padding: '0.1rem 0.4rem', borderRadius: '1rem' }}>
+                                                                <span style={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 600, background: 'rgba(79,70,229,0.1)', padding: '0.1rem 0.4rem', borderRadius: '1rem' }}>
                                                                     Acceso Total por Rol
                                                                 </span>
                                                             )}
                                                         </div>
                                                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
-                                                            {AVAILABLE_MODULES.map(mod => {
+                                                            {MODULE_TREE.filter(m => isParentActive(tenant.enabled_modules || [], m.id)).map(mod => {
                                                                 const isFullAccess = u.role === 'admin' || u.role === 'superadmin';
                                                                 const isActive = isFullAccess || (u.enabled_modules || []).includes(mod.id);
                                                                 return (
@@ -256,7 +391,7 @@ export default function SuperAdminDashboard() {
                                                                         />
                                                                         <span>{mod.name}</span>
                                                                     </label>
-                                                                )
+                                                                );
                                                             })}
                                                         </div>
                                                     </div>
