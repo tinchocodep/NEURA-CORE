@@ -174,7 +174,7 @@ export class ColpyService {
         };
 
         let response;
-        console.log(`[ColpyService] 📡 Enviando POST a ${serviceName}/${operacion}...`, requestParameters);
+        console.log(`[ColpyService] 📡 Enviando POST a ${serviceName}/${operacion}...`);
         
         // Crear un controlador nuevo para cada request, a menos que ya estemos abortados
         if (this.isAborted) throw new Error("Petición cancelada manualmente.");
@@ -583,6 +583,7 @@ export class ColpyService {
             colpy_cuenta_id?: string;
         }>;
     }): Promise<{ success: boolean; colpyId?: string; error?: string }> {
+        let debugItemsFactura: any = [];
         try {
             if (comprobante.tipo === 'venta') {
                 if (!comprobante.cliente_colpy_id) {
@@ -601,7 +602,7 @@ export class ColpyService {
                         cantidad: l.cantidad,
                         precioUnitario: l.precio_unitario,
                         porcentajeIva: l.iva_porcentaje,
-                        idPlanCuenta: l.colpy_cuenta_id || ""
+                        idPlanCuenta: String(l.colpy_cuenta_id || "").trim()
                     }))
                 };
 
@@ -616,21 +617,78 @@ export class ColpyService {
                     return { success: false, error: 'Proveedor no tiene colpy_id. Sincronice proveedores primero.' };
                 }
 
+                let importeTotal = 0;
+                let netoGravado = 0;
+                let totalIVA = 0;
+                let IVA21 = 0;
+                let IVA105 = 0;
+                let IVA27 = 0;
+
+                const ItemsFactura = comprobante.lineas.map(l => {
+                    const neto = l.precio_unitario * l.cantidad;
+                    const iva = neto * (l.iva_porcentaje / 100);
+                    importeTotal += (neto + iva);
+                    netoGravado += neto;
+                    totalIVA += iva;
+
+                    if (l.iva_porcentaje === 21) IVA21 += iva;
+                    else if (l.iva_porcentaje === 10.5) IVA105 += iva;
+                    else if (l.iva_porcentaje === 27) IVA27 += iva;
+                    else IVA21 += iva; // Default fallback
+
+                    return {
+                        Descripcion: l.descripcion,
+                        Cantidad: l.cantidad,
+                        ImporteUnitario: l.precio_unitario,
+                        idPlanCuenta: String(l.colpy_cuenta_id || "").trim()
+                    };
+                });
+                debugItemsFactura = ItemsFactura;
+
+                let nroFactura1 = "0001";
+                let nroFactura2 = "00000001";
+                if (comprobante.numero_comprobante) {
+                    const parts = comprobante.numero_comprobante.split('-');
+                    if (parts.length === 2) {
+                        nroFactura1 = parts[0].padStart(4, '0');
+                        nroFactura2 = parts[1].padStart(8, '0');
+                    } else if (comprobante.numero_comprobante.length > 5) {
+                        nroFactura2 = comprobante.numero_comprobante;
+                    }
+                }
+
+                // Mapear letra Factura
+                let idTipoFactura = "C";
+                if (comprobante.tipo_comprobante?.toUpperCase().includes('A')) idTipoFactura = "A";
+                if (comprobante.tipo_comprobante?.toUpperCase().includes('B')) idTipoFactura = "B";
+
                 const payload = {
+                    idEmpresa: this.config!.colpy_empresa_id,
                     idProveedor: comprobante.proveedor_colpy_id,
-                    fechaEmision: comprobante.fecha + " 00:00:00",
-                    items: comprobante.lineas.map(l => ({
-                        nroItem: 1,
-                        codigo: "SERVICIO",
-                        detalle: l.descripcion,
-                        cantidad: l.cantidad,
-                        precioUnitario: l.precio_unitario,
-                        porcentajeIva: l.iva_porcentaje,
-                        idPlanCuenta: l.colpy_cuenta_id || ""
-                    }))
+                    idTipoComprobante: "1", // 1 = Factura, 2 = NC, 3 = ND
+                    idCondicionPago: "Contado",
+                    fechaFactura: comprobante.fecha + " 00:00:00",
+                    fechaFacturaDoc: comprobante.fecha + " 00:00:00",
+                    fechaVencimiento: comprobante.fecha + " 00:00:00",
+                    idTipoFactura, // A, B, C, etc
+                    idEstadoFactura: "Aprobada",
+                    descripcion: `Factura ${comprobante.numero_comprobante || ''}`.trim(),
+                    nroFactura1,
+                    nroFactura2,
+                    netoGravado: netoGravado.toFixed(2),
+                    netoNoGravado: "0.00",
+                    totalIVA: totalIVA.toFixed(2),
+                    IVA21: IVA21.toFixed(2),
+                    IVA105: IVA105.toFixed(2),
+                    IVA27: IVA27.toFixed(2),
+                    percepcionIVA: "0.00",
+                    percepcionIIBB: "0.00",
+                    importeTotal: importeTotal.toFixed(2),
+                    totalFactura: importeTotal.toFixed(2),
+                    itemsFactura: ItemsFactura
                 };
 
-                const result = await this.apiRequest<any>('facturaCompra', 'crear', payload);
+                const result = await this.apiRequest<any>('FacturaCompra', 'alta_facturacompra', payload);
                 if (!result || !result.idFactura) {
                      return { success: false, error: 'Error: No se obtuvo ID desde Colpy' };
                 }
@@ -638,7 +696,7 @@ export class ColpyService {
             }
 
         } catch (e: any) {
-            return { success: false, error: e.message };
+            return { success: false, error: `${e.message} | Payload Items: ${JSON.stringify(debugItemsFactura)}` };
         }
     }
 }

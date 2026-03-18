@@ -60,6 +60,13 @@ export default function ComprobantesIndex() {
     const [attachingToId, setAttachingToId] = useState<string | null>(null);
     const attachFileInputRef = useRef<HTMLInputElement>(null);
 
+    const [erpModalOpen, setErpModalOpen] = useState(false);
+    const [erpTargetCompId, setErpTargetCompId] = useState<string | null>(null);
+    const [erpSelected, setErpSelected] = useState<'xubio' | 'colppy' | null>(null);
+    const [colpyAccounts, setColpyAccounts] = useState<any[]>([]);
+    const [selectedColpyAccount, setSelectedColpyAccount] = useState<string>('');
+    const [injectingErp, setInjectingErp] = useState(false);
+
     const { open: cmdOpen, setOpen: setCmdOpen } = useCommandBar();
 
     const { data, totalCount, isLoading, hasMore, loadMore, reset, updateEstado, eliminarComprobante } =
@@ -144,6 +151,124 @@ export default function ComprobantesIndex() {
         setSearchParams(tab === 'listado' ? {} : { tab });
     };
 
+    // --- ERP INJECTION EXECUTION ---
+    const executeErpInjection = async () => {
+        if (!erpTargetCompId || !erpSelected) return;
+        if (erpSelected === 'colppy' && !selectedColpyAccount) {
+            addToast('error', 'Falta Cuenta', 'Debes seleccionar una cuenta contable para Colppy.');
+            return;
+        }
+
+        setInjectingErp(true);
+        try {
+            const { getXubioService } = await import('../../../services/XubioService');
+            const { getColpyService } = await import('../../../services/ColpyService');
+
+            const id = erpTargetCompId;
+            const targetERP = erpSelected;
+            
+            const { data: comp } = await supabase
+                .from('contable_comprobantes')
+                .select('*, proveedor:contable_proveedores(xubio_id, colpy_id), cliente:contable_clientes(xubio_id, colpy_id)')
+                .eq('id', id)
+                .single();
+
+            if (!comp) {
+                await updateEstado(id, 'inyectado');
+                setErpModalOpen(false);
+                setInjectingErp(false);
+                return;
+            }
+
+            if (targetERP === 'xubio') {
+                const xubio = getXubioService(tenant!.id);
+                const result = await xubio.injectComprobante({
+                    tipo: comp.tipo,
+                    tipo_comprobante: comp.tipo_comprobante || 'Factura A',
+                    fecha: comp.fecha,
+                    numero_comprobante: comp.numero_comprobante,
+                    moneda: comp.moneda || 'ARS',
+                    tipo_cambio: comp.tipo_cambio,
+                    observaciones: comp.observaciones,
+                    proveedor_xubio_id: comp.proveedor?.xubio_id,
+                    cliente_xubio_id: comp.cliente?.xubio_id,
+                    lineas: (comp.lineas || []).map((l: any) => ({
+                        descripcion: l.descripcion || '',
+                        cantidad: l.cantidad || 1,
+                        precio_unitario: l.precio_unitario || l.subtotal || 0,
+                        iva_porcentaje: l.iva_porcentaje || 21,
+                    })),
+                });
+
+                if (result.success) {
+                        await supabase.from('contable_comprobantes').update({
+                            estado: 'inyectado',
+                            xubio_id: result.xubioId,
+                            xubio_synced_at: new Date().toISOString(),
+                        }).eq('id', id);
+                        reset();
+                        addToast('success', 'Éxito', 'Comprobante inyectado en Xubio');
+                } else {
+                        addToast('error', 'Error Xubio', `Error al inyectar en Xubio: ${result.error}`);
+                        if (confirm(`FALLÓ LA INYECCIÓN EN XUBIO:\n${result.error}\n\n¿Desea forzar el estado a 'inyectado' de todas formas?`)) {
+                            await updateEstado(id, 'inyectado');
+                        }
+                }
+            } else if (targetERP === 'colppy') {
+                const colpy = getColpyService(tenant!.id);
+                const result = await colpy.injectComprobante({
+                    tipo: comp.tipo,
+                    tipo_comprobante: comp.tipo_comprobante || 'Factura A',
+                    fecha: comp.fecha,
+                    numero_comprobante: comp.numero_comprobante,
+                    moneda: comp.moneda || 'ARS',
+                    tipo_cambio: comp.tipo_cambio,
+                    observaciones: comp.observaciones,
+                    proveedor_colpy_id: comp.proveedor?.colpy_id,
+                    cliente_colpy_id: comp.cliente?.colpy_id,
+                    lineas: (comp.lineas && comp.lineas.length > 0) ? comp.lineas.map((l: any) => {
+                        const foundPrice = Number(l.precio_unitario) || Number(l.subtotal) || 0;
+                        const finalPrice = foundPrice > 0 ? foundPrice : (Number(comp.monto) > 0 ? Number((comp.monto / 1.21).toFixed(2)) : 1);
+                        return {
+                            descripcion: l.descripcion || 'Servicios',
+                            cantidad: l.cantidad || 1,
+                            precio_unitario: finalPrice,
+                            iva_porcentaje: l.iva_porcentaje || 21,
+                            colpy_cuenta_id: selectedColpyAccount
+                        };
+                    }) : [{
+                        descripcion: `Comprobante ${comp.numero_comprobante || ''}`.trim(),
+                        cantidad: 1,
+                        precio_unitario: Number((comp.monto / 1.21).toFixed(2)) || 1,
+                        iva_porcentaje: 21,
+                        colpy_cuenta_id: selectedColpyAccount
+                    }],
+                });
+
+                if (result.success) {
+                    await supabase.from('contable_comprobantes').update({
+                        estado: 'inyectado',
+                        colpy_id: result.colpyId,
+                        xubio_synced_at: new Date().toISOString(),
+                    }).eq('id', id);
+                    reset();
+                    addToast('success', 'Éxito', 'Comprobante inyectado en Colppy');
+                } else {
+                    addToast('error', 'Error Colpy', `Error al inyectar en Colpy: ${result.error}`);
+                    if (confirm(`FALLÓ LA INYECCIÓN EN COLPPY:\n${result.error}\n\n¿Desea forzar el estado a 'inyectado' de todas formas?`)) {
+                        await updateEstado(id, 'inyectado');
+                    }
+                }
+            }
+            setErpModalOpen(false);
+        } catch (err) {
+            console.error('[Injection] Error:', err);
+            addToast('error', 'Error', (err as Error).message);
+        } finally {
+            setInjectingErp(false);
+        }
+    };
+
     const handleAction = async (id: string, action: 'aprobar' | 'rechazar' | 'inyectar' | 'eliminar') => {
         if (action === 'eliminar') {
             if (confirm('¿Estás seguro de que deseas eliminar permanentemente este comprobante rechazado?')) {
@@ -153,7 +278,7 @@ export default function ComprobantesIndex() {
         }
 
         if (action === 'inyectar') {
-            // Attempt real Injection (Xubio or Colpy)
+            // OPEN MODAL FOR INJECTION
             try {
                 const { getXubioService } = await import('../../../services/XubioService');
                 const { getColpyService } = await import('../../../services/ColpyService');
@@ -165,109 +290,60 @@ export default function ComprobantesIndex() {
                 await colpy.loadConfig();
 
                 if (!xubio.isConfigured && !colpy.isConfigured) {
-                    // No credentials — just update status without injection
-                    await updateEstado(id, 'inyectado');
+                    addToast('error', 'Error', 'No hay ERP configurado');
                     return;
                 }
 
-                // Fetch full comprobante with entity external IDs
-                const { data: comp } = await supabase
-                    .from('contable_comprobantes')
-                    .select('*, proveedor:contable_proveedores(xubio_id, colpy_id), cliente:contable_clientes(xubio_id, colpy_id)')
-                    .eq('id', id)
-                    .single();
+                setErpTargetCompId(id);
+                setErpSelected(null);
+                
+                if (xubio.isConfigured && !colpy.isConfigured) setErpSelected('xubio');
+                if (colpy.isConfigured && !xubio.isConfigured) setErpSelected('colppy');
 
-                if (!comp) { await updateEstado(id, 'inyectado'); return; }
-
-                let targetERP: 'xubio' | 'colppy' | null = null;
-
-                if (xubio.isConfigured && colpy.isConfigured) {
-                    const choice = window.prompt('Ambos ERP (Xubio y Colppy) están configurados. Escriba "Xubio" o "Colppy" para elegir a cuál inyectar:');
-                    if (choice?.toLowerCase().includes('xubio')) {
-                        targetERP = 'xubio';
-                    } else if (choice?.toLowerCase().includes('colp')) {
-                        targetERP = 'colppy';
-                    } else {
-                        addToast('info', 'Cancelado', 'Selección de ERP cancelada');
-                        return;
-                    }
-                } else if (xubio.isConfigured) {
-                    targetERP = 'xubio';
-                } else if (colpy.isConfigured) {
-                    targetERP = 'colppy';
-                }
-
-                if (targetERP === 'xubio') {
-                    // --- XUBIO INJECTION ---
-                    const result = await xubio.injectComprobante({
-                        tipo: comp.tipo,
-                        tipo_comprobante: comp.tipo_comprobante || 'Factura A',
-                        fecha: comp.fecha,
-                        numero_comprobante: comp.numero_comprobante,
-                        moneda: comp.moneda || 'ARS',
-                        tipo_cambio: comp.tipo_cambio,
-                        observaciones: comp.observaciones,
-                        proveedor_xubio_id: comp.proveedor?.xubio_id,
-                        cliente_xubio_id: comp.cliente?.xubio_id,
-                        lineas: (comp.lineas || []).map((l: any) => ({
-                            descripcion: l.descripcion || '',
-                            cantidad: l.cantidad || 1,
-                            precio_unitario: l.precio_unitario || l.subtotal || 0,
-                            iva_porcentaje: l.iva_porcentaje || 21,
-                        })),
-                    });
-
-                    if (result.success) {
-                         await supabase.from('contable_comprobantes').update({
-                             estado: 'inyectado',
-                             xubio_id: result.xubioId,
-                             xubio_synced_at: new Date().toISOString(),
-                         }).eq('id', id);
-                         reset(); // Refresh list
-                         addToast('success', 'Éxito', 'Comprobante inyectado en Xubio');
-                    } else {
-                         addToast('error', 'Error Xubio', `Error al inyectar en Xubio: ${result.error}`);
-                         if (confirm(`FALLÓ LA INYECCIÓN EN XUBIO:\n${result.error}\n\n¿Desea forzar el estado a 'inyectado' de todas formas?`)) {
-                             await updateEstado(id, 'inyectado');
-                         }
-                    }
-                } else if (targetERP === 'colppy') {
-                    // --- COLPY INJECTION ---
-                    const result = await colpy.injectComprobante({
-                        tipo: comp.tipo,
-                        tipo_comprobante: comp.tipo_comprobante || 'Factura A',
-                        fecha: comp.fecha,
-                        numero_comprobante: comp.numero_comprobante,
-                        moneda: comp.moneda || 'ARS',
-                        tipo_cambio: comp.tipo_cambio,
-                        observaciones: comp.observaciones,
-                        proveedor_colpy_id: comp.proveedor?.colpy_id,
-                        cliente_colpy_id: comp.cliente?.colpy_id,
-                        lineas: (comp.lineas || []).map((l: any) => ({
-                            descripcion: l.descripcion || '',
-                            cantidad: l.cantidad || 1,
-                            precio_unitario: l.precio_unitario || l.subtotal || 0,
-                            iva_porcentaje: l.iva_porcentaje || 21,
-                        })),
-                    });
-
-                    if (result.success) {
-                        await supabase.from('contable_comprobantes').update({
-                            estado: 'inyectado',
-                            colpy_id: result.colpyId,
-                            xubio_synced_at: new Date().toISOString(), // Usamos la misma columna para indicar sync time
-                        }).eq('id', id);
-                        reset(); // Refresh list
-                        addToast('success', 'Éxito', 'Comprobante inyectado en Colppy');
-                    } else {
-                        addToast('error', 'Error Colpy', `Error al inyectar en Colpy: ${result.error}`);
-                        if (confirm(`FALLÓ LA INYECCIÓN EN COLPPY:\n${result.error}\n\n¿Desea forzar el estado a 'inyectado' de todas formas?`)) {
-                            await updateEstado(id, 'inyectado');
+                if (colpy.isConfigured) {
+                    try {
+                        const arbol = await colpy.getArbolContable();
+                        const flattenCuentas = (nodos: any[]): any[] => {
+                            let result: any[] = [];
+                            if (!Array.isArray(nodos)) return result;
+                            
+                            for (const n of nodos) {
+                                // A veces viene "imputable" o "Imputable", o podemos inferirlo si no tiene hijos
+                                const hasChildren = (n.children && n.children.length > 0) || (n.Subcuentas && n.Subcuentas.length > 0) || (n.hijos && n.hijos.length > 0);
+                                const isImputable = n.Imputable === true || n.Imputable === "1" || n.Imputable === 1 || n.imputable === true || n.imputable === "1" || n.imputable === 1 || n.AdmiteAsientoManual === "1" || n.AdmiteAsientoManual === true || n.admiteAsientoManual === "1" || n.admiteAsientoManual === true;
+                                
+                                // Si es imputable explícitamente, o si no lo dice pero no tiene hijos, lo ofrecemos por las dudas
+                                if (isImputable || (!hasChildren && n.idPlanCuenta)) {
+                                    result.push(n);
+                                }
+                                
+                                const childrenList = n.children || n.Subcuentas || n.hijos || [];
+                                if (childrenList.length > 0) {
+                                    result = result.concat(flattenCuentas(childrenList));
+                                }
+                            }
+                            return result;
+                        };
+                        
+                        let cuentasMap = flattenCuentas(arbol);
+                        
+                        if (cuentasMap.length === 0 && arbol.length > 0) {
+                            // If flattening failed, just dump the first level nodes so at least something shows or we can debug
+                            const keys = Object.keys(arbol[0]).join(', ');
+                            cuentasMap = [{ idPlanCuenta: "", Codigo: "DEBUG", Descripcion: `No se hallaron imputables. Nodos raíz tienen: ${keys}` }];
+                        } else if (arbol.length === 0) {
+                            cuentasMap = [{ idPlanCuenta: "", Codigo: "ERROR", Descripcion: "El árbol devuelto por Colppy está vacío." }];
                         }
+                        
+                        setColpyAccounts(cuentasMap);
+                    } catch (err) {
+                        console.error('Failed to load colpy accounts', err);
+                        setColpyAccounts([{ idPlanCuenta: "", Codigo: "ERROR", Descripcion: `Fallo API: ${(err as Error).message}` }]);
                     }
                 }
+                setErpModalOpen(true);
             } catch (err) {
-                console.error('[Injection] Error:', err);
+                console.error('[Injection UI] Error:', err);
                 addToast('error', 'Error', (err as Error).message);
             }
         } else {
@@ -1261,6 +1337,73 @@ export default function ComprobantesIndex() {
                     </div>
                 );
             })()}
+            {/* ERP INJECTION MODAL */}
+            {erpModalOpen && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 1, transition: 'opacity 0.2s' }}>
+                    <div style={{ background: '#fff', borderRadius: 12, width: 400, transform: 'scale(1)', transition: 'transform 0.2s', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}>
+                        <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600, color: '#0f172a' }}>Inyectar a ERP</h3>
+                            <button onClick={() => setErpModalOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 4, color: '#64748b' }}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div style={{ padding: 24 }}>
+                            <div style={{ marginBottom: 20 }}>
+                                <label style={{ display: 'block', marginBottom: 8, fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Seleccionar ERP Destino</label>
+                                <div style={{ display: 'flex', gap: 12 }}>
+                                    <button 
+                                        onClick={() => setErpSelected('xubio')}
+                                        style={{ flex: 1, padding: '12px', borderRadius: 8, border: `2px solid ${erpSelected === 'xubio' ? '#2563eb' : '#e2e8f0'}`, background: erpSelected === 'xubio' ? '#eff6ff' : '#fff', color: erpSelected === 'xubio' ? '#1d4ed8' : '#64748b', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
+                                    >
+                                        Xubio
+                                    </button>
+                                    <button 
+                                        onClick={() => setErpSelected('colppy')}
+                                        style={{ flex: 1, padding: '12px', borderRadius: 8, border: `2px solid ${erpSelected === 'colppy' ? '#059669' : '#e2e8f0'}`, background: erpSelected === 'colppy' ? '#ecfdf5' : '#fff', color: erpSelected === 'colppy' ? '#047857' : '#64748b', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
+                                    >
+                                        Colppy
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            {erpSelected === 'colppy' && (
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: 8, fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Cuenta Contable (Requerida por Colppy)</label>
+                                    <select
+                                        value={selectedColpyAccount}
+                                        onChange={e => setSelectedColpyAccount(e.target.value)}
+                                        style={{ width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none' }}
+                                    >
+                                        <option value="">-- Seleccionar Cuenta --</option>
+                                        {colpyAccounts.length === 0 && <option disabled>Cargando plan de cuentas...</option>}
+                                        {colpyAccounts.map((c, i) => (
+                                            <option key={i} value={c.idPlanCuenta}>{c.Codigo || c.idPlanCuenta} - {c.Descripcion || c.idPlanCuenta}</option>
+                                        ))}
+                                    </select>
+                                    <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 8 }}>Esta cuenta se asignará a todos los ítems de esta factura.</p>
+                                </div>
+                            )}
+
+                        </div>
+                        <div style={{ padding: '16px 24px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', borderRadius: '0 0 12px 12px', display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+                            <button
+                                onClick={() => setErpModalOpen(false)}
+                                style={{ padding: '8px 16px', borderRadius: 6, background: '#fff', border: '1px solid #cbd5e1', color: '#64748b', fontWeight: 500, cursor: 'pointer' }}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={executeErpInjection}
+                                disabled={!erpSelected || (erpSelected === 'colppy' && !selectedColpyAccount) || injectingErp}
+                                style={{ padding: '8px 16px', borderRadius: 6, background: '#2563eb', border: 'none', color: '#fff', fontWeight: 600, cursor: (!erpSelected || (erpSelected === 'colppy' && !selectedColpyAccount) || injectingErp) ? 'not-allowed' : 'pointer', opacity: (!erpSelected || (erpSelected === 'colppy' && !selectedColpyAccount) || injectingErp) ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: 8 }}
+                            >
+                                {injectingErp ? <RefreshCw size={16} className="spin" /> : <Send size={16} />}
+                                Inyectar Factura
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 }
