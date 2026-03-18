@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
     LogOut, LayoutDashboard, ArrowRightLeft, FileText, Activity, Landmark,
     Briefcase, Zap, Users, BookOpen, Tag, Building2, Settings, ClipboardList,
-    Receipt, GitMerge, PanelLeftClose, PanelLeftOpen
+    Receipt, GitMerge, PanelLeftClose, PanelLeftOpen, TrendingUp, HardHat
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
@@ -130,6 +130,16 @@ export default function Layout() {
         { name: 'Equipo', path: '/tesoreria/equipo', icon: Users, adminOnly: true, submodule: 'tesoreria.equipo' },
     ];
 
+    const allCRMItems = [
+        { name: 'Dashboard', path: '/crm', icon: LayoutDashboard },
+        { name: 'Contactos', path: '/crm/contactos', icon: Users, submodule: 'crm.contactos' },
+        { name: 'Prospectos', path: '/crm/prospectos', icon: TrendingUp, submodule: 'crm.prospectos' },
+        { name: 'Obras', path: '/crm/obras', icon: HardHat, submodule: 'crm.obras' },
+    ];
+    const crmItems = allCRMItems.filter(
+        (i: any) => !i.submodule || hasModuleAccess(i.submodule)
+    );
+
     const allContableItems = [
         { name: 'Dashboard', path: '/contable', icon: LayoutDashboard },
         { name: 'Comprobantes', path: '/contable/comprobantes', icon: ClipboardList, submodule: 'contable.comprobantes' },
@@ -157,9 +167,11 @@ export default function Layout() {
     const isConfiguracion = location.pathname === '/configuracion';
     const isContable = location.pathname.startsWith('/contable') || isConfiguracion;
     const isTesoreria = location.pathname.startsWith('/tesoreria');
+    const isCRM = location.pathname.startsWith('/crm');
 
     // Determine current section nav items (Ocultamos sub-opciones en configuración)
-    const sectionItems = (isContable && !isConfiguracion) ? contableItems : isTesoreria ? tesoreriaItems : [];
+    const sectionItems = (isContable && !isConfiguracion) ? contableItems : isTesoreria ? tesoreriaItems : isCRM ? crmItems : [];
+    const sectionLabel = isContable ? 'Contable' : isTesoreria ? 'Tesorería' : isCRM ? 'CRM' : '';
 
     return (
         <>
@@ -252,7 +264,7 @@ export default function Layout() {
                 {sectionItems.length > 0 && (
                     <div className="sidebar-section" style={{ borderTop: '1px solid var(--color-border-subtle)', marginTop: '0.5rem', paddingTop: '1rem' }}>
                         <div className="sidebar-section-label">
-                            {isContable ? 'Contable' : 'Tesorería'}
+                            {sectionLabel}
                         </div>
                         {sectionItems.map(item => {
                             const isActive = item.path === '/tesoreria' || item.path === '/contable'

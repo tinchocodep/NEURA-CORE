@@ -55,9 +55,18 @@ const MODULE_TREE: ModuleNode[] = [
             { id: 'contable.proveedores', name: 'Proveedores' },
             { id: 'contable.clientes', name: 'Clientes' },
             { id: 'contable.catalogos', name: 'Categorías' },
+            { id: 'contable.conciliacion', name: 'Conciliación' },
         ],
     },
-    { id: 'crm', name: 'CRM', submodules: [] },
+    {
+        id: 'crm',
+        name: 'CRM',
+        submodules: [
+            { id: 'crm.contactos', name: 'Contactos' },
+            { id: 'crm.prospectos', name: 'Prospectos' },
+            { id: 'crm.obras', name: 'Obras' },
+        ],
+    },
     { id: 'administracion', name: 'Administración', submodules: [] },
     { id: 'logistica', name: 'Logística', submodules: [] },
 ];

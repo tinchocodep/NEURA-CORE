@@ -23,6 +23,10 @@ import ContableCatalogos from './modules/contable/Catalogos';
 import ContableConfiguracion from './modules/contable/Configuracion';
 import Conciliacion from './modules/contable/Conciliacion/index';
 import VisionGeneral from './modules/VisionGeneral';
+import CRMDashboard from './modules/crm/Dashboard';
+import CRMContactos from './modules/crm/Contactos';
+import CRMProspectos from './modules/crm/Prospectos';
+import CRMObras from './modules/crm/Obras';
 import { useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 
@@ -83,6 +87,14 @@ export default function App() {
               <Route path="conciliacion" element={<Conciliacion />} />
             </Route>
             
+            {/* Modulo CRM */}
+            <Route path="crm">
+              <Route index element={<CRMDashboard />} />
+              <Route path="contactos" element={<CRMContactos />} />
+              <Route path="prospectos" element={<CRMProspectos />} />
+              <Route path="obras" element={<CRMObras />} />
+            </Route>
+
             {/* Global Configuracion */}
             <Route path="configuracion" element={<ContableConfiguracion />} />
             
