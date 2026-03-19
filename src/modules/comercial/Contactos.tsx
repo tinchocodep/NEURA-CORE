@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Plus, Download, MessageCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
-import { useAuth } from '../../contexts/AuthContext';
+
 
 interface Stage { id: string; nombre: string; color: string; }
 interface Source { id: string; nombre: string; }
@@ -18,7 +18,7 @@ const PRIORITY_COLORS: Record<string, string> = { baja: '#10B981', media: '#F59E
 export default function ComercialContactos() {
     const { tenant } = useTenant();
     const navigate = useNavigate();
-    const { user } = useAuth() as any;
+
     const [contacts, setContacts] = useState<Contact[]>([]);
     const [stages, setStages] = useState<Stage[]>([]);
     const [sources, setSources] = useState<Source[]>([]);

@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef } from 'react';
-import { Search, Plus, List, Columns3, X, Phone, MessageCircle, Calendar, StickyNote, ChevronRight, GripVertical } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Search, Plus, List, Columns3, X, Phone, MessageCircle, Calendar, StickyNote } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import { useAuth } from '../../contexts/AuthContext';

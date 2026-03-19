@@ -60,8 +60,6 @@ export default function ComercialReportes() {
     const convRate = totalClosed > 0 ? Math.round((won.length / totalClosed) * 100) : 0;
     const totalRevenue = won.reduce((s, c) => s + (c.monto_cierre || 0), 0);
 
-    const sourceName = (id: string) => sources.find(s => s.id === id)?.nombre || '—';
-    const stageName = (id: string) => stages.find(s => s.id === id)?.nombre || '—';
 
     // By Source
     const bySource = sources.map((src, i) => {

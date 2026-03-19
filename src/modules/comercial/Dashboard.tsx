@@ -183,7 +183,7 @@ export default function ComercialDashboard() {
                 <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-md)', padding: '1.25rem' }}>
                     <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '1rem' }}>Embudo de conversión</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center' }}>
-                        {funnelData.map((f, i) => {
+                        {funnelData.map((f) => {
                             const widthPct = Math.max(25, (f.count / maxFunnel) * 100);
                             return (
                                 <div key={f.name} style={{

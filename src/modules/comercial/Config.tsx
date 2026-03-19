@@ -14,7 +14,6 @@ export default function ComercialConfig() {
     const [templates, setTemplates] = useState<Template[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeSection, setActiveSection] = useState('etapas');
-    const [saving, setSaving] = useState(false);
 
     // New stage
     const [newStageName, setNewStageName] = useState('');
@@ -62,10 +61,8 @@ export default function ComercialConfig() {
     };
 
     const updateStage = async (id: string, updates: Partial<Stage>) => {
-        setSaving(true);
         const { error } = await supabase.from('comercial_pipeline_stages').update(updates).eq('id', id);
         if (!error) setStages(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
-        setTimeout(() => setSaving(false), 500);
     };
 
     const deleteStage = async (id: string) => {
@@ -149,7 +146,7 @@ export default function ComercialConfig() {
                         <div>
                             <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '1rem' }}>Etapas del Pipeline</div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
-                                {stages.map((stage, i) => (
+                                {stages.map((stage) => (
                                     <div key={stage.id} style={{
                                         display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.6rem 0.75rem',
                                         border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-sm)',
