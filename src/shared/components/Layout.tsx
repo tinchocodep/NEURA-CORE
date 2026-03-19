@@ -12,6 +12,7 @@ import { supabase } from '../../lib/supabase';
 import { useEffect, useState } from 'react';
 import AgentMonitorPanel from '../../design-system/components/AgentMonitor/AgentMonitorPanel';
 import ChatbotAsistente from './ChatbotAsistente';
+import TopBar from './TopBar';
 
 export default function Layout() {
     const { user, signOut, role, userModules, displayName } = useAuth() as any;
@@ -373,18 +374,21 @@ export default function Layout() {
 
             {/* ──────────────── MAIN CONTENT ──────────────── */}
             <main className="main-content">
-                <AnimatePresence mode="wait">
-                    <motion.div
-                        key={location.pathname}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -6 }}
-                        transition={{ duration: 0.2, ease: 'easeOut' }}
-                        style={{ minHeight: '100%' }}
-                    >
-                        <Outlet />
-                    </motion.div>
-                </AnimatePresence>
+                <TopBar />
+                <div style={{ padding: '2rem 2.5rem', flex: 1 }}>
+                    <AnimatePresence mode="wait">
+                        <motion.div
+                            key={location.pathname}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -6 }}
+                            transition={{ duration: 0.2, ease: 'easeOut' }}
+                            style={{ minHeight: '100%' }}
+                        >
+                            <Outlet />
+                        </motion.div>
+                    </AnimatePresence>
+                </div>
             </main>
 
             {/* ──────────────── AGENT MONITOR ──────────────── */}
