@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
-import { Car, Plus, Search, X, Edit2, Trash2, Gauge, Fuel, Settings2, LayoutGrid, List, ChevronDown } from 'lucide-react';
+import { Car, Plus, Search, X, Edit2, Trash2, Gauge, Fuel, Settings2, LayoutGrid, List, ChevronDown, User, TrendingUp } from 'lucide-react';
 
 interface Cliente { id: string; razon_social: string; }
 interface Contacto { id: string; nombre: string; apellido: string | null; }
-interface Prospecto { id: string; nombre: string; etapa: string; }
+interface Prospecto { id: string; nombre: string; etapa: string; contacto_id: string | null; monto_estimado: number | null; }
 
 interface Auto {
   id: string;
@@ -35,6 +35,15 @@ const ESTADOS: { id: string; label: string; color: string; bg: string }[] = [
   { id: 'reservado', label: 'Reservado', color: 'var(--color-warning)', bg: 'var(--color-warning-dim, rgba(217,119,6,0.1))' },
   { id: 'vendido', label: 'Vendido', color: 'var(--color-accent)', bg: 'var(--color-accent-dim, rgba(2,132,199,0.1))' },
 ];
+
+const ETAPA_COLORS: Record<string, { color: string; bg: string }> = {
+  'Nuevo': { color: '#6366f1', bg: 'rgba(99,102,241,0.12)' },
+  'Contactado': { color: '#0284c7', bg: 'rgba(2,132,199,0.12)' },
+  'Propuesta': { color: '#d97706', bg: 'rgba(217,119,6,0.12)' },
+  'Negociación': { color: '#ea580c', bg: 'rgba(234,88,12,0.12)' },
+  'Ganado': { color: '#16a34a', bg: 'rgba(22,163,74,0.12)' },
+  'Perdido': { color: '#dc2626', bg: 'rgba(220,38,38,0.12)' },
+};
 
 const COMBUSTIBLES = ['Nafta', 'Diesel', 'GNC', 'Híbrido', 'Eléctrico'];
 const TRANSMISIONES = ['Manual', 'Automática'];
@@ -96,7 +105,7 @@ export default function CatalogoAutos() {
       supabase.from('crm_catalogo_autos').select('*').eq('tenant_id', tenant!.id).order('created_at', { ascending: false }),
       supabase.from('contable_clientes').select('id, razon_social').eq('tenant_id', tenant!.id).eq('activo', true),
       supabase.from('crm_contactos').select('id, nombre, apellido').eq('tenant_id', tenant!.id).eq('activo', true),
-      supabase.from('crm_prospectos').select('id, nombre, etapa').eq('tenant_id', tenant!.id),
+      supabase.from('crm_prospectos').select('id, nombre, etapa, contacto_id, monto_estimado').eq('tenant_id', tenant!.id),
     ]);
     setAutos(a.data || []);
     setClientes(cl.data || []);
@@ -148,7 +157,9 @@ export default function CatalogoAutos() {
   };
 
   const getClienteName = (id: string | null) => clientes.find(c => c.id === id)?.razon_social || '';
-  const getProspectoName = (id: string | null) => prospectos.find(p => p.id === id)?.nombre || '';
+  const getProspecto = (id: string | null) => prospectos.find(p => p.id === id) || null;
+  const getContactoName = (id: string | null) => { const c = contactos.find(c => c.id === id); return c ? `${c.nombre} ${c.apellido || ''}`.trim() : ''; };
+  const getEtapaStyle = (etapa: string) => ETAPA_COLORS[etapa] || { color: 'var(--color-text-muted)', bg: 'var(--color-bg-surface-2)' };
   const getEstado = (id: string) => ESTADOS.find(e => e.id === id) || ESTADOS[0];
 
   if (loading) return (
@@ -290,14 +301,41 @@ export default function CatalogoAutos() {
                       Color: {auto.color}
                     </div>
                   )}
-                  {auto.prospecto_id && (
-                    <div style={{ marginTop: 8, fontSize: '0.75rem', color: 'var(--color-warning)', fontWeight: 500 }}>
-                      Prospecto: {getProspectoName(auto.prospecto_id)}
-                    </div>
-                  )}
+                  {/* Prospecto strip */}
+                  {auto.prospecto_id && (() => {
+                    const p = getProspecto(auto.prospecto_id);
+                    if (!p) return null;
+                    const es = getEtapaStyle(p.etapa);
+                    const contacto = p.contacto_id ? getContactoName(p.contacto_id) : '';
+                    return (
+                      <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 'var(--radius-md)', background: 'var(--color-bg-surface-2)', border: '1px solid var(--color-border-subtle)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                          <TrendingUp size={12} style={{ color: es.color }} />
+                          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-primary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {p.nombre}
+                          </span>
+                          <span style={{ padding: '1px 6px', borderRadius: 12, fontSize: '0.625rem', fontWeight: 700, background: es.bg, color: es.color, whiteSpace: 'nowrap' }}>
+                            {p.etapa}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>
+                          {contacto && (
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                              <User size={10} /> {contacto}
+                            </span>
+                          )}
+                          {p.monto_estimado && (
+                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: es.color }}>
+                              {fmtPrice(p.monto_estimado, 'ARS')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
                   {auto.cliente_comprador_id && (
-                    <div style={{ fontSize: '0.75rem', color: 'var(--color-success)', fontWeight: 500, marginTop: 2 }}>
-                      Comprador: {getClienteName(auto.cliente_comprador_id)}
+                    <div style={{ marginTop: 6, fontSize: '0.75rem', color: 'var(--color-success)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <User size={12} /> Comprador: {getClienteName(auto.cliente_comprador_id)}
                     </div>
                   )}
                 </div>
@@ -346,8 +384,30 @@ export default function CatalogoAutos() {
                           {est.label}
                         </span>
                       </td>
-                      <td style={{ padding: '10px 16px', fontSize: '0.75rem', color: 'var(--color-text-muted)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {auto.prospecto_id ? getProspectoName(auto.prospecto_id) : '—'}
+                      <td style={{ padding: '10px 16px', maxWidth: 220 }}>
+                        {(() => {
+                          const p = getProspecto(auto.prospecto_id);
+                          if (!p) return <span style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem' }}>—</span>;
+                          const es = getEtapaStyle(p.etapa);
+                          const contacto = p.contacto_id ? getContactoName(p.contacto_id) : '';
+                          return (
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {p.nombre}
+                                </span>
+                                <span style={{ padding: '0px 5px', borderRadius: 10, fontSize: '0.5625rem', fontWeight: 700, background: es.bg, color: es.color, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                  {p.etapa}
+                                </span>
+                              </div>
+                              {contacto && (
+                                <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: 3, marginTop: 1 }}>
+                                  <User size={10} /> {contacto}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td style={{ padding: '10px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                         <button className="btn btn-ghost btn-icon" onClick={() => openEdit(auto)}><Edit2 size={14} /></button>
