@@ -4,7 +4,7 @@ import {
     LogOut, LayoutDashboard, ArrowRightLeft, FileText, Activity, Landmark,
     Briefcase, Zap, Users, BookOpen, Tag, Building2, Settings, ClipboardList,
     Receipt, GitMerge, PanelLeftClose, PanelLeftOpen, TrendingUp, HardHat,
-    Funnel, Columns3, Contact, BarChart3
+    Funnel, Columns3, Contact, BarChart3, Car
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
@@ -136,6 +136,7 @@ export default function Layout() {
         { name: 'Contactos', path: '/crm/contactos', icon: Users, submodule: 'crm.contactos' },
         { name: 'Prospectos', path: '/crm/prospectos', icon: TrendingUp, submodule: 'crm.prospectos' },
         { name: 'Obras', path: '/crm/obras', icon: HardHat, submodule: 'crm.obras' },
+        { name: 'Catálogo', path: '/crm/catalogo', icon: Car, submodule: 'crm.catalogo' },
     ];
     const crmItems = allCRMItems.filter(
         (i: any) => !i.submodule || hasModuleAccess(i.submodule)

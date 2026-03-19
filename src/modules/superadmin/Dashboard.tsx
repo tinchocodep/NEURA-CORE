@@ -65,6 +65,7 @@ const MODULE_TREE: ModuleNode[] = [
             { id: 'crm.contactos', name: 'Contactos' },
             { id: 'crm.prospectos', name: 'Prospectos' },
             { id: 'crm.obras', name: 'Obras' },
+            { id: 'crm.catalogo', name: 'Catálogo Vehículos' },
         ],
     },
     {

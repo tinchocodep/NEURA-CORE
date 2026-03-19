@@ -27,6 +27,7 @@ import CRMDashboard from './modules/crm/Dashboard';
 import CRMContactos from './modules/crm/Contactos';
 import CRMProspectos from './modules/crm/Prospectos';
 import CRMObras from './modules/crm/Obras';
+import CRMCatalogoAutos from './modules/crm/CatalogoAutos';
 import ComercialDashboard from './modules/comercial/Dashboard';
 import ComercialPipeline from './modules/comercial/Pipeline';
 import ComercialContactos from './modules/comercial/Contactos';
@@ -99,6 +100,7 @@ export default function App() {
               <Route path="contactos" element={<CRMContactos />} />
               <Route path="prospectos" element={<CRMProspectos />} />
               <Route path="obras" element={<CRMObras />} />
+              <Route path="catalogo" element={<CRMCatalogoAutos />} />
             </Route>
 
             {/* Modulo Comercial */}
