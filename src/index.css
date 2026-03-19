@@ -445,7 +445,7 @@ a {
   gap: 1rem;
   height: 56px;
   padding: 0 2.5rem;
-  background: linear-gradient(180deg, var(--color-bg-base) 0%, transparent 100%);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--tenant-primary, var(--color-accent)) 8%, var(--color-bg-base)) 0%, var(--color-bg-base) 100%);
   position: sticky;
   top: 0;
   z-index: var(--z-panel);
