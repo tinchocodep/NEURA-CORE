@@ -161,7 +161,7 @@ export default function CatalogoAutos() {
   };
 
   const getClienteName = (id: string | null) => clientes.find(c => c.id === id)?.razon_social || '-';
-  const getContactoName = (id: string | null) => { const c = contactos.find(c => c.id === id); return c ? `${c.nombre} ${c.apellido || ''}`.trim() : '-'; };
+
   const getProspectoName = (id: string | null) => prospectos.find(p => p.id === id)?.nombre || '-';
   const getEstadoStyle = (estado: string) => ESTADOS.find(e => e.id === estado) || ESTADOS[0];
 
