@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
-import { Car, Plus, Search, Filter, X, Edit2, Trash2, DollarSign, Gauge, Fuel, Settings2 } from 'lucide-react';
+import { Car, Plus, Search, X, Edit2, Trash2, Gauge, Fuel, Settings2, LayoutGrid, List, ChevronDown } from 'lucide-react';
 
 interface Cliente { id: string; razon_social: string; }
 interface Contacto { id: string; nombre: string; apellido: string | null; }
@@ -30,15 +30,10 @@ interface Auto {
   created_at: string;
 }
 
-const ESTADOS = [
-  { id: 'disponible', label: 'Disponible', color: '#10b981', bg: '#d1fae5' },
-  { id: 'reservado', label: 'Reservado', color: '#f59e0b', bg: '#fef3c7' },
-  { id: 'vendido', label: 'Vendido', color: '#6366f1', bg: '#e0e7ff' },
-];
-
-const TIPOS = [
-  { id: 'nuevo', label: '0km' },
-  { id: 'usado', label: 'Usado' },
+const ESTADOS: { id: string; label: string; color: string; bg: string }[] = [
+  { id: 'disponible', label: 'Disponible', color: 'var(--color-success)', bg: 'var(--color-success-dim, rgba(22,163,74,0.1))' },
+  { id: 'reservado', label: 'Reservado', color: 'var(--color-warning)', bg: 'var(--color-warning-dim, rgba(217,119,6,0.1))' },
+  { id: 'vendido', label: 'Vendido', color: 'var(--color-accent)', bg: 'var(--color-accent-dim, rgba(2,132,199,0.1))' },
 ];
 
 const COMBUSTIBLES = ['Nafta', 'Diesel', 'GNC', 'Híbrido', 'Eléctrico'];
@@ -51,13 +46,12 @@ const EMPTY_AUTO: Partial<Auto> = {
   contacto_vendedor_id: null, cliente_comprador_id: null, prospecto_id: null,
 };
 
-function formatPrice(n: number | null, moneda: string) {
-  if (!n) return '-';
-  const sym = moneda === 'USD' ? 'USD ' : '$ ';
-  return sym + n.toLocaleString('es-AR');
+function fmtPrice(n: number | null, moneda: string) {
+  if (!n) return '—';
+  return (moneda === 'USD' ? 'USD ' : '$ ') + n.toLocaleString('es-AR');
 }
 
-function formatKm(n: number) {
+function fmtKm(n: number) {
   return n === 0 ? '0 km' : n.toLocaleString('es-AR') + ' km';
 }
 
@@ -69,61 +63,46 @@ export default function CatalogoAutos() {
   const [prospectos, setProspectos] = useState<Prospecto[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [editingAuto, setEditingAuto] = useState<Partial<Auto>>(EMPTY_AUTO);
+  const [form, setForm] = useState<Partial<Auto>>(EMPTY_AUTO);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [filterEstado, setFilterEstado] = useState<string>('todos');
-  const [filterTipo, setFilterTipo] = useState<string>('todos');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [filterEstado, setFilterEstado] = useState('todos');
+  const [filterTipo, setFilterTipo] = useState('todos');
+  const [view, setView] = useState<'grid' | 'list'>('grid');
 
   useEffect(() => { if (tenant) loadAll(); }, [tenant]);
 
   async function loadAll() {
     setLoading(true);
-    const [autosRes, clientesRes, contactosRes, prospectosRes] = await Promise.all([
+    const [a, cl, co, pr] = await Promise.all([
       supabase.from('crm_catalogo_autos').select('*').eq('tenant_id', tenant!.id).order('created_at', { ascending: false }),
       supabase.from('contable_clientes').select('id, razon_social').eq('tenant_id', tenant!.id).eq('activo', true),
       supabase.from('crm_contactos').select('id, nombre, apellido').eq('tenant_id', tenant!.id).eq('activo', true),
       supabase.from('crm_prospectos').select('id, nombre, etapa').eq('tenant_id', tenant!.id),
     ]);
-    setAutos(autosRes.data || []);
-    setClientes(clientesRes.data || []);
-    setContactos(contactosRes.data || []);
-    setProspectos(prospectosRes.data || []);
+    setAutos(a.data || []);
+    setClientes(cl.data || []);
+    setContactos(co.data || []);
+    setProspectos(pr.data || []);
     setLoading(false);
   }
 
   async function handleSave() {
-    if (!editingAuto.marca || !editingAuto.modelo) return;
+    if (!form.marca || !form.modelo) return;
     const payload = {
-      tenant_id: tenant!.id,
-      marca: editingAuto.marca,
-      modelo: editingAuto.modelo,
-      anio: editingAuto.anio,
-      version: editingAuto.version || null,
-      tipo: editingAuto.tipo,
-      precio: editingAuto.precio || null,
-      moneda: editingAuto.moneda || 'ARS',
-      kilometraje: editingAuto.kilometraje || 0,
-      color: editingAuto.color || null,
-      patente: editingAuto.patente || null,
-      combustible: editingAuto.combustible || null,
-      transmision: editingAuto.transmision || null,
-      estado: editingAuto.estado,
-      descripcion: editingAuto.descripcion || null,
-      contacto_vendedor_id: editingAuto.contacto_vendedor_id || null,
-      cliente_comprador_id: editingAuto.cliente_comprador_id || null,
-      prospecto_id: editingAuto.prospecto_id || null,
-      updated_at: new Date().toISOString(),
+      tenant_id: tenant!.id, marca: form.marca, modelo: form.modelo, anio: form.anio,
+      version: form.version || null, tipo: form.tipo, precio: form.precio || null,
+      moneda: form.moneda || 'ARS', kilometraje: form.kilometraje || 0,
+      color: form.color || null, patente: form.patente || null,
+      combustible: form.combustible || null, transmision: form.transmision || null,
+      estado: form.estado, descripcion: form.descripcion || null,
+      contacto_vendedor_id: form.contacto_vendedor_id || null,
+      cliente_comprador_id: form.cliente_comprador_id || null,
+      prospecto_id: form.prospecto_id || null, updated_at: new Date().toISOString(),
     };
-    if (editingId) {
-      await supabase.from('crm_catalogo_autos').update(payload).eq('id', editingId);
-    } else {
-      await supabase.from('crm_catalogo_autos').insert(payload);
-    }
-    setShowForm(false);
-    setEditingAuto(EMPTY_AUTO);
-    setEditingId(null);
+    if (editingId) await supabase.from('crm_catalogo_autos').update(payload).eq('id', editingId);
+    else await supabase.from('crm_catalogo_autos').insert(payload);
+    closeForm();
     loadAll();
   }
 
@@ -133,24 +112,14 @@ export default function CatalogoAutos() {
     loadAll();
   }
 
-  function openEdit(auto: Auto) {
-    setEditingAuto(auto);
-    setEditingId(auto.id);
-    setShowForm(true);
-  }
-
-  function openNew() {
-    setEditingAuto(EMPTY_AUTO);
-    setEditingId(null);
-    setShowForm(true);
-  }
+  function openEdit(auto: Auto) { setForm(auto); setEditingId(auto.id); setShowForm(true); }
+  function openNew() { setForm(EMPTY_AUTO); setEditingId(null); setShowForm(true); }
+  function closeForm() { setShowForm(false); setForm(EMPTY_AUTO); setEditingId(null); }
 
   const filtered = autos.filter(a => {
     const q = search.toLowerCase();
-    const matchSearch = !q || `${a.marca} ${a.modelo} ${a.version || ''} ${a.patente || ''} ${a.color || ''}`.toLowerCase().includes(q);
-    const matchEstado = filterEstado === 'todos' || a.estado === filterEstado;
-    const matchTipo = filterTipo === 'todos' || a.tipo === filterTipo;
-    return matchSearch && matchEstado && matchTipo;
+    const ms = !q || `${a.marca} ${a.modelo} ${a.version || ''} ${a.patente || ''} ${a.color || ''}`.toLowerCase().includes(q);
+    return ms && (filterEstado === 'todos' || a.estado === filterEstado) && (filterTipo === 'todos' || a.tipo === filterTipo);
   });
 
   const stats = {
@@ -160,331 +129,336 @@ export default function CatalogoAutos() {
     vendidos: autos.filter(a => a.estado === 'vendido').length,
   };
 
-  const getClienteName = (id: string | null) => clientes.find(c => c.id === id)?.razon_social || '-';
+  const getClienteName = (id: string | null) => clientes.find(c => c.id === id)?.razon_social || '';
+  const getProspectoName = (id: string | null) => prospectos.find(p => p.id === id)?.nombre || '';
+  const getEstado = (id: string) => ESTADOS.find(e => e.id === id) || ESTADOS[0];
 
-  const getProspectoName = (id: string | null) => prospectos.find(p => p.id === id)?.nombre || '-';
-  const getEstadoStyle = (estado: string) => ESTADOS.find(e => e.id === estado) || ESTADOS[0];
-
-  if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>;
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300 }}>
+      <div style={{ width: 28, height: 28, border: '3px solid var(--color-border)', borderTopColor: 'var(--color-accent)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+    </div>
+  );
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* ─── Header ─── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <Car className="w-7 h-7 text-blue-600" /> Catálogo de Vehículos
+          <h1 style={{ fontSize: '1.375rem', fontWeight: 700, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: 10, margin: 0 }}>
+            <Car size={22} style={{ color: 'var(--color-accent)' }} />
+            Catálogo de Vehículos
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            {stats.total} vehículos · {stats.disponibles} disponibles · {stats.reservados} reservados · {stats.vendidos} vendidos
+          <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
+            {stats.total} vehículos en inventario
           </p>
         </div>
-        <button onClick={openNew} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-          <Plus className="w-4 h-4" /> Nuevo Vehículo
+        <button className="btn btn-primary" onClick={openNew} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Plus size={16} /> Nuevo Vehículo
         </button>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: 'Total', value: stats.total, color: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200' },
-          { label: 'Disponibles', value: stats.disponibles, color: 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300' },
-          { label: 'Reservados', value: stats.reservados, color: 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300' },
-          { label: 'Vendidos', value: stats.vendidos, color: 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' },
-        ].map(kpi => (
-          <div key={kpi.label} className={`rounded-xl p-4 ${kpi.color}`}>
-            <p className="text-sm font-medium opacity-80">{kpi.label}</p>
-            <p className="text-2xl font-bold">{kpi.value}</p>
+      {/* ─── KPI Cards ─── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
+        {([
+          { label: 'Total', value: stats.total, color: 'var(--color-accent)' },
+          { label: 'Disponibles', value: stats.disponibles, color: 'var(--color-success)' },
+          { label: 'Reservados', value: stats.reservados, color: 'var(--color-warning)' },
+          { label: 'Vendidos', value: stats.vendidos, color: 'var(--color-accent)' },
+        ]).map(kpi => (
+          <div key={kpi.label} className="card" style={{ padding: '16px 20px', borderTop: `3px solid ${kpi.color}` }}>
+            <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{kpi.label}</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-text-primary)', marginTop: 2, fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)' }}>{kpi.value}</div>
           </div>
         ))}
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por marca, modelo, patente, color..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm" />
+      {/* ─── Filters ─── */}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ position: 'relative', flex: '1 1 260px' }}>
+          <Search size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
+          <input className="form-input" value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar marca, modelo, patente..."
+            style={{ paddingLeft: 34, width: '100%' }} />
         </div>
-        <div className="flex gap-2">
-          <select value={filterEstado} onChange={e => setFilterEstado(e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm">
+        <div style={{ position: 'relative' }}>
+          <select className="form-input" value={filterEstado} onChange={e => setFilterEstado(e.target.value)}
+            style={{ paddingRight: 28, appearance: 'none', minWidth: 140 }}>
             <option value="todos">Todos los estados</option>
             {ESTADOS.map(e => <option key={e.id} value={e.id}>{e.label}</option>)}
           </select>
-          <select value={filterTipo} onChange={e => setFilterTipo(e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm">
-            <option value="todos">Nuevo y Usado</option>
-            {TIPOS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+          <ChevronDown size={14} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--color-text-muted)' }} />
+        </div>
+        <div style={{ position: 'relative' }}>
+          <select className="form-input" value={filterTipo} onChange={e => setFilterTipo(e.target.value)}
+            style={{ paddingRight: 28, appearance: 'none', minWidth: 120 }}>
+            <option value="todos">Todos</option>
+            <option value="nuevo">0km</option>
+            <option value="usado">Usado</option>
           </select>
-          <div className="flex border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
-            <button onClick={() => setViewMode('grid')} className={`px-3 py-2 text-sm ${viewMode === 'grid' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300'}`}>
-              <Filter className="w-4 h-4" />
-            </button>
-            <button onClick={() => setViewMode('list')} className={`px-3 py-2 text-sm ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300'}`}>
-              ☰
-            </button>
-          </div>
+          <ChevronDown size={14} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--color-text-muted)' }} />
+        </div>
+        <div style={{ display: 'flex', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+          <button onClick={() => setView('grid')} title="Grilla"
+            style={{ padding: '6px 10px', background: view === 'grid' ? 'var(--color-accent)' : 'var(--color-bg-surface)', color: view === 'grid' ? '#fff' : 'var(--color-text-muted)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+            <LayoutGrid size={15} />
+          </button>
+          <button onClick={() => setView('list')} title="Lista"
+            style={{ padding: '6px 10px', background: view === 'list' ? 'var(--color-accent)' : 'var(--color-bg-surface)', color: view === 'list' ? '#fff' : 'var(--color-text-muted)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', borderLeft: '1px solid var(--color-border-subtle)' }}>
+            <List size={15} />
+          </button>
         </div>
       </div>
 
-      {/* Grid / List */}
-      {viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* ─── Grid View ─── */}
+      {view === 'grid' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
           {filtered.map(auto => {
-            const est = getEstadoStyle(auto.estado);
+            const est = getEstado(auto.estado);
             return (
-              <div key={auto.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition group">
-                {/* Image placeholder */}
-                <div className="h-40 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center relative">
-                  <Car className="w-16 h-16 text-gray-300 dark:text-gray-600" />
-                  <span className="absolute top-3 left-3 px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor: est.bg, color: est.color }}>
+              <div key={auto.id} className="card" style={{ overflow: 'hidden', transition: 'box-shadow 0.2s', cursor: 'default' }}
+                onMouseEnter={e => (e.currentTarget.style.boxShadow = 'var(--shadow-md, 0 4px 12px rgba(0,0,0,0.08))')}
+                onMouseLeave={e => (e.currentTarget.style.boxShadow = '')}>
+                {/* Image area */}
+                <div style={{ height: 160, background: 'var(--color-bg-surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', borderBottom: '1px solid var(--color-border-subtle)' }}>
+                  <Car size={48} style={{ color: 'var(--color-border)' }} />
+                  {/* Badges */}
+                  <span style={{ position: 'absolute', top: 10, left: 10, padding: '2px 8px', borderRadius: 20, fontSize: '0.6875rem', fontWeight: 700, background: est.bg, color: est.color }}>
                     {est.label}
                   </span>
-                  <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full text-xs font-medium bg-white/80 dark:bg-gray-900/80 text-gray-700 dark:text-gray-300">
+                  <span style={{ position: 'absolute', top: 10, right: 10, padding: '2px 8px', borderRadius: 20, fontSize: '0.6875rem', fontWeight: 600, background: 'var(--color-bg-surface)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border-subtle)' }}>
                     {auto.tipo === 'nuevo' ? '0km' : 'Usado'}
                   </span>
-                  {/* Action buttons on hover */}
-                  <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition">
-                    <button onClick={() => openEdit(auto)} className="p-1.5 bg-white dark:bg-gray-700 rounded-lg shadow hover:bg-blue-50 dark:hover:bg-blue-900/30">
-                      <Edit2 className="w-3.5 h-3.5 text-blue-600" />
+                  {/* Action buttons */}
+                  <div style={{ position: 'absolute', bottom: 8, right: 8, display: 'flex', gap: 4 }}>
+                    <button className="btn btn-ghost btn-icon" onClick={() => openEdit(auto)} style={{ background: 'var(--color-bg-surface)', boxShadow: 'var(--shadow-sm)' }}>
+                      <Edit2 size={14} />
                     </button>
-                    <button onClick={() => handleDelete(auto.id)} className="p-1.5 bg-white dark:bg-gray-700 rounded-lg shadow hover:bg-red-50 dark:hover:bg-red-900/30">
-                      <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                    <button className="btn btn-ghost btn-icon" onClick={() => handleDelete(auto.id)} style={{ background: 'var(--color-bg-surface)', boxShadow: 'var(--shadow-sm)', color: 'var(--color-danger)' }}>
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
-                <div className="p-4 space-y-2">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="font-bold text-gray-900 dark:text-white">{auto.marca} {auto.modelo}</h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">{auto.version || ''} · {auto.anio}</p>
-                    </div>
+                {/* Info */}
+                <div style={{ padding: 16 }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--color-text-primary)' }}>
+                    {auto.marca} {auto.modelo}
                   </div>
-                  <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{formatPrice(auto.precio, auto.moneda)}</p>
-                  <div className="flex flex-wrap gap-2 text-xs text-gray-500 dark:text-gray-400">
+                  <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', marginTop: 2 }}>
+                    {auto.version || ''} {auto.version ? '·' : ''} {auto.anio}
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-accent)', marginTop: 10 }}>
+                    {fmtPrice(auto.precio, auto.moneda)}
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 10, fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
                     {auto.kilometraje > 0 && (
-                      <span className="flex items-center gap-1"><Gauge className="w-3 h-3" /> {formatKm(auto.kilometraje)}</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><Gauge size={12} /> {fmtKm(auto.kilometraje)}</span>
                     )}
                     {auto.combustible && (
-                      <span className="flex items-center gap-1"><Fuel className="w-3 h-3" /> {auto.combustible}</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><Fuel size={12} /> {auto.combustible}</span>
                     )}
                     {auto.transmision && (
-                      <span className="flex items-center gap-1"><Settings2 className="w-3 h-3" /> {auto.transmision}</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><Settings2 size={12} /> {auto.transmision}</span>
                     )}
-                    {auto.color && <span>🎨 {auto.color}</span>}
                   </div>
-                  {auto.patente && <p className="text-xs font-mono bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded inline-block text-gray-600 dark:text-gray-300">{auto.patente}</p>}
+                  {auto.patente && (
+                    <div style={{ marginTop: 8 }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', fontWeight: 600, padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: 'var(--color-bg-surface-2)', color: 'var(--color-text-secondary)', letterSpacing: '0.05em' }}>
+                        {auto.patente}
+                      </span>
+                    </div>
+                  )}
+                  {auto.color && (
+                    <div style={{ marginTop: 6, fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                      Color: {auto.color}
+                    </div>
+                  )}
                   {auto.prospecto_id && (
-                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                      <DollarSign className="w-3 h-3 inline" /> Prospecto: {getProspectoName(auto.prospecto_id)}
-                    </p>
+                    <div style={{ marginTop: 8, fontSize: '0.75rem', color: 'var(--color-warning)', fontWeight: 500 }}>
+                      Prospecto: {getProspectoName(auto.prospecto_id)}
+                    </div>
                   )}
                   {auto.cliente_comprador_id && (
-                    <p className="text-xs text-green-600 dark:text-green-400">
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-success)', fontWeight: 500, marginTop: 2 }}>
                       Comprador: {getClienteName(auto.cliente_comprador_id)}
-                    </p>
+                    </div>
                   )}
                 </div>
               </div>
             );
           })}
         </div>
-      ) : (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 dark:bg-gray-900/50">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Vehículo</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Tipo</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Precio</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Km</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Estado</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Prospecto</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-              {filtered.map(auto => {
-                const est = getEstadoStyle(auto.estado);
-                return (
-                  <tr key={auto.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-gray-900 dark:text-white">{auto.marca} {auto.modelo} {auto.anio}</p>
-                      <p className="text-xs text-gray-500">{auto.version} {auto.color ? `· ${auto.color}` : ''} {auto.patente ? `· ${auto.patente}` : ''}</p>
-                    </td>
-                    <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{auto.tipo === 'nuevo' ? '0km' : 'Usado'}</td>
-                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{formatPrice(auto.precio, auto.moneda)}</td>
-                    <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{formatKm(auto.kilometraje)}</td>
-                    <td className="px-4 py-3">
-                      <span className="px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor: est.bg, color: est.color }}>{est.label}</span>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 max-w-[150px] truncate">{auto.prospecto_id ? getProspectoName(auto.prospecto_id) : '-'}</td>
-                    <td className="px-4 py-3 text-right">
-                      <button onClick={() => openEdit(auto)} className="p-1 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded"><Edit2 className="w-4 h-4 text-blue-600" /></button>
-                      <button onClick={() => handleDelete(auto.id)} className="p-1 hover:bg-red-50 dark:hover:bg-red-900/30 rounded ml-1"><Trash2 className="w-4 h-4 text-red-500" /></button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          {filtered.length === 0 && <p className="text-center py-8 text-gray-400">No se encontraron vehículos</p>}
+      )}
+
+      {/* ─── List View ─── */}
+      {view === 'list' && (
+        <div className="card" style={{ overflow: 'hidden' }}>
+          <div className="table-container">
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  {['Vehículo', 'Tipo', 'Precio', 'Km', 'Estado', 'Prospecto', ''].map(h => (
+                    <th key={h} style={{ textAlign: h === '' ? 'right' : 'left', padding: '10px 16px', fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-muted)', background: 'var(--color-bg-surface-2)', borderBottom: '1px solid var(--color-border)' }}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(auto => {
+                  const est = getEstado(auto.estado);
+                  return (
+                    <tr key={auto.id} style={{ borderBottom: '1px solid var(--color-border-subtle)' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                      <td style={{ padding: '10px 16px' }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--color-text-primary)' }}>{auto.marca} {auto.modelo} {auto.anio}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{auto.version}{auto.color ? ` · ${auto.color}` : ''}{auto.patente ? ` · ${auto.patente}` : ''}</div>
+                      </td>
+                      <td style={{ padding: '10px 16px', fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
+                        {auto.tipo === 'nuevo' ? '0km' : 'Usado'}
+                      </td>
+                      <td style={{ padding: '10px 16px', fontWeight: 600, fontSize: '0.8125rem', fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>
+                        {fmtPrice(auto.precio, auto.moneda)}
+                      </td>
+                      <td style={{ padding: '10px 16px', fontSize: '0.8125rem', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)' }}>
+                        {fmtKm(auto.kilometraje)}
+                      </td>
+                      <td style={{ padding: '10px 16px' }}>
+                        <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: '0.6875rem', fontWeight: 700, background: est.bg, color: est.color }}>
+                          {est.label}
+                        </span>
+                      </td>
+                      <td style={{ padding: '10px 16px', fontSize: '0.75rem', color: 'var(--color-text-muted)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {auto.prospecto_id ? getProspectoName(auto.prospecto_id) : '—'}
+                      </td>
+                      <td style={{ padding: '10px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <button className="btn btn-ghost btn-icon" onClick={() => openEdit(auto)}><Edit2 size={14} /></button>
+                        <button className="btn btn-ghost btn-icon" onClick={() => handleDelete(auto.id)} style={{ color: 'var(--color-danger)' }}><Trash2 size={14} /></button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {filtered.length === 0 && (
+            <div style={{ textAlign: 'center', padding: 48, color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
+              No se encontraron vehículos
+            </div>
+          )}
         </div>
       )}
 
-      {filtered.length === 0 && viewMode === 'grid' && (
-        <p className="text-center py-8 text-gray-400">No se encontraron vehículos con los filtros seleccionados</p>
+      {filtered.length === 0 && view === 'grid' && (
+        <div style={{ textAlign: 'center', padding: 48, color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
+          No se encontraron vehículos con los filtros seleccionados
+        </div>
       )}
 
-      {/* Modal Form */}
+      {/* ─── Modal Form ─── */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">{editingId ? 'Editar Vehículo' : 'Nuevo Vehículo'}</h2>
-              <button onClick={() => setShowForm(false)} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"><X className="w-5 h-5" /></button>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={closeForm}>
+          <div className="card" style={{ width: '100%', maxWidth: 680, maxHeight: '90vh', overflowY: 'auto', borderRadius: 'var(--radius-xl)' }} onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '1px solid var(--color-border-subtle)' }}>
+              <h2 style={{ fontSize: '1.0625rem', fontWeight: 700, color: 'var(--color-text-primary)', margin: 0 }}>
+                {editingId ? 'Editar Vehículo' : 'Nuevo Vehículo'}
+              </h2>
+              <button className="btn btn-ghost btn-icon" onClick={closeForm}><X size={18} /></button>
             </div>
-            <div className="p-6 space-y-4">
-              {/* Row: Marca, Modelo, Año */}
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Marca *</label>
-                  <input value={editingAuto.marca || ''} onChange={e => setEditingAuto({ ...editingAuto, marca: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm" placeholder="Toyota" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Modelo *</label>
-                  <input value={editingAuto.modelo || ''} onChange={e => setEditingAuto({ ...editingAuto, modelo: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm" placeholder="Hilux" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Año</label>
-                  <input type="number" value={editingAuto.anio || ''} onChange={e => setEditingAuto({ ...editingAuto, anio: Number(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm" />
-                </div>
+            {/* Body */}
+            <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Marca / Modelo / Año */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 100px', gap: 12 }}>
+                <FormField label="Marca *" value={form.marca || ''} onChange={v => setForm({ ...form, marca: v })} placeholder="Toyota" />
+                <FormField label="Modelo *" value={form.modelo || ''} onChange={v => setForm({ ...form, modelo: v })} placeholder="Hilux" />
+                <FormField label="Año" value={String(form.anio || '')} onChange={v => setForm({ ...form, anio: Number(v) })} type="number" />
               </div>
-              {/* Row: Versión, Tipo, Color */}
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Versión</label>
-                  <input value={editingAuto.version || ''} onChange={e => setEditingAuto({ ...editingAuto, version: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm" placeholder="SRX 4x4" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Tipo</label>
-                  <select value={editingAuto.tipo || 'usado'} onChange={e => setEditingAuto({ ...editingAuto, tipo: e.target.value as any })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
-                    {TIPOS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Color</label>
-                  <input value={editingAuto.color || ''} onChange={e => setEditingAuto({ ...editingAuto, color: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm" placeholder="Negro" />
-                </div>
+              {/* Versión / Tipo / Color */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 1fr', gap: 12 }}>
+                <FormField label="Versión" value={form.version || ''} onChange={v => setForm({ ...form, version: v })} placeholder="SRX 4x4" />
+                <FormSelect label="Tipo" value={form.tipo || 'usado'} onChange={v => setForm({ ...form, tipo: v as any })} options={[{ value: 'nuevo', label: '0km' }, { value: 'usado', label: 'Usado' }]} />
+                <FormField label="Color" value={form.color || ''} onChange={v => setForm({ ...form, color: v })} placeholder="Negro" />
               </div>
-              {/* Row: Precio, Moneda, Km */}
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Precio</label>
-                  <input type="number" value={editingAuto.precio || ''} onChange={e => setEditingAuto({ ...editingAuto, precio: Number(e.target.value) || undefined })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Moneda</label>
-                  <select value={editingAuto.moneda || 'ARS'} onChange={e => setEditingAuto({ ...editingAuto, moneda: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
-                    <option value="ARS">ARS</option>
-                    <option value="USD">USD</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Kilometraje</label>
-                  <input type="number" value={editingAuto.kilometraje || 0} onChange={e => setEditingAuto({ ...editingAuto, kilometraje: Number(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm" />
-                </div>
+              {/* Precio / Moneda / Km */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 1fr', gap: 12 }}>
+                <FormField label="Precio" value={form.precio ? String(form.precio) : ''} onChange={v => setForm({ ...form, precio: Number(v) || undefined })} type="number" />
+                <FormSelect label="Moneda" value={form.moneda || 'ARS'} onChange={v => setForm({ ...form, moneda: v })} options={[{ value: 'ARS', label: 'ARS' }, { value: 'USD', label: 'USD' }]} />
+                <FormField label="Kilometraje" value={String(form.kilometraje || 0)} onChange={v => setForm({ ...form, kilometraje: Number(v) })} type="number" />
               </div>
-              {/* Row: Patente, Combustible, Transmisión */}
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Patente</label>
-                  <input value={editingAuto.patente || ''} onChange={e => setEditingAuto({ ...editingAuto, patente: e.target.value.toUpperCase() })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm font-mono" placeholder="AB 123 CD" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Combustible</label>
-                  <select value={editingAuto.combustible || 'Nafta'} onChange={e => setEditingAuto({ ...editingAuto, combustible: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
-                    {COMBUSTIBLES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Transmisión</label>
-                  <select value={editingAuto.transmision || 'Manual'} onChange={e => setEditingAuto({ ...editingAuto, transmision: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
-                    {TRANSMISIONES.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
+              {/* Patente / Combustible / Transmisión */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                <FormField label="Patente" value={form.patente || ''} onChange={v => setForm({ ...form, patente: v.toUpperCase() })} placeholder="AB 123 CD" mono />
+                <FormSelect label="Combustible" value={form.combustible || 'Nafta'} onChange={v => setForm({ ...form, combustible: v })} options={COMBUSTIBLES.map(c => ({ value: c, label: c }))} />
+                <FormSelect label="Transmisión" value={form.transmision || 'Manual'} onChange={v => setForm({ ...form, transmision: v })} options={TRANSMISIONES.map(t => ({ value: t, label: t }))} />
               </div>
               {/* Estado */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Estado</label>
-                <div className="flex gap-2">
+                <label style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>Estado</label>
+                <div style={{ display: 'flex', gap: 8 }}>
                   {ESTADOS.map(e => (
-                    <button key={e.id} onClick={() => setEditingAuto({ ...editingAuto, estado: e.id as any })}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition ${editingAuto.estado === e.id
-                        ? 'border-transparent text-white' : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-700'}`}
-                      style={editingAuto.estado === e.id ? { backgroundColor: e.color } : {}}>
+                    <button key={e.id} onClick={() => setForm({ ...form, estado: e.id as any })}
+                      style={{ padding: '6px 14px', borderRadius: 'var(--radius-md)', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', border: form.estado === e.id ? 'none' : '1px solid var(--color-border-subtle)', background: form.estado === e.id ? e.color : 'var(--color-bg-surface)', color: form.estado === e.id ? '#fff' : 'var(--color-text-secondary)' }}>
                       {e.label}
                     </button>
                   ))}
                 </div>
               </div>
               {/* Vínculos */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Prospecto vinculado</label>
-                  <select value={editingAuto.prospecto_id || ''} onChange={e => setEditingAuto({ ...editingAuto, prospecto_id: e.target.value || null })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
-                    <option value="">Sin vincular</option>
-                    {prospectos.map(p => <option key={p.id} value={p.id}>{p.nombre} ({p.etapa})</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Cliente comprador</label>
-                  <select value={editingAuto.cliente_comprador_id || ''} onChange={e => setEditingAuto({ ...editingAuto, cliente_comprador_id: e.target.value || null })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
-                    <option value="">Sin comprador</option>
-                    {clientes.map(c => <option key={c.id} value={c.id}>{c.razon_social}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Contacto vendedor</label>
-                  <select value={editingAuto.contacto_vendedor_id || ''} onChange={e => setEditingAuto({ ...editingAuto, contacto_vendedor_id: e.target.value || null })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
-                    <option value="">Sin contacto</option>
-                    {contactos.map(c => <option key={c.id} value={c.id}>{c.nombre} {c.apellido || ''}</option>)}
-                  </select>
-                </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                <FormSelect label="Prospecto vinculado" value={form.prospecto_id || ''} onChange={v => setForm({ ...form, prospecto_id: v || null })}
+                  options={[{ value: '', label: 'Sin vincular' }, ...prospectos.map(p => ({ value: p.id, label: `${p.nombre} (${p.etapa})` }))]} />
+                <FormSelect label="Cliente comprador" value={form.cliente_comprador_id || ''} onChange={v => setForm({ ...form, cliente_comprador_id: v || null })}
+                  options={[{ value: '', label: 'Sin comprador' }, ...clientes.map(c => ({ value: c.id, label: c.razon_social }))]} />
+                <FormSelect label="Contacto vendedor" value={form.contacto_vendedor_id || ''} onChange={v => setForm({ ...form, contacto_vendedor_id: v || null })}
+                  options={[{ value: '', label: 'Sin contacto' }, ...contactos.map(c => ({ value: c.id, label: `${c.nombre} ${c.apellido || ''}` }))]} />
               </div>
               {/* Descripción */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Descripción / Notas</label>
-                <textarea rows={3} value={editingAuto.descripcion || ''} onChange={e => setEditingAuto({ ...editingAuto, descripcion: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm" />
+                <label style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>Descripción</label>
+                <textarea className="form-input" rows={3} value={form.descripcion || ''} onChange={e => setForm({ ...form, descripcion: e.target.value })} style={{ width: '100%', resize: 'vertical' }} />
               </div>
             </div>
-            <div className="flex justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
-              <button onClick={() => setShowForm(false)} className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-sm">Cancelar</button>
-              <button onClick={handleSave} disabled={!editingAuto.marca || !editingAuto.modelo}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium">
+            {/* Footer */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '16px 24px', borderTop: '1px solid var(--color-border-subtle)' }}>
+              <button className="btn btn-secondary" onClick={closeForm}>Cancelar</button>
+              <button className="btn btn-primary" onClick={handleSave} disabled={!form.marca || !form.modelo}
+                style={{ opacity: (!form.marca || !form.modelo) ? 0.5 : 1 }}>
                 {editingId ? 'Guardar Cambios' : 'Crear Vehículo'}
               </button>
             </div>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ─── Tiny form helpers ─── */
+function FormField({ label, value, onChange, placeholder, type, mono }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string; mono?: boolean;
+}) {
+  return (
+    <div>
+      <label style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>{label}</label>
+      <input className="form-input" type={type || 'text'} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+        style={{ width: '100%', ...(mono ? { fontFamily: 'var(--font-mono)' } : {}) }} />
+    </div>
+  );
+}
+
+function FormSelect({ label, value, onChange, options }: {
+  label: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[];
+}) {
+  return (
+    <div>
+      <label style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>{label}</label>
+      <div style={{ position: 'relative' }}>
+        <select className="form-input" value={value} onChange={e => onChange(e.target.value)} style={{ width: '100%', appearance: 'none', paddingRight: 28 }}>
+          {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+        <ChevronDown size={14} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--color-text-muted)' }} />
+      </div>
     </div>
   );
 }
