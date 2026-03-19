@@ -27,6 +27,12 @@ import CRMDashboard from './modules/crm/Dashboard';
 import CRMContactos from './modules/crm/Contactos';
 import CRMProspectos from './modules/crm/Prospectos';
 import CRMObras from './modules/crm/Obras';
+import ComercialDashboard from './modules/comercial/Dashboard';
+import ComercialPipeline from './modules/comercial/Pipeline';
+import ComercialContactos from './modules/comercial/Contactos';
+import ComercialContactoDetalle from './modules/comercial/ContactoDetalle';
+import ComercialReportes from './modules/comercial/Reportes';
+import ComercialConfig from './modules/comercial/Config';
 import { useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 
@@ -93,6 +99,17 @@ export default function App() {
               <Route path="contactos" element={<CRMContactos />} />
               <Route path="prospectos" element={<CRMProspectos />} />
               <Route path="obras" element={<CRMObras />} />
+            </Route>
+
+            {/* Modulo Comercial */}
+            <Route path="comercial">
+              <Route index element={<ComercialDashboard />} />
+              <Route path="dashboard" element={<ComercialDashboard />} />
+              <Route path="pipeline" element={<ComercialPipeline />} />
+              <Route path="contactos" element={<ComercialContactos />} />
+              <Route path="contactos/:id" element={<ComercialContactoDetalle />} />
+              <Route path="reportes" element={<ComercialReportes />} />
+              <Route path="config" element={<ComercialConfig />} />
             </Route>
 
             {/* Global Configuracion */}

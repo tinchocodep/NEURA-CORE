@@ -67,6 +67,16 @@ const MODULE_TREE: ModuleNode[] = [
             { id: 'crm.obras', name: 'Obras' },
         ],
     },
+    {
+        id: 'comercial',
+        name: 'Comercial',
+        submodules: [
+            { id: 'comercial.pipeline', name: 'Pipeline' },
+            { id: 'comercial.contactos', name: 'Contactos' },
+            { id: 'comercial.reportes', name: 'Reportes' },
+            { id: 'comercial.config', name: 'Configuración' },
+        ],
+    },
     { id: 'administracion', name: 'Administración', submodules: [] },
     { id: 'logistica', name: 'Logística', submodules: [] },
 ];

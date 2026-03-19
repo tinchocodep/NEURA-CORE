@@ -3,7 +3,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
     LogOut, LayoutDashboard, ArrowRightLeft, FileText, Activity, Landmark,
     Briefcase, Zap, Users, BookOpen, Tag, Building2, Settings, ClipboardList,
-    Receipt, GitMerge, PanelLeftClose, PanelLeftOpen, TrendingUp, HardHat
+    Receipt, GitMerge, PanelLeftClose, PanelLeftOpen, TrendingUp, HardHat,
+    Funnel, Columns3, Contact, BarChart3
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
@@ -140,6 +141,17 @@ export default function Layout() {
         (i: any) => !i.submodule || hasModuleAccess(i.submodule)
     );
 
+    const allComercialItems = [
+        { name: 'Dashboard', path: '/comercial', icon: LayoutDashboard },
+        { name: 'Pipeline', path: '/comercial/pipeline', icon: Columns3, submodule: 'comercial.pipeline' },
+        { name: 'Contactos', path: '/comercial/contactos', icon: Contact, submodule: 'comercial.contactos' },
+        { name: 'Reportes', path: '/comercial/reportes', icon: BarChart3, submodule: 'comercial.reportes' },
+        { name: 'Config', path: '/comercial/config', icon: Settings, submodule: 'comercial.config' },
+    ];
+    const comercialItems = allComercialItems.filter(
+        (i: any) => !i.submodule || hasModuleAccess(i.submodule)
+    );
+
     const allContableItems = [
         { name: 'Dashboard', path: '/contable', icon: LayoutDashboard },
         { name: 'Comprobantes', path: '/contable/comprobantes', icon: ClipboardList, submodule: 'contable.comprobantes' },
@@ -167,11 +179,12 @@ export default function Layout() {
     const isConfiguracion = location.pathname === '/configuracion';
     const isContable = location.pathname.startsWith('/contable') || isConfiguracion;
     const isTesoreria = location.pathname.startsWith('/tesoreria');
+    const isComercial = location.pathname.startsWith('/comercial');
     const isCRM = location.pathname.startsWith('/crm');
 
     // Determine current section nav items (Ocultamos sub-opciones en configuración)
-    const sectionItems = (isContable && !isConfiguracion) ? contableItems : isTesoreria ? tesoreriaItems : isCRM ? crmItems : [];
-    const sectionLabel = isContable ? 'Contable' : isTesoreria ? 'Tesorería' : isCRM ? 'CRM' : '';
+    const sectionItems = (isContable && !isConfiguracion) ? contableItems : isTesoreria ? tesoreriaItems : isCRM ? crmItems : isComercial ? comercialItems : [];
+    const sectionLabel = isContable ? 'Contable' : isTesoreria ? 'Tesorería' : isCRM ? 'CRM' : isComercial ? 'Comercial' : '';
 
     return (
         <>
@@ -245,6 +258,13 @@ export default function Layout() {
                         <Link to="/crm" className={`sidebar-link${location.pathname.startsWith('/crm') ? ' active' : ''}`}>
                             <Briefcase size={16} />
                             CRM
+                        </Link>
+                    )}
+
+                    {hasModuleAccess('comercial') && (
+                        <Link to="/comercial" className={`sidebar-link${isComercial ? ' active' : ''}`}>
+                            <Funnel size={16} />
+                            Comercial
                         </Link>
                     )}
 
