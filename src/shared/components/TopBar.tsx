@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Bell, Settings, LogOut } from 'lucide-react';
-import { DolarService, DolarResumen } from '../../services/DolarService';
+import { Search, Bell, Settings } from 'lucide-react';
+import { DolarService } from '../../services/DolarService';
+import type { DolarResumen } from '../../services/DolarService';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function TopBar() {
-    const { user, signOut } = useAuth() as any;
+    const { user } = useAuth() as any;
     const navigate = useNavigate();
     const [dolar, setDolar] = useState<DolarResumen | null>(null);
 
