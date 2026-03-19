@@ -1,10 +1,30 @@
 import { useEffect, useState } from 'react';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { Building2, FileText, AlertTriangle, DollarSign, TrendingUp, Calendar } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 
+// Fix leaflet default marker icons with Vite
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({ iconUrl: markerIcon, iconRetinaUrl: markerIcon2x, shadowUrl: markerShadow });
+
+function createPin(color: string) {
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:14px;height:14px;border-radius:50%;background:${color};border:2.5px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.35)"></div>`,
+    iconSize: [14, 14],
+    iconAnchor: [7, 7],
+  });
+}
+
 interface Propiedad {
   id: string; estado: string; precio_alquiler: number | null; precio_venta: number | null; moneda: string;
+  direccion: string; tipo: string; latitud: number | null; longitud: number | null;
 }
 interface Contrato {
   id: string; fecha_fin: string; estado: string; monto_mensual: number;
@@ -43,7 +63,7 @@ export default function Dashboard() {
   const loadData = async () => {
     setLoading(true);
     const [pRes, cRes, vRes, ccRes] = await Promise.all([
-      supabase.from('inmobiliaria_propiedades').select('id, estado, precio_alquiler, precio_venta, moneda').eq('tenant_id', tenant!.id),
+      supabase.from('inmobiliaria_propiedades').select('id, estado, precio_alquiler, precio_venta, moneda, direccion, tipo, latitud, longitud').eq('tenant_id', tenant!.id),
       supabase.from('inmobiliaria_contratos')
         .select('id, fecha_fin, estado, monto_mensual, propiedad:inmobiliaria_propiedades(direccion), inquilino:contable_clientes!inquilino_id(nombre)')
         .eq('tenant_id', tenant!.id),
@@ -104,6 +124,53 @@ export default function Dashboard() {
           </div>
         ))}
       </div>
+
+      {/* Mapa de propiedades */}
+      {(() => {
+        const conUbicacion = propiedades.filter(p => p.latitud && p.longitud);
+        if (conUbicacion.length === 0) return null;
+        const center: [number, number] = [conUbicacion[0].latitud!, conUbicacion[0].longitud!];
+        return (
+          <div className="card" style={{ overflow: 'hidden' }}>
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Mapa de Propiedades</span>
+              <div style={{ display: 'flex', gap: 12, fontSize: '0.6875rem' }}>
+                {Object.entries(ESTADO_COLOR).map(([est, col]) => {
+                  const c = propiedades.filter(p => p.estado === est).length;
+                  if (c === 0) return null;
+                  return (
+                    <span key={est} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: col, display: 'inline-block' }} />
+                      <span style={{ textTransform: 'capitalize' }}>{est.replace(/_/g, ' ')}</span>
+                      <span style={{ fontWeight: 700 }}>{c}</span>
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+            <div style={{ height: 340 }}>
+              <MapContainer center={center} zoom={13} style={{ height: '100%', width: '100%' }} scrollWheelZoom={false}>
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; <a href="https://www.openstreetmap.org/">OSM</a>' />
+                {conUbicacion.map(p => (
+                  <Marker key={p.id} position={[p.latitud!, p.longitud!]} icon={createPin(ESTADO_COLOR[p.estado] || '#6B7280')}>
+                    <Popup>
+                      <div style={{ minWidth: 180 }}>
+                        <div style={{ fontWeight: 700, marginBottom: 4 }}>{p.direccion}</div>
+                        <div style={{ fontSize: '0.8rem', color: '#666', textTransform: 'capitalize', marginBottom: 4 }}>{p.tipo}</div>
+                        <span style={{ background: ESTADO_COLOR[p.estado], color: 'white', padding: '1px 6px', borderRadius: 99, fontSize: '0.7rem', fontWeight: 600 }}>
+                          {p.estado.replace(/_/g, ' ')}
+                        </span>
+                        {p.precio_alquiler && <div style={{ marginTop: 4, fontSize: '0.8rem' }}>Alquiler: ${p.precio_alquiler.toLocaleString('es-AR')}</div>}
+                        {p.precio_venta && <div style={{ marginTop: 2, fontSize: '0.8rem' }}>Venta: USD {p.precio_venta.toLocaleString('es-AR')}</div>}
+                      </div>
+                    </Popup>
+                  </Marker>
+                ))}
+              </MapContainer>
+            </div>
+          </div>
+        );
+      })()}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
         {/* Proximos vencimientos */}
