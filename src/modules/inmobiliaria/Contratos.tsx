@@ -24,7 +24,7 @@ const ESTADO_COLOR: Record<string, string> = {
 const emptyContrato = {
   propiedad_id: '', inquilino_id: '', propietario_id: '', tipo: 'alquiler',
   fecha_inicio: '', fecha_fin: '', monto_mensual: 0, moneda: 'ARS',
-  indice_ajuste: 'ICL', periodo_ajuste_meses: 12, deposito: null as number | null,
+  indice_ajuste: 'ICL', periodo_ajuste_meses: 12 as number | null, deposito: null as number | null,
   comision_porcentaje: null as number | null, estado: 'borrador', notas: null as string | null,
 };
 

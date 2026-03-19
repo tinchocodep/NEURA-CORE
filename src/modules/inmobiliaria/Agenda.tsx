@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Calendar, Check, AlertTriangle, Clock, Filter } from 'lucide-react';
+import { Calendar, Check, AlertTriangle, Clock } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 

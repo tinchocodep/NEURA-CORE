@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, X, Check, DollarSign, Trash2 } from 'lucide-react';
+import { Plus, X, Check, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 
