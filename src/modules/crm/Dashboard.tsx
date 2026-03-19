@@ -1,68 +1,53 @@
 import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import { Building2, Users, TrendingUp, CheckCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
-
-// Fix leaflet default marker icons with Vite
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({ iconUrl: markerIcon, iconRetinaUrl: markerIcon2x, shadowUrl: markerShadow });
-
-interface Obra {
-    id: string;
-    nombre: string;
-    estado: string;
-    avance: number;
-    latitud: number | null;
-    longitud: number | null;
-    direccion: string | null;
-    cliente: { razon_social: string } | null;
-}
+import { Users, TrendingUp, CheckCircle, Car, DollarSign, ShoppingCart } from 'lucide-react';
 
 interface Prospecto {
     id: string;
     nombre: string;
     etapa: string;
     monto_estimado: number | null;
+    contacto_id: string | null;
     created_at: string;
 }
 
+interface AutoResumen {
+    id: string;
+    marca: string;
+    modelo: string;
+    anio: number;
+    precio: number | null;
+    moneda: string;
+    estado: string;
+    prospecto_id: string | null;
+}
+
 const ETAPA_COLORS: Record<string, string> = {
-    nuevo: '#6366f1',
-    contactado: '#3b82f6',
-    propuesta: '#f59e0b',
-    negociacion: '#8b5cf6',
-    ganado: '#10b981',
-    perdido: '#ef4444',
+    Nuevo: '#6366f1', Contactado: '#3b82f6', Propuesta: '#f59e0b',
+    'Negociación': '#8b5cf6', Ganado: '#10b981', Perdido: '#ef4444',
 };
 
-const ESTADO_COLORS: Record<string, string> = {
-    activa: '#10b981',
-    pausada: '#f59e0b',
-    terminada: '#6366f1',
-    cancelada: '#ef4444',
+const ESTADO_AUTO_COLORS: Record<string, { color: string; bg: string }> = {
+    disponible: { color: '#16a34a', bg: 'rgba(22,163,74,0.1)' },
+    reservado: { color: '#d97706', bg: 'rgba(217,119,6,0.1)' },
+    vendido: { color: '#0284c7', bg: 'rgba(2,132,199,0.1)' },
 };
 
-function createColoredMarker(color: string) {
-    return L.divIcon({
-        className: '',
-        html: `<div style="width:14px;height:14px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.4)"></div>`,
-        iconSize: [14, 14],
-        iconAnchor: [7, 7],
-    });
+function fmtPrice(n: number | null, moneda: string) {
+    if (!n) return '';
+    return (moneda === 'USD' ? 'USD ' : '$ ') + n.toLocaleString('es-AR');
 }
 
 export default function CRMDashboard() {
     const { tenant } = useTenant();
-    const [obras, setObras] = useState<Obra[]>([]);
     const [prospectos, setProspectos] = useState<Prospecto[]>([]);
     const [contactosCount, setContactosCount] = useState(0);
+    const [autos, setAutos] = useState<AutoResumen[]>([]);
     const [loading, setLoading] = useState(true);
+
+    const modules = (tenant as any)?.enabled_modules || [];
+    const hasCatalogo = modules.includes('crm.catalogo');
 
     useEffect(() => {
         if (!tenant) return;
@@ -71,159 +56,197 @@ export default function CRMDashboard() {
 
     const loadData = async () => {
         setLoading(true);
-        const [obrasRes, prospectosRes, contactosRes] = await Promise.all([
-            supabase.from('crm_obras').select('id, nombre, estado, avance, latitud, longitud, direccion, cliente:contable_clientes(razon_social)').eq('tenant_id', tenant!.id),
-            supabase.from('crm_prospectos').select('id, nombre, etapa, monto_estimado, created_at').eq('tenant_id', tenant!.id).order('created_at', { ascending: false }).limit(8),
+        const [prospectosRes, contactosRes] = await Promise.all([
+            supabase.from('crm_prospectos').select('id, nombre, etapa, monto_estimado, contacto_id, created_at').eq('tenant_id', tenant!.id).order('created_at', { ascending: false }).limit(10),
             supabase.from('crm_contactos').select('id', { count: 'exact', head: true }).eq('tenant_id', tenant!.id).eq('activo', true),
         ]);
-        if (obrasRes.data) setObras(obrasRes.data as any);
-        if (prospectosRes.data) setProspectos(prospectosRes.data);
+        setProspectos(prospectosRes.data || []);
         setContactosCount(contactosRes.count || 0);
+        if (hasCatalogo) {
+            const autosRes = await supabase.from('crm_catalogo_autos').select('id, marca, modelo, anio, precio, moneda, estado, prospecto_id').eq('tenant_id', tenant!.id);
+            setAutos(autosRes.data || []);
+        }
         setLoading(false);
     };
 
-    const obrasActivas = obras.filter(o => o.estado === 'activa').length;
-    const obrasTerminadas = obras.filter(o => o.estado === 'terminada').length;
-    const prospectosActivos = prospectos.filter(p => p.etapa !== 'ganado' && p.etapa !== 'perdido').length;
-    const ganados = prospectos.filter(p => p.etapa === 'ganado').length;
-    const totalProspectos = prospectos.filter(p => p.etapa === 'ganado' || p.etapa === 'perdido').length;
-    const conversion = totalProspectos > 0 ? Math.round((ganados / totalProspectos) * 100) : 0;
+    const prospectosActivos = prospectos.filter(p => p.etapa !== 'Ganado' && p.etapa !== 'Perdido').length;
+    const ganados = prospectos.filter(p => p.etapa === 'Ganado').length;
+    const cerrados = prospectos.filter(p => p.etapa === 'Ganado' || p.etapa === 'Perdido').length;
+    const conversion = cerrados > 0 ? Math.round((ganados / cerrados) * 100) : 0;
 
-    const obrasConUbicacion = obras.filter(o => o.latitud && o.longitud);
-    const mapCenter: [number, number] = obrasConUbicacion.length > 0
-        ? [obrasConUbicacion[0].latitud!, obrasConUbicacion[0].longitud!]
-        : [-34.6037, -58.3816]; // Buenos Aires default
+    // Auto stats
+    const autosDisponibles = autos.filter(a => a.estado === 'disponible').length;
+    const autosReservados = autos.filter(a => a.estado === 'reservado').length;
+    const autosVendidos = autos.filter(a => a.estado === 'vendido').length;
+    const autosConProspecto = autos.filter(a => a.prospecto_id).length;
+    const valorStock = autos.filter(a => a.estado !== 'vendido').reduce((s, a) => s + (a.precio || 0), 0);
 
-    if (loading) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Cargando...</div>;
+    // Pipeline value
+    const pipelineValue = prospectos
+        .filter(p => p.etapa !== 'Ganado' && p.etapa !== 'Perdido')
+        .reduce((s, p) => s + (p.monto_estimado || 0), 0);
+
+    if (loading) return (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300 }}>
+            <div style={{ width: 28, height: 28, border: '3px solid var(--color-border)', borderTopColor: 'var(--color-accent)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        </div>
+    );
+
+    // Build KPIs dynamically
+    const kpis: { label: string; value: string | number; icon: any; color: string }[] = [];
+    if (hasCatalogo) {
+        kpis.push({ label: 'En Stock', value: autosDisponibles, icon: Car, color: '#16a34a' });
+        kpis.push({ label: 'Reservados', value: autosReservados, icon: ShoppingCart, color: '#d97706' });
+        kpis.push({ label: 'Vendidos', value: autosVendidos, icon: CheckCircle, color: '#0284c7' });
+    }
+    kpis.push({ label: 'Prospectos Activos', value: prospectosActivos, icon: TrendingUp, color: '#f59e0b' });
+    kpis.push({ label: 'Contactos', value: contactosCount, icon: Users, color: '#3b82f6' });
+    kpis.push({ label: 'Conversión', value: `${conversion}%`, icon: TrendingUp, color: '#8b5cf6' });
 
     return (
-        <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             <div>
-                <h1 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.25rem' }}>CRM</h1>
-                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>Visión general de obras, prospectos y contactos.</p>
+                <h1 style={{ fontSize: '1.375rem', fontWeight: 700, color: 'var(--color-text-primary)', margin: 0 }}>CRM</h1>
+                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.8125rem', marginTop: 4 }}>
+                    Visión general de {hasCatalogo ? 'vehículos, ' : ''}prospectos y contactos
+                </p>
             </div>
 
             {/* KPIs */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
-                {[
-                    { label: 'Obras Activas', value: obrasActivas, icon: Building2, color: '#10b981' },
-                    { label: 'Obras Terminadas', value: obrasTerminadas, icon: CheckCircle, color: '#6366f1' },
-                    { label: 'Prospectos Activos', value: prospectosActivos, icon: TrendingUp, color: '#f59e0b' },
-                    { label: 'Contactos', value: contactosCount, icon: Users, color: '#3b82f6' },
-                    { label: 'Conversión', value: `${conversion}%`, icon: TrendingUp, color: '#8b5cf6' },
-                ].map(({ label, value, icon: Icon, color }) => (
-                    <div key={label} style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-md)', padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <div style={{ width: 36, height: 36, borderRadius: 8, background: `${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                            <Icon size={18} color={color} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
+                {kpis.map(({ label, value, icon: Icon, color }) => (
+                    <div key={label} className="card" style={{ padding: '16px 20px', borderTop: `3px solid ${color}` }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Icon size={16} style={{ color }} />
+                            <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</span>
                         </div>
-                        <div>
-                            <div style={{ fontSize: '1.25rem', fontWeight: 700, lineHeight: 1 }}>{value}</div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: 2 }}>{label}</div>
-                        </div>
+                        <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-text-primary)', marginTop: 4, fontFamily: 'var(--font-mono, monospace)' }}>{value}</div>
                     </div>
                 ))}
             </div>
 
-            {/* Map + Prospectos */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '1.5rem' }}>
-                {/* Mapa de obras */}
-                <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-                    <div style={{ padding: '1rem', borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Mapa de Obras</span>
-                        <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.75rem' }}>
-                            {Object.entries(ESTADO_COLORS).map(([estado, color]) => (
-                                <span key={estado} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: color, display: 'inline-block' }} />
-                                    {estado.charAt(0).toUpperCase() + estado.slice(1)}
-                                </span>
-                            ))}
-                        </div>
-                    </div>
-                    <div style={{ height: 380 }}>
-                        <MapContainer center={mapCenter} zoom={obrasConUbicacion.length > 0 ? 13 : 5} style={{ height: '100%', width: '100%' }} scrollWheelZoom={false}>
-                            <TileLayer
-                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                                attribution='© <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'
-                            />
-                            {obrasConUbicacion.map(obra => (
-                                <Marker
-                                    key={obra.id}
-                                    position={[obra.latitud!, obra.longitud!]}
-                                    icon={createColoredMarker(ESTADO_COLORS[obra.estado] || '#6366f1')}
-                                >
-                                    <Popup>
-                                        <div style={{ minWidth: 160 }}>
-                                            <div style={{ fontWeight: 600, marginBottom: 4 }}>{obra.nombre}</div>
-                                            {obra.cliente && <div style={{ fontSize: '0.8rem', color: '#666' }}>{(obra.cliente as any).razon_social}</div>}
-                                            <div style={{ marginTop: 6, fontSize: '0.8rem' }}>
-                                                <span style={{ background: ESTADO_COLORS[obra.estado], color: 'white', padding: '1px 6px', borderRadius: 99, fontSize: '0.7rem' }}>{obra.estado}</span>
-                                                <span style={{ marginLeft: 8 }}>Avance: {obra.avance}%</span>
-                                            </div>
-                                            {obra.direccion && <div style={{ marginTop: 4, fontSize: '0.75rem', color: '#888' }}>{obra.direccion}</div>}
-                                        </div>
-                                    </Popup>
-                                </Marker>
-                            ))}
-                        </MapContainer>
-                    </div>
-                    {obrasConUbicacion.length === 0 && (
-                        <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>
-                            Agregá ubicación a las obras para verlas en el mapa
+            {/* Main grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: hasCatalogo ? '1fr 360px' : '1fr 360px', gap: 20 }}>
+                {/* Left: Catálogo summary or Pipeline value */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    {/* Pipeline value card */}
+                    {pipelineValue > 0 && (
+                        <div className="card" style={{ padding: 20 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                                <DollarSign size={16} style={{ color: 'var(--color-accent)' }} />
+                                <span style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--color-text-primary)' }}>Valor del Pipeline</span>
+                            </div>
+                            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 700, color: 'var(--color-accent)' }}>
+                                $ {pipelineValue.toLocaleString('es-AR')}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
+                                {prospectosActivos} prospectos activos
+                            </div>
                         </div>
                     )}
+
+                    {/* Catálogo resumen */}
+                    {hasCatalogo && autos.length > 0 && (
+                        <div className="card" style={{ overflow: 'hidden' }}>
+                            <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <span style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <Car size={15} style={{ color: 'var(--color-accent)' }} /> Vehículos
+                                </span>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                                    {autosConProspecto} con prospecto · Stock: $ {valorStock.toLocaleString('es-AR')}
+                                </span>
+                            </div>
+                            <div className="table-container">
+                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                    <thead>
+                                        <tr>
+                                            {['Vehículo', 'Precio', 'Estado'].map(h => (
+                                                <th key={h} style={{ textAlign: 'left', padding: '8px 16px', fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-muted)', background: 'var(--color-bg-surface-2)', borderBottom: '1px solid var(--color-border)' }}>{h}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {autos.filter(a => a.estado !== 'vendido').slice(0, 8).map(auto => {
+                                            const ec = ESTADO_AUTO_COLORS[auto.estado] || ESTADO_AUTO_COLORS.disponible;
+                                            return (
+                                                <tr key={auto.id} style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
+                                                    <td style={{ padding: '8px 16px' }}>
+                                                        <span style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--color-text-primary)' }}>{auto.marca} {auto.modelo} {auto.anio}</span>
+                                                    </td>
+                                                    <td style={{ padding: '8px 16px', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                                                        {fmtPrice(auto.precio, auto.moneda)}
+                                                    </td>
+                                                    <td style={{ padding: '8px 16px' }}>
+                                                        <span style={{ padding: '1px 6px', borderRadius: 10, fontSize: '0.625rem', fontWeight: 700, background: ec.bg, color: ec.color }}>{auto.estado}</span>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Etapas breakdown */}
+                    <div className="card" style={{ padding: 20 }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--color-text-primary)', marginBottom: 14 }}>Pipeline por Etapa</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            {['Nuevo', 'Contactado', 'Propuesta', 'Negociación', 'Ganado', 'Perdido'].map(etapa => {
+                                const count = prospectos.filter(p => p.etapa === etapa).length;
+                                const monto = prospectos.filter(p => p.etapa === etapa).reduce((s, p) => s + (p.monto_estimado || 0), 0);
+                                const color = ETAPA_COLORS[etapa] || '#999';
+                                const pct = prospectos.length > 0 ? (count / prospectos.length) * 100 : 0;
+                                return (
+                                    <div key={etapa} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                        <span style={{ width: 90, fontSize: '0.75rem', fontWeight: 600, color }}>{etapa}</span>
+                                        <div style={{ flex: 1, height: 6, background: 'var(--color-border-subtle)', borderRadius: 99, overflow: 'hidden' }}>
+                                            <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 99, transition: 'width 0.3s' }} />
+                                        </div>
+                                        <span style={{ width: 24, fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-primary)', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{count}</span>
+                                        {monto > 0 && (
+                                            <span style={{ width: 100, fontSize: '0.6875rem', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)', textAlign: 'right' }}>
+                                                $ {monto.toLocaleString('es-AR')}
+                                            </span>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
                 </div>
 
-                {/* Prospectos recientes */}
-                <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ padding: '1rem', borderBottom: '1px solid var(--color-border-subtle)' }}>
-                        <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Prospectos Recientes</span>
+                {/* Right: Prospectos recientes */}
+                <div className="card" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', maxHeight: 600 }}>
+                    <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--color-border-subtle)' }}>
+                        <span style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--color-text-primary)' }}>Prospectos Recientes</span>
                     </div>
-                    <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem' }}>
+                    <div style={{ flex: 1, overflowY: 'auto' }}>
                         {prospectos.length === 0 ? (
-                            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>Sin prospectos cargados</div>
+                            <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.8125rem' }}>Sin prospectos cargados</div>
                         ) : (
-                            prospectos.map(p => (
-                                <div key={p.id} style={{ padding: '0.6rem 0.75rem', borderRadius: 'var(--radius-sm)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <span style={{
-                                        fontSize: '0.65rem', fontWeight: 700, padding: '2px 7px', borderRadius: 99,
-                                        background: `${ETAPA_COLORS[p.etapa] || '#6366f1'}20`,
-                                        color: ETAPA_COLORS[p.etapa] || '#6366f1',
-                                        flexShrink: 0, whiteSpace: 'nowrap'
-                                    }}>{p.etapa}</span>
-                                    <span style={{ fontSize: '0.85rem', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nombre}</span>
-                                    {p.monto_estimado && (
-                                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', flexShrink: 0 }}>
-                                            ${p.monto_estimado.toLocaleString('es-AR')}
+                            prospectos.map(p => {
+                                const color = ETAPA_COLORS[p.etapa] || '#999';
+                                return (
+                                    <div key={p.id} style={{ padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <span style={{ fontSize: '0.5625rem', fontWeight: 700, padding: '2px 6px', borderRadius: 10, background: `${color}18`, color, flexShrink: 0, whiteSpace: 'nowrap' }}>
+                                            {p.etapa}
                                         </span>
-                                    )}
-                                </div>
-                            ))
+                                        <div style={{ flex: 1, overflow: 'hidden' }}>
+                                            <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nombre}</div>
+                                        </div>
+                                        {p.monto_estimado && (
+                                            <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--color-text-muted)', flexShrink: 0 }}>
+                                                $ {p.monto_estimado.toLocaleString('es-AR')}
+                                            </span>
+                                        )}
+                                    </div>
+                                );
+                            })
                         )}
                     </div>
                 </div>
             </div>
-
-            {/* Resumen de obras */}
-            {obras.length > 0 && (
-                <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-md)', padding: '1rem' }}>
-                    <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '1rem' }}>Estado de Obras</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                        {obras.slice(0, 6).map(obra => (
-                            <div key={obra.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                <span style={{ width: 8, height: 8, borderRadius: '50%', background: ESTADO_COLORS[obra.estado], flexShrink: 0 }} />
-                                <span style={{ fontSize: '0.875rem', flex: '1 1 180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{obra.nombre}</span>
-                                {obra.cliente && <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', flex: '1 1 150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(obra.cliente as any).razon_social}</span>}
-                                <div style={{ flex: '0 0 160px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <div style={{ flex: 1, height: 6, background: 'var(--color-border-subtle)', borderRadius: 99, overflow: 'hidden' }}>
-                                        <div style={{ height: '100%', width: `${obra.avance}%`, background: obra.avance >= 100 ? '#10b981' : '#6366f1', borderRadius: 99 }} />
-                                    </div>
-                                    <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', width: 32, textAlign: 'right' }}>{obra.avance}%</span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
