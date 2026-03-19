@@ -4,7 +4,8 @@ import {
     LogOut, LayoutDashboard, ArrowRightLeft, FileText, Activity, Landmark,
     Briefcase, Zap, Users, BookOpen, Tag, Building2, Settings, ClipboardList,
     Receipt, GitMerge, TrendingUp, HardHat,
-    Funnel, Columns3, Contact, BarChart3, Car, ChevronLeft
+    Funnel, Columns3, Contact, BarChart3, Car, ChevronLeft,
+    Home, FileSignature, Wallet, CalendarClock
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
@@ -154,6 +155,18 @@ export default function Layout() {
         (i: any) => !i.submodule || hasModuleAccess(i.submodule)
     );
 
+    const allInmobiliariaItems = [
+        { name: 'Dashboard', path: '/inmobiliaria', icon: LayoutDashboard },
+        { name: 'Propiedades', path: '/inmobiliaria/propiedades', icon: Home, submodule: 'inmobiliaria.propiedades' },
+        { name: 'Contratos', path: '/inmobiliaria/contratos', icon: FileSignature, submodule: 'inmobiliaria.contratos' },
+        { name: 'Liquidaciones', path: '/inmobiliaria/liquidaciones', icon: Wallet, submodule: 'inmobiliaria.liquidaciones' },
+        { name: 'Cuentas', path: '/inmobiliaria/cuentas', icon: Receipt, submodule: 'inmobiliaria.cuentas' },
+        { name: 'Agenda', path: '/inmobiliaria/agenda', icon: CalendarClock, submodule: 'inmobiliaria.agenda' },
+    ];
+    const inmobiliariaItems = allInmobiliariaItems.filter(
+        (i: any) => !i.submodule || hasModuleAccess(i.submodule)
+    );
+
     const allContableItems = [
         { name: 'Dashboard', path: '/contable', icon: LayoutDashboard },
         { name: 'Comprobantes', path: '/contable/comprobantes', icon: ClipboardList, submodule: 'contable.comprobantes' },
@@ -183,9 +196,10 @@ export default function Layout() {
     const isTesoreria = location.pathname.startsWith('/tesoreria');
     const isComercial = location.pathname.startsWith('/comercial');
     const isCRM = location.pathname.startsWith('/crm');
+    const isInmobiliaria = location.pathname.startsWith('/inmobiliaria');
 
     // Determine current section nav items (Ocultamos sub-opciones en configuración)
-    const sectionItems = (isContable && !isConfiguracion) ? contableItems : isTesoreria ? tesoreriaItems : isCRM ? crmItems : isComercial ? comercialItems : [];
+    const sectionItems = (isContable && !isConfiguracion) ? contableItems : isTesoreria ? tesoreriaItems : isCRM ? crmItems : isComercial ? comercialItems : isInmobiliaria ? inmobiliariaItems : [];
 
     return (
         <>
@@ -262,6 +276,13 @@ export default function Layout() {
                         <Link to="/comercial" className={`sidebar-link${isComercial ? ' active' : ''}`}>
                             <Funnel size={16} />
                             Comercial
+                        </Link>
+                    )}
+
+                    {hasModuleAccess('inmobiliaria') && (
+                        <Link to="/inmobiliaria" className={`sidebar-link${isInmobiliaria ? ' active' : ''}`}>
+                            <Home size={16} />
+                            Inmobiliaria
                         </Link>
                     )}
 

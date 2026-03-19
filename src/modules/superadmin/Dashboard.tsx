@@ -8,6 +8,7 @@ interface Tenant {
     id: string;
     name: string;
     enabled_modules: string[];
+    rubro: string;
     monthly_fee: number;
     installation_fee: number;
     created_at: string;
@@ -25,13 +26,24 @@ interface User {
 interface Submodule {
     id: string;
     name: string;
+    rubros?: string[];
 }
 
 interface ModuleNode {
     id: string;
     name: string;
     submodules: Submodule[];
+    rubros?: string[];
 }
+
+const RUBROS = [
+    { id: 'general', label: 'General', color: '#8C959F' },
+    { id: 'automotriz', label: 'Automotriz', color: '#2563EB' },
+    { id: 'inmobiliaria', label: 'Inmobiliaria', color: '#16A34A' },
+    { id: 'constructora', label: 'Constructora', color: '#D97706' },
+    { id: 'logistica', label: 'Logística', color: '#8B5CF6' },
+    { id: 'contable', label: 'Estudio Contable', color: '#0284C7' },
+];
 
 const MODULE_TREE: ModuleNode[] = [
     {
@@ -64,8 +76,8 @@ const MODULE_TREE: ModuleNode[] = [
         submodules: [
             { id: 'crm.contactos', name: 'Contactos' },
             { id: 'crm.prospectos', name: 'Prospectos' },
-            { id: 'crm.obras', name: 'Obras' },
-            { id: 'crm.catalogo', name: 'Catálogo Vehículos' },
+            { id: 'crm.obras', name: 'Obras', rubros: ['constructora'] },
+            { id: 'crm.catalogo', name: 'Catálogo Vehículos', rubros: ['automotriz'] },
         ],
     },
     {
@@ -76,6 +88,19 @@ const MODULE_TREE: ModuleNode[] = [
             { id: 'comercial.contactos', name: 'Contactos' },
             { id: 'comercial.reportes', name: 'Reportes' },
             { id: 'comercial.config', name: 'Configuración' },
+        ],
+    },
+    {
+        id: 'inmobiliaria',
+        name: 'Inmobiliaria',
+        rubros: ['inmobiliaria'],
+        submodules: [
+            { id: 'inmobiliaria.propiedades', name: 'Propiedades' },
+            { id: 'inmobiliaria.contratos', name: 'Contratos' },
+            { id: 'inmobiliaria.liquidaciones', name: 'Liquidaciones' },
+            { id: 'inmobiliaria.cuentas', name: 'Cuentas Corrientes' },
+            { id: 'inmobiliaria.agenda', name: 'Agenda' },
+            { id: 'inmobiliaria.reportes', name: 'Reportes' },
         ],
     },
     { id: 'administracion', name: 'Administración', submodules: [] },
@@ -227,7 +252,13 @@ export default function SuperAdminDashboard() {
                         }}>
                             {/* Tenant header */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)' }}>
-                                <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>{tenant.name}</h2>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                    <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>{tenant.name}</h2>
+                                    {(() => {
+                                        const r = RUBROS.find(r => r.id === (tenant.rubro || 'general')) || RUBROS[0];
+                                        return <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: r.color + '18', color: r.color }}>{r.label}</span>;
+                                    })()}
+                                </div>
                                 <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
                                     ID: {tenant.id.slice(0, 8)}…
                                 </span>
@@ -317,11 +348,18 @@ export default function SuperAdminDashboard() {
                                     </div>
                                 </div>
 
-                                {/* ── Facturación ── */}
+                                {/* ── Rubro + Facturación ── */}
                                 <div>
                                     <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem', fontWeight: 600, marginBottom: '1rem' }}>
-                                        <Activity size={18} /> Configuración de Cobro
+                                        <Activity size={18} /> Rubro y Cobro
                                     </h3>
+                                    <div className="form-group" style={{ marginBottom: '1rem' }}>
+                                        <label className="form-label">Rubro / Industria</label>
+                                        <select className="form-input" value={tenant.rubro || 'general'}
+                                            onChange={e => saveTenant(tenant.id, { rubro: e.target.value })}>
+                                            {RUBROS.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
+                                        </select>
+                                    </div>
                                     <div style={{ display: 'flex', gap: '1rem', flexDirection: 'column' }}>
                                         <div className="form-group">
                                             <label className="form-label">Costo de Instalación (USD)</label>

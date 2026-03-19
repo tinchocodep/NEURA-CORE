@@ -9,6 +9,7 @@ export interface Tenant {
     primary_color: string;
     secondary_color: string;
     enabled_modules: string[];
+    rubro: string | null;
     razon_social: string | null;
     cuit: string | null;
     direccion: string | null;

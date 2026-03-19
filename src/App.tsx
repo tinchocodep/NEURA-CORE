@@ -34,6 +34,12 @@ import ComercialContactos from './modules/comercial/Contactos';
 import ComercialContactoDetalle from './modules/comercial/ContactoDetalle';
 import ComercialReportes from './modules/comercial/Reportes';
 import ComercialConfig from './modules/comercial/Config';
+import InmoDashboard from './modules/inmobiliaria/Dashboard';
+import InmoPropiedades from './modules/inmobiliaria/Propiedades';
+import InmoContratos from './modules/inmobiliaria/Contratos';
+import InmoLiquidaciones from './modules/inmobiliaria/Liquidaciones';
+import InmoCuentas from './modules/inmobiliaria/CuentasCorrientes';
+import InmoAgenda from './modules/inmobiliaria/Agenda';
 import { useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 
@@ -112,6 +118,16 @@ export default function App() {
               <Route path="contactos/:id" element={<ComercialContactoDetalle />} />
               <Route path="reportes" element={<ComercialReportes />} />
               <Route path="config" element={<ComercialConfig />} />
+            </Route>
+
+            {/* Modulo Inmobiliaria */}
+            <Route path="inmobiliaria">
+              <Route index element={<InmoDashboard />} />
+              <Route path="propiedades" element={<InmoPropiedades />} />
+              <Route path="contratos" element={<InmoContratos />} />
+              <Route path="liquidaciones" element={<InmoLiquidaciones />} />
+              <Route path="cuentas" element={<InmoCuentas />} />
+              <Route path="agenda" element={<InmoAgenda />} />
             </Route>
 
             {/* Global Configuracion */}
