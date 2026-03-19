@@ -3,8 +3,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
     LogOut, LayoutDashboard, ArrowRightLeft, FileText, Activity, Landmark,
     Briefcase, Zap, Users, BookOpen, Tag, Building2, Settings, ClipboardList,
-    Receipt, GitMerge, PanelLeftClose, PanelLeftOpen, TrendingUp, HardHat,
-    Funnel, Columns3, Contact, BarChart3, Car
+    Receipt, GitMerge, TrendingUp, HardHat,
+    Funnel, Columns3, Contact, BarChart3, Car, ChevronLeft
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
@@ -194,17 +194,8 @@ export default function Layout() {
             >
                 {/* ──────────────── SIDEBAR ──────────────── */}
                 <aside className="sidebar">
-                {/* Hamburger toggle */}
-                <button
-                    onClick={() => setSidebarCollapsed(c => !c)}
-                    className="sidebar-toggle-btn"
-                    title={sidebarCollapsed ? 'Expandir menú' : 'Colapsar menú'}
-                >
-                    {sidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
-                </button>
-
-                {/* Logo */}
-                <div className="sidebar-logo">
+                {/* Logo + collapse toggle */}
+                <div className="sidebar-logo" onClick={() => setSidebarCollapsed(c => !c)} style={{ cursor: 'pointer' }}>
                     {tenant?.logo_url ? (
                         <img src={tenant.logo_url} alt={tenant.name || 'Logo'}
                             style={{ height: 32, width: 32, objectFit: 'contain', borderRadius: 6 }} />
@@ -218,12 +209,17 @@ export default function Layout() {
                             <Zap size={16} color="var(--color-accent)" />
                         </div>
                     )}
-                    <div>
-                        <div className="sidebar-logo-text">
-                            {tenant?.name || 'NeuraOrkesta'}
-                        </div>
-                        <div className="sidebar-logo-badge">v4.6</div>
-                    </div>
+                    {!sidebarCollapsed && (
+                        <>
+                            <div style={{ flex: 1 }}>
+                                <div className="sidebar-logo-text">
+                                    {tenant?.name || 'NeuraOrkesta'}
+                                </div>
+                                <div className="sidebar-logo-badge">v4.6</div>
+                            </div>
+                            <ChevronLeft size={14} style={{ color: 'var(--color-text-muted)', transition: 'transform 0.2s' }} />
+                        </>
+                    )}
                 </div>
 
                 {/* Module Navigation */}
