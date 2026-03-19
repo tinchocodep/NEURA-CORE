@@ -46,6 +46,24 @@ const EMPTY_AUTO: Partial<Auto> = {
   contacto_vendedor_id: null, cliente_comprador_id: null, prospecto_id: null,
 };
 
+const PICS = [
+  "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&q=80&w=400",
+  "https://images.unsplash.com/photo-1542282088-fe8426682b8f?auto=format&fit=crop&q=80&w=400",
+  "https://images.unsplash.com/photo-1494976388531-d1058494cdd8?auto=format&fit=crop&q=80&w=400",
+  "https://images.unsplash.com/photo-1503376760367-113aa05e83ec?auto=format&fit=crop&q=80&w=400",
+  "https://images.unsplash.com/photo-1525609004556-c46c7d6cf023?auto=format&fit=crop&q=80&w=400",
+  "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&q=80&w=400",
+  "https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&q=80&w=400",
+  "https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&q=80&w=400",
+  "https://images.unsplash.com/photo-1611016186353-9af58c69a533?auto=format&fit=crop&q=80&w=400",
+  "https://images.unsplash.com/photo-1619682817481-e994891cd1f5?auto=format&fit=crop&q=80&w=400"
+];
+
+function getFallbackImage(id: string) {
+  const sum = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return PICS[sum % PICS.length];
+}
+
 function fmtPrice(n: number | null, moneda: string) {
   if (!n) return '—';
   return (moneda === 'USD' ? 'USD ' : '$ ') + n.toLocaleString('es-AR');
@@ -98,7 +116,7 @@ export default function CatalogoAutos() {
       estado: form.estado, descripcion: form.descripcion || null,
       contacto_vendedor_id: form.contacto_vendedor_id || null,
       cliente_comprador_id: form.cliente_comprador_id || null,
-      prospecto_id: form.prospecto_id || null, updated_at: new Date().toISOString(),
+      prospecto_id: form.prospecto_id || null, imagen_url: form.imagen_url || null, updated_at: new Date().toISOString(),
     };
     if (editingId) await supabase.from('crm_catalogo_autos').update(payload).eq('id', editingId);
     else await supabase.from('crm_catalogo_autos').insert(payload);
@@ -214,26 +232,26 @@ export default function CatalogoAutos() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
           {filtered.map(auto => {
             const est = getEstado(auto.estado);
+            const displayImg = auto.imagen_url || getFallbackImage(auto.id);
             return (
               <div key={auto.id} className="card" style={{ overflow: 'hidden', transition: 'box-shadow 0.2s', cursor: 'default' }}
                 onMouseEnter={e => (e.currentTarget.style.boxShadow = 'var(--shadow-md, 0 4px 12px rgba(0,0,0,0.08))')}
                 onMouseLeave={e => (e.currentTarget.style.boxShadow = '')}>
                 {/* Image area */}
-                <div style={{ height: 160, background: 'var(--color-bg-surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', borderBottom: '1px solid var(--color-border-subtle)' }}>
-                  <Car size={48} style={{ color: 'var(--color-border)' }} />
+                <div style={{ height: 160, background: 'var(--color-bg-surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', borderBottom: '1px solid var(--color-border-subtle)', backgroundImage: `url(${displayImg})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
                   {/* Badges */}
-                  <span style={{ position: 'absolute', top: 10, left: 10, padding: '2px 8px', borderRadius: 20, fontSize: '0.6875rem', fontWeight: 700, background: est.bg, color: est.color }}>
+                  <span style={{ position: 'absolute', top: 10, left: 10, padding: '2px 8px', borderRadius: 20, fontSize: '0.6875rem', fontWeight: 700, background: est.bg, color: est.color, backdropFilter: 'blur(4px)' }}>
                     {est.label}
                   </span>
-                  <span style={{ position: 'absolute', top: 10, right: 10, padding: '2px 8px', borderRadius: 20, fontSize: '0.6875rem', fontWeight: 600, background: 'var(--color-bg-surface)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border-subtle)' }}>
+                  <span style={{ position: 'absolute', top: 10, right: 10, padding: '2px 8px', borderRadius: 20, fontSize: '0.6875rem', fontWeight: 600, background: 'var(--color-bg-surface)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border-subtle)', backdropFilter: 'blur(4px)' }}>
                     {auto.tipo === 'nuevo' ? '0km' : 'Usado'}
                   </span>
                   {/* Action buttons */}
                   <div style={{ position: 'absolute', bottom: 8, right: 8, display: 'flex', gap: 4 }}>
-                    <button className="btn btn-ghost btn-icon" onClick={() => openEdit(auto)} style={{ background: 'var(--color-bg-surface)', boxShadow: 'var(--shadow-sm)' }}>
+                    <button className="btn btn-ghost btn-icon" onClick={() => openEdit(auto)} style={{ background: 'var(--color-bg-surface)', boxShadow: 'var(--shadow-sm)', backdropFilter: 'blur(4px)' }}>
                       <Edit2 size={14} />
                     </button>
-                    <button className="btn btn-ghost btn-icon" onClick={() => handleDelete(auto.id)} style={{ background: 'var(--color-bg-surface)', boxShadow: 'var(--shadow-sm)', color: 'var(--color-danger)' }}>
+                    <button className="btn btn-ghost btn-icon" onClick={() => handleDelete(auto.id)} style={{ background: 'var(--color-bg-surface)', boxShadow: 'var(--shadow-sm)', color: 'var(--color-danger)', backdropFilter: 'blur(4px)' }}>
                       <Trash2 size={14} />
                     </button>
                   </div>
@@ -417,6 +435,13 @@ export default function CatalogoAutos() {
               <div>
                 <label style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>Descripción</label>
                 <textarea className="form-input" rows={3} value={form.descripcion || ''} onChange={e => setForm({ ...form, descripcion: e.target.value })} style={{ width: '100%', resize: 'vertical' }} />
+              </div>
+              {/* Imagen */}
+              <div>
+                <FormField label="URL de Imagen" value={form.imagen_url || ''} onChange={v => setForm({ ...form, imagen_url: v })} placeholder="https://ejemplo.com/auto.jpg" type="url" />
+                {form.imagen_url && (
+                  <div style={{ marginTop: 10, width: '100%', height: 160, borderRadius: 'var(--radius-md)', background: `url(${form.imagen_url}) center/cover no-repeat`, border: '1px solid var(--color-border-subtle)' }} />
+                )}
               </div>
             </div>
             {/* Footer */}
