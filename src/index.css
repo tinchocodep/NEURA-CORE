@@ -154,8 +154,8 @@ a {
    ===================================================== */
 
 .sidebar {
-  background: var(--color-bg-surface);
-  border-right: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-base);
+  border-right: none;
   display: flex;
   flex-direction: column;
   position: sticky;
@@ -167,7 +167,7 @@ a {
 
 .sidebar-logo {
   padding: 1.125rem 1rem 0.875rem;
-  border-bottom: 1px solid var(--color-border-subtle);
+  border-bottom: none;
   display: flex;
   align-items: center;
   gap: 0.625rem;
@@ -247,7 +247,7 @@ a {
   padding: 0.5rem;
   background: transparent;
   border: none;
-  border-bottom: 1px solid var(--color-border-subtle);
+  border-bottom: none;
   color: var(--color-text-muted);
   cursor: pointer;
   transition: color 0.12s ease, background 0.12s ease;
@@ -364,7 +364,7 @@ a {
 
 .sidebar-user-footer {
   padding: 0.875rem 1rem;
-  border-top: 1px solid var(--color-border-subtle);
+  border-top: none;
   display: flex;
   align-items: center;
   gap: 0.625rem;
@@ -497,6 +497,56 @@ a {
 .signal-dot.online {
   background: var(--color-success);
   box-shadow: 0 0 6px var(--color-success);
+}
+
+/* =====================================================
+   SUBTABS (submodule navigation above content)
+   ===================================================== */
+
+.subtabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 2.5rem;
+  background: transparent;
+  border-bottom: 1px solid var(--color-border-subtle);
+  flex-shrink: 0;
+}
+
+.subtab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.12s;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.subtab:hover {
+  color: var(--color-text-primary);
+}
+
+.subtab.active {
+  color: var(--color-cta, #2563EB);
+  border-bottom-color: var(--color-cta, #2563EB);
+  font-weight: 600;
+}
+
+.subtab .subtab-badge {
+  font-size: 0.6rem;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 99px;
+  background: var(--color-warning);
+  color: #fff;
+  margin-left: 4px;
 }
 
 /* =====================================================

@@ -186,7 +186,6 @@ export default function Layout() {
 
     // Determine current section nav items (Ocultamos sub-opciones en configuración)
     const sectionItems = (isContable && !isConfiguracion) ? contableItems : isTesoreria ? tesoreriaItems : isCRM ? crmItems : isComercial ? comercialItems : [];
-    const sectionLabel = isContable ? 'Contable' : isTesoreria ? 'Tesorería' : isCRM ? 'CRM' : isComercial ? 'Comercial' : '';
 
     return (
         <>
@@ -282,53 +281,7 @@ export default function Layout() {
                     )}
                 </div>
 
-                {/* Section sub-navigation */}
-                {sectionItems.length > 0 && (
-                    <div className="sidebar-section" style={{ borderTop: '1px solid var(--color-border-subtle)', marginTop: '0.5rem', paddingTop: '1rem' }}>
-                        <div className="sidebar-section-label">
-                            {sectionLabel}
-                        </div>
-                        {sectionItems.map(item => {
-                            const isActive = item.path === '/tesoreria' || item.path === '/contable'
-                                ? location.pathname === item.path
-                                : location.pathname.startsWith(item.path);
-                            const isCajas = item.path === '/tesoreria/cajas';
-                            return (
-                                <Link
-                                    key={item.path}
-                                    to={item.path}
-                                    className={`sidebar-link${isActive ? ' active' : ''}`}
-                                    style={{ position: 'relative' }}
-                                >
-                                    <item.icon size={14} />
-                                    {item.name}
-                                    {isCajas && pendingCount > 0 && (
-                                        <span style={{
-                                            marginLeft: 'auto',
-                                            background: 'var(--color-warning)',
-                                            color: '#0B0E14',
-                                            fontSize: '0.6rem', fontWeight: 800,
-                                            padding: '1px 5px', borderRadius: 99,
-                                        }}>
-                                            {pendingCount}
-                                        </span>
-                                    )}
-                                    {item.name === 'Comprobantes' && pendingComprobantes > 0 && (
-                                        <span style={{
-                                            marginLeft: 'auto',
-                                            background: '#f59e0b',
-                                            color: '#fff',
-                                            fontSize: '0.6rem', fontWeight: 800,
-                                            padding: '1px 5px', borderRadius: 99,
-                                        }}>
-                                            {pendingComprobantes}
-                                        </span>
-                                    )}
-                                </Link>
-                            );
-                        })}
-                    </div>
-                )}
+                {/* Section sub-navigation removed from sidebar — now rendered as subtabs above content */}
 
                 {/* Spacer */}
                 <div style={{ flex: 1 }} />
@@ -375,6 +328,24 @@ export default function Layout() {
             {/* ──────────────── MAIN CONTENT ──────────────── */}
             <main className="main-content">
                 <TopBar />
+                {sectionItems.length > 0 && (
+                    <div className="subtabs">
+                        {sectionItems.map(item => {
+                            const isActive = item.path === '/tesoreria' || item.path === '/contable'
+                                ? location.pathname === item.path
+                                : location.pathname.startsWith(item.path);
+                            const isCajas = item.path === '/tesoreria/cajas';
+                            return (
+                                <Link key={item.path} to={item.path} className={`subtab${isActive ? ' active' : ''}`}>
+                                    <item.icon size={14} />
+                                    {item.name}
+                                    {isCajas && pendingCount > 0 && <span className="subtab-badge">{pendingCount}</span>}
+                                    {item.name === 'Comprobantes' && pendingComprobantes > 0 && <span className="subtab-badge">{pendingComprobantes}</span>}
+                                </Link>
+                            );
+                        })}
+                    </div>
+                )}
                 <div style={{ padding: '2rem 2.5rem', flex: 1 }}>
                     <AnimatePresence mode="wait">
                         <motion.div
