@@ -348,7 +348,8 @@ export default function Layout() {
                 {sectionItems.length > 0 && (
                     <div className="subtabs">
                         {sectionItems.map(item => {
-                            const isActive = item.path === '/tesoreria' || item.path === '/contable'
+                            const isDashboardPath = ['/tesoreria', '/contable', '/crm', '/comercial', '/inmobiliaria'].includes(item.path);
+                            const isActive = isDashboardPath
                                 ? location.pathname === item.path
                                 : location.pathname.startsWith(item.path);
                             const isCajas = item.path === '/tesoreria/cajas';
