@@ -13,7 +13,7 @@ interface Contrato {
   id: string; monto_mensual: number; moneda: string; comision_porcentaje: number | null;
   propietario_id: string;
   propiedad: { direccion: string } | null;
-  propietario: { nombre: string } | null;
+  propietario: { razon_social: string } | null;
 }
 
 const ESTADO_COLOR: Record<string, string> = { borrador: '#F59E0B', aprobada: '#3B82F6', pagada: '#10B981' };
@@ -40,7 +40,7 @@ export default function Liquidaciones() {
     const [lRes, cRes] = await Promise.all([
       supabase.from('inmobiliaria_liquidaciones').select('*').eq('tenant_id', tenant!.id).order('periodo', { ascending: false }),
       supabase.from('inmobiliaria_contratos')
-        .select('id, monto_mensual, moneda, comision_porcentaje, propietario_id, propiedad:inmobiliaria_propiedades(direccion), propietario:contable_clientes!propietario_id(nombre)')
+        .select('id, monto_mensual, moneda, comision_porcentaje, propietario_id, propiedad:inmobiliaria_propiedades(direccion), propietario:contable_clientes!propietario_id(razon_social)')
         .eq('tenant_id', tenant!.id).eq('estado', 'vigente'),
     ]);
     if (lRes.data) setItems(lRes.data as any);
@@ -51,7 +51,7 @@ export default function Liquidaciones() {
   const contratoLabel = (id: string) => {
     const c = contratos.find(ct => ct.id === id);
     if (!c) return '—';
-    return `${(c.propiedad as any)?.direccion || '—'} — ${(c.propietario as any)?.nombre || '—'}`;
+    return `${(c.propiedad as any)?.direccion || '—'} — ${(c.propietario as any)?.razon_social || '—'}`;
   };
 
   const openNew = () => {
@@ -198,7 +198,7 @@ export default function Liquidaciones() {
               <label className="form-label">Contrato *</label>
               <select className="form-input" value={selContrato} onChange={e => onSelectContrato(e.target.value)}>
                 <option value="">Seleccionar contrato...</option>
-                {contratos.map(c => <option key={c.id} value={c.id}>{(c.propiedad as any)?.direccion} — {(c.propietario as any)?.nombre}</option>)}
+                {contratos.map(c => <option key={c.id} value={c.id}>{(c.propiedad as any)?.direccion} — {(c.propietario as any)?.razon_social}</option>)}
               </select>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <div style={{ flex: 1 }}><label className="form-label">Periodo (YYYY-MM)</label><input type="month" className="form-input" value={periodo} onChange={e => setPeriodo(e.target.value)} /></div>

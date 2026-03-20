@@ -29,7 +29,7 @@ interface Propiedad {
 interface Contrato {
   id: string; fecha_fin: string; estado: string; monto_mensual: number;
   propiedad: { direccion: string } | null;
-  inquilino: { nombre: string } | null;
+  inquilino: { razon_social: string } | null;
 }
 interface Vencimiento {
   id: string; tipo: string; fecha: string; descripcion: string; completado: boolean;
@@ -65,7 +65,7 @@ export default function Dashboard() {
     const [pRes, cRes, vRes, ccRes] = await Promise.all([
       supabase.from('inmobiliaria_propiedades').select('id, estado, precio_alquiler, precio_venta, moneda, direccion, tipo, latitud, longitud').eq('tenant_id', tenant!.id),
       supabase.from('inmobiliaria_contratos')
-        .select('id, fecha_fin, estado, monto_mensual, propiedad:inmobiliaria_propiedades(direccion), inquilino:contable_clientes!inquilino_id(nombre)')
+        .select('id, fecha_fin, estado, monto_mensual, propiedad:inmobiliaria_propiedades(direccion), inquilino:contable_clientes!inquilino_id(razon_social)')
         .eq('tenant_id', tenant!.id),
       supabase.from('inmobiliaria_vencimientos').select('*').eq('tenant_id', tenant!.id).eq('completado', false).order('fecha').limit(15),
       supabase.from('inmobiliaria_cuentas_corrientes').select('id, monto, tipo').eq('tenant_id', tenant!.id),
@@ -224,7 +224,7 @@ export default function Dashboard() {
                 <div key={c.id} style={{ padding: '0.6rem 1rem', borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '0.8rem', fontWeight: 600 }}>{(c.propiedad as any)?.direccion || '—'}</div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>{(c.inquilino as any)?.nombre || '—'}</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>{(c.inquilino as any)?.razon_social || '—'}</div>
                   </div>
                   <span style={{
                     fontSize: '0.7rem', fontWeight: 700, padding: '2px 8px', borderRadius: 99,

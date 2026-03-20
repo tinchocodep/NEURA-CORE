@@ -10,7 +10,7 @@ interface Contrato {
   deposito: number | null; comision_porcentaje: number | null; estado: string; notas: string | null;
 }
 interface Propiedad { id: string; direccion: string; }
-interface Cliente { id: string; nombre: string; }
+interface Cliente { id: string; razon_social: string; }
 
 const ESTADOS = ['vigente', 'vencido', 'rescindido', 'borrador'];
 const TIPOS = ['alquiler', 'venta', 'temporal'];
@@ -47,7 +47,7 @@ export default function Contratos() {
     const [cRes, pRes, clRes] = await Promise.all([
       supabase.from('inmobiliaria_contratos').select('*').eq('tenant_id', tenant!.id).order('fecha_inicio', { ascending: false }),
       supabase.from('inmobiliaria_propiedades').select('id, direccion').eq('tenant_id', tenant!.id),
-      supabase.from('contable_clientes').select('id, nombre').eq('tenant_id', tenant!.id),
+      supabase.from('contable_clientes').select('id, razon_social').eq('tenant_id', tenant!.id),
     ]);
     if (cRes.data) setItems(cRes.data);
     if (pRes.data) setPropiedades(pRes.data);
@@ -56,7 +56,7 @@ export default function Contratos() {
   };
 
   const propDir = (id: string) => propiedades.find(p => p.id === id)?.direccion || '—';
-  const cliName = (id: string) => clientes.find(c => c.id === id)?.nombre || '—';
+  const cliName = (id: string) => clientes.find(c => c.id === id)?.razon_social || '—';
 
   const openNew = () => { setEditing(null); setForm(emptyContrato); setShowModal(true); };
   const openEdit = (c: Contrato) => { setEditing(c); setForm(c); setShowModal(true); };

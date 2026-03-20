@@ -8,7 +8,7 @@ interface Movimiento {
   monto: number; saldo_acumulado: number; fecha: string;
   referencia_id: string | null; referencia_tipo: string | null;
 }
-interface Cliente { id: string; nombre: string; }
+interface Cliente { id: string; razon_social: string; }
 
 export default function CuentasCorrientes() {
   const { tenant } = useTenant();
@@ -24,7 +24,7 @@ export default function CuentasCorrientes() {
 
   const loadClientes = async () => {
     setLoading(true);
-    const { data } = await supabase.from('contable_clientes').select('id, nombre').eq('tenant_id', tenant!.id).order('nombre');
+    const { data } = await supabase.from('contable_clientes').select('id, razon_social').eq('tenant_id', tenant!.id).order('razon_social');
     if (data) setClientes(data);
     setLoading(false);
   };
@@ -39,7 +39,7 @@ export default function CuentasCorrientes() {
   };
 
   const filteredClientes = clientes.filter(c =>
-    !search || c.nombre.toLowerCase().includes(search.toLowerCase())
+    !search || c.razon_social.toLowerCase().includes(search.toLowerCase())
   );
 
   const filteredMovimientos = movimientos.filter(m =>
@@ -47,7 +47,7 @@ export default function CuentasCorrientes() {
   );
 
   const saldo = filteredMovimientos.length > 0 ? filteredMovimientos[0].saldo_acumulado : 0;
-  const cliName = (id: string) => clientes.find(c => c.id === id)?.nombre || '—';
+  const cliName = (id: string) => clientes.find(c => c.id === id)?.razon_social || '—';
 
   if (loading && clientes.length === 0) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Cargando...</div>;
 
@@ -78,7 +78,7 @@ export default function CuentasCorrientes() {
               onMouseEnter={e => { if (selCliente !== c.id) e.currentTarget.style.background = 'var(--color-bg-hover, rgba(255,255,255,0.03))'; }}
               onMouseLeave={e => { if (selCliente !== c.id) e.currentTarget.style.background = 'transparent'; }}>
                 <User size={14} color="var(--color-text-muted)" />
-                <span style={{ fontSize: '0.8rem', fontWeight: selCliente === c.id ? 600 : 400 }}>{c.nombre}</span>
+                <span style={{ fontSize: '0.8rem', fontWeight: selCliente === c.id ? 600 : 400 }}>{c.razon_social}</span>
               </div>
             ))}
             {filteredClientes.length === 0 && (
