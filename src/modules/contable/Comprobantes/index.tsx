@@ -154,10 +154,8 @@ export default function ComprobantesIndex() {
     // --- ERP INJECTION EXECUTION ---
     const executeErpInjection = async () => {
         if (!erpTargetCompId || !erpSelected) return;
-        if (erpSelected === 'colppy' && !selectedColpyAccount) {
-            addToast('error', 'Falta Cuenta', 'Debes seleccionar una cuenta contable para Colppy.');
-            return;
-        }
+        // Cuenta contable es opcional — si el proveedor tiene una asignada en Colppy, se usa esa
+
 
         setInjectingErp(true);
         try {
@@ -226,6 +224,13 @@ export default function ComprobantesIndex() {
                     observaciones: comp.observaciones,
                     proveedor_colpy_id: comp.proveedor?.colpy_id,
                     cliente_colpy_id: comp.cliente?.colpy_id,
+                    monto: comp.monto_original || comp.monto_ars,
+                    neto_gravado: comp.neto_gravado,
+                    neto_no_gravado: comp.neto_no_gravado,
+                    total_iva: comp.total_iva,
+                    percepciones_iibb: comp.percepciones_iibb,
+                    percepciones_iva: comp.percepciones_iva,
+                    fecha_vencimiento: comp.fecha_vencimiento,
                     lineas: (comp.lineas && comp.lineas.length > 0) ? comp.lineas.map((l: any) => {
                         const foundPrice = Number(l.precio_unitario) || Number(l.subtotal) || 0;
                         const finalPrice = foundPrice > 0 ? foundPrice : (Number(comp.monto) > 0 ? Number((comp.monto / 1.21).toFixed(2)) : 1);
@@ -239,7 +244,7 @@ export default function ComprobantesIndex() {
                     }) : [{
                         descripcion: `Comprobante ${comp.numero_comprobante || ''}`.trim(),
                         cantidad: 1,
-                        precio_unitario: Number((comp.monto / 1.21).toFixed(2)) || 1,
+                        precio_unitario: Number(comp.neto_gravado || (comp.monto_original || comp.monto_ars || 0) / 1.21).toFixed(2),
                         iva_porcentaje: 21,
                         colpy_cuenta_id: selectedColpyAccount
                     }],
@@ -313,8 +318,11 @@ export default function ComprobantesIndex() {
                                 const isImputable = n.Imputable === true || n.Imputable === "1" || n.Imputable === 1 || n.imputable === true || n.imputable === "1" || n.imputable === 1 || n.AdmiteAsientoManual === "1" || n.AdmiteAsientoManual === true || n.admiteAsientoManual === "1" || n.admiteAsientoManual === true;
                                 
                                 // Si es imputable explícitamente, o si no lo dice pero no tiene hijos, lo ofrecemos por las dudas
-                                if (isImputable || (!hasChildren && n.idPlanCuenta)) {
-                                    result.push(n);
+                                if (isImputable || (!hasChildren && (n.idPlanCuenta || n.Id))) {
+                                    result.push({
+                                        ...n,
+                                        idPlanCuenta: n.idPlanCuenta || n.Id
+                                    });
                                 }
                                 
                                 const childrenList = n.children || n.Subcuentas || n.hijos || [];
@@ -1377,7 +1385,7 @@ export default function ComprobantesIndex() {
                                         <option value="">-- Seleccionar Cuenta --</option>
                                         {colpyAccounts.length === 0 && <option disabled>Cargando plan de cuentas...</option>}
                                         {colpyAccounts.map((c, i) => (
-                                            <option key={i} value={c.idPlanCuenta}>{c.Codigo || c.idPlanCuenta} - {c.Descripcion || c.idPlanCuenta}</option>
+                                            <option key={i} value={c.Descripcion}>{c.idPlanCuenta} - {c.Descripcion}</option>
                                         ))}
                                     </select>
                                     <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 8 }}>Esta cuenta se asignará a todos los ítems de esta factura.</p>
@@ -1394,8 +1402,8 @@ export default function ComprobantesIndex() {
                             </button>
                             <button
                                 onClick={executeErpInjection}
-                                disabled={!erpSelected || (erpSelected === 'colppy' && !selectedColpyAccount) || injectingErp}
-                                style={{ padding: '8px 16px', borderRadius: 6, background: '#2563eb', border: 'none', color: '#fff', fontWeight: 600, cursor: (!erpSelected || (erpSelected === 'colppy' && !selectedColpyAccount) || injectingErp) ? 'not-allowed' : 'pointer', opacity: (!erpSelected || (erpSelected === 'colppy' && !selectedColpyAccount) || injectingErp) ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: 8 }}
+                                disabled={!erpSelected || injectingErp}
+                                style={{ padding: '8px 16px', borderRadius: 6, background: '#2563eb', border: 'none', color: '#fff', fontWeight: 600, cursor: (!erpSelected || injectingErp) ? 'not-allowed' : 'pointer', opacity: (!erpSelected || injectingErp) ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: 8 }}
                             >
                                 {injectingErp ? <RefreshCw size={16} className="spin" /> : <Send size={16} />}
                                 Inyectar Factura

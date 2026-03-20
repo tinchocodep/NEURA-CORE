@@ -201,10 +201,8 @@ export class ColpyService {
         }
 
         const resultJson = await response.json();
-        
         const apiResponse = resultJson.response;
-        
-        // Colpy usually returns a generic structure. If login fails, it says success: false
+
         if (apiResponse && (apiResponse.success === false || apiResponse.success === 0)) {
             throw new Error(`Colpy Error: ${apiResponse.message || JSON.stringify(apiResponse.errors)}`);
         }
@@ -307,7 +305,8 @@ export class ColpyService {
             // Utilizamos la operación oficial de Colppy para obtener el árbol de cuentas
             const resp = await this.apiRequest<any>('Contabilidad', 'leer_arbol_contabilidad', props);
             console.log("Colppy getArbolContable crudo:", resp);
-            return resp.data || resp.Arbol || resp; 
+            const tree = resp.data || resp.Arbol || resp;
+            return tree; 
         } catch (e) {
             console.error("Colpy getArbolContable error: ", e);
             throw e;
@@ -575,6 +574,13 @@ export class ColpyService {
         observaciones?: string;
         proveedor_colpy_id?: string;
         cliente_colpy_id?: string;
+        monto?: number;
+        neto_gravado?: number;
+        neto_no_gravado?: number;
+        total_iva?: number;
+        percepciones_iibb?: number;
+        percepciones_iva?: number;
+        fecha_vencimiento?: string;
         lineas: Array<{
             descripcion: string;
             cantidad: number;
@@ -602,7 +608,7 @@ export class ColpyService {
                         cantidad: l.cantidad,
                         precioUnitario: l.precio_unitario,
                         porcentajeIva: l.iva_porcentaje,
-                        idPlanCuenta: String(l.colpy_cuenta_id || "").trim()
+                        idPlanCuenta: String(l.colpy_cuenta_id || '').trim()
                     }))
                 };
 
@@ -624,23 +630,39 @@ export class ColpyService {
                 let IVA105 = 0;
                 let IVA27 = 0;
 
-                const ItemsFactura = comprobante.lineas.map(l => {
-                    const neto = l.precio_unitario * l.cantidad;
-                    const iva = neto * (l.iva_porcentaje / 100);
-                    importeTotal += (neto + iva);
-                    netoGravado += neto;
-                    totalIVA += iva;
+                // Mapear letra Factura
+                let idTipoFactura = "C";
+                if (comprobante.tipo_comprobante?.toUpperCase().includes('A')) idTipoFactura = "A";
+                if (comprobante.tipo_comprobante?.toUpperCase().includes('B')) idTipoFactura = "B";
+                const esFacturaB = idTipoFactura === "B";
 
-                    if (l.iva_porcentaje === 21) IVA21 += iva;
-                    else if (l.iva_porcentaje === 10.5) IVA105 += iva;
-                    else if (l.iva_porcentaje === 27) IVA27 += iva;
-                    else IVA21 += iva; // Default fallback
+                const ItemsFactura = comprobante.lineas.map(l => {
+                    if (esFacturaB) {
+                        // Factura B: IVA incluido en el precio, no se discrimina
+                        const total = l.precio_unitario * l.cantidad;
+                        importeTotal += total;
+                        netoGravado += total;
+                    } else {
+                        const neto = l.precio_unitario * l.cantidad;
+                        const iva = neto * (l.iva_porcentaje / 100);
+                        importeTotal += (neto + iva);
+                        netoGravado += neto;
+                        totalIVA += iva;
+
+                        if (l.iva_porcentaje === 21) IVA21 += iva;
+                        else if (l.iva_porcentaje === 10.5) IVA105 += iva;
+                        else if (l.iva_porcentaje === 27) IVA27 += iva;
+                        else IVA21 += iva;
+                    }
 
                     return {
                         Descripcion: l.descripcion,
                         Cantidad: l.cantidad,
                         ImporteUnitario: l.precio_unitario,
-                        idPlanCuenta: String(l.colpy_cuenta_id || "").trim()
+                        IVA: esFacturaB ? "0" : String(l.iva_porcentaje),
+                        idPlanCuenta: l.colpy_cuenta_id || "Gastos Varios",
+                        ccosto1: "",
+                        ccosto2: ""
                     };
                 });
                 debugItemsFactura = ItemsFactura;
@@ -657,38 +679,57 @@ export class ColpyService {
                     }
                 }
 
-                // Mapear letra Factura
-                let idTipoFactura = "C";
-                if (comprobante.tipo_comprobante?.toUpperCase().includes('A')) idTipoFactura = "A";
-                if (comprobante.tipo_comprobante?.toUpperCase().includes('B')) idTipoFactura = "B";
+                // Convert fecha from yyyy-mm-dd to dd-mm-yyyy
+                const fechaColppy = comprobante.fecha ? comprobante.fecha.split('-').reverse().join('-') : '';
+
+                // Use DB values if available, fallback to calculated
+                const finalNetoGravado = comprobante.neto_gravado ?? netoGravado;
+                const finalNetoNoGravado = comprobante.neto_no_gravado ?? 0;
+                const finalTotalIVA = comprobante.total_iva ?? totalIVA;
+                const finalPercIIBB = comprobante.percepciones_iibb ?? 0;
+                const finalPercIVA = comprobante.percepciones_iva ?? 0;
+                const finalTotal = comprobante.monto ?? importeTotal;
 
                 const payload = {
                     idEmpresa: this.config!.colpy_empresa_id,
                     idProveedor: comprobante.proveedor_colpy_id,
-                    idTipoComprobante: "1", // 1 = Factura, 2 = NC, 3 = ND
-                    idCondicionPago: "Contado",
-                    fechaFactura: comprobante.fecha + " 00:00:00",
-                    fechaFacturaDoc: comprobante.fecha + " 00:00:00",
-                    fechaVencimiento: comprobante.fecha + " 00:00:00",
-                    idTipoFactura, // A, B, C, etc
+                    idTipoComprobante: "1",
+                    idCondicionPago: "a 30 Dias",
+                    fechaFactura: fechaColppy,
+                    fechaFacturaDoc: fechaColppy,
+                    fechaPago: fechaColppy,
+                    idTipoFactura,
                     idEstadoFactura: "Aprobada",
+                    idEstadoAnterior: "",
+                    idFactura: "",
                     descripcion: `Factura ${comprobante.numero_comprobante || ''}`.trim(),
                     nroFactura1,
                     nroFactura2,
-                    netoGravado: netoGravado.toFixed(2),
-                    netoNoGravado: "0.00",
-                    totalIVA: totalIVA.toFixed(2),
-                    IVA21: IVA21.toFixed(2),
-                    IVA105: IVA105.toFixed(2),
-                    IVA27: IVA27.toFixed(2),
-                    percepcionIVA: "0.00",
-                    percepcionIIBB: "0.00",
-                    importeTotal: importeTotal.toFixed(2),
-                    totalFactura: importeTotal.toFixed(2),
+                    netoGravado: finalNetoGravado.toFixed(2),
+                    netoNoGravado: finalNetoNoGravado.toFixed(2),
+                    totalIVA: finalTotalIVA.toFixed(2),
+                    IVA21: (esFacturaB ? 0 : finalTotalIVA).toFixed(2),
+                    IVA105: "0.00",
+                    IVA27: "0.00",
+                    percepcionIVA: finalPercIVA.toFixed(2),
+                    percepcionIIBB: finalPercIIBB.toFixed(2),
+                    percepcionIIBB1: "0.00",
+                    percepcionIIBB2: "0.00",
+                    IIBBLocal: "",
+                    IIBBOtro: "",
+                    idRetGanancias: "0",
+                    idMoneda: "1",
+                    valorCambio: "1",
+                    esresumen: "0",
+                    totalFactura: finalTotal.toFixed(2),
                     itemsFactura: ItemsFactura
                 };
 
+                console.log('[ColpyService] injectComprobante payload:', JSON.stringify(payload, null, 2));
+
                 const result = await this.apiRequest<any>('FacturaCompra', 'alta_facturacompra', payload);
+                console.log('[ColpyService] alta_facturacompra RESPONSE:', JSON.stringify(result, null, 2));
+
                 if (!result || !result.idFactura) {
                      return { success: false, error: 'Error: No se obtuvo ID desde Colpy' };
                 }
@@ -696,6 +737,7 @@ export class ColpyService {
             }
 
         } catch (e: any) {
+            console.error('[ColpyService] injectComprobante ERROR:', e);
             return { success: false, error: `${e.message} | Payload Items: ${JSON.stringify(debugItemsFactura)}` };
         }
     }
