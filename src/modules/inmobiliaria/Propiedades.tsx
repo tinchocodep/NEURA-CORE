@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Search, Plus, X, Grid3X3, List, MapPin } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Plus, X, Grid3X3, List, MapPin, FileSignature } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 
@@ -33,6 +34,7 @@ const emptyProp: Omit<Propiedad, 'id'> = {
 
 export default function Propiedades() {
   const { tenant } = useTenant();
+  const navigate = useNavigate();
   const [items, setItems] = useState<Propiedad[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -135,10 +137,16 @@ export default function Propiedades() {
                 {p.ambientes && <span>{p.ambientes} amb.</span>}
                 {p.piso && <span>Piso {p.piso}</span>}
               </div>
-              <div style={{ display: 'flex', gap: '1rem', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', fontWeight: 600 }}>
+              <div style={{ display: 'flex', gap: '1rem', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', fontWeight: 600, marginBottom: p.estado === 'disponible' ? 8 : 0 }}>
                 {p.precio_alquiler && <span>Alq: {fmtPrice(p.precio_alquiler, p.moneda)}</span>}
                 {p.precio_venta && <span>Vta: {fmtPrice(p.precio_venta, p.moneda)}</span>}
               </div>
+              {p.estado === 'disponible' && (
+                <button onClick={e => { e.stopPropagation(); navigate(`/inmobiliaria/contratos?propiedad=${p.id}`); }}
+                  style={{ width: '100%', padding: '5px 0', borderRadius: 6, border: '1px solid var(--color-cta, #2563EB)', background: 'transparent', color: 'var(--color-cta, #2563EB)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                  <FileSignature size={12} /> Crear contrato
+                </button>
+              )}
             </div>
           ))}
           {filtered.length === 0 && <div style={{ gridColumn: '1/-1', padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin propiedades</div>}
@@ -176,9 +184,8 @@ export default function Propiedades() {
 
       {/* Modal */}
       {showModal && (
-        <>
-          <div onClick={() => setShowModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200 }} />
-          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: 'var(--color-bg-card)', borderRadius: 'var(--radius-md)', padding: '1.5rem', width: 500, maxHeight: '80vh', overflowY: 'auto', border: '1px solid var(--color-border-subtle)', zIndex: 201 }}>
+          <div onClick={() => setShowModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div onClick={e => e.stopPropagation()} className="card" style={{ width: '100%', maxWidth: 740, maxHeight: '92vh', overflowY: 'auto', padding: '1.5rem', borderRadius: 'var(--radius-xl)', boxShadow: '0 8px 30px rgba(0,0,0,0.12)', border: '1px solid var(--color-border-subtle)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>{editing ? 'Editar propiedad' : 'Nueva propiedad'}</h3>
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)' }}><X size={18} /></button>
@@ -216,7 +223,7 @@ export default function Propiedades() {
               <button onClick={save} className="btn btn-primary" style={{ fontSize: '0.85rem' }}>Guardar</button>
             </div>
           </div>
-        </>
+          </div>
       )}
     </div>
   );

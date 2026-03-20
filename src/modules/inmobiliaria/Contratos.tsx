@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Search, Plus, X, FileText } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 
@@ -30,6 +31,7 @@ const emptyContrato = {
 
 export default function Contratos() {
   const { tenant } = useTenant();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = useState<Contrato[]>([]);
   const [propiedades, setPropiedades] = useState<Propiedad[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -39,8 +41,22 @@ export default function Contratos() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Contrato | null>(null);
   const [form, setForm] = useState(emptyContrato);
+  const [showNewCliente, setShowNewCliente] = useState<'inquilino' | 'propietario' | null>(null);
+  const [newClienteNombre, setNewClienteNombre] = useState('');
+  const [newClienteCuit, setNewClienteCuit] = useState('');
 
   useEffect(() => { if (tenant) loadData(); }, [tenant]);
+
+  // Auto-open form if navigated from Propiedades with ?propiedad=id
+  useEffect(() => {
+    const propId = searchParams.get('propiedad');
+    if (propId && propiedades.length > 0 && !showModal) {
+      setEditing(null);
+      setForm({ ...emptyContrato, propiedad_id: propId });
+      setShowModal(true);
+      setSearchParams({});
+    }
+  }, [searchParams, propiedades]);
 
   const loadData = async () => {
     setLoading(true);
@@ -57,6 +73,21 @@ export default function Contratos() {
 
   const propDir = (id: string) => propiedades.find(p => p.id === id)?.direccion || '—';
   const cliName = (id: string) => clientes.find(c => c.id === id)?.razon_social || '—';
+
+  const crearCliente = async () => {
+    if (!newClienteNombre.trim()) return;
+    const { data } = await supabase.from('contable_clientes')
+      .insert({ tenant_id: tenant!.id, razon_social: newClienteNombre.trim(), cuit: newClienteCuit || null, segmento: showNewCliente === 'propietario' ? 'Propietario' : 'Inquilino', activo: true })
+      .select('id, razon_social').single();
+    if (data) {
+      setClientes(prev => [...prev, data]);
+      if (showNewCliente === 'inquilino') setForm(f => ({ ...f, inquilino_id: data.id }));
+      else setForm(f => ({ ...f, propietario_id: data.id }));
+    }
+    setShowNewCliente(null);
+    setNewClienteNombre('');
+    setNewClienteCuit('');
+  };
 
   const openNew = () => { setEditing(null); setForm(emptyContrato); setShowModal(true); };
   const openEdit = (c: Contrato) => { setEditing(c); setForm(c); setShowModal(true); };
@@ -160,9 +191,8 @@ export default function Contratos() {
 
       {/* Modal */}
       {showModal && (
-        <>
-          <div onClick={() => setShowModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200 }} />
-          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: 'var(--color-bg-card)', borderRadius: 'var(--radius-md)', padding: '1.5rem', width: 520, maxHeight: '80vh', overflowY: 'auto', border: '1px solid var(--color-border-subtle)', zIndex: 201 }}>
+          <div onClick={() => setShowModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div onClick={e => e.stopPropagation()} className="card" style={{ width: '100%', maxWidth: 740, maxHeight: '92vh', overflowY: 'auto', padding: '1.5rem', borderRadius: 'var(--radius-xl)', boxShadow: '0 8px 30px rgba(0,0,0,0.12)', border: '1px solid var(--color-border-subtle)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>{editing ? 'Editar contrato' : 'Nuevo contrato'}</h3>
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)' }}><X size={18} /></button>
@@ -174,9 +204,32 @@ export default function Contratos() {
                 {propiedades.map(p => <option key={p.id} value={p.id}>{p.direccion}</option>)}
               </select>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <div style={{ flex: 1 }}><label className="form-label">Inquilino</label><select className="form-input" value={form.inquilino_id} onChange={e => setForm(f => ({ ...f, inquilino_id: e.target.value }))}><option value="">Seleccionar...</option>{clientes.map(c => <option key={c.id} value={c.id}>{c.razon_social}</option>)}</select></div>
-                <div style={{ flex: 1 }}><label className="form-label">Propietario</label><select className="form-input" value={form.propietario_id} onChange={e => setForm(f => ({ ...f, propietario_id: e.target.value }))}><option value="">Seleccionar...</option>{clientes.map(c => <option key={c.id} value={c.id}>{c.razon_social}</option>)}</select></div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <label className="form-label">Inquilino</label>
+                    <button type="button" onClick={() => { setShowNewCliente('inquilino'); setNewClienteNombre(''); setNewClienteCuit(''); }}
+                      style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--color-cta, #2563EB)', background: 'none', border: 'none', cursor: 'pointer' }}>+ Crear nuevo</button>
+                  </div>
+                  <select className="form-input" value={form.inquilino_id} onChange={e => setForm(f => ({ ...f, inquilino_id: e.target.value }))}><option value="">Seleccionar...</option>{clientes.map(c => <option key={c.id} value={c.id}>{c.razon_social}</option>)}</select>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <label className="form-label">Propietario</label>
+                    <button type="button" onClick={() => { setShowNewCliente('propietario'); setNewClienteNombre(''); setNewClienteCuit(''); }}
+                      style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--color-cta, #2563EB)', background: 'none', border: 'none', cursor: 'pointer' }}>+ Crear nuevo</button>
+                  </div>
+                  <select className="form-input" value={form.propietario_id} onChange={e => setForm(f => ({ ...f, propietario_id: e.target.value }))}><option value="">Seleccionar...</option>{clientes.map(c => <option key={c.id} value={c.id}>{c.razon_social}</option>)}</select>
+                </div>
               </div>
+              {/* Inline crear cliente */}
+              {showNewCliente && (
+                <div style={{ padding: 12, borderRadius: 'var(--radius-md)', background: 'var(--color-bg-surface-2)', border: '1px solid var(--color-border-subtle)', display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                  <div style={{ flex: 2 }}><label className="form-label">Nombre / Razón Social *</label><input className="form-input" value={newClienteNombre} onChange={e => setNewClienteNombre(e.target.value)} placeholder={showNewCliente === 'inquilino' ? 'Ej: Juan Pérez' : 'Ej: María López'} /></div>
+                  <div style={{ flex: 1 }}><label className="form-label">CUIT (opcional)</label><input className="form-input" value={newClienteCuit} onChange={e => setNewClienteCuit(e.target.value)} placeholder="20-12345678-9" /></div>
+                  <button onClick={crearCliente} className="btn btn-primary" style={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }} disabled={!newClienteNombre.trim()}>Crear {showNewCliente}</button>
+                  <button onClick={() => setShowNewCliente(null)} className="btn btn-ghost btn-icon"><X size={14} /></button>
+                </div>
+              )}
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <div style={{ flex: 1 }}><label className="form-label">Tipo</label><select className="form-input" value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))}>{TIPOS.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
                 <div style={{ flex: 1 }}><label className="form-label">Estado</label><select className="form-input" value={form.estado} onChange={e => setForm(f => ({ ...f, estado: e.target.value }))}>{ESTADOS.map(e => <option key={e} value={e}>{e}</option>)}</select></div>
@@ -206,7 +259,7 @@ export default function Contratos() {
               <button onClick={save} className="btn btn-primary" style={{ fontSize: '0.85rem' }}>Guardar</button>
             </div>
           </div>
-        </>
+          </div>
       )}
     </div>
   );
