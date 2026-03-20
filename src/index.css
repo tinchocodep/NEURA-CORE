@@ -1992,8 +1992,9 @@ body:has([style*="position: fixed"][style*="inset: 0"]) {
   }
 
   .main-content {
-    min-height: calc(100vh - 64px);
+    min-height: 100vh;
     padding: 0 !important;
+    padding-bottom: 80px !important;
   }
 
   /* ── TopBar mobile ── */
@@ -2024,8 +2025,19 @@ body:has([style*="position: fixed"][style*="inset: 0"]) {
   }
 
   /* ── Content padding ── */
-  .main-content > div:not(.topbar):not(.subtabs) {
+  .main-content > div:not(.topbar):not(.subtabs):not(.mobile-nav) {
     padding: 1rem !important;
+  }
+
+  /* ── Inline grids: stack on mobile ── */
+  [style*="gridTemplateColumns: '1fr 1fr'"],
+  [style*="gridTemplateColumns: 'repeat("] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── Overflow protection ── */
+  body {
+    overflow-x: hidden;
   }
 
   /* ── Cards ── */
