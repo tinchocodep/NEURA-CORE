@@ -14,6 +14,7 @@ import { useEffect, useState } from 'react';
 import AgentMonitorPanel from '../../design-system/components/AgentMonitor/AgentMonitorPanel';
 import ChatbotAsistente from './ChatbotAsistente';
 import TopBar from './TopBar';
+import MobileNav from './MobileNav';
 
 export default function Layout() {
     const { user, signOut, role, userModules, displayName } = useAuth() as any;
@@ -23,6 +24,7 @@ export default function Layout() {
     const [pendingComprobantes, setPendingComprobantes] = useState(0);
     const [agentCollapsed, setAgentCollapsed] = useState(true);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
 
     useEffect(() => {
         if (!tenant || (role !== 'admin' && role !== 'superadmin')) return;
@@ -74,6 +76,13 @@ export default function Layout() {
             supabase.removeChannel(channel);
         };
     }, [tenant?.id]);
+
+    // Responsive: detect mobile
+    useEffect(() => {
+        const handler = () => setIsMobile(window.innerWidth <= 768);
+        window.addEventListener('resize', handler);
+        return () => window.removeEventListener('resize', handler);
+    }, []);
 
     // Hotkey: Cmd+J toggles agent panel
     useEffect(() => {
@@ -207,7 +216,7 @@ export default function Layout() {
                 className={`app-shell${agentCollapsed ? ' agent-collapsed' : ''}${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}
             >
                 {/* ──────────────── SIDEBAR ──────────────── */}
-                <aside className="sidebar">
+                {!isMobile && <aside className="sidebar">
                 {/* Logo + collapse toggle */}
                 <div className="sidebar-logo" onClick={() => setSidebarCollapsed(c => !c)} style={{ cursor: 'pointer' }}>
                     {tenant?.logo_url ? (
@@ -340,7 +349,8 @@ export default function Layout() {
                         <LogOut size={14} />
                     </button>
                 </div>
-            </aside>
+            </aside>}
+
 
             {/* ──────────────── MAIN CONTENT ──────────────── */}
             <main className="main-content">
@@ -381,14 +391,19 @@ export default function Layout() {
             </main>
 
             {/* ──────────────── AGENT MONITOR ──────────────── */}
-            <AgentMonitorPanel
-                collapsed={agentCollapsed}
-                onToggle={() => setAgentCollapsed(c => !c)}
-            />
+            {!isMobile && (
+                <AgentMonitorPanel
+                    collapsed={agentCollapsed}
+                    onToggle={() => setAgentCollapsed(c => !c)}
+                />
+            )}
             </div>
 
+            {/* ──────────────── MOBILE BOTTOM NAV ──────────────── */}
+            {isMobile && <MobileNav />}
+
             {/* ──────────────── N8N CHATBOT ──────────────── */}
-            <ChatbotAsistente />
+            {!isMobile && <ChatbotAsistente />}
         </>
     );
 }

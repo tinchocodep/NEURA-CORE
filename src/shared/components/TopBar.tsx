@@ -33,7 +33,7 @@ export default function TopBar() {
                     NEURA CORE
                 </span>
                 {dolar && (
-                    <div style={{ display: 'flex', gap: 16, fontSize: '0.6875rem' }}>
+                    <div className="topbar-rates" style={{ display: 'flex', gap: 16, fontSize: '0.6875rem' }}>
                         {([
                             { label: 'OFICIAL', value: dolar.oficial?.venta },
                             { label: 'BLUE', value: dolar.blue?.venta },
