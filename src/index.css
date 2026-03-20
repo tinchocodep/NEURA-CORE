@@ -1440,6 +1440,7 @@ kbd {
   align-items: center;
   justify-content: center;
   padding: 1rem;
+  overflow: hidden;
 }
 
 .modal {
@@ -1448,9 +1449,17 @@ kbd {
   border-radius: var(--radius-xl);
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
   width: 100%;
-  max-width: 600px;
-  max-height: 90vh;
+  max-width: 720px;
+  max-height: 92vh;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
 }
 
 .modal-header {
@@ -1479,6 +1488,15 @@ kbd {
   align-items: center;
   justify-content: flex-end;
   gap: 0.75rem;
+}
+
+/* =====================================================
+   BODY SCROLL LOCK (when modal/overlay is open)
+   ===================================================== */
+
+body:has(.modal-overlay),
+body:has([style*="position: fixed"][style*="inset: 0"]) {
+  overflow: hidden;
 }
 
 /* =====================================================
