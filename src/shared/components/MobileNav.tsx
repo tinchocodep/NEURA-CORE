@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home, TrendingUp, Plus, X, Building2, Menu,
   Upload, FileText, FileSignature, CalendarPlus, DollarSign, UserPlus,
-  Settings, LogOut, Landmark, BookOpen, Briefcase, Funnel, Activity,
+  Settings, LogOut, Landmark, BookOpen, Briefcase, Funnel,
   Users, BarChart3, Receipt, Wallet, Bell, HelpCircle, Shield
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -24,8 +24,6 @@ export default function MobileNav() {
 
   // Detect rubro module (the empresa-specific module)
   const rubroModule = tenantModules.find((m: string) => m === 'inmobiliaria') || null;
-  const rubroIcon = Building2;
-  const rubroLabel = 'Inmob.';
   const rubroPath = '/inmobiliaria';
 
   // Quick actions for + button: CRM, Tesorería, Contable, Empresa
@@ -129,8 +127,8 @@ export default function MobileNav() {
         {/* 4. Rubro (Inmobiliaria) */}
         {rubroModule && (
           <Link to={rubroPath} className={`mobile-nav-item${isActive(rubroPath) ? ' active' : ''}`} onClick={closeAll}>
-            <rubroIcon size={20} />
-            <span>{rubroLabel}</span>
+            <Building2 size={20} />
+            <span>Inmob.</span>
           </Link>
         )}
 
