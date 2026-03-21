@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { DolarService, type DolarResumen } from '../services/DolarService';
-import { Calendar, Settings, AlertTriangle, Clock, ArrowRight, X, GripVertical, BookOpen } from 'lucide-react';
+import { Calendar, Settings, AlertTriangle, Clock, ArrowRight, X, GripVertical } from 'lucide-react';
 
 function useIsMobile() {
     const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import { Plus, ChevronRight, ChevronLeft, Trash2, DollarSign, Car } from 'lucide-react';
@@ -55,7 +55,6 @@ function fmtPrice(n: number | null, moneda: string) {
 
 export default function CRMProspectos() {
     const { tenant } = useTenant();
-    const [searchParams, setSearchParams] = useSearchParams();
     const loc = useLocation();
     const [prospectos, setProspectos] = useState<Prospecto[]>([]);
     const [contactos, setContactos] = useState<Contacto[]>([]);

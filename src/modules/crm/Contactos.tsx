@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import { Plus, Search, Edit2, Trash2, User, Building2, Mail, Phone } from 'lucide-react';
@@ -23,7 +23,6 @@ const EMPTY: Partial<Contacto> = { nombre: '', apellido: '', email: '', telefono
 
 export default function CRMContactos() {
     const { tenant } = useTenant();
-    const [searchParams, setSearchParams] = useSearchParams();
     const loc = useLocation();
     const [contactos, setContactos] = useState<Contacto[]>([]);
     const [clientes, setClientes] = useState<Cliente[]>([]);
