@@ -2275,6 +2275,67 @@ body:has([style*="position: fixed"][style*="inset: 0"]) {
   transform: scale(0.96);
 }
 
+/* ── Floating FAB Bar (cloud above nav) ── */
+.mobile-fab-bar {
+  position: fixed;
+  bottom: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: calc(var(--z-panel) + 1);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  animation: fabSlideUp 0.2s ease;
+}
+
+@keyframes fabSlideUp {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.mobile-fab-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 20px;
+  border-radius: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.12s, transform 0.12s;
+}
+
+.mobile-fab-item:active {
+  transform: scale(0.94);
+  background: var(--color-bg-hover);
+}
+
+.mobile-fab-item svg {
+  color: var(--brand);
+}
+
+/* ── Hamburger Menu Sheet (Mercado Pago style) ── */
+.mobile-menu-sheet {
+  background: var(--color-bg-base);
+  border-radius: 20px 20px 0 0;
+  padding: 20px 16px;
+  padding-bottom: 80px;
+  max-height: 85vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .mobile-menu-item-icon {
   width: 42px;
   height: 42px;
