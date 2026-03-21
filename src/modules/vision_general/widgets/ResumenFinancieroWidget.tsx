@@ -18,7 +18,7 @@ export default function ResumenFinancieroWidget({ metrics }: ResumenFinancieroWi
     if (!metrics) return null;
 
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem', marginBottom: '1.25rem' }}>
+        <div className="grid-responsive" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem', marginBottom: '1.25rem' }}>
             {/* Ventas Netas */}
             <div className="card" style={{ padding: '1.25rem', position: 'relative', overflow: 'hidden', background: 'color-mix(in srgb, var(--color-success) 4%, var(--bg-card))' }}>
                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'var(--color-success)' }} />

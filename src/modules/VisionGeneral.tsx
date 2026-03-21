@@ -6,6 +6,12 @@ import { useNavigate } from 'react-router-dom';
 import { DolarService, type DolarResumen } from '../services/DolarService';
 import { Calendar, Settings, AlertTriangle, Clock, ArrowRight, X, GripVertical } from 'lucide-react';
 
+function useIsMobile() {
+    const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
+    useEffect(() => { const h = () => setM(window.innerWidth <= 768); window.addEventListener('resize', h); return () => window.removeEventListener('resize', h); }, []);
+    return m;
+}
+
 // Import Widgets
 import ResumenFinancieroWidget from './vision_general/widgets/ResumenFinancieroWidget';
 import AccionesRapidasWidget from './vision_general/widgets/AccionesRapidasWidget';
@@ -97,6 +103,7 @@ export default function VisionGeneral() {
     const { tenant } = useTenant();
     const { user, displayName } = useAuth();
     const navigate = useNavigate();
+    const isMobile = useIsMobile();
 
     // Data State
     const [metrics, setMetrics] = useState<CrossMetrics | null>(null);
@@ -261,7 +268,7 @@ export default function VisionGeneral() {
                     <div style={{ width: 260, height: 28, background: 'var(--bg-subtle)', borderRadius: 8, marginBottom: 8 }} />
                     <div style={{ width: 400, height: 16, background: 'var(--bg-subtle)', borderRadius: 6 }} />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
+                <div className="grid-responsive" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
                     {[1, 2, 3, 4].map(i => (
                         <div key={i} className="card" style={{ padding: '1.5rem', minHeight: 100 }}>
                             <div style={{ width: 80, height: 12, background: 'var(--bg-subtle)', borderRadius: 6, marginBottom: 12 }} />
@@ -279,18 +286,30 @@ export default function VisionGeneral() {
     return (
         <div style={{ paddingBottom: '3rem' }}>
             {/* Header with greeting, Date Filter & Customization Button */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-                <div>
-                    <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em', marginBottom: 4 }}>
-                        {getGreeting()}, {displayName || 'usuario'} 👋
-                    </h1>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem' }}>
-                        <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Mostrando resumen para:</span>
-                        <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--brand)', background: 'color-mix(in srgb, var(--brand) 10%, transparent)', padding: '0.15rem 0.6rem', borderRadius: '0.5rem' }}>{periodLabel}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'center' : 'flex-start', marginBottom: isMobile ? '0.75rem' : '1.5rem', flexWrap: 'wrap', gap: isMobile ? '0.5rem' : '1rem' }}>
+                {isMobile ? (
+                    /* ── MOBILE header: logo + greeting link ── */
+                    <div onClick={() => navigate('/configuracion')} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
+                        <img src="/neura-logo.png" alt="" style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 6, flexShrink: 0 }} />
+                        <span style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                            Hola, {displayName || 'usuario'}
+                        </span>
+                        <span style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>›</span>
                     </div>
-                </div>
+                ) : (
+                    /* ── DESKTOP header ── */
+                    <div>
+                        <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em', marginBottom: 4 }}>
+                            {getGreeting()}, {displayName || 'usuario'} 👋
+                        </h1>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem' }}>
+                            <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Mostrando resumen para:</span>
+                            <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--brand)', background: 'color-mix(in srgb, var(--brand) 10%, transparent)', padding: '0.15rem 0.6rem', borderRadius: '0.5rem' }}>{periodLabel}</span>
+                        </div>
+                    </div>
+                )}
 
-                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                {!isMobile && <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', background: 'var(--bg-card)', padding: '0.5rem', borderRadius: 12, border: '1px solid var(--border-subtle)' }}>
                         <Calendar size={16} color="var(--text-muted)" style={{ marginLeft: 6 }} />
                         <select
@@ -320,7 +339,7 @@ export default function VisionGeneral() {
                     >
                         <Settings size={16} /> <span style={{ fontWeight: 600 }}>Personalizar Panel</span>
                     </button>
-                </div>
+                </div>}
             </div>
 
             {/* Alert bar */}
@@ -350,39 +369,71 @@ export default function VisionGeneral() {
             )}
 
             {/* MAIN DASHBOARD GRID */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                {isWidgetActive('resumen_financiero') && <ResumenFinancieroWidget metrics={metrics} />}
+            {isMobile ? (
+                /* ── MOBILE: KPIs + Cotizaciones + Actividad ── */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <ResumenFinancieroWidget metrics={metrics} />
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '1rem' }}>
-                    {isWidgetActive('origen_registros') && metrics && (
-                        <OrigenRegistrosWidget
-                            ventasMes={metrics.ventasMes} comprasMes={metrics.comprasMes}
-                            montoVentasMes={metrics.montoVentasMes} montoComprasMes={metrics.montoComprasMes}
-                            ventasBreakdown={ventasBreakdown} comprasBreakdown={comprasBreakdown}
-                        />
+                    {/* Cotizaciones USD — tira compacta */}
+                    {dolar && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', borderRadius: 'var(--radius-lg)', background: 'rgba(255,255,255,0.72)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.4)', boxShadow: 'var(--shadow-sm)' }}>
+                            {([
+                                { label: 'Oficial', value: dolar.oficial?.venta, color: 'var(--color-text-primary)' },
+                                { label: 'Blue', value: dolar.blue?.venta, color: '#3B82F6' },
+                                { label: 'MEP', value: dolar.mep?.venta, color: '#8B5CF6' },
+                                { label: 'CCL', value: dolar.ccl?.venta, color: '#0D9488' },
+                            ]).map((item, i, arr) => (
+                                <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: i < arr.length - 1 ? 0 : 0 }}>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <div style={{ fontSize: '0.5625rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{item.label}</div>
+                                        <div style={{ fontSize: '0.875rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: item.color }}>
+                                            ${item.value ? Math.round(item.value).toLocaleString('es-AR') : '—'}
+                                        </div>
+                                    </div>
+                                    {i < arr.length - 1 && <div style={{ width: 1, height: 24, background: 'var(--color-border-subtle)', margin: '0 12px' }} />}
+                                </div>
+                            ))}
+                        </div>
                     )}
-                    {isWidgetActive('ranking_entidades') && (
-                        <RankingEntidadesWidget topClientes={topClientes} topProveedores={topProveedores} />
-                    )}
+
+                    <ActividadRecienteWidget activity={activity} periodLabel={periodLabel} />
                 </div>
+            ) : (
+                /* ── DESKTOP: full dashboard ── */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                    {isWidgetActive('resumen_financiero') && <ResumenFinancieroWidget metrics={metrics} />}
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 240px) minmax(300px, 1fr) 260px', gap: '1rem', alignItems: 'start' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        {isWidgetActive('acciones_rapidas') && <AccionesRapidasWidget />}
+                    <div className="grid-responsive-1" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '1rem' }}>
+                        {isWidgetActive('origen_registros') && metrics && (
+                            <OrigenRegistrosWidget
+                                ventasMes={metrics.ventasMes} comprasMes={metrics.comprasMes}
+                                montoVentasMes={metrics.montoVentasMes} montoComprasMes={metrics.montoComprasMes}
+                                ventasBreakdown={ventasBreakdown} comprasBreakdown={comprasBreakdown}
+                            />
+                        )}
+                        {isWidgetActive('ranking_entidades') && (
+                            <RankingEntidadesWidget topClientes={topClientes} topProveedores={topProveedores} />
+                        )}
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', height: '100%' }}>
-                        {isWidgetActive('actividad_reciente') && <ActividadRecienteWidget activity={activity} periodLabel={periodLabel} />}
-                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 240px) minmax(300px, 1fr) 260px', gap: '1rem', alignItems: 'start' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            {isWidgetActive('acciones_rapidas') && <AccionesRapidasWidget />}
+                        </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                        {isWidgetActive('monitor_tesoreria') && metrics && <MonitorTesoreriaWidget saldoCajas={metrics.saldoCajas} />}
-                        {isWidgetActive('flujo_caja') && <FlujoCajaWidget />}
-                        {isWidgetActive('cotizacion_dolar') && <CotizacionDolarWidget dolar={dolar} dolarLoading={dolarLoading} loadDolar={loadDolar} />}
-                        {isWidgetActive('directorio_total') && metrics && <DirectorioWidget totalClientes={metrics.totalClientes} totalProveedores={metrics.totalProveedores} />}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', height: '100%' }}>
+                            {isWidgetActive('actividad_reciente') && <ActividadRecienteWidget activity={activity} periodLabel={periodLabel} />}
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            {isWidgetActive('monitor_tesoreria') && metrics && <MonitorTesoreriaWidget saldoCajas={metrics.saldoCajas} />}
+                            {isWidgetActive('flujo_caja') && <FlujoCajaWidget />}
+                            {isWidgetActive('cotizacion_dolar') && <CotizacionDolarWidget dolar={dolar} dolarLoading={dolarLoading} loadDolar={loadDolar} />}
+                            {isWidgetActive('directorio_total') && metrics && <DirectorioWidget totalClientes={metrics.totalClientes} totalProveedores={metrics.totalProveedores} />}
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
 
             {/* Customization Modal */}
             {isCustomizing && (

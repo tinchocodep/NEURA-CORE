@@ -2051,6 +2051,14 @@ body:has([style*="position: fixed"][style*="inset: 0"]) {
     gap: 0.75rem;
   }
 
+  .grid-responsive {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .grid-responsive-1 {
+    grid-template-columns: 1fr !important;
+  }
+
   /* ── Tables: horizontal scroll ── */
   .table-container,
   .data-grid-scroll {
@@ -2209,6 +2217,62 @@ body:has([style*="position: fixed"][style*="inset: 0"]) {
 
 .mobile-menu-item:active {
   transform: scale(0.98);
+}
+
+/* ── Floating notification bubble (mobile) ── */
+.mobile-notif-bubble {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: calc(var(--z-panel) + 2);
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-notif-dot {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-danger);
+  border: 2px solid rgba(255, 255, 255, 0.85);
+}
+
+/* ── Quick action cards (mobile) ── */
+.mobile-action-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 12px;
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s;
+  text-align: center;
+  font-family: var(--font-sans);
+}
+
+.mobile-action-card:active {
+  transform: scale(0.96);
 }
 
 .mobile-menu-item-icon {

@@ -1,30 +1,57 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Search, Bell, Settings } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Search, Bell, Settings, ChevronLeft } from 'lucide-react';
 import { DolarService } from '../../services/DolarService';
 import type { DolarResumen } from '../../services/DolarService';
 import { useAuth } from '../../contexts/AuthContext';
 
+function useIsMobile() {
+    const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
+    useEffect(() => { const h = () => setM(window.innerWidth <= 768); window.addEventListener('resize', h); return () => window.removeEventListener('resize', h); }, []);
+    return m;
+}
+
+
 export default function TopBar() {
     const { user } = useAuth() as any;
     const navigate = useNavigate();
+    const isMobile = useIsMobile();
     const [dolar, setDolar] = useState<DolarResumen | null>(null);
 
     useEffect(() => {
         DolarService.getCotizaciones().then(setDolar);
-        const interval = setInterval(() => {
-            DolarService.getCotizaciones().then(setDolar);
-        }, 5 * 60 * 1000);
+        const interval = setInterval(() => { DolarService.getCotizaciones().then(setDolar); }, 5 * 60 * 1000);
         return () => clearInterval(interval);
     }, []);
 
-    const initials = user?.email
-        ? user.email.substring(0, 2).toUpperCase()
-        : 'NC';
-
     const displayName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuario';
+    const initials = user?.email ? user.email.substring(0, 2).toUpperCase() : 'NC';
     const role = user?.user_metadata?.role || 'user';
+    const location = useLocation();
+    const isSubpage = isMobile && location.pathname.split('/').filter(Boolean).length > 1;
 
+    /* ── MOBILE ── */
+    if (isMobile) {
+        return (
+            <>
+                {isSubpage && (
+                    <div className="topbar">
+                        <button onClick={() => navigate(-1)}
+                            style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-primary)', fontWeight: 600, fontSize: '0.9375rem', padding: 0, fontFamily: 'var(--font-sans)' }}>
+                            <ChevronLeft size={20} /> Volver
+                        </button>
+                    </div>
+                )}
+                {/* Floating notification bubble */}
+                <button className="mobile-notif-bubble" title="Notificaciones">
+                    <Bell size={18} />
+                    <span className="mobile-notif-dot" />
+                </button>
+            </>
+        );
+    }
+
+    /* ── DESKTOP ── */
     return (
         <div className="topbar">
             {/* Left: Brand + Exchange Rates */}
@@ -52,38 +79,26 @@ export default function TopBar() {
                 )}
             </div>
 
-            {/* Spacer */}
             <div style={{ flex: 1 }} />
 
             {/* Right: Actions */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <button
-                    onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
+                <button onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
                     title="Buscar (⌘K)"
-                    style={{ width: 36, height: 36, borderRadius: 10, border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-text-muted)', transition: 'all 0.12s' }}
-                >
+                    style={{ width: 36, height: 36, borderRadius: 10, border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-text-muted)' }}>
                     <Search size={16} />
                 </button>
-                <button
-                    title="Notificaciones"
-                    style={{ width: 36, height: 36, borderRadius: 10, border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-text-muted)', position: 'relative', transition: 'all 0.12s' }}
-                >
+                <button title="Notificaciones"
+                    style={{ width: 36, height: 36, borderRadius: 10, border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-text-muted)', position: 'relative' }}>
                     <Bell size={16} />
                     <span style={{ position: 'absolute', top: 6, right: 6, width: 6, height: 6, borderRadius: '50%', background: 'var(--color-danger)' }} />
                 </button>
-                <button
-                    onClick={() => navigate('/configuracion')}
-                    title="Configuración"
-                    style={{ width: 36, height: 36, borderRadius: 10, border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-text-muted)', transition: 'all 0.12s' }}
-                >
+                <button onClick={() => navigate('/configuracion')} title="Configuración"
+                    style={{ width: 36, height: 36, borderRadius: 10, border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-text-muted)' }}>
                     <Settings size={16} />
                 </button>
-
-                {/* Separator */}
                 <div style={{ width: 1, height: 28, background: 'var(--color-border-subtle)', margin: '0 6px' }} />
-
-                {/* User */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '4px 8px', borderRadius: 10, transition: 'background 0.12s' }}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '4px 8px', borderRadius: 10 }}
                     onClick={() => navigate('/configuracion')}>
                     <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary)', lineHeight: 1.2 }}>{displayName}</div>
