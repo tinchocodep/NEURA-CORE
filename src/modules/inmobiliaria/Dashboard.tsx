@@ -139,7 +139,7 @@ export default function Dashboard() {
         if (conUbicacion.length === 0) return null;
         const center: [number, number] = [conUbicacion[0].latitud!, conUbicacion[0].longitud!];
         return (
-          <div className="card" style={{ overflow: 'hidden' }}>
+          <div className="card" style={{ overflow: 'hidden', position: 'relative', zIndex: 0 }}>
             <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Mapa de Propiedades</span>
               <div style={{ display: 'flex', gap: 12, fontSize: '0.6875rem' }}>

@@ -2328,6 +2328,30 @@ body:has([style*="position: fixed"][style*="inset: 0"]) {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
+/* ── Leaflet z-index fix for mobile overlays ── */
+.leaflet-container,
+.leaflet-pane,
+.leaflet-top,
+.leaflet-bottom,
+.leaflet-control {
+  z-index: 0 !important;
+}
+.leaflet-pane {
+  z-index: 1 !important;
+}
+.leaflet-tile-pane {
+  z-index: 1 !important;
+}
+.leaflet-overlay-pane {
+  z-index: 2 !important;
+}
+.leaflet-marker-pane {
+  z-index: 3 !important;
+}
+.leaflet-popup-pane {
+  z-index: 4 !important;
+}
+
 /* ── Mobile Sub-Navigation (module toggle) ── */
 .mobile-subnav {
   padding: 0 1rem;
