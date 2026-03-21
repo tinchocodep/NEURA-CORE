@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Search, Plus, X, FileText, Grid3X3, List, SlidersHorizontal, MoreVertical, Columns3 } from 'lucide-react';
+import { Search, Plus, X, FileText, Grid3X3, List, SlidersHorizontal, MoreVertical } from 'lucide-react';
 import { useSearchParams, useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
@@ -131,7 +131,6 @@ export default function Contratos() {
   // KPI metrics
   const vigentes = items.filter(c => c.estado === 'vigente');
   const ingresoMensual = vigentes.reduce((sum, c) => sum + (c.moneda === 'ARS' ? c.monto_mensual : 0), 0);
-  const ingresoMensualUSD = vigentes.reduce((sum, c) => sum + (c.moneda === 'USD' ? c.monto_mensual : 0), 0);
   const porVencer30 = vigentes.filter(c => daysUntil(c.fecha_fin) <= 30 && daysUntil(c.fecha_fin) > 0).length;
   const vencidos = items.filter(c => c.estado === 'vencido' || (c.estado === 'vigente' && daysUntil(c.fecha_fin) <= 0)).length;
 
