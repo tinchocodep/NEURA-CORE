@@ -18,8 +18,15 @@ interface Contrato {
 
 const ESTADO_COLOR: Record<string, string> = { borrador: '#F59E0B', aprobada: '#3B82F6', pagada: '#10B981' };
 
+function useIsMobile() {
+  const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
+  useEffect(() => { const h = () => setM(window.innerWidth <= 768); window.addEventListener('resize', h); return () => window.removeEventListener('resize', h); }, []);
+  return m;
+}
+
 export default function Liquidaciones() {
   const { tenant } = useTenant();
+  const isMobile = useIsMobile();
   const [items, setItems] = useState<Liquidacion[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [loading, setLoading] = useState(true);
@@ -125,65 +132,109 @@ export default function Liquidaciones() {
   if (loading) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Cargando liquidaciones...</div>;
 
   return (
-    <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+    <div style={{ padding: isMobile ? '0.75rem' : '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '0.5rem' : '1rem', flexWrap: 'wrap' }}>
         <h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Liquidaciones</h1>
         <select value={filterEstado} onChange={e => setFilterEstado(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
-          <option value="">Todos los estados</option>
+          <option value="">Todos</option>
           <option value="borrador">Borrador</option>
           <option value="aprobada">Aprobada</option>
           <option value="pagada">Pagada</option>
         </select>
         <button onClick={openNew} className="btn btn-primary" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem' }}>
-          <Plus size={14} /> Nueva liquidacion
+          <Plus size={14} /> Nueva
         </button>
       </div>
 
-      <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-        <table style={{ width: '100%', fontSize: '0.8rem', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
-              {['Periodo', 'Propiedad / Propietario', 'Ingreso', 'Deducciones', 'Neto', 'Estado', 'Acciones'].map(h => (
-                <th key={h} style={{ padding: '0.6rem 0.75rem', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-muted)', fontSize: '0.75rem' }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map(l => {
-              const totalDed = (l.deducciones_json || []).reduce((s: number, d: Deduccion) => s + d.monto, 0);
-              return (
-                <tr key={l.id} style={{ borderBottom: '1px solid var(--color-border-subtle)' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover, rgba(255,255,255,0.03))')}
-                  onMouseLeave={e => (e.currentTarget.style.background = '')}>
-                  <td style={{ padding: '0.5rem 0.75rem', fontWeight: 600 }}>{l.periodo}</td>
-                  <td style={{ padding: '0.5rem 0.75rem', cursor: 'pointer' }} onClick={() => openEdit(l)}>{contratoLabel(l.contrato_id)}</td>
-                  <td style={{ padding: '0.5rem 0.75rem', fontFamily: 'var(--font-mono)' }}>${l.ingreso_alquiler.toLocaleString('es-AR')}</td>
-                  <td style={{ padding: '0.5rem 0.75rem', fontFamily: 'var(--font-mono)', color: '#EF4444' }}>-${totalDed.toLocaleString('es-AR')}</td>
-                  <td style={{ padding: '0.5rem 0.75rem', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>${l.neto_propietario.toLocaleString('es-AR')}</td>
-                  <td style={{ padding: '0.5rem 0.75rem' }}>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: `${ESTADO_COLOR[l.estado]}20`, color: ESTADO_COLOR[l.estado], textTransform: 'capitalize' }}>{l.estado}</span>
-                  </td>
-                  <td style={{ padding: '0.5rem 0.75rem' }}>
-                    <div style={{ display: 'flex', gap: '0.3rem' }}>
-                      {l.estado === 'borrador' && (
-                        <button onClick={() => updateEstado(l.id, 'aprobada')} title="Aprobar" style={{ padding: '0.2rem 0.5rem', borderRadius: 4, border: '1px solid #3B82F6', background: 'transparent', color: '#3B82F6', cursor: 'pointer', fontSize: '0.7rem' }}>Aprobar</button>
-                      )}
-                      {l.estado === 'aprobada' && (
-                        <button onClick={() => updateEstado(l.id, 'pagada')} title="Marcar pagada" style={{ padding: '0.2rem 0.5rem', borderRadius: 4, border: '1px solid #10B981', background: 'transparent', color: '#10B981', cursor: 'pointer', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: 2 }}>
-                          <Check size={12} /> Pagada
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-            {filtered.length === 0 && (
-              <tr><td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin liquidaciones</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      {isMobile ? (
+        /* ── MOBILE: Cards ── */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {filtered.map(l => {
+            const totalDed = (l.deducciones_json || []).reduce((s: number, d: Deduccion) => s + d.monto, 0);
+            return (
+              <div key={l.id} onClick={() => openEdit(l)} style={{
+                background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)',
+                borderRadius: 'var(--radius-md)', padding: '0.75rem', cursor: 'pointer',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                  <span style={{ fontWeight: 700, fontSize: '0.8rem' }}>{l.periodo}</span>
+                  <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: `${ESTADO_COLOR[l.estado]}20`, color: ESTADO_COLOR[l.estado], textTransform: 'capitalize' }}>{l.estado}</span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginBottom: '0.4rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{contratoLabel(l.contrato_id)}</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.75rem' }}>
+                    <span style={{ fontFamily: 'var(--font-mono)' }}>${l.ingreso_alquiler.toLocaleString('es-AR')}</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: '#EF4444' }}>-${totalDed.toLocaleString('es-AR')}</span>
+                  </div>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.85rem', color: '#10B981' }}>${l.neto_propietario.toLocaleString('es-AR')}</span>
+                </div>
+                {(l.estado === 'borrador' || l.estado === 'aprobada') && (
+                  <div style={{ display: 'flex', gap: '0.3rem', marginTop: '0.5rem' }}>
+                    {l.estado === 'borrador' && (
+                      <button onClick={e => { e.stopPropagation(); updateEstado(l.id, 'aprobada'); }} style={{ padding: '0.25rem 0.6rem', borderRadius: 6, border: '1px solid #3B82F6', background: 'transparent', color: '#3B82F6', cursor: 'pointer', fontSize: '0.7rem' }}>Aprobar</button>
+                    )}
+                    {l.estado === 'aprobada' && (
+                      <button onClick={e => { e.stopPropagation(); updateEstado(l.id, 'pagada'); }} style={{ padding: '0.25rem 0.6rem', borderRadius: 6, border: '1px solid #10B981', background: 'transparent', color: '#10B981', cursor: 'pointer', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Check size={12} /> Pagada
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {filtered.length === 0 && (
+            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>Sin liquidaciones</div>
+          )}
+        </div>
+      ) : (
+        /* ── DESKTOP: Table ── */
+        <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+          <table style={{ width: '100%', fontSize: '0.8rem', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
+                {['Periodo', 'Propiedad / Propietario', 'Ingreso', 'Deducciones', 'Neto', 'Estado', 'Acciones'].map(h => (
+                  <th key={h} style={{ padding: '0.6rem 0.75rem', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-muted)', fontSize: '0.75rem' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(l => {
+                const totalDed = (l.deducciones_json || []).reduce((s: number, d: Deduccion) => s + d.monto, 0);
+                return (
+                  <tr key={l.id} style={{ borderBottom: '1px solid var(--color-border-subtle)' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover, rgba(255,255,255,0.03))')}
+                    onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                    <td style={{ padding: '0.5rem 0.75rem', fontWeight: 600 }}>{l.periodo}</td>
+                    <td style={{ padding: '0.5rem 0.75rem', cursor: 'pointer' }} onClick={() => openEdit(l)}>{contratoLabel(l.contrato_id)}</td>
+                    <td style={{ padding: '0.5rem 0.75rem', fontFamily: 'var(--font-mono)' }}>${l.ingreso_alquiler.toLocaleString('es-AR')}</td>
+                    <td style={{ padding: '0.5rem 0.75rem', fontFamily: 'var(--font-mono)', color: '#EF4444' }}>-${totalDed.toLocaleString('es-AR')}</td>
+                    <td style={{ padding: '0.5rem 0.75rem', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>${l.neto_propietario.toLocaleString('es-AR')}</td>
+                    <td style={{ padding: '0.5rem 0.75rem' }}>
+                      <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: `${ESTADO_COLOR[l.estado]}20`, color: ESTADO_COLOR[l.estado], textTransform: 'capitalize' }}>{l.estado}</span>
+                    </td>
+                    <td style={{ padding: '0.5rem 0.75rem' }}>
+                      <div style={{ display: 'flex', gap: '0.3rem' }}>
+                        {l.estado === 'borrador' && (
+                          <button onClick={() => updateEstado(l.id, 'aprobada')} title="Aprobar" style={{ padding: '0.2rem 0.5rem', borderRadius: 4, border: '1px solid #3B82F6', background: 'transparent', color: '#3B82F6', cursor: 'pointer', fontSize: '0.7rem' }}>Aprobar</button>
+                        )}
+                        {l.estado === 'aprobada' && (
+                          <button onClick={() => updateEstado(l.id, 'pagada')} title="Marcar pagada" style={{ padding: '0.2rem 0.5rem', borderRadius: 4, border: '1px solid #10B981', background: 'transparent', color: '#10B981', cursor: 'pointer', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Check size={12} /> Pagada
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {filtered.length === 0 && (
+                <tr><td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin liquidaciones</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Modal */}
       {showModal && (

@@ -3,6 +3,12 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Building2, FileText, AlertTriangle, DollarSign, TrendingUp, Calendar } from 'lucide-react';
+
+function useIsMobile() {
+  const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
+  useEffect(() => { const h = () => setM(window.innerWidth <= 768); window.addEventListener('resize', h); return () => window.removeEventListener('resize', h); }, []);
+  return m;
+}
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 
@@ -49,6 +55,7 @@ const VENC_COLOR: Record<string, string> = {
 
 export default function Dashboard() {
   const { tenant } = useTenant();
+  const isMobile = useIsMobile();
   const [propiedades, setPropiedades] = useState<Propiedad[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [vencimientos, setVencimientos] = useState<Vencimiento[]>([]);
@@ -102,25 +109,26 @@ export default function Dashboard() {
   ];
 
   return (
-    <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div style={{ padding: isMobile ? '0.75rem' : '1.5rem', display: 'flex', flexDirection: 'column', gap: isMobile ? '0.75rem' : '1.5rem' }}>
       <div>
         <h1 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.25rem' }}>Inmobiliaria</h1>
-        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>Dashboard de gestion de propiedades y contratos.</p>
+        {!isMobile && <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>Dashboard de gestion de propiedades y contratos.</p>}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fit, minmax(180px, 1fr))', gap: isMobile ? '0.5rem' : '1rem' }}>
         {kpis.map(({ label, value, icon: Icon, color }) => (
           <div key={label} style={{
             background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)',
-            borderRadius: 'var(--radius-md)', padding: '1.25rem',
+            borderRadius: 'var(--radius-md)', padding: isMobile ? '0.75rem' : '1.25rem',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: `${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Icon size={20} color={color} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: isMobile ? '0.25rem' : '0.75rem' }}>
+              <div style={{ width: isMobile ? 28 : 40, height: isMobile ? 28 : 40, borderRadius: 8, background: `${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Icon size={isMobile ? 14 : 20} color={color} />
               </div>
+              {isMobile && <span style={{ fontSize: '0.625rem', color: 'var(--color-text-muted)' }}>{label}</span>}
             </div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, fontFamily: 'var(--font-mono)', lineHeight: 1, marginBottom: '0.25rem' }}>{value}</div>
-            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{label}</span>
+            <div style={{ fontSize: isMobile ? '1.125rem' : '1.5rem', fontWeight: 700, fontFamily: 'var(--font-mono)', lineHeight: 1, marginBottom: isMobile ? 0 : '0.25rem' }}>{value}</div>
+            {!isMobile && <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{label}</span>}
           </div>
         ))}
       </div>
@@ -148,7 +156,7 @@ export default function Dashboard() {
                 })}
               </div>
             </div>
-            <div style={{ height: 340 }}>
+            <div style={{ height: isMobile ? 200 : 340 }}>
               <MapContainer center={center} zoom={13} style={{ height: '100%', width: '100%' }} scrollWheelZoom={false}>
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; <a href="https://www.openstreetmap.org/">OSM</a>' />
                 {conUbicacion.map(p => (
@@ -172,7 +180,7 @@ export default function Dashboard() {
         );
       })()}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? '0.75rem' : '1.5rem' }}>
         {/* Proximos vencimientos */}
         <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-md)' }}>
           <div style={{ padding: '1rem', borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

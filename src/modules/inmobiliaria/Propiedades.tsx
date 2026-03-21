@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, Plus, X, Grid3X3, List, MapPin, FileSignature } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
@@ -35,6 +35,7 @@ const emptyProp: Omit<Propiedad, 'id'> = {
 export default function Propiedades() {
   const { tenant } = useTenant();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = useState<Propiedad[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -46,6 +47,15 @@ export default function Propiedades() {
   const [form, setForm] = useState(emptyProp);
 
   useEffect(() => { if (tenant) loadData(); }, [tenant]);
+
+  // Auto-open form if navigated with ?action=crear
+  useEffect(() => {
+    if (searchParams.get('action') === 'crear') {
+      openNew();
+      searchParams.delete('action');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams]);
 
   const loadData = async () => {
     setLoading(true);

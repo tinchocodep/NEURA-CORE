@@ -4,7 +4,7 @@ import {
     LogOut, LayoutDashboard, ArrowRightLeft, FileText, Activity, Landmark,
     Briefcase, Zap, Users, BookOpen, Tag, Building2, Settings, ClipboardList,
     Receipt, GitMerge, TrendingUp, HardHat,
-    Funnel, Columns3, Contact, BarChart3, Car, ChevronLeft,
+    Funnel, Columns3, Contact, BarChart3, Car, ChevronLeft, ChevronDown,
     Home, FileSignature, Wallet, CalendarClock
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -210,6 +210,10 @@ export default function Layout() {
     // Determine current section nav items (Ocultamos sub-opciones en configuración)
     const sectionItems = (isContable && !isConfiguracion) ? contableItems : isTesoreria ? tesoreriaItems : isCRM ? crmItems : isComercial ? comercialItems : isInmobiliaria ? inmobiliariaItems : [];
 
+    // Mobile: module title for toggle
+    const currentModuleName = isCRM ? 'CRM' : isTesoreria ? 'Tesorería' : (isContable && !isConfiguracion) ? 'Contable' : isComercial ? 'Comercial' : isInmobiliaria ? 'Inmobiliaria' : '';
+    const [mobileSubnavOpen, setMobileSubnavOpen] = useState(false);
+
     return (
         <>
             <div
@@ -356,23 +360,50 @@ export default function Layout() {
             <main className="main-content">
                 <TopBar />
                 {sectionItems.length > 0 && (
-                    <div className="subtabs">
-                        {sectionItems.map(item => {
-                            const isDashboardPath = ['/tesoreria', '/contable', '/crm', '/comercial', '/inmobiliaria'].includes(item.path);
-                            const isActive = isDashboardPath
-                                ? location.pathname === item.path
-                                : location.pathname.startsWith(item.path);
-                            const isCajas = item.path === '/tesoreria/cajas';
-                            return (
-                                <Link key={item.path} to={item.path} className={`subtab${isActive ? ' active' : ''}`}>
-                                    <item.icon size={14} />
-                                    {item.name}
-                                    {isCajas && pendingCount > 0 && <span className="subtab-badge">{pendingCount}</span>}
-                                    {item.name === 'Comprobantes' && pendingComprobantes > 0 && <span className="subtab-badge">{pendingComprobantes}</span>}
-                                </Link>
-                            );
-                        })}
-                    </div>
+                    isMobile ? (
+                        /* ── MOBILE: Title + toggle dropdown ── */
+                        <div className="mobile-subnav">
+                            <button className="mobile-subnav-toggle" onClick={() => setMobileSubnavOpen(o => !o)}>
+                                <span className="mobile-subnav-title">{currentModuleName}</span>
+                                <ChevronDown size={18} style={{ transition: 'transform 0.2s', transform: mobileSubnavOpen ? 'rotate(180deg)' : 'none' }} />
+                            </button>
+                            {mobileSubnavOpen && (
+                                <div className="mobile-subnav-dropdown">
+                                    {sectionItems.map(item => {
+                                        const isDashboardPath = ['/tesoreria', '/contable', '/crm', '/comercial', '/inmobiliaria'].includes(item.path);
+                                        const isActiveItem = isDashboardPath
+                                            ? location.pathname === item.path
+                                            : location.pathname.startsWith(item.path);
+                                        return (
+                                            <Link key={item.path} to={item.path} className={`mobile-subnav-item${isActiveItem ? ' active' : ''}`} onClick={() => setMobileSubnavOpen(false)}>
+                                                <item.icon size={16} />
+                                                {item.name}
+                                            </Link>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        /* ── DESKTOP: Horizontal subtabs ── */
+                        <div className="subtabs">
+                            {sectionItems.map(item => {
+                                const isDashboardPath = ['/tesoreria', '/contable', '/crm', '/comercial', '/inmobiliaria'].includes(item.path);
+                                const isActive = isDashboardPath
+                                    ? location.pathname === item.path
+                                    : location.pathname.startsWith(item.path);
+                                const isCajas = item.path === '/tesoreria/cajas';
+                                return (
+                                    <Link key={item.path} to={item.path} className={`subtab${isActive ? ' active' : ''}`}>
+                                        <item.icon size={14} />
+                                        {item.name}
+                                        {isCajas && pendingCount > 0 && <span className="subtab-badge">{pendingCount}</span>}
+                                        {item.name === 'Comprobantes' && pendingComprobantes > 0 && <span className="subtab-badge">{pendingComprobantes}</span>}
+                                    </Link>
+                                );
+                            })}
+                        </div>
+                    )
                 )}
                 <div style={{ padding: '2rem 2.5rem', flex: 1 }}>
                     <AnimatePresence mode="wait">

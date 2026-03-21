@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Search, Plus, List, Columns3, X, Phone, MessageCircle, Calendar, StickyNote } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -34,6 +35,7 @@ const MOTIVOS_PERDIDA = ['Precio', 'Eligió otra agencia', 'No responde', 'Desis
 export default function ComercialPipeline() {
     const { tenant } = useTenant();
     const { user } = useAuth() as any;
+    const [searchParams, setSearchParams] = useSearchParams();
     const [stages, setStages] = useState<Stage[]>([]);
     const [contacts, setContacts] = useState<Contact[]>([]);
     const [sources, setSources] = useState<Source[]>([]);
@@ -65,6 +67,15 @@ export default function ComercialPipeline() {
         if (!tenant) return;
         loadData();
     }, [tenant]);
+
+    // Auto-open form if navigated with ?action=crear
+    useEffect(() => {
+        if (searchParams.get('action') === 'crear') {
+            setShowNewLeadForm(true);
+            searchParams.delete('action');
+            setSearchParams(searchParams, { replace: true });
+        }
+    }, [searchParams]);
 
     useEffect(() => {
         if (!selectedLead || !tenant) return;

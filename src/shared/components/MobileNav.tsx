@@ -2,47 +2,84 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home, TrendingUp, Plus, X, Building2, Menu,
-  Upload, FileText, FileSignature, CalendarPlus, DollarSign, UserPlus,
+  Upload, FileSignature, CalendarPlus, DollarSign, UserPlus,
   Settings, LogOut, Landmark, BookOpen, Briefcase, Funnel,
-  Users, BarChart3, Receipt, Wallet, Bell, HelpCircle, Shield
+  Users, BarChart3, Receipt, Wallet, Bell, HelpCircle, Shield,
+  FilePlus, PlusCircle, Banknote
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
 
-interface QuickAction { name: string; icon: any; path: string; color: string; }
+interface CreateAction { name: string; icon: any; path: string; }
+interface CreateSection { title: string; actions: CreateAction[]; }
 
 export default function MobileNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const { role, signOut } = useAuth() as any;
   const { tenant } = useTenant();
-  const [showActions, setShowActions] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
 
   const tenantModules = (tenant as any)?.enabled_modules || [];
   const hasModule = (id: string) => tenantModules.includes(id);
 
-  // Detect rubro module (the empresa-specific module)
   const rubroModule = tenantModules.find((m: string) => m === 'inmobiliaria') || null;
   const rubroPath = '/inmobiliaria';
 
-  // Quick actions for + button: CRM, Tesorería, Contable, Empresa
-  const actions: QuickAction[] = [];
-  if (hasModule('contable')) {
-    actions.push({ name: 'Subir comprobante', icon: Upload, path: '/contable/comprobantes', color: '#3B82F6' });
-    actions.push({ name: 'Comprobantes', icon: Receipt, path: '/contable/comprobantes', color: '#6366F1' });
-  }
-  if (hasModule('tesoreria')) {
-    actions.push({ name: 'Nuevo movimiento', icon: FileText, path: '/tesoreria/movimientos', color: '#10B981' });
-    actions.push({ name: 'Tesorería', icon: Wallet, path: '/tesoreria', color: '#F59E0B' });
-  }
+  // Create menu sections
+  const createSections: CreateSection[] = [];
+
   if (hasModule('crm')) {
-    actions.push({ name: 'Nuevo contacto', icon: UserPlus, path: '/crm/contactos', color: '#0D9488' });
-    actions.push({ name: 'CRM', icon: Users, path: '/crm', color: '#8B5CF6' });
+    createSections.push({
+      title: 'CRM',
+      actions: [
+        { name: 'Contacto', icon: UserPlus, path: '/crm/contactos?action=crear' },
+        { name: 'Prospecto', icon: Users, path: '/crm/prospectos?action=crear' },
+      ]
+    });
   }
-  if (rubroModule) {
-    actions.push({ name: 'Nueva propiedad', icon: Building2, path: '/inmobiliaria/propiedades', color: '#EC4899' });
-    actions.push({ name: 'Nuevo contrato', icon: FileSignature, path: '/inmobiliaria/contratos', color: '#F97316' });
+
+  if (hasModule('tesoreria')) {
+    createSections.push({
+      title: 'Tesorería',
+      actions: [
+        { name: 'Movimiento', icon: DollarSign, path: '/tesoreria/movimientos?action=crear' },
+        { name: 'Caja', icon: Wallet, path: '/tesoreria/cajas?action=crear' },
+        { name: 'Orden de\nPago', icon: Banknote, path: '/tesoreria/ordenes-pago?tab=nueva' },
+      ]
+    });
+  }
+
+  if (hasModule('contable')) {
+    createSections.push({
+      title: 'Contable',
+      actions: [
+        { name: 'Subir\nComprobante', icon: Upload, path: '/contable/comprobantes?tab=upload' },
+        { name: 'Gasto', icon: Receipt, path: '/contable/comprobantes?tab=gasto' },
+        { name: 'Ingreso', icon: FilePlus, path: '/contable/comprobantes?tab=ingreso' },
+      ]
+    });
+  }
+
+  if (hasModule('inmobiliaria')) {
+    createSections.push({
+      title: 'Inmobiliaria',
+      actions: [
+        { name: 'Propiedad', icon: Building2, path: '/inmobiliaria/propiedades?action=crear' },
+        { name: 'Contrato', icon: FileSignature, path: '/inmobiliaria/contratos?action=crear' },
+        { name: 'Vencimiento', icon: CalendarPlus, path: '/inmobiliaria/agenda?action=crear' },
+      ]
+    });
+  }
+
+  if (hasModule('comercial')) {
+    createSections.push({
+      title: 'Comercial',
+      actions: [
+        { name: 'Lead', icon: PlusCircle, path: '/comercial/pipeline?action=crear' },
+      ]
+    });
   }
 
   // Menu items for hamburger (Mercado Pago style)
@@ -102,7 +139,7 @@ export default function MobileNav() {
     return location.pathname.startsWith(path);
   };
 
-  const closeAll = () => { setShowActions(false); setShowMenu(false); };
+  const closeAll = () => { setShowCreate(false); setShowMenu(false); };
 
   return (
     <>
@@ -120,40 +157,62 @@ export default function MobileNav() {
         </Link>
 
         {/* 3. + (FAB) */}
-        <button className="mobile-nav-item-center" onClick={() => { setShowActions(a => !a); setShowMenu(false); }}>
-          {showActions ? <X size={22} /> : <Plus size={22} />}
+        <button className="mobile-nav-item-center" onClick={() => { setShowCreate(a => !a); setShowMenu(false); }}>
+          {showCreate ? <X size={22} /> : <Plus size={22} />}
         </button>
 
         {/* 4. Rubro (Inmobiliaria) */}
         {rubroModule && (
           <Link to={rubroPath} className={`mobile-nav-item${isActive(rubroPath) ? ' active' : ''}`} onClick={closeAll}>
-            <Building2 size={20} />
+            <img src="/logo-inmobiliaria.png" alt="Inmob." className="mobile-nav-logo" />
             <span>Inmob.</span>
           </Link>
         )}
 
         {/* 5. Más (Hamburguesa) */}
-        <button className={`mobile-nav-item${showMenu ? ' active' : ''}`} onClick={() => { setShowMenu(m => !m); setShowActions(false); }}>
+        <button className={`mobile-nav-item${showMenu ? ' active' : ''}`} onClick={() => { setShowMenu(m => !m); setShowCreate(false); }}>
           {showMenu ? <X size={20} /> : <Menu size={20} />}
           <span>Más</span>
         </button>
       </nav>
 
-      {/* ── Floating Quick Actions Bar (+) ── */}
-      {showActions && (
-        <>
-          <div style={{ position: 'fixed', inset: 0, zIndex: 'calc(var(--z-panel))', background: 'rgba(0,0,0,0.15)' }} onClick={() => setShowActions(false)} />
-          <div className="mobile-fab-bar" onClick={e => e.stopPropagation()}>
-            <button className="mobile-fab-item" onClick={() => { navigate('/crm'); setShowActions(false); }}>
-              <Briefcase size={20} />
-              <span>CRM</span>
-            </button>
-            <button className="mobile-fab-item" onClick={() => { navigate('/tesoreria'); setShowActions(false); }}>
-              <Landmark size={20} />
-              <span>Tesorería</span>
-            </button>
+      {/* ── Create Menu (bottom sheet) ── */}
+      {showCreate && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 'calc(var(--z-panel) + 1)', display: 'flex', flexDirection: 'column' }} onClick={() => setShowCreate(false)}>
+          <div style={{ flex: 1, background: 'rgba(0,0,0,0.3)' }} />
+          <div className="mobile-create-sheet" onClick={e => e.stopPropagation()}>
+            <div style={{ width: 36, height: 4, borderRadius: 99, background: 'var(--color-border)', margin: '0 auto 16px' }} />
+
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '0 0 20px', color: 'var(--color-text-primary)' }}>Crear</h2>
+
+            <div style={{ maxHeight: 'calc(70vh - 80px)', overflowY: 'auto', paddingBottom: 16 }}>
+              {createSections.map(section => (
+                <div key={section.title} style={{ marginBottom: 20 }}>
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 12 }}>
+                    {section.title}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+                    {section.actions.map(action => (
+                      <button
+                        key={action.name}
+                        className="mobile-create-action"
+                        onClick={() => {
+                          setShowCreate(false);
+                          navigate(action.path);
+                        }}
+                      >
+                        <div className="mobile-create-icon">
+                          <action.icon size={22} />
+                        </div>
+                        <span>{action.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        </>
+        </div>
       )}
 
       {/* ── Hamburger Menu (Mercado Pago style) ── */}

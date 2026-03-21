@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams, useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import { Plus, Search, Edit2, Trash2, User, Building2, Mail, Phone } from 'lucide-react';
@@ -22,6 +23,8 @@ const EMPTY: Partial<Contacto> = { nombre: '', apellido: '', email: '', telefono
 
 export default function CRMContactos() {
     const { tenant } = useTenant();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const loc = useLocation();
     const [contactos, setContactos] = useState<Contacto[]>([]);
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [loading, setLoading] = useState(true);
@@ -31,6 +34,15 @@ export default function CRMContactos() {
     const [saving, setSaving] = useState(false);
 
     useEffect(() => { if (tenant) loadData(); }, [tenant]);
+
+    // Auto-open form if navigated with ?action=crear
+    useEffect(() => {
+        const params = new URLSearchParams(loc.search);
+        if (params.get('action') === 'crear') {
+            openCreate();
+            window.history.replaceState({}, '', loc.pathname);
+        }
+    }, [loc.search]);
 
     const loadData = async () => {
         setLoading(true);

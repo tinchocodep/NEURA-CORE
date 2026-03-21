@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { DolarService, type DolarResumen } from '../services/DolarService';
-import { Calendar, Settings, AlertTriangle, Clock, ArrowRight, X, GripVertical } from 'lucide-react';
+import { Calendar, Settings, AlertTriangle, Clock, ArrowRight, X, GripVertical, BookOpen } from 'lucide-react';
 
 function useIsMobile() {
     const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
@@ -104,6 +104,7 @@ export default function VisionGeneral() {
     const { user, displayName } = useAuth();
     const navigate = useNavigate();
     const isMobile = useIsMobile();
+    const tenantModules = (tenant as any)?.enabled_modules || [];
 
     // Data State
     const [metrics, setMetrics] = useState<CrossMetrics | null>(null);
@@ -370,8 +371,36 @@ export default function VisionGeneral() {
 
             {/* MAIN DASHBOARD GRID */}
             {isMobile ? (
-                /* ── MOBILE: KPIs + Cotizaciones + Actividad ── */
+                /* ── MOBILE: Module shortcuts + KPIs + Cotizaciones + Actividad ── */
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {/* Scroll horizontal de módulos */}
+                    <div className="mobile-module-scroll">
+                        {tenantModules.includes('crm') && (
+                            <button className="mobile-module-chip" onClick={() => navigate('/crm')}>
+                                <img src="/logo-crm.png" alt="CRM" className="mobile-module-chip-logo" />
+                                <span>CRM</span>
+                            </button>
+                        )}
+                        {tenantModules.includes('tesoreria') && (
+                            <button className="mobile-module-chip" onClick={() => navigate('/tesoreria')}>
+                                <img src="/logo-tesoreria.png" alt="Tesorería" className="mobile-module-chip-logo" />
+                                <span>Tesorería</span>
+                            </button>
+                        )}
+                        {tenantModules.includes('comercial') && (
+                            <button className="mobile-module-chip" onClick={() => navigate('/comercial')}>
+                                <img src="/logo-comercial.png" alt="Comercial" className="mobile-module-chip-logo" />
+                                <span>Comercial</span>
+                            </button>
+                        )}
+                        {tenantModules.includes('contable') && (
+                            <button className="mobile-module-chip" onClick={() => navigate('/contable')}>
+                                <img src="/logo-contable.png" alt="Contable" className="mobile-module-chip-logo" />
+                                <span>Contable</span>
+                            </button>
+                        )}
+                    </div>
+
                     <ResumenFinancieroWidget metrics={metrics} />
 
                     {/* Cotizaciones USD — tira compacta */}

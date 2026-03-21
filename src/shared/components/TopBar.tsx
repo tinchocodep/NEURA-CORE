@@ -29,6 +29,7 @@ export default function TopBar() {
     const role = user?.user_metadata?.role || 'user';
     const location = useLocation();
     const isSubpage = isMobile && location.pathname.split('/').filter(Boolean).length > 1;
+    const isHome = location.pathname === '/';
 
     /* ── MOBILE ── */
     if (isMobile) {
@@ -36,17 +37,24 @@ export default function TopBar() {
             <>
                 {isSubpage && (
                     <div className="topbar">
-                        <button onClick={() => navigate(-1)}
+                        <button onClick={() => {
+                            // Navigate to parent module instead of history back (avoids ?action=crear loop)
+                            const parts = location.pathname.split('/').filter(Boolean);
+                            const parentPath = parts.length > 1 ? '/' + parts[0] : '/';
+                            navigate(parentPath);
+                        }}
                             style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-primary)', fontWeight: 600, fontSize: '0.9375rem', padding: 0, fontFamily: 'var(--font-sans)' }}>
                             <ChevronLeft size={20} /> Volver
                         </button>
                     </div>
                 )}
-                {/* Floating notification bubble */}
-                <button className="mobile-notif-bubble" title="Notificaciones">
-                    <Bell size={18} />
-                    <span className="mobile-notif-dot" />
-                </button>
+                {/* Floating notification bubble — only on Inicio */}
+                {isHome && (
+                    <button className="mobile-notif-bubble" title="Notificaciones">
+                        <Bell size={18} />
+                        <span className="mobile-notif-dot" />
+                    </button>
+                )}
             </>
         );
     }

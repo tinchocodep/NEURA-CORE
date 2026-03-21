@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Search, Plus, X, FileText } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 
@@ -32,6 +32,7 @@ const emptyContrato = {
 export default function Contratos() {
   const { tenant } = useTenant();
   const [searchParams, setSearchParams] = useSearchParams();
+  const loc = useLocation();
   const [items, setItems] = useState<Contrato[]>([]);
   const [propiedades, setPropiedades] = useState<Propiedad[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -46,6 +47,17 @@ export default function Contratos() {
   const [newClienteCuit, setNewClienteCuit] = useState('');
 
   useEffect(() => { if (tenant) loadData(); }, [tenant]);
+
+  // Auto-open form if navigated with ?action=crear
+  useEffect(() => {
+    const params = new URLSearchParams(loc.search);
+    if (params.get('action') === 'crear') {
+      setEditing(null);
+      setForm(emptyContrato);
+      setShowModal(true);
+      window.history.replaceState({}, '', loc.pathname);
+    }
+  }, [loc.search]);
 
   // Auto-open form if navigated from Propiedades with ?propiedad=id
   useEffect(() => {

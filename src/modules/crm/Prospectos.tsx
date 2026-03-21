@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams, useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import { Plus, ChevronRight, ChevronLeft, Trash2, DollarSign, Car } from 'lucide-react';
@@ -54,6 +55,8 @@ function fmtPrice(n: number | null, moneda: string) {
 
 export default function CRMProspectos() {
     const { tenant } = useTenant();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const loc = useLocation();
     const [prospectos, setProspectos] = useState<Prospecto[]>([]);
     const [contactos, setContactos] = useState<Contacto[]>([]);
     const [autosMap, setAutosMap] = useState<Record<string, AutoVinculado[]>>({});
@@ -64,6 +67,15 @@ export default function CRMProspectos() {
     const [saving, setSaving] = useState(false);
 
     useEffect(() => { if (tenant) loadData(); }, [tenant]);
+
+    // Auto-open form if navigated with ?action=crear
+    useEffect(() => {
+        const params = new URLSearchParams(loc.search);
+        if (params.get('action') === 'crear') {
+            abrirEdicion();
+            window.history.replaceState({}, '', loc.pathname);
+        }
+    }, [loc.search]);
 
     const loadData = async () => {
         setLoading(true);

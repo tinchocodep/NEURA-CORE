@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Calendar, Check, AlertTriangle, Plus, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 
@@ -25,6 +26,7 @@ function startOfWeek(d: Date) { const r = new Date(d); const day = r.getDay(); r
 
 export default function Agenda() {
   const { tenant } = useTenant();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = useState<Vencimiento[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<ViewType>('mes');
@@ -37,6 +39,16 @@ export default function Agenda() {
   const [formData, setFormData] = useState({ tipo: 'otro', fecha: '', descripcion: '' });
 
   useEffect(() => { if (tenant) loadData(); }, [tenant]);
+
+  // Auto-open form if navigated with ?action=crear
+  useEffect(() => {
+    if (searchParams.get('action') === 'crear') {
+      setFormData({ tipo: 'otro', fecha: '', descripcion: '' });
+      setShowForm(true);
+      searchParams.delete('action');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams]);
 
   const loadData = async () => {
     setLoading(true);
