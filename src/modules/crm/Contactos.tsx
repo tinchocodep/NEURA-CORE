@@ -94,19 +94,32 @@ export default function CRMContactos() {
 
     return (
         <div style={{ padding: '1.5rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                <div>
-                    <h1 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: 2 }}>Contactos</h1>
-                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>{contactos.length} contactos activos</p>
+            {/* Desktop header */}
+            <div className="module-header-desktop">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                    <div>
+                        <h1 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: 2 }}>Contactos</h1>
+                        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>{contactos.length} contactos activos</p>
+                    </div>
+                    <button className="btn btn-primary" onClick={openCreate} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Plus size={16} /> Nuevo Contacto
+                    </button>
                 </div>
-                <button className="btn btn-primary" onClick={openCreate} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Plus size={16} /> Nuevo Contacto
-                </button>
+                <div style={{ marginBottom: '1rem', position: 'relative' }}>
+                    <Search size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
+                    <input className="form-input" placeholder="Buscar por nombre, empresa o email..." value={search} onChange={e => setSearch(e.target.value)} style={{ paddingLeft: 32 }} />
+                </div>
             </div>
 
-            <div style={{ marginBottom: '1rem', position: 'relative' }}>
-                <Search size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
-                <input className="form-input" placeholder="Buscar por nombre, empresa o email..." value={search} onChange={e => setSearch(e.target.value)} style={{ paddingLeft: 32 }} />
+            {/* Mobile header */}
+            <div className="module-header-mobile" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                <button className="btn btn-primary" onClick={openCreate} style={{ display: 'flex', alignItems: 'center', gap: 6, alignSelf: 'flex-end', fontSize: '0.875rem', padding: '8px 16px' }}>
+                    <Plus size={16} /> Nuevo Contacto
+                </button>
+                <div style={{ position: 'relative' }}>
+                    <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
+                    <input className="form-input" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} style={{ paddingLeft: 34, height: 40, fontSize: '0.875rem' }} />
+                </div>
             </div>
 
             {loading ? (

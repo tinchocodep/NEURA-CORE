@@ -159,7 +159,8 @@ export default function CRMProspectos() {
 
     return (
         <div style={{ padding: '1.5rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            {/* Desktop header */}
+            <div className="module-header-desktop" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <div>
                     <h1 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: 2 }}>Pipeline de Prospectos</h1>
                     <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
@@ -170,6 +171,13 @@ export default function CRMProspectos() {
                 </div>
                 <button className="btn btn-primary" onClick={() => abrirEdicion()} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <Plus size={16} /> Nuevo Prospecto
+                </button>
+            </div>
+
+            {/* Mobile header */}
+            <div className="module-header-mobile" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                <button className="btn btn-primary" onClick={() => abrirEdicion()} style={{ display: 'flex', alignItems: 'center', gap: 6, alignSelf: 'flex-end', fontSize: '0.875rem', padding: '8px 16px' }}>
+                    <Plus size={16} /> Nuevo
                 </button>
             </div>
 

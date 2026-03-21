@@ -2355,7 +2355,7 @@ body:has([style*="position: fixed"][style*="inset: 0"]) {
 /* ── Mobile Sub-Navigation (module toggle) ── */
 .mobile-subnav {
   padding: 0 1rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0;
 }
 
 .mobile-subnav-toggle {
@@ -2386,6 +2386,54 @@ body:has([style*="position: fixed"][style*="inset: 0"]) {
 
 .mobile-subnav-toggle svg {
   color: var(--color-text-muted);
+}
+
+.mobile-section-label {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  padding: 4px 4px 0;
+  margin-bottom: -6px;
+  letter-spacing: 0.01em;
+}
+
+/* Module header: desktop vs mobile */
+.module-header-desktop {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.module-header-mobile {
+  display: none;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+@media (max-width: 768px) {
+  .module-header-desktop { display: none !important; }
+  .module-header-mobile { display: flex !important; }
+}
+
+/* Hide page titles inside modules on mobile — the section label already shows it */
+.mobile-content-area h1:first-child,
+.mobile-content-area > div > h1:first-child {
+  display: none;
+}
+.mobile-content-area > div {
+  padding: 0 !important;
+  gap: 0.5rem !important;
+}
+
+/* Mobile tables: horizontal scroll */
+@media (max-width: 768px) {
+  .mobile-content-area table {
+    min-width: 700px;
+  }
+  .mobile-table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--radius-md);
+  }
 }
 
 .mobile-subnav-dropdown {

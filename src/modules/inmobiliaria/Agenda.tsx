@@ -99,8 +99,8 @@ export default function Agenda() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* ─── Header ─── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+      {/* ─── Header (Desktop) ─── */}
+      <div className="module-header-desktop" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>Agenda</h1>
         {overdueCount > 0 && (
           <span style={{ background: '#EF444420', color: '#EF4444', fontSize: '0.75rem', fontWeight: 700, padding: '3px 10px', borderRadius: 99, display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -130,6 +130,31 @@ export default function Agenda() {
         <button onClick={() => { setFormData({ tipo: 'otro', fecha: '', descripcion: '' }); setShowForm(true); }} className="btn btn-primary" style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 4 }}>
           <Plus size={14} /> Nuevo
         </button>
+      </div>
+
+      {/* ─── Header (Mobile) ─── */}
+      <div className="module-header-mobile" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <button onClick={() => { setFormData({ tipo: 'otro', fecha: '', descripcion: '' }); setShowForm(true); }} className="btn btn-primary" style={{ fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: 6, alignSelf: 'flex-end', padding: '8px 16px' }}>
+          <Plus size={16} /> Nuevo
+        </button>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <select value={filterTipo} onChange={e => setFilterTipo(e.target.value)} className="form-input" style={{ height: 40, fontSize: '0.875rem', width: 'auto' }}>
+            <option value="">Todos</option>
+            {TIPOS.map(t => <option key={t} value={t}>{TIPO_CFG[t]?.label}</option>)}
+          </select>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', cursor: 'pointer', color: 'var(--color-text-muted)' }}>
+            <input type="checkbox" checked={showCompleted} onChange={e => setShowCompleted(e.target.checked)} /> Completados
+          </label>
+        </div>
+        {/* View tabs */}
+        <div style={{ display: 'flex', border: '1px solid var(--color-border-subtle)', borderRadius: 10, overflow: 'hidden', alignSelf: 'flex-start' }}>
+          {(['mes', 'semana', 'dia', 'tabla'] as ViewType[]).map(v => (
+            <button key={v} onClick={() => setView(v)}
+              style={{ padding: '7px 14px', fontSize: '0.8rem', fontWeight: view === v ? 700 : 500, background: view === v ? 'var(--color-cta, #2563EB)' : 'var(--color-bg-surface)', color: view === v ? '#fff' : 'var(--color-text-muted)', border: 'none', cursor: 'pointer', borderLeft: v !== 'mes' ? '1px solid var(--color-border-subtle)' : 'none', textTransform: 'capitalize' }}>
+              {v === 'tabla' ? 'Tabla' : v === 'mes' ? 'Mes' : v === 'semana' ? 'Semana' : 'Día'}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ─── Nav bar (not for tabla) ─── */}

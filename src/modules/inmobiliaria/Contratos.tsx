@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Search, Plus, X, FileText } from 'lucide-react';
+import { Search, Plus, X, FileText, Grid3X3, List, SlidersHorizontal, MoreVertical, Columns3 } from 'lucide-react';
 import { useSearchParams, useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
@@ -42,6 +42,9 @@ export default function Contratos() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Contrato | null>(null);
   const [form, setForm] = useState(emptyContrato);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [showFilters, setShowFilters] = useState(false);
+  const [actionMenuId, setActionMenuId] = useState<string | null>(null);
   const [showNewCliente, setShowNewCliente] = useState<'inquilino' | 'propietario' | null>(null);
   const [newClienteNombre, setNewClienteNombre] = useState('');
   const [newClienteCuit, setNewClienteCuit] = useState('');
@@ -125,6 +128,19 @@ export default function Contratos() {
   const now = new Date();
   const daysUntil = (d: string) => Math.ceil((new Date(d).getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
 
+  // KPI metrics
+  const vigentes = items.filter(c => c.estado === 'vigente');
+  const ingresoMensual = vigentes.reduce((sum, c) => sum + (c.moneda === 'ARS' ? c.monto_mensual : 0), 0);
+  const ingresoMensualUSD = vigentes.reduce((sum, c) => sum + (c.moneda === 'USD' ? c.monto_mensual : 0), 0);
+  const porVencer30 = vigentes.filter(c => daysUntil(c.fecha_fin) <= 30 && daysUntil(c.fecha_fin) > 0).length;
+  const vencidos = items.filter(c => c.estado === 'vencido' || (c.estado === 'vigente' && daysUntil(c.fecha_fin) <= 0)).length;
+
+  const fmtMoney = (n: number) => {
+    if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+    if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
+    return `$${n.toLocaleString('es-AR')}`;
+  };
+
   const filtered = items.filter(c => {
     if (filterEstado && c.estado !== filterEstado) return false;
     if (search) {
@@ -139,7 +155,8 @@ export default function Contratos() {
 
   return (
     <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+      {/* Desktop header */}
+      <div className="module-header-desktop">
         <h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Contratos</h1>
         <div style={{ flex: 1, minWidth: 200, maxWidth: 300, position: 'relative' }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
@@ -150,56 +167,188 @@ export default function Contratos() {
           <option value="">Todos los estados</option>
           {ESTADOS.map(e => <option key={e} value={e}>{e}</option>)}
         </select>
+        <div style={{ display: 'flex', gap: '0.25rem', background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-sm)', padding: 2 }}>
+          <button onClick={() => setViewMode('grid')} style={{ padding: '0.3rem 0.5rem', borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer', background: viewMode === 'grid' ? 'var(--color-accent)' : 'transparent', color: viewMode === 'grid' ? '#fff' : 'var(--color-text-muted)' }}><Grid3X3 size={14} /></button>
+          <button onClick={() => setViewMode('list')} style={{ padding: '0.3rem 0.5rem', borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer', background: viewMode === 'list' ? 'var(--color-accent)' : 'transparent', color: viewMode === 'list' ? '#fff' : 'var(--color-text-muted)' }}><List size={14} /></button>
+        </div>
         <button onClick={openNew} className="btn btn-primary" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem' }}>
           <Plus size={14} /> Nuevo
         </button>
       </div>
 
-      <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-        <table style={{ width: '100%', fontSize: '0.8rem', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
-              {['Propiedad', 'Inquilino', 'Propietario', 'Tipo', 'Monto', 'Inicio', 'Fin', 'Dias', 'Estado'].map(h => (
-                <th key={h} style={{ padding: '0.6rem 0.75rem', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-muted)', fontSize: '0.75rem' }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map(c => {
-              const dias = daysUntil(c.fecha_fin);
-              return (
-                <tr key={c.id} onClick={() => openEdit(c)} style={{ borderBottom: '1px solid var(--color-border-subtle)', cursor: 'pointer' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover, rgba(255,255,255,0.03))')}
-                  onMouseLeave={e => (e.currentTarget.style.background = '')}>
-                  <td style={{ padding: '0.5rem 0.75rem', fontWeight: 600 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <FileText size={13} color="var(--color-text-muted)" />
-                      {propDir(c.propiedad_id)}
-                    </div>
-                  </td>
-                  <td style={{ padding: '0.5rem 0.75rem' }}>{cliName(c.inquilino_id)}</td>
-                  <td style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-muted)' }}>{cliName(c.propietario_id)}</td>
-                  <td style={{ padding: '0.5rem 0.75rem', textTransform: 'capitalize' }}>{c.tipo}</td>
-                  <td style={{ padding: '0.5rem 0.75rem', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
-                    {c.moneda === 'USD' ? 'US$' : '$'}{c.monto_mensual.toLocaleString('es-AR')}
-                  </td>
-                  <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.75rem' }}>{new Date(c.fecha_inicio).toLocaleDateString('es-AR')}</td>
-                  <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.75rem' }}>{new Date(c.fecha_fin).toLocaleDateString('es-AR')}</td>
-                  <td style={{ padding: '0.5rem 0.75rem', fontWeight: 600, color: c.estado === 'vigente' && dias <= 30 ? '#EF4444' : 'var(--color-text-muted)' }}>
-                    {c.estado === 'vigente' ? (dias > 0 ? `${dias}d` : 'Vencido') : '—'}
-                  </td>
-                  <td style={{ padding: '0.5rem 0.75rem' }}>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: `${ESTADO_COLOR[c.estado]}20`, color: ESTADO_COLOR[c.estado], textTransform: 'capitalize' }}>{c.estado}</span>
-                  </td>
-                </tr>
-              );
-            })}
-            {filtered.length === 0 && (
-              <tr><td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin contratos</td></tr>
+      {/* Mobile header — toolbar style */}
+      <div className="module-header-mobile">
+        {/* KPI chips */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => { setFilterEstado('vigente'); setShowFilters(true); }}
+            style={{ flex: 1, padding: '10px 8px', borderRadius: 10, border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-card)', cursor: 'pointer', textAlign: 'center' }}>
+            <div style={{ fontSize: '1.1rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>
+              {fmtMoney(ingresoMensual)}
+            </div>
+            <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', fontWeight: 500, marginTop: 2 }}>Ingreso mensual</div>
+          </button>
+          <button onClick={() => { setFilterEstado('vigente'); setShowFilters(true); }}
+            style={{ flex: 1, padding: '10px 8px', borderRadius: 10, border: '1px solid var(--color-border-subtle)', background: porVencer30 > 0 ? '#F59E0B10' : 'var(--color-bg-card)', cursor: 'pointer', textAlign: 'center' }}>
+            <div style={{ fontSize: '1.1rem', fontWeight: 800, color: porVencer30 > 0 ? '#F59E0B' : 'var(--color-text-primary)' }}>
+              {porVencer30}
+            </div>
+            <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', fontWeight: 500, marginTop: 2 }}>Vencen en 30d</div>
+          </button>
+          <button onClick={() => { setFilterEstado(''); setShowFilters(false); }}
+            style={{ flex: 1, padding: '10px 8px', borderRadius: 10, border: '1px solid var(--color-border-subtle)', background: vencidos > 0 ? '#EF444410' : 'var(--color-bg-card)', cursor: 'pointer', textAlign: 'center' }}>
+            <div style={{ fontSize: '1.1rem', fontWeight: 800, color: vencidos > 0 ? '#EF4444' : 'var(--color-text-primary)' }}>
+              {vencidos}
+            </div>
+            <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', fontWeight: 500, marginTop: 2 }}>Vencidos</div>
+          </button>
+        </div>
+        {/* New button full width */}
+        <button onClick={openNew} className="btn btn-primary" style={{ width: '100%', height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: '0.9375rem', fontWeight: 600, borderRadius: 10 }}>
+          <Plus size={18} /> Nuevo Contrato
+        </button>
+        {/* Row 2: Search + Filter btn + View btn */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ flex: 1, position: 'relative' }}>
+            <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
+            <input type="text" placeholder="Buscar propiedad o inquilino..." value={search} onChange={e => setSearch(e.target.value)}
+              className="form-input" style={{ paddingLeft: 34, height: 42, fontSize: '0.9rem', borderRadius: 10 }} />
+          </div>
+          <button onClick={() => setShowFilters(f => !f)}
+            style={{ width: 42, height: 42, borderRadius: 10, border: '1px solid var(--color-border-subtle)', background: showFilters ? 'var(--color-accent)' : 'var(--color-bg-card)', color: showFilters ? '#fff' : 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+            title="Filtros">
+            <SlidersHorizontal size={18} />
+          </button>
+          <button onClick={() => setViewMode(v => v === 'list' ? 'grid' : 'list')}
+            style={{ width: 42, height: 42, borderRadius: 10, border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-card)', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+            title={viewMode === 'list' ? 'Ver cards' : 'Ver lista'}>
+            {viewMode === 'list' ? <Grid3X3 size={18} /> : <List size={18} />}
+          </button>
+        </div>
+        {/* Filter panel (collapsible) */}
+        {showFilters && (
+          <div style={{ display: 'flex', gap: 8, padding: '8px 0', flexWrap: 'wrap', animation: 'fadeIn 0.15s ease' }}>
+            <select value={filterEstado} onChange={e => setFilterEstado(e.target.value)} className="form-input" style={{ height: 36, fontSize: '0.8rem', width: 'auto', borderRadius: 8 }}>
+              <option value="">Todos los estados</option>
+              {ESTADOS.map(e => <option key={e} value={e}>{e}</option>)}
+            </select>
+            {filterEstado && (
+              <button onClick={() => setFilterEstado('')} style={{ height: 36, padding: '0 10px', borderRadius: 8, border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-card)', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '0.75rem' }}>
+                Limpiar
+              </button>
             )}
-          </tbody>
-        </table>
+          </div>
+        )}
+        {/* Result count */}
+        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', padding: '2px 0' }}>
+          {filtered.length} contrato{filtered.length !== 1 ? 's' : ''}
+        </div>
       </div>
+
+      {/* ─── LIST VIEW (mobile-optimized rows) ─── */}
+      {viewMode === 'list' ? (
+        <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 12, overflow: 'hidden' }}>
+          {/* Column header */}
+          <div style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.7rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <span style={{ flex: 1 }}>Propiedad</span>
+            <span style={{ width: 80, textAlign: 'right' }}>Monto</span>
+            <span style={{ width: 44 }}></span>
+          </div>
+          {filtered.map(c => {
+            const dias = daysUntil(c.fecha_fin);
+            const isUrgent = c.estado === 'vigente' && dias <= 30 && dias > 0;
+            const isOverdue = c.estado === 'vigente' && dias <= 0;
+            return (
+              <div key={c.id} style={{ display: 'flex', alignItems: 'center', padding: '10px 12px', borderBottom: '1px solid var(--color-border-subtle)', cursor: 'pointer', position: 'relative', background: isOverdue ? '#EF444408' : isUrgent ? '#F59E0B06' : 'transparent' }}
+                onClick={() => openEdit(c)}>
+                {/* Estado dot */}
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: isOverdue ? '#EF4444' : isUrgent ? '#F59E0B' : (ESTADO_COLOR[c.estado] || '#6B7280'), flexShrink: 0, marginRight: 10 }} />
+                {/* Main info */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: '0.875rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {propDir(c.propiedad_id)}
+                    </span>
+                    {isUrgent && (
+                      <span style={{ fontSize: '0.6rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#F59E0B20', color: '#F59E0B', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                        {dias}d
+                      </span>
+                    )}
+                    {isOverdue && (
+                      <span style={{ fontSize: '0.6rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#EF444420', color: '#EF4444', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                        Vencido
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {cliName(c.inquilino_id)} · <span style={{ textTransform: 'capitalize' }}>{c.tipo}</span>
+                  </div>
+                </div>
+                {/* Monto */}
+                <div style={{ width: 80, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', fontWeight: 600, flexShrink: 0 }}>
+                  {c.moneda === 'USD' ? 'US$' : '$'}{c.monto_mensual.toLocaleString('es-AR')}
+                </div>
+                {/* Action menu */}
+                <button onClick={e => { e.stopPropagation(); setActionMenuId(actionMenuId === c.id ? null : c.id); }}
+                  style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', flexShrink: 0, borderRadius: 6 }}>
+                  <MoreVertical size={16} />
+                </button>
+                {/* Action dropdown */}
+                {actionMenuId === c.id && (
+                  <div style={{ position: 'absolute', right: 12, top: '100%', zIndex: 50, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', overflow: 'hidden', minWidth: 140 }}>
+                    <button onClick={e => { e.stopPropagation(); openEdit(c); setActionMenuId(null); }}
+                      style={{ width: '100%', padding: '10px 14px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500, color: 'var(--color-text-primary)', fontFamily: 'var(--font-sans)' }}>
+                      Editar contrato
+                    </button>
+                    <button onClick={e => { e.stopPropagation(); setEditing(c); setActionMenuId(null); remove(); }}
+                      style={{ width: '100%', padding: '10px 14px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500, color: '#EF4444', fontFamily: 'var(--font-sans)', borderTop: '1px solid var(--color-border-subtle)' }}>
+                      Eliminar
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {filtered.length === 0 && (
+            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin contratos</div>
+          )}
+        </div>
+      ) : (
+      /* ─── CARD VIEW ─── */
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.75rem' }}>
+        {filtered.map(c => {
+          const dias = daysUntil(c.fecha_fin);
+          return (
+            <div key={c.id} onClick={() => openEdit(c)} style={{
+              background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)',
+              borderRadius: 12, padding: '0.875rem', cursor: 'pointer', transition: 'border-color 0.2s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--color-accent)')}
+            onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--color-border-subtle)')}>
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: `${ESTADO_COLOR[c.estado]}20`, color: ESTADO_COLOR[c.estado], textTransform: 'capitalize' }}>{c.estado}</span>
+                <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: 'rgba(99,102,241,0.1)', color: '#6366F1', textTransform: 'capitalize' }}>{c.tipo}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.3rem' }}>
+                <FileText size={14} color="var(--color-text-muted)" style={{ flexShrink: 0 }} />
+                <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{propDir(c.propiedad_id)}</span>
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>
+                {cliName(c.inquilino_id)} → {cliName(c.propietario_id)}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.9rem', fontWeight: 700 }}>
+                  {c.moneda === 'USD' ? 'US$' : '$'}{c.monto_mensual.toLocaleString('es-AR')}
+                </span>
+                <span style={{ fontSize: '0.7rem', color: c.estado === 'vigente' && dias <= 30 ? '#EF4444' : 'var(--color-text-muted)' }}>
+                  {c.estado === 'vigente' ? (dias > 0 ? `${dias} días` : 'Vencido') : `${new Date(c.fecha_inicio).toLocaleDateString('es-AR')} — ${new Date(c.fecha_fin).toLocaleDateString('es-AR')}`}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+        {filtered.length === 0 && <div style={{ gridColumn: '1/-1', padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin contratos</div>}
+      </div>
+      )}
 
       {/* Modal */}
       {showModal && (

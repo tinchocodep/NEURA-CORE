@@ -214,6 +214,19 @@ export default function Layout() {
     const currentModuleName = isCRM ? 'CRM' : isTesoreria ? 'Tesorería' : (isContable && !isConfiguracion) ? 'Contable' : isComercial ? 'Comercial' : isInmobiliaria ? 'Inmobiliaria' : '';
     const [mobileSubnavOpen, setMobileSubnavOpen] = useState(false);
 
+    // Mobile: current section name (e.g. "Dashboard", "Contratos")
+    const currentSectionName = (() => {
+        if (!isMobile || sectionItems.length === 0) return '';
+        // Find best match: longest path that matches current location
+        const match = sectionItems
+            .filter(item => {
+                const isDash = ['/tesoreria', '/contable', '/crm', '/comercial', '/inmobiliaria'].includes(item.path);
+                return isDash ? location.pathname === item.path : location.pathname.startsWith(item.path);
+            })
+            .sort((a, b) => b.path.length - a.path.length)[0];
+        return match?.name || '';
+    })();
+
     return (
         <>
             <div
@@ -367,6 +380,9 @@ export default function Layout() {
                                 <span className="mobile-subnav-title">{currentModuleName}</span>
                                 <ChevronDown size={18} style={{ transition: 'transform 0.2s', transform: mobileSubnavOpen ? 'rotate(180deg)' : 'none' }} />
                             </button>
+                            {currentSectionName && !mobileSubnavOpen && (
+                                <div className="mobile-section-label">{currentSectionName}</div>
+                            )}
                             {mobileSubnavOpen && (
                                 <div className="mobile-subnav-dropdown">
                                     {sectionItems.map(item => {
@@ -405,7 +421,7 @@ export default function Layout() {
                         </div>
                     )
                 )}
-                <div style={{ padding: '2rem 2.5rem', flex: 1 }}>
+                <div className={isMobile ? 'mobile-content-area' : ''} style={{ padding: isMobile ? '0.25rem 1rem' : '2rem 2.5rem', flex: 1 }}>
                     <AnimatePresence mode="wait">
                         <motion.div
                             key={location.pathname}
