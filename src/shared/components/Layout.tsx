@@ -232,6 +232,16 @@ export default function Layout() {
     ];
     const mobileSectionItems = isMobile && isOperaciones ? operacionesItems : isMobile && isGestion ? gestionItems : sectionItems;
 
+    // Ref callback for auto-scrolling to active subnav item — must be declared at top level (Rules of Hooks)
+    const subnavScrollRef = useCallback((node: HTMLDivElement | null) => {
+        if (!node) return;
+        const active = node.querySelector('[data-active="true"]') as HTMLElement;
+        if (active) {
+            const scrollLeft = active.offsetLeft - node.offsetWidth / 2 + active.offsetWidth / 2;
+            node.scrollTo({ left: scrollLeft, behavior: 'smooth' });
+        }
+    }, [location.pathname]);
+
     return (
         <>
             <div
@@ -384,14 +394,7 @@ export default function Layout() {
                             <div className="mobile-subnav-toggle" style={{ cursor: 'default' }}>
                                 <span className="mobile-subnav-title">{currentModuleName}</span>
                             </div>
-                            <div className="mobile-subnav-scroll" ref={useCallback((node: HTMLDivElement | null) => {
-                                if (!node) return;
-                                const active = node.querySelector('[data-active="true"]') as HTMLElement;
-                                if (active) {
-                                    const scrollLeft = active.offsetLeft - node.offsetWidth / 2 + active.offsetWidth / 2;
-                                    node.scrollTo({ left: scrollLeft, behavior: 'smooth' });
-                                }
-                            }, [location.pathname])}>
+                            <div className="mobile-subnav-scroll" ref={subnavScrollRef}>
                                 {mobileSectionItems.map(item => {
                                     const isDashboardPath = ['/tesoreria', '/contable', '/crm', '/comercial', '/inmobiliaria'].includes(item.path);
                                     const isActiveItem = isDashboardPath
