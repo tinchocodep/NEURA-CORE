@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Search, SlidersHorizontal, FileText, Eye, CreditCard, Check, XCircle, ChevronDown } from 'lucide-react';
+import { Search, SlidersHorizontal, FileText, CreditCard, Check, XCircle, ChevronDown } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useTenant } from '../../../contexts/TenantContext';
-import { useNavigate } from 'react-router-dom';
 
 interface ComprobanteMin {
   id: string; tipo: 'compra' | 'venta'; fecha: string; numero_comprobante: string;
@@ -19,7 +18,6 @@ const ESTADO_COLOR: Record<string, string> = {
 
 export default function ComprobantesMobile() {
   const { tenant } = useTenant();
-  const navigate = useNavigate();
   const [items, setItems] = useState<ComprobanteMin[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
