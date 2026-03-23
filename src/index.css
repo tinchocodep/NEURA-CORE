@@ -2163,30 +2163,8 @@ body:has([style*="position: fixed"][style*="inset: 0"]) {
 }
 
 .mobile-nav-item.active {
-  color: var(--color-cta, #2563EB);
+  color: #185FA5;
   font-weight: 700;
-}
-
-.mobile-nav-item-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background: var(--brand, #2563EB);
-  color: #fff;
-  border: 3px solid rgba(255, 255, 255, 0.97);
-  cursor: pointer;
-  box-shadow: 0 4px 16px rgba(30, 58, 95, 0.25);
-  margin-top: -26px;
-  -webkit-tap-highlight-color: transparent;
-  transition: transform 0.15s, box-shadow 0.15s;
-}
-
-.mobile-nav-item-center:active {
-  transform: scale(0.92);
-  box-shadow: 0 2px 8px rgba(30, 58, 95, 0.2);
 }
 
 /* ── Mobile menu overlay ── */

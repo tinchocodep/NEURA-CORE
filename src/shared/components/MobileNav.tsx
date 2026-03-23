@@ -5,7 +5,7 @@ import {
   Upload, FileSignature, CalendarPlus, DollarSign, UserPlus,
   Settings, LogOut, Landmark, BookOpen, Briefcase, Funnel,
   Users, BarChart3, Receipt, Wallet, Bell, HelpCircle, Shield,
-  FilePlus, PlusCircle, Banknote
+  FilePlus, PlusCircle, Banknote, CheckCircle, CircleDollarSign
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
@@ -143,35 +143,34 @@ export default function MobileNav() {
 
   return (
     <>
-      <nav className="mobile-nav">
+      <nav className="mobile-nav" style={{ justifyContent: 'space-around' }}>
         {/* 1. Inicio */}
-        <Link to="/" className={`mobile-nav-item${isActive('/') ? ' active' : ''}`} onClick={closeAll}>
+        <Link to="/" className={`mobile-nav-item${isActive('/') && !showMenu ? ' active' : ''}`} onClick={closeAll}>
           <Home size={20} />
           <span>Inicio</span>
         </Link>
 
-        {/* 2. Proyecciones */}
-        <Link to="/tesoreria" className={`mobile-nav-item${isActive('/tesoreria') ? ' active' : ''}`} onClick={closeAll}>
-          <TrendingUp size={20} />
-          <span>Proyecc.</span>
+        {/* 2. Operaciones */}
+        <Link to="/inmobiliaria/liquidaciones" className={`mobile-nav-item${(isActive('/inmobiliaria/liquidaciones') || isActive('/inmobiliaria/agenda')) && !showMenu ? ' active' : ''}`} onClick={closeAll}>
+          <CheckCircle size={20} />
+          <span>Operac.</span>
         </Link>
 
-        {/* 3. + (FAB) */}
-        <button className="mobile-nav-item-center" onClick={() => { setShowCreate(a => !a); setShowMenu(false); }}>
-          {showCreate ? <X size={22} /> : <Plus size={22} />}
-        </button>
+        {/* 3. Inmob. */}
+        <Link to="/inmobiliaria" className={`mobile-nav-item${isActive('/inmobiliaria') && !isActive('/inmobiliaria/liquidaciones') && !isActive('/inmobiliaria/agenda') && !showMenu ? ' active' : ''}`} onClick={closeAll}>
+          <Building2 size={20} />
+          <span>Inmob.</span>
+        </Link>
 
-        {/* 4. Rubro (Inmobiliaria) */}
-        {rubroModule && (
-          <Link to={rubroPath} className={`mobile-nav-item${isActive(rubroPath) ? ' active' : ''}`} onClick={closeAll}>
-            <img src="/logo-inmobiliaria.png" alt="Inmob." className="mobile-nav-logo" />
-            <span>Inmob.</span>
-          </Link>
-        )}
+        {/* 4. Admin. */}
+        <Link to="/tesoreria" className={`mobile-nav-item${(isActive('/tesoreria') || isActive('/contable')) && !showMenu ? ' active' : ''}`} onClick={closeAll}>
+          <CircleDollarSign size={20} />
+          <span>Admin.</span>
+        </Link>
 
-        {/* 5. Más (Hamburguesa) */}
+        {/* 5. Más */}
         <button className={`mobile-nav-item${showMenu ? ' active' : ''}`} onClick={() => { setShowMenu(m => !m); setShowCreate(false); }}>
-          {showMenu ? <X size={20} /> : <Menu size={20} />}
+          <Menu size={20} />
           <span>Más</span>
         </button>
       </nav>
@@ -215,69 +214,147 @@ export default function MobileNav() {
         </div>
       )}
 
-      {/* ── Hamburger Menu (Mercado Pago style) ── */}
+      {/* ── Más Menu — always-expanded index ── */}
       {showMenu && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 'calc(var(--z-panel) + 1)', display: 'flex', flexDirection: 'column' }} onClick={() => setShowMenu(false)}>
           <div style={{ flex: 1, background: 'rgba(0,0,0,0.3)' }} />
           <div className="mobile-menu-sheet" onClick={e => e.stopPropagation()}>
             <div style={{ width: 36, height: 4, borderRadius: 99, background: 'var(--color-border)', margin: '0 auto 16px' }} />
 
-            {/* User header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid var(--color-border-subtle)' }}>
-              <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--brand)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '1.125rem' }}>
-                {(tenant as any)?.nombre?.[0] || 'N'}
+            {/* Profile header */}
+            <Link to="/configuracion" onClick={() => setShowMenu(false)}
+              style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid #f0f0f0', textDecoration: 'none' }}>
+              <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--color-cta, #2563EB)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '1.125rem', flexShrink: 0 }}>
+                {((tenant as any)?.name || 'N').charAt(0).toUpperCase()}
               </div>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--color-text-primary)' }}>{(tenant as any)?.nombre || 'Mi Empresa'}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--color-text-primary)' }}>{(tenant as any)?.name || 'Mi Empresa'}</div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Tu perfil ›</div>
               </div>
-            </div>
+            </Link>
 
-            {/* Menu sections */}
             <div style={{ maxHeight: 'calc(70vh - 120px)', overflowY: 'auto', paddingBottom: 16 }}>
-              {menuSections.map(section => (
-                <div key={section.title} style={{ marginBottom: 8 }}>
-                  {section.items.length > 0 && (
-                    <>
-                      <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '8px 0', marginTop: 4 }}>
-                        {section.title}
-                      </div>
-                      {section.items.map(item => (
-                        <Link
-                          key={item.name + item.path}
-                          to={item.path}
-                          onClick={() => setShowMenu(false)}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: 12,
-                            padding: '12px 8px', borderRadius: 10,
-                            color: isActive(item.path) ? 'var(--brand)' : 'var(--color-text-primary)',
-                            textDecoration: 'none', fontSize: '0.9375rem', fontWeight: 500,
-                            background: isActive(item.path) ? 'var(--color-accent-subtle)' : 'transparent',
-                          }}
-                        >
-                          <item.icon size={20} style={{ color: isActive(item.path) ? 'var(--brand)' : 'var(--color-text-muted)' }} />
-                          {item.name}
-                        </Link>
-                      ))}
-                      <div style={{ height: 1, background: 'var(--color-border-subtle)', margin: '8px 0' }} />
-                    </>
-                  )}
+
+              {/* ── MÓDULOS ── */}
+              <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#999', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '4px 0 10px' }}>
+                Módulos
+              </div>
+
+              {/* Inmobiliaria */}
+              {hasModule('inmobiliaria') && (<>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0' }}>
+                  <Building2 size={18} color="#185FA5" />
+                  <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>Inmobiliaria</span>
                 </div>
+                {([
+                  { name: 'Dashboard', path: '/inmobiliaria' },
+                  { name: 'Propiedades', path: '/inmobiliaria/propiedades', badge: '10' },
+                  { name: 'Contratos', path: '/inmobiliaria/contratos', badge: '2 vencen', badgeColor: '#F59E0B' },
+                  { name: 'Liquidaciones', path: '/inmobiliaria/liquidaciones' },
+                  { name: 'Cuentas', path: '/inmobiliaria/cuentas' },
+                  { name: 'Agenda', path: '/inmobiliaria/agenda' },
+                ] as { name: string; path: string; badge?: string; badgeColor?: string }[]).map(item => (
+                  <Link key={item.path} to={item.path} onClick={() => setShowMenu(false)}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 0 11px 32px', borderBottom: '1px solid #f8f8f8', textDecoration: 'none', color: '#555', fontSize: '0.8125rem' }}>
+                    <span>{item.name}</span>
+                    {item.badge && (
+                      <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: `${item.badgeColor || '#3B82F6'}15`, color: item.badgeColor || '#3B82F6' }}>{item.badge}</span>
+                    )}
+                  </Link>
+                ))}
+                <div style={{ height: 1, background: '#f0f0f0', margin: '8px 0' }} />
+              </>)}
+
+              {/* Administración (Tesorería + Contable) */}
+              {(hasModule('tesoreria') || hasModule('contable')) && (<>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0' }}>
+                  <Landmark size={18} color="#185FA5" />
+                  <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>Administración</span>
+                </div>
+                {([
+                  ...(hasModule('tesoreria') ? [
+                    { name: 'Movimientos', path: '/tesoreria/movimientos', badge: '3 pend.', badgeColor: '#F59E0B' },
+                    { name: 'Órdenes de pago', path: '/tesoreria/ordenes-pago' },
+                    { name: 'Cajas', path: '/tesoreria/cajas' },
+                    { name: 'Bancos', path: '/tesoreria/bancos' },
+                  ] : []),
+                  ...(hasModule('contable') ? [
+                    { name: 'Comprobantes', path: '/contable/comprobantes' },
+                    { name: 'Gastos', path: '/contable/comprobantes?tab=gasto' },
+                    { name: 'Ingresos', path: '/contable/comprobantes?tab=ingreso' },
+                  ] : []),
+                  ...(hasModule('tesoreria') ? [
+                    { name: 'Proyecciones', path: '/tesoreria' },
+                  ] : []),
+                ] as { name: string; path: string; badge?: string; badgeColor?: string }[]).map(item => (
+                  <Link key={item.path + item.name} to={item.path} onClick={() => setShowMenu(false)}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 0 11px 32px', borderBottom: '1px solid #f8f8f8', textDecoration: 'none', color: '#555', fontSize: '0.8125rem' }}>
+                    <span>{item.name}</span>
+                    {item.badge && (
+                      <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: `${item.badgeColor || '#3B82F6'}15`, color: item.badgeColor || '#3B82F6' }}>{item.badge}</span>
+                    )}
+                  </Link>
+                ))}
+                <div style={{ height: 1, background: '#f0f0f0', margin: '8px 0' }} />
+              </>)}
+
+              {/* CRM */}
+              {hasModule('crm') && (<>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0' }}>
+                  <Briefcase size={18} color="#185FA5" />
+                  <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>CRM</span>
+                </div>
+                {([
+                  { name: 'Contactos', path: '/crm/contactos' },
+                  { name: 'Prospectos', path: '/crm/prospectos' },
+                ] as { name: string; path: string; badge?: string; badgeColor?: string }[]).map(item => (
+                  <Link key={item.path} to={item.path} onClick={() => setShowMenu(false)}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 0 11px 32px', borderBottom: '1px solid #f8f8f8', textDecoration: 'none', color: '#555', fontSize: '0.8125rem' }}>
+                    <span>{item.name}</span>
+                  </Link>
+                ))}
+                <div style={{ height: 1, background: '#f0f0f0', margin: '8px 0' }} />
+              </>)}
+
+              {/* ── HERRAMIENTAS ── */}
+              <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#999', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '8px 0 10px' }}>
+                Herramientas
+              </div>
+              {([
+                { name: 'Agenda', icon: CalendarPlus, path: '/inmobiliaria/agenda' },
+                { name: 'Reportes', icon: BarChart3, path: '/comercial/reportes' },
+              ]).map(item => (
+                <Link key={item.name} to={item.path} onClick={() => setShowMenu(false)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 4px', borderBottom: '1px solid #f8f8f8', textDecoration: 'none', color: '#555', fontSize: '0.8125rem' }}>
+                  <item.icon size={16} color="#999" />
+                  <span>{item.name}</span>
+                </Link>
+              ))}
+              <div style={{ height: 1, background: '#f0f0f0', margin: '8px 0' }} />
+
+              {/* ── CUENTA ── */}
+              <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#999', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '8px 0 10px' }}>
+                Cuenta
+              </div>
+              {([
+                ...(role === 'admin' || role === 'superadmin' ? [{ name: 'Equipo', icon: Users, path: '/tesoreria/equipo' }] : []),
+                { name: 'Configuración', icon: Settings, path: '/configuracion' },
+                { name: 'Ayuda', icon: HelpCircle, path: '/ayuda' },
+                ...(role === 'superadmin' ? [{ name: 'Super Admin', icon: Shield, path: '/superadmin' }] : []),
+              ]).map(item => (
+                <Link key={item.name} to={item.path} onClick={() => setShowMenu(false)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 4px', borderBottom: '1px solid #f8f8f8', textDecoration: 'none', color: '#555', fontSize: '0.8125rem' }}>
+                  <item.icon size={16} color="#999" />
+                  <span>{item.name}</span>
+                </Link>
               ))}
 
-              {/* Logout */}
+              {/* Cerrar sesión */}
               <button
                 onClick={() => { signOut(); setShowMenu(false); }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  padding: '12px 8px', borderRadius: 10,
-                  color: 'var(--color-danger)', fontSize: '0.9375rem', fontWeight: 500,
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  textAlign: 'left', fontFamily: 'var(--font-sans)', width: '100%',
-                }}
-              >
-                <LogOut size={20} />
-                Cerrar Sesión
+                style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 4px', color: '#C93B3B', fontSize: '0.8125rem', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)', width: '100%', marginTop: 4 }}>
+                <LogOut size={16} />
+                Cerrar sesión
               </button>
             </div>
           </div>

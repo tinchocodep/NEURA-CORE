@@ -48,13 +48,7 @@ export default function TopBar() {
                         </button>
                     </div>
                 )}
-                {/* Floating notification bubble — only on Inicio */}
-                {isHome && (
-                    <button className="mobile-notif-bubble" title="Notificaciones">
-                        <Bell size={18} />
-                        <span className="mobile-notif-dot" />
-                    </button>
-                )}
+                {/* Notification bubble removed — now handled in VisionGeneral mobile header */}
             </>
         );
     }
