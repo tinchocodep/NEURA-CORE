@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Search, Plus, X, FileText, Grid3X3, List, Upload, Paperclip, TrendingUp, Trash2 } from 'lucide-react';
+import { Search, Plus, X, FileText, Grid3X3, List, Upload, Paperclip, TrendingUp, Trash2, MoreVertical } from 'lucide-react';
 import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
@@ -47,6 +47,7 @@ export default function Contratos() {
   const [editing, setEditing] = useState<Contrato | null>(null);
   const [form, setForm] = useState(emptyContrato);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [actionMenuId, setActionMenuId] = useState<string | null>(null);
   const [showNewCliente, setShowNewCliente] = useState<'inquilino' | 'propietario' | null>(null);
   const [newClienteNombre, setNewClienteNombre] = useState('');
   const [newClienteCuit, setNewClienteCuit] = useState('');
@@ -283,18 +284,45 @@ export default function Contratos() {
                     </span>
                   </div>
                 )}
-                {/* Row 4: action buttons */}
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {/* Row 4: Facturar + ⋮ menú */}
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center', position: 'relative' }}>
+                  <button onClick={() => {}} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Facturar</button>
                   {isOverdue && (
-                    <button onClick={() => {}} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #DC2626', background: 'transparent', color: '#DC2626', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Reclamar</button>
+                    <button onClick={() => {}} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #DC2626', background: 'transparent', color: '#DC2626', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Reclamar</button>
                   )}
-                  {isUrgent && (
-                    <button onClick={() => {}} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--color-text-primary)', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Renovar</button>
+                  <button onClick={() => setActionMenuId(actionMenuId === c.id ? null : c.id)}
+                    style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid var(--color-border-subtle)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
+                    <MoreVertical size={16} />
+                  </button>
+                  {actionMenuId === c.id && (
+                    <>
+                      <div style={{ position: 'fixed', inset: 0, zIndex: 49 }} onClick={() => setActionMenuId(null)} />
+                      <div style={{ position: 'absolute', right: 0, top: '100%', zIndex: 50, marginTop: 4, background: 'var(--color-bg-surface)', border: '1px solid var(--color-border-subtle)', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', overflow: 'hidden', minWidth: 170 }}>
+                        <button onClick={() => { openEdit(c); setActionMenuId(null); }}
+                          style={{ width: '100%', padding: '11px 14px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--color-text-primary)', fontFamily: 'var(--font-sans)', borderBottom: '1px solid var(--color-border-subtle)' }}>
+                          Ver detalle
+                        </button>
+                        <button onClick={() => { navigate('/inmobiliaria/liquidaciones'); setActionMenuId(null); }}
+                          style={{ width: '100%', padding: '11px 14px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--color-text-primary)', fontFamily: 'var(--font-sans)', borderBottom: '1px solid var(--color-border-subtle)' }}>
+                          Liquidar
+                        </button>
+                        <button onClick={() => { navigate(`/inmobiliaria/ordenes?propiedad=${c.propiedad_id}`); setActionMenuId(null); }}
+                          style={{ width: '100%', padding: '11px 14px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 500, color: '#8B5CF6', fontFamily: 'var(--font-sans)', borderBottom: '1px solid var(--color-border-subtle)' }}>
+                          Enviar proveedor
+                        </button>
+                        {isUrgent && (
+                          <button onClick={() => { setActionMenuId(null); }}
+                            style={{ width: '100%', padding: '11px 14px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--color-text-primary)', fontFamily: 'var(--font-sans)', borderBottom: '1px solid var(--color-border-subtle)' }}>
+                            Renovar contrato
+                          </button>
+                        )}
+                        <button onClick={() => { setEditing(c); remove(); setActionMenuId(null); }}
+                          style={{ width: '100%', padding: '11px 14px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 500, color: '#EF4444', fontFamily: 'var(--font-sans)' }}>
+                          Eliminar
+                        </button>
+                      </div>
+                    </>
                   )}
-                  <button onClick={() => navigate(`/inmobiliaria/ordenes?propiedad=${c.propiedad_id}`)} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #8B5CF6', background: 'transparent', color: '#8B5CF6', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Proveedor</button>
-                  <button onClick={() => navigate('/inmobiliaria/liquidaciones')} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '0.75rem', fontWeight: 500, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Liquidar</button>
-                  <button onClick={() => {}} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '0.75rem', fontWeight: 500, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Facturar</button>
-                  <button onClick={() => openEdit(c)} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '0.75rem', fontWeight: 500, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Ver detalle</button>
                 </div>
               </div>
             );
