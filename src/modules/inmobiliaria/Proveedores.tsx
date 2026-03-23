@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Search, Plus, X, Phone, Mail, MoreVertical, Edit2, Trash2, FileText, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import { Search, Plus, X, Phone, Mail, MoreVertical, Edit2, Trash2, FileText, ChevronUp, ExternalLink } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 

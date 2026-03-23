@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { FileText, Upload, TrendingUp, Building2, Zap, FileSignature, Wrench, Wallet, CreditCard, DollarSign, CalendarClock, UserPlus, Users } from 'lucide-react';
+import { FileText, Upload, Building2, Zap, FileSignature, Wrench, Wallet, CreditCard, DollarSign, CalendarClock, UserPlus, Users } from 'lucide-react';
 
 export default function AccionesRapidasWidget() {
     const navigate = useNavigate();

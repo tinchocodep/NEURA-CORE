@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Save, CheckCircle, ChevronLeft, FileText, Receipt, ClipboardList, Eye, EyeOff, Download, Send, Loader, Mail } from 'lucide-react';
+import { Plus, Trash2, Save, CheckCircle, ChevronLeft, FileText, Receipt, ClipboardList, Eye, EyeOff, Download, Send, Loader } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import jsPDF from 'jspdf';
@@ -8,7 +7,6 @@ import jsPDF from 'jspdf';
 interface Cliente { id: string; razon_social: string; cuit: string | null; }
 interface LineaDetalle { id: string; descripcion: string; cantidad: number; precio_unitario: number; iva_porcentaje: number; }
 
-const TIPOS_VENTA = ['Factura A', 'Factura B', 'Factura C', 'Recibo', 'Remito'] as const;
 const IVA_OPTIONS = [{ value: 21, label: '21%' }, { value: 10.5, label: '10.5%' }, { value: 27, label: '27%' }, { value: 0, label: 'Exento' }];
 
 function newId() { return crypto.randomUUID?.() ?? Math.random().toString(36).slice(2); }
@@ -19,7 +17,6 @@ type Mode = 'select' | 'factura' | 'remito' | 'recibo';
 
 export default function FacturarMobile() {
     const { tenant } = useTenant();
-    const navigate = useNavigate();
     const [mode, setMode] = useState<Mode>('select');
 
     // Shared

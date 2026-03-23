@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { DolarService, type DolarResumen } from '../services/DolarService';
-import { Calendar, Settings, AlertTriangle, Clock, ArrowRight, X, GripVertical, Bell, HelpCircle, FileSignature, DollarSign, Receipt, Upload, Wallet, CalendarClock, Home, Users, TrendingUp, ChevronRight, Building2, Wrench, UserPlus, CreditCard, FileText, Plus, ChevronDown } from 'lucide-react';
+import { Calendar, Settings, AlertTriangle, Clock, ArrowRight, X, GripVertical, Bell, HelpCircle, FileSignature, DollarSign, Receipt, Upload, Wallet, CalendarClock, Home, Users, TrendingUp, ChevronRight } from 'lucide-react';
 
 function useIsMobile() {
     const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
