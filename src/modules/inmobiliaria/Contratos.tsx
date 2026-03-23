@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Search, Plus, X, FileText, Grid3X3, List, SlidersHorizontal, MoreVertical } from 'lucide-react';
-import { useSearchParams, useLocation } from 'react-router-dom';
+import { Search, Plus, X, FileText, Grid3X3, List, Upload, Paperclip, TrendingUp, Trash2 } from 'lucide-react';
+import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 
+interface Documento { nombre: string; url: string; tipo: string; fecha: string; }
+interface Ajuste { fecha: string; monto_anterior: number; monto_nuevo: number; indice: string; porcentaje: number; }
 interface Contrato {
   id: string; propiedad_id: string; inquilino_id: string; propietario_id: string;
   tipo: string; fecha_inicio: string; fecha_fin: string; monto_mensual: number;
   moneda: string; indice_ajuste: string; periodo_ajuste_meses: number | null;
   deposito: number | null; comision_porcentaje: number | null; estado: string; notas: string | null;
+  documentos: Documento[]; monto_original: number | null; ultimo_ajuste: string | null; historial_ajustes: Ajuste[];
 }
 interface Propiedad { id: string; direccion: string; }
 interface Cliente { id: string; razon_social: string; }
@@ -31,6 +34,7 @@ const emptyContrato = {
 
 export default function Contratos() {
   const { tenant } = useTenant();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const loc = useLocation();
   const [items, setItems] = useState<Contrato[]>([]);
@@ -43,8 +47,6 @@ export default function Contratos() {
   const [editing, setEditing] = useState<Contrato | null>(null);
   const [form, setForm] = useState(emptyContrato);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
-  const [showFilters, setShowFilters] = useState(false);
-  const [actionMenuId, setActionMenuId] = useState<string | null>(null);
   const [showNewCliente, setShowNewCliente] = useState<'inquilino' | 'propietario' | null>(null);
   const [newClienteNombre, setNewClienteNombre] = useState('');
   const [newClienteCuit, setNewClienteCuit] = useState('');
@@ -141,7 +143,14 @@ export default function Contratos() {
   };
 
   const filtered = items.filter(c => {
-    if (filterEstado && c.estado !== filterEstado) return false;
+    if (filterEstado === 'vence_pronto') {
+      const d = daysUntil(c.fecha_fin);
+      if (!(c.estado === 'vigente' && d > 0 && d <= 30)) return false;
+    } else if (filterEstado === 'moroso') {
+      if (!(c.estado === 'vigente' && daysUntil(c.fecha_fin) <= 0)) return false;
+    } else if (filterEstado && c.estado !== filterEstado) {
+      return false;
+    }
     if (search) {
       const dir = propDir(c.propiedad_id).toLowerCase();
       const inq = cliName(c.inquilino_id).toLowerCase();
@@ -153,7 +162,7 @@ export default function Contratos() {
   if (loading) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Cargando contratos...</div>;
 
   return (
-    <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
       {/* Desktop header */}
       <div className="module-header-desktop">
         <h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Contratos</h1>
@@ -175,68 +184,48 @@ export default function Contratos() {
         </button>
       </div>
 
-      {/* Mobile header — toolbar style */}
-      <div className="module-header-mobile">
-        {/* KPI chips */}
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => { setFilterEstado('vigente'); setShowFilters(true); }}
-            style={{ flex: 1, padding: '10px 8px', borderRadius: 10, border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-card)', cursor: 'pointer', textAlign: 'center' }}>
-            <div style={{ fontSize: '1.1rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>
-              {fmtMoney(ingresoMensual)}
-            </div>
-            <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', fontWeight: 500, marginTop: 2 }}>Ingreso mensual</div>
-          </button>
-          <button onClick={() => { setFilterEstado('vigente'); setShowFilters(true); }}
-            style={{ flex: 1, padding: '10px 8px', borderRadius: 10, border: '1px solid var(--color-border-subtle)', background: porVencer30 > 0 ? '#F59E0B10' : 'var(--color-bg-card)', cursor: 'pointer', textAlign: 'center' }}>
-            <div style={{ fontSize: '1.1rem', fontWeight: 800, color: porVencer30 > 0 ? '#F59E0B' : 'var(--color-text-primary)' }}>
-              {porVencer30}
-            </div>
-            <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', fontWeight: 500, marginTop: 2 }}>Vencen en 30d</div>
-          </button>
-          <button onClick={() => { setFilterEstado(''); setShowFilters(false); }}
-            style={{ flex: 1, padding: '10px 8px', borderRadius: 10, border: '1px solid var(--color-border-subtle)', background: vencidos > 0 ? '#EF444410' : 'var(--color-bg-card)', cursor: 'pointer', textAlign: 'center' }}>
-            <div style={{ fontSize: '1.1rem', fontWeight: 800, color: vencidos > 0 ? '#EF4444' : 'var(--color-text-primary)' }}>
-              {vencidos}
-            </div>
-            <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', fontWeight: 500, marginTop: 2 }}>Vencidos</div>
-          </button>
+      {/* Mobile header */}
+      <div className="module-header-mobile" style={{ gap: '0.375rem' }}>
+        {/* KPI strip */}
+        <div style={{ display: 'flex', gap: 6 }}>
+          <div style={{ flex: 1, padding: '8px 6px', borderRadius: 8, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', textAlign: 'center' }}>
+            <div style={{ fontSize: '1rem', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{fmtMoney(ingresoMensual)}</div>
+            <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)' }}>Ingreso mensual</div>
+          </div>
+          <div style={{ flex: 1, padding: '8px 6px', borderRadius: 8, background: porVencer30 > 0 ? '#F59E0B08' : 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', textAlign: 'center' }}>
+            <div style={{ fontSize: '1rem', fontWeight: 800, color: porVencer30 > 0 ? '#F59E0B' : 'var(--color-text-primary)' }}>{porVencer30}</div>
+            <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)' }}>Vencen 30d</div>
+          </div>
+          <div style={{ flex: 1, padding: '8px 6px', borderRadius: 8, background: vencidos > 0 ? '#EF444408' : 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', textAlign: 'center' }}>
+            <div style={{ fontSize: '1rem', fontWeight: 800, color: vencidos > 0 ? '#EF4444' : 'var(--color-text-primary)' }}>{vencidos}</div>
+            <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)' }}>Vencidos</div>
+          </div>
         </div>
-        {/* New button full width */}
-        <button onClick={openNew} className="btn btn-primary" style={{ width: '100%', height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: '0.9375rem', fontWeight: 600, borderRadius: 10 }}>
-          <Plus size={18} /> Nuevo Contrato
-        </button>
-        {/* Row 2: Search + Filter btn + View btn */}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        {/* Search + new */}
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <div style={{ flex: 1, position: 'relative' }}>
-            <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
+            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
             <input type="text" placeholder="Buscar propiedad o inquilino..." value={search} onChange={e => setSearch(e.target.value)}
-              className="form-input" style={{ paddingLeft: 34, height: 42, fontSize: '0.9rem', borderRadius: 10 }} />
+              className="form-input" style={{ paddingLeft: 30, height: 38, fontSize: '0.8125rem', borderRadius: 10 }} />
           </div>
-          <button onClick={() => setShowFilters(f => !f)}
-            style={{ width: 42, height: 42, borderRadius: 10, border: '1px solid var(--color-border-subtle)', background: showFilters ? 'var(--color-accent)' : 'var(--color-bg-card)', color: showFilters ? '#fff' : 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
-            title="Filtros">
-            <SlidersHorizontal size={18} />
-          </button>
-          <button onClick={() => setViewMode(v => v === 'list' ? 'grid' : 'list')}
-            style={{ width: 42, height: 42, borderRadius: 10, border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-card)', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
-            title={viewMode === 'list' ? 'Ver cards' : 'Ver lista'}>
-            {viewMode === 'list' ? <Grid3X3 size={18} /> : <List size={18} />}
+          <button onClick={openNew} style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--color-cta, #2563EB)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Plus size={18} />
           </button>
         </div>
-        {/* Filter panel (collapsible) */}
-        {showFilters && (
-          <div style={{ display: 'flex', gap: 8, padding: '8px 0', flexWrap: 'wrap', animation: 'fadeIn 0.15s ease' }}>
-            <select value={filterEstado} onChange={e => setFilterEstado(e.target.value)} className="form-input" style={{ height: 36, fontSize: '0.8rem', width: 'auto', borderRadius: 8 }}>
-              <option value="">Todos los estados</option>
-              {ESTADOS.map(e => <option key={e} value={e}>{e}</option>)}
-            </select>
-            {filterEstado && (
-              <button onClick={() => setFilterEstado('')} style={{ height: 36, padding: '0 10px', borderRadius: 8, border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-card)', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '0.75rem' }}>
-                Limpiar
-              </button>
-            )}
-          </div>
-        )}
+        {/* Filter tabs */}
+        <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 2 }}>
+          {[
+            { id: '', label: `Todos (${items.length})` },
+            { id: 'vigente', label: `Activos (${vigentes.length})` },
+            { id: 'vence_pronto', label: `Vencen pronto (${porVencer30})` },
+            { id: 'moroso', label: `Morosos (${vencidos})` },
+          ].map(tab => (
+            <button key={tab.id} onClick={() => setFilterEstado(tab.id)}
+              style={{ padding: '5px 10px', borderRadius: 99, border: '1px solid var(--color-border-subtle)', background: filterEstado === tab.id ? 'var(--color-text-primary)' : 'var(--color-bg-surface)', color: filterEstado === tab.id ? '#fff' : 'var(--color-text-muted)', fontSize: '0.6875rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--font-sans)' }}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
         {/* Result count */}
         <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', padding: '2px 0' }}>
           {filtered.length} contrato{filtered.length !== 1 ? 's' : ''}
@@ -257,53 +246,56 @@ export default function Contratos() {
             const isUrgent = c.estado === 'vigente' && dias <= 30 && dias > 0;
             const isOverdue = c.estado === 'vigente' && dias <= 0;
             return (
-              <div key={c.id} style={{ display: 'flex', alignItems: 'center', padding: '10px 12px', borderBottom: '1px solid var(--color-border-subtle)', cursor: 'pointer', position: 'relative', background: isOverdue ? '#EF444408' : isUrgent ? '#F59E0B06' : 'transparent' }}
-                onClick={() => openEdit(c)}>
-                {/* Estado dot */}
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: isOverdue ? '#EF4444' : isUrgent ? '#F59E0B' : (ESTADO_COLOR[c.estado] || '#6B7280'), flexShrink: 0, marginRight: 10 }} />
-                {/* Main info */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: '0.875rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {propDir(c.propiedad_id)}
+              <div key={c.id} style={{ padding: '12px 14px', borderBottom: '1px solid var(--color-border-subtle)', background: isOverdue ? '#EF444406' : isUrgent ? '#F59E0B04' : 'transparent' }}>
+                {/* Row 1: address + price */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--color-text-primary)' }}>{propDir(c.propiedad_id)}</div>
+                  <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 8 }}>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.9375rem', fontWeight: 700 }}>
+                      {c.moneda === 'USD' ? 'US$' : '$'}{c.monto_mensual.toLocaleString('es-AR')}
+                    </div>
+                    <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', textTransform: 'capitalize' }}>{c.tipo}</div>
+                  </div>
+                </div>
+                {/* Row 2: inquilino */}
+                <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', marginBottom: 6 }}>
+                  {cliName(c.inquilino_id)}
+                </div>
+                {/* Row 3: status badge */}
+                {isUrgent && (
+                  <div style={{ marginBottom: 8 }}>
+                    <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: '#F59E0B18', color: '#D97706' }}>
+                      Vence en {dias}d
                     </span>
-                    {isUrgent && (
-                      <span style={{ fontSize: '0.6rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#F59E0B20', color: '#F59E0B', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                        {dias}d
-                      </span>
-                    )}
-                    {isOverdue && (
-                      <span style={{ fontSize: '0.6rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#EF444420', color: '#EF4444', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                        Vencido
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {cliName(c.inquilino_id)} · <span style={{ textTransform: 'capitalize' }}>{c.tipo}</span>
-                  </div>
-                </div>
-                {/* Monto */}
-                <div style={{ width: 80, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', fontWeight: 600, flexShrink: 0 }}>
-                  {c.moneda === 'USD' ? 'US$' : '$'}{c.monto_mensual.toLocaleString('es-AR')}
-                </div>
-                {/* Action menu */}
-                <button onClick={e => { e.stopPropagation(); setActionMenuId(actionMenuId === c.id ? null : c.id); }}
-                  style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', flexShrink: 0, borderRadius: 6 }}>
-                  <MoreVertical size={16} />
-                </button>
-                {/* Action dropdown */}
-                {actionMenuId === c.id && (
-                  <div style={{ position: 'absolute', right: 12, top: '100%', zIndex: 50, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', overflow: 'hidden', minWidth: 140 }}>
-                    <button onClick={e => { e.stopPropagation(); openEdit(c); setActionMenuId(null); }}
-                      style={{ width: '100%', padding: '10px 14px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500, color: 'var(--color-text-primary)', fontFamily: 'var(--font-sans)' }}>
-                      Editar contrato
-                    </button>
-                    <button onClick={e => { e.stopPropagation(); setEditing(c); setActionMenuId(null); remove(); }}
-                      style={{ width: '100%', padding: '10px 14px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500, color: '#EF4444', fontFamily: 'var(--font-sans)', borderTop: '1px solid var(--color-border-subtle)' }}>
-                      Eliminar
-                    </button>
                   </div>
                 )}
+                {isOverdue && (
+                  <div style={{ marginBottom: 8 }}>
+                    <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: '#EF444418', color: '#DC2626' }}>
+                      Moroso - {Math.abs(dias)} días
+                    </span>
+                  </div>
+                )}
+                {!isUrgent && !isOverdue && c.estado === 'vigente' && (
+                  <div style={{ marginBottom: 8 }}>
+                    <span style={{ fontSize: '0.6875rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: '#10B98118', color: '#16A34A' }}>
+                      Activo
+                    </span>
+                  </div>
+                )}
+                {/* Row 4: action buttons */}
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {isOverdue && (
+                    <button onClick={() => {}} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #DC2626', background: 'transparent', color: '#DC2626', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Reclamar</button>
+                  )}
+                  {isUrgent && (
+                    <button onClick={() => {}} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--color-text-primary)', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Renovar</button>
+                  )}
+                  <button onClick={() => navigate(`/inmobiliaria/ordenes?propiedad=${c.propiedad_id}`)} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #8B5CF6', background: 'transparent', color: '#8B5CF6', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Proveedor</button>
+                  <button onClick={() => navigate('/inmobiliaria/liquidaciones')} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '0.75rem', fontWeight: 500, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Liquidar</button>
+                  <button onClick={() => {}} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '0.75rem', fontWeight: 500, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Facturar</button>
+                  <button onClick={() => openEdit(c)} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '0.75rem', fontWeight: 500, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Ver detalle</button>
+                </div>
               </div>
             );
           })}
@@ -412,6 +404,99 @@ export default function Contratos() {
               </div>
               <label className="form-label">Notas</label>
               <textarea className="form-input" rows={2} value={form.notas || ''} onChange={e => setForm(f => ({ ...f, notas: e.target.value || null }))} />
+
+              {/* ── DOCUMENTOS (solo en edición) ── */}
+              {editing && (
+                <div style={{ borderTop: '1px solid var(--color-border-subtle)', paddingTop: 14, marginTop: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <label className="form-label" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 4 }}><Paperclip size={14} /> Documentos</label>
+                    <label style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--color-cta, #2563EB)', color: 'var(--color-cta, #2563EB)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3 }}>
+                      <Upload size={12} /> Subir
+                      <input type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: 'none' }} onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file || !editing) return;
+                        const path = `contratos/${editing.id}/${Date.now()}_${file.name}`;
+                        const { error } = await supabase.storage.from('documentos').upload(path, file);
+                        if (error) { alert('Error al subir: ' + error.message); return; }
+                        const { data: urlData } = supabase.storage.from('documentos').getPublicUrl(path);
+                        const newDoc: Documento = { nombre: file.name, url: urlData.publicUrl, tipo: file.type.includes('pdf') ? 'PDF' : 'Imagen', fecha: new Date().toISOString().slice(0, 10) };
+                        const docs = [...(editing.documentos || []), newDoc];
+                        await supabase.from('inmobiliaria_contratos').update({ documentos: docs }).eq('id', editing.id);
+                        setItems(prev => prev.map(c => c.id === editing.id ? { ...c, documentos: docs } : c));
+                        setEditing({ ...editing, documentos: docs });
+                      }} />
+                    </label>
+                  </div>
+                  {(editing.documentos || []).length === 0 ? (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontStyle: 'italic', padding: '8px 0' }}>Sin documentos adjuntos. Subí contrato firmado, garantía, DNI, etc.</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {(editing.documentos || []).map((doc, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 8, background: 'var(--color-bg-surface-2)', border: '1px solid var(--color-border-subtle)' }}>
+                          <FileText size={14} style={{ color: doc.tipo === 'PDF' ? '#EF4444' : '#3B82F6', flexShrink: 0 }} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <a href={doc.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--color-cta, #2563EB)', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{doc.nombre}</a>
+                            <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>{doc.tipo} · {doc.fecha}</div>
+                          </div>
+                          <button onClick={async () => {
+                            const docs = (editing.documentos || []).filter((_, idx) => idx !== i);
+                            await supabase.from('inmobiliaria_contratos').update({ documentos: docs }).eq('id', editing.id);
+                            setItems(prev => prev.map(c => c.id === editing.id ? { ...c, documentos: docs } : c));
+                            setEditing({ ...editing, documentos: docs });
+                          }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: 2 }}><Trash2 size={13} /></button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── AJUSTES DE ALQUILER (solo en edición, tipo alquiler) ── */}
+              {editing && editing.tipo === 'alquiler' && (
+                <div style={{ borderTop: '1px solid var(--color-border-subtle)', paddingTop: 14, marginTop: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <label className="form-label" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 4 }}><TrendingUp size={14} /> Ajustes de Alquiler</label>
+                    <button onClick={async () => {
+                      if (!editing) return;
+                      const porcentaje = prompt('Porcentaje de ajuste (ej: 25.5):');
+                      if (!porcentaje || isNaN(Number(porcentaje))) return;
+                      const pct = Number(porcentaje);
+                      const montoAnterior = editing.monto_mensual;
+                      const montoNuevo = Math.round(montoAnterior * (1 + pct / 100));
+                      const nuevoAjuste: Ajuste = { fecha: new Date().toISOString().slice(0, 10), monto_anterior: montoAnterior, monto_nuevo: montoNuevo, indice: editing.indice_ajuste, porcentaje: pct };
+                      const historial = [...(editing.historial_ajustes || []), nuevoAjuste];
+                      await supabase.from('inmobiliaria_contratos').update({ monto_mensual: montoNuevo, ultimo_ajuste: nuevoAjuste.fecha, historial_ajustes: historial }).eq('id', editing.id);
+                      setItems(prev => prev.map(c => c.id === editing.id ? { ...c, monto_mensual: montoNuevo, ultimo_ajuste: nuevoAjuste.fecha, historial_ajustes: historial } : c));
+                      setEditing({ ...editing, monto_mensual: montoNuevo, ultimo_ajuste: nuevoAjuste.fecha, historial_ajustes: historial });
+                    }} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--color-cta, #2563EB)', color: 'var(--color-cta, #2563EB)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', background: 'transparent', display: 'flex', alignItems: 'center', gap: 3, fontFamily: 'var(--font-sans)' }}>
+                      <TrendingUp size={12} /> Aplicar ajuste
+                    </button>
+                  </div>
+                  {/* Current info */}
+                  <div style={{ display: 'flex', gap: 12, marginBottom: 8, fontSize: '0.8125rem' }}>
+                    <div><span style={{ color: 'var(--color-text-muted)' }}>Original:</span> <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>${(editing.monto_original || editing.monto_mensual).toLocaleString('es-AR')}</span></div>
+                    <div><span style={{ color: 'var(--color-text-muted)' }}>Actual:</span> <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#10B981' }}>${editing.monto_mensual.toLocaleString('es-AR')}</span></div>
+                    <div><span style={{ color: 'var(--color-text-muted)' }}>Índice:</span> <span style={{ fontWeight: 600 }}>{editing.indice_ajuste}</span></div>
+                  </div>
+                  {/* Historial */}
+                  {(editing.historial_ajustes || []).length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {(editing.historial_ajustes || []).slice().reverse().map((aj, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 8, background: 'var(--color-bg-surface-2)', fontSize: '0.75rem' }}>
+                          <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)', width: 72, flexShrink: 0 }}>{aj.fecha}</span>
+                          <span style={{ fontFamily: 'var(--font-mono)' }}>${aj.monto_anterior.toLocaleString('es-AR')}</span>
+                          <span style={{ color: '#10B981' }}>→</span>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>${aj.monto_nuevo.toLocaleString('es-AR')}</span>
+                          <span style={{ fontSize: '0.625rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#10B98115', color: '#10B981', marginLeft: 'auto' }}>+{aj.porcentaje}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {(editing.historial_ajustes || []).length === 0 && (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>Sin ajustes aplicados. El próximo ajuste es cada {editing.periodo_ajuste_meses || 12} meses por {editing.indice_ajuste}.</div>
+                  )}
+                </div>
+              )}
             </div>
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
               {editing && <button onClick={remove} style={{ marginRight: 'auto', padding: '0.4rem 1rem', borderRadius: 6, border: '1px solid #EF4444', background: 'transparent', color: '#EF4444', cursor: 'pointer', fontSize: '0.85rem' }}>Eliminar</button>}

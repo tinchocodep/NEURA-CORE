@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Search, Bell, Settings, ChevronLeft } from 'lucide-react';
+import { Search, Bell, Settings } from 'lucide-react';
 import { DolarService } from '../../services/DolarService';
 import type { DolarResumen } from '../../services/DolarService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -28,26 +28,19 @@ export default function TopBar() {
     const initials = user?.email ? user.email.substring(0, 2).toUpperCase() : 'NC';
     const role = user?.user_metadata?.role || 'user';
     const location = useLocation();
-    const isSubpage = isMobile && location.pathname.split('/').filter(Boolean).length > 1;
+    const isHome = location.pathname === '/';
 
     /* ── MOBILE ── */
     if (isMobile) {
         return (
             <>
-                {isSubpage && (
-                    <div className="topbar">
-                        <button onClick={() => {
-                            // Navigate to parent module instead of history back (avoids ?action=crear loop)
-                            const parts = location.pathname.split('/').filter(Boolean);
-                            const parentPath = parts.length > 1 ? '/' + parts[0] : '/';
-                            navigate(parentPath);
-                        }}
-                            style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-primary)', fontWeight: 600, fontSize: '0.9375rem', padding: 0, fontFamily: 'var(--font-sans)' }}>
-                            <ChevronLeft size={20} /> Volver
-                        </button>
-                    </div>
+                {/* Floating notification bubble — only on Inicio */}
+                {isHome && (
+                    <button className="mobile-notif-bubble" title="Notificaciones">
+                        <Bell size={18} />
+                        <span className="mobile-notif-dot" />
+                    </button>
                 )}
-                {/* Notification bubble removed — now handled in VisionGeneral mobile header */}
             </>
         );
     }

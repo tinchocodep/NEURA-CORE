@@ -171,7 +171,7 @@ export default function Liquidaciones() {
   if (loading) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Cargando liquidaciones...</div>;
 
   return (
-    <div style={{ padding: isMobile ? '0.75rem' : '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+    <div style={{ padding: isMobile ? '0' : '1.5rem', display: 'flex', flexDirection: 'column', gap: isMobile ? '0.5rem' : '1rem' }}>
       {/* Desktop header */}
       <div className="module-header-desktop" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Liquidaciones</h1>

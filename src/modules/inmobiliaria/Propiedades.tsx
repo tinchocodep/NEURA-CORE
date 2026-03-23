@@ -97,7 +97,7 @@ export default function Propiedades() {
   if (loading) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Cargando propiedades...</div>;
 
   return (
-    <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
       {/* Desktop header */}
       <div className="module-header-desktop">
         <h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Propiedades</h1>
@@ -123,25 +123,21 @@ export default function Propiedades() {
         </button>
       </div>
 
-      {/* Mobile header: button → filters → view toggle */}
-      <div className="module-header-mobile">
-        <button onClick={openNew} className="btn btn-primary" style={{ alignSelf: 'flex-end', display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.875rem', padding: '8px 16px' }}>
-          <Plus size={16} /> Nueva
-        </button>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+      {/* Mobile header: compact */}
+      <div className="module-header-mobile" style={{ gap: '0.25rem' }}>
+        <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center' }}>
           <div style={{ flex: 1, position: 'relative' }}>
             <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
             <input type="text" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)}
-              className="form-input" style={{ paddingLeft: 34, height: 40, fontSize: '0.875rem' }} />
+              className="form-input" style={{ paddingLeft: 34, height: 38, fontSize: '0.875rem' }} />
           </div>
-          <select value={filterEstado} onChange={e => setFilterEstado(e.target.value)} className="form-input" style={{ height: 40, fontSize: '0.875rem', width: 'auto' }}>
+          <select value={filterEstado} onChange={e => setFilterEstado(e.target.value)} className="form-input" style={{ height: 38, fontSize: '0.875rem', width: 'auto' }}>
             <option value="">Estado</option>
             {ESTADOS.map(e => <option key={e} value={e}>{e.replace(/_/g, ' ')}</option>)}
           </select>
-        </div>
-        <div style={{ display: 'flex', gap: '0.25rem', background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-sm)', padding: 3, alignSelf: 'flex-start' }}>
-          <button onClick={() => setViewMode('grid')} style={{ padding: '6px 12px', borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, background: viewMode === 'grid' ? 'var(--color-accent)' : 'transparent', color: viewMode === 'grid' ? '#fff' : 'var(--color-text-muted)' }}><Grid3X3 size={14} /> Cards</button>
-          <button onClick={() => setViewMode('list')} style={{ padding: '6px 12px', borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, background: viewMode === 'list' ? 'var(--color-accent)' : 'transparent', color: viewMode === 'list' ? '#fff' : 'var(--color-text-muted)' }}><List size={14} /> Grilla</button>
+          <button onClick={openNew} style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--color-cta, #2563EB)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Plus size={18} />
+          </button>
         </div>
       </div>
 

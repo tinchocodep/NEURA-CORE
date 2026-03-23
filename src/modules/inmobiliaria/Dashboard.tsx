@@ -109,7 +109,7 @@ export default function Dashboard() {
   ];
 
   return (
-    <div style={{ padding: isMobile ? '0.75rem' : '1.5rem', display: 'flex', flexDirection: 'column', gap: isMobile ? '0.75rem' : '1.5rem' }}>
+    <div style={{ padding: isMobile ? '0' : '1.5rem', display: 'flex', flexDirection: 'column', gap: isMobile ? '0.5rem' : '1.5rem' }}>
       <div>
         <h1 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.25rem' }}>Inmobiliaria</h1>
         {!isMobile && <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>Dashboard de gestion de propiedades y contratos.</p>}

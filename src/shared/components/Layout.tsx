@@ -4,13 +4,13 @@ import {
     LogOut, LayoutDashboard, ArrowRightLeft, FileText, Activity, Landmark,
     Briefcase, Zap, Users, BookOpen, Tag, Building2, Settings, ClipboardList,
     Receipt, GitMerge, TrendingUp, HardHat,
-    Funnel, Columns3, Contact, BarChart3, Car, ChevronLeft, ChevronDown,
+    Funnel, Columns3, Contact, BarChart3, Car, ChevronLeft,
     Home, FileSignature, Wallet, CalendarClock
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import AgentMonitorPanel from '../../design-system/components/AgentMonitor/AgentMonitorPanel';
 import ChatbotAsistente from './ChatbotAsistente';
 import TopBar from './TopBar';
@@ -212,22 +212,25 @@ export default function Layout() {
 
     // Mobile: module title for toggle
     // Mobile: map routes to display names matching the new tab bar
-    const isOperaciones = isInmobiliaria && (location.pathname.startsWith('/inmobiliaria/liquidaciones') || location.pathname.startsWith('/inmobiliaria/agenda'));
-    const currentModuleName = isCRM ? 'CRM' : isTesoreria ? 'Administración' : (isContable && !isConfiguracion) ? 'Administración' : isComercial ? 'Comercial' : isOperaciones ? 'Operaciones' : isInmobiliaria ? 'Inmobiliaria' : '';
-    const [mobileSubnavOpen, setMobileSubnavOpen] = useState(false);
+    const isOperaciones = isInmobiliaria && (location.pathname.startsWith('/inmobiliaria/propiedades') || location.pathname.startsWith('/inmobiliaria/contratos') || location.pathname.startsWith('/inmobiliaria/proveedores') || location.pathname.startsWith('/inmobiliaria/ordenes'));
+    const isGestion = isInmobiliaria && !isOperaciones;
+    const currentModuleName = isCRM ? 'CRM' : isTesoreria ? 'Administración' : (isContable && !isConfiguracion) ? 'Administración' : isComercial ? 'Comercial' : isOperaciones ? 'Operaciones' : isGestion ? 'Gestión' : '';
 
-    // Mobile: current section name (e.g. "Dashboard", "Contratos")
-    const currentSectionName = (() => {
-        if (!isMobile || sectionItems.length === 0) return '';
-        // Find best match: longest path that matches current location
-        const match = sectionItems
-            .filter(item => {
-                const isDash = ['/tesoreria', '/contable', '/crm', '/comercial', '/inmobiliaria'].includes(item.path);
-                return isDash ? location.pathname === item.path : location.pathname.startsWith(item.path);
-            })
-            .sort((a, b) => b.path.length - a.path.length)[0];
-        return match?.name || '';
-    })();
+    // Mobile: override sectionItems for Operaciones and Gestión
+    const operacionesItems = [
+        { name: 'Propiedades', path: '/inmobiliaria/propiedades', icon: Home },
+        { name: 'Contratos', path: '/inmobiliaria/contratos', icon: FileSignature },
+        { name: 'Proveedores', path: '/inmobiliaria/proveedores', icon: Building2 },
+        { name: 'Órdenes', path: '/inmobiliaria/ordenes', icon: ClipboardList },
+    ];
+    const gestionItems = [
+        { name: 'Dashboard', path: '/inmobiliaria', icon: LayoutDashboard },
+        { name: 'Liquidaciones', path: '/inmobiliaria/liquidaciones', icon: Wallet },
+        { name: 'Cuentas', path: '/inmobiliaria/cuentas', icon: Receipt },
+        { name: 'Agenda', path: '/inmobiliaria/agenda', icon: CalendarClock },
+        { name: 'Proyecciones', path: '/tesoreria', icon: TrendingUp },
+    ];
+    const mobileSectionItems = isMobile && isOperaciones ? operacionesItems : isMobile && isGestion ? gestionItems : sectionItems;
 
     return (
         <>
@@ -374,33 +377,35 @@ export default function Layout() {
             {/* ──────────────── MAIN CONTENT ──────────────── */}
             <main className="main-content">
                 <TopBar />
-                {sectionItems.length > 0 && (
+                {(isMobile ? mobileSectionItems : sectionItems).length > 0 && (
                     isMobile ? (
-                        /* ── MOBILE: Title + toggle dropdown ── */
+                        /* ── MOBILE: Title + horizontal scroll tabs ── */
                         <div className="mobile-subnav">
-                            <button className="mobile-subnav-toggle" onClick={() => setMobileSubnavOpen(o => !o)}>
+                            <div className="mobile-subnav-toggle" style={{ cursor: 'default' }}>
                                 <span className="mobile-subnav-title">{currentModuleName}</span>
-                                <ChevronDown size={18} style={{ transition: 'transform 0.2s', transform: mobileSubnavOpen ? 'rotate(180deg)' : 'none' }} />
-                            </button>
-                            {currentSectionName && !mobileSubnavOpen && (
-                                <div className="mobile-section-label">{currentSectionName}</div>
-                            )}
-                            {mobileSubnavOpen && (
-                                <div className="mobile-subnav-dropdown">
-                                    {sectionItems.map(item => {
-                                        const isDashboardPath = ['/tesoreria', '/contable', '/crm', '/comercial', '/inmobiliaria'].includes(item.path);
-                                        const isActiveItem = isDashboardPath
-                                            ? location.pathname === item.path
-                                            : location.pathname.startsWith(item.path);
-                                        return (
-                                            <Link key={item.path} to={item.path} className={`mobile-subnav-item${isActiveItem ? ' active' : ''}`} onClick={() => setMobileSubnavOpen(false)}>
-                                                <item.icon size={16} />
-                                                {item.name}
-                                            </Link>
-                                        );
-                                    })}
-                                </div>
-                            )}
+                            </div>
+                            <div className="mobile-subnav-scroll" ref={useCallback((node: HTMLDivElement | null) => {
+                                if (!node) return;
+                                const active = node.querySelector('[data-active="true"]') as HTMLElement;
+                                if (active) {
+                                    const scrollLeft = active.offsetLeft - node.offsetWidth / 2 + active.offsetWidth / 2;
+                                    node.scrollTo({ left: scrollLeft, behavior: 'smooth' });
+                                }
+                            }, [location.pathname])}>
+                                {mobileSectionItems.map(item => {
+                                    const isDashboardPath = ['/tesoreria', '/contable', '/crm', '/comercial', '/inmobiliaria'].includes(item.path);
+                                    const isActiveItem = isDashboardPath
+                                        ? location.pathname === item.path
+                                        : location.pathname.startsWith(item.path);
+                                    return (
+                                        <Link key={item.path} to={item.path} data-active={isActiveItem}
+                                            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 99, fontSize: '0.8125rem', fontWeight: isActiveItem ? 600 : 500, whiteSpace: 'nowrap', textDecoration: 'none', flexShrink: 0, background: isActiveItem ? 'var(--color-cta, #2563EB)' : 'var(--color-bg-surface)', color: isActiveItem ? '#fff' : 'var(--color-text-muted)', border: isActiveItem ? 'none' : '1px solid var(--color-border-subtle)', transition: 'all 0.15s' }}>
+                                            <item.icon size={14} />
+                                            {item.name}
+                                        </Link>
+                                    );
+                                })}
+                            </div>
                         </div>
                     ) : (
                         /* ── DESKTOP: Horizontal subtabs ── */

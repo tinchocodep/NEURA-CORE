@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Calendar, Check, AlertTriangle, Plus, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, Check, AlertTriangle, Plus, X, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
@@ -20,13 +20,21 @@ const TIPO_CFG: Record<string, { label: string; color: string }> = {
 const DIAS_HEADER = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 type ViewType = 'mes' | 'semana' | 'dia' | 'tabla';
 
+function useIsMobile() {
+  const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
+  useEffect(() => { const h = () => setM(window.innerWidth <= 768); window.addEventListener('resize', h); return () => window.removeEventListener('resize', h); }, []);
+  return m;
+}
+
 function dateStr(d: Date) { return d.toISOString().slice(0, 10); }
 function addDays(d: Date, n: number) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
 function startOfWeek(d: Date) { const r = new Date(d); const day = r.getDay(); r.setDate(r.getDate() - ((day + 6) % 7)); return r; }
 
 export default function Agenda() {
   const { tenant } = useTenant();
+  const isMobile = useIsMobile();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [calOpen, setCalOpen] = useState(false);
   const [items, setItems] = useState<Vencimiento[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<ViewType>('mes');
@@ -97,6 +105,154 @@ export default function Agenda() {
 
   if (loading) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Cargando agenda...</div>;
 
+  /* ═══════ MOBILE: Google Calendar style ═══════ */
+  if (isMobile) {
+    const y = curDate.getFullYear(), mo = curDate.getMonth();
+    const firstDay = new Date(y, mo, 1);
+    const startDow = (firstDay.getDay() + 6) % 7;
+    const daysInMonth = new Date(y, mo + 1, 0).getDate();
+    const monthLabel = curDate.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+
+    // Group events by date
+    const eventsByDate: Record<string, Vencimiento[]> = {};
+    filtered.forEach(v => {
+      if (!eventsByDate[v.fecha]) eventsByDate[v.fecha] = [];
+      eventsByDate[v.fecha].push(v);
+    });
+    const sortedDates = Object.keys(eventsByDate).sort();
+
+    // Dates with events in current month (for dots)
+    const datesWithEvents = new Set(filtered.map(v => v.fecha));
+
+    const formatDayHeader = (ds: string) => {
+      const d = new Date(ds + 'T12:00:00');
+      if (ds === today) return 'Hoy';
+      const tomorrow = dateStr(addDays(new Date(), 1));
+      if (ds === tomorrow) return 'Mañana';
+      return d.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
+    };
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+        {/* Mini calendar header */}
+        <div style={{ padding: '0 4px' }}>
+          <button onClick={() => setCalOpen(o => !o)}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', padding: '8px 0', fontFamily: 'var(--font-sans)' }}>
+            <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-text-primary)', textTransform: 'capitalize' }}>{monthLabel}</span>
+            <ChevronDown size={16} style={{ color: 'var(--color-text-muted)', transition: 'transform 0.2s', transform: calOpen ? 'rotate(180deg)' : 'none' }} />
+          </button>
+
+          {/* Collapsible mini calendar */}
+          {calOpen && (
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <button onClick={() => setCurDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--color-text-muted)' }}><ChevronLeft size={18} /></button>
+                <button onClick={() => { setCurDate(new Date()); }} style={{ fontSize: '0.6875rem', fontWeight: 600, padding: '2px 10px', borderRadius: 99, background: 'var(--color-cta-dim, rgba(37,99,235,0.1))', color: 'var(--color-cta)', border: 'none', cursor: 'pointer' }}>Hoy</button>
+                <button onClick={() => setCurDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--color-text-muted)' }}><ChevronRight size={18} /></button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 0 }}>
+                {DIAS_HEADER.map(d => (
+                  <div key={d} style={{ textAlign: 'center', fontSize: '0.5625rem', fontWeight: 700, color: 'var(--color-text-muted)', padding: '2px 0', textTransform: 'uppercase' }}>{d}</div>
+                ))}
+                {Array.from({ length: startDow }).map((_, i) => <div key={`e${i}`} />)}
+                {Array.from({ length: daysInMonth }).map((_, i) => {
+                  const day = i + 1;
+                  const ds = `${y}-${String(mo + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                  const isToday = ds === today;
+                  const hasEvents = datesWithEvents.has(ds);
+                  return (
+                    <button key={day} onClick={() => { const el = document.getElementById(`day-${ds}`); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
+                      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, padding: '4px 0', border: 'none', background: 'none', cursor: 'pointer' }}>
+                      <span style={{ width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: isToday ? 700 : 400, background: isToday ? 'var(--color-cta)' : 'transparent', color: isToday ? '#fff' : 'var(--color-text-primary)' }}>
+                        {day}
+                      </span>
+                      {hasEvents && <span style={{ width: 4, height: 4, borderRadius: '50%', background: isToday ? '#fff' : 'var(--color-cta)' }} />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Filter chips */}
+        <div style={{ display: 'flex', gap: 6, padding: '4px 4px 8px', overflowX: 'auto' }}>
+          <button onClick={() => setFilterTipo('')} style={{ padding: '4px 10px', borderRadius: 99, border: '1px solid var(--color-border-subtle)', background: !filterTipo ? 'var(--color-cta)' : 'var(--color-bg-surface)', color: !filterTipo ? '#fff' : 'var(--color-text-muted)', fontSize: '0.6875rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--font-sans)' }}>Todos</button>
+          {TIPOS.map(t => {
+            const cfg = TIPO_CFG[t];
+            return (
+              <button key={t} onClick={() => setFilterTipo(filterTipo === t ? '' : t)} style={{ padding: '4px 10px', borderRadius: 99, border: `1px solid ${filterTipo === t ? cfg.color : 'var(--color-border-subtle)'}`, background: filterTipo === t ? `${cfg.color}15` : 'var(--color-bg-surface)', color: filterTipo === t ? cfg.color : 'var(--color-text-muted)', fontSize: '0.6875rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--font-sans)' }}>{cfg.label}</button>
+            );
+          })}
+        </div>
+
+        {/* Schedule list */}
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {sortedDates.length === 0 && (
+            <div style={{ padding: '3rem 1rem', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>Sin eventos</div>
+          )}
+          {sortedDates.map(ds => {
+            const isOverdueDay = ds < today;
+            return (
+              <div key={ds} id={`day-${ds}`}>
+                {/* Day header */}
+                <div style={{ padding: '10px 4px 4px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: ds === today ? 'var(--color-cta)' : isOverdueDay ? '#EF4444' : 'var(--color-text-primary)', textTransform: 'capitalize' }}>
+                    {formatDayHeader(ds)}
+                  </span>
+                  {isOverdueDay && <span style={{ fontSize: '0.5625rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#EF444415', color: '#EF4444' }}>Vencido</span>}
+                </div>
+                {/* Events */}
+                {eventsByDate[ds].map(v => {
+                  const cfg = TIPO_CFG[v.tipo] || TIPO_CFG.otro;
+                  return (
+                    <div key={v.id} onClick={() => toggleComplete(v.id, v.completado)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 8px', marginBottom: 2, borderRadius: 10, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', cursor: 'pointer', opacity: v.completado ? 0.5 : 1 }}>
+                      {/* Color bar */}
+                      <div style={{ width: 4, alignSelf: 'stretch', borderRadius: 4, background: v.completado ? '#10B981' : cfg.color, flexShrink: 0 }} />
+                      {/* Checkbox */}
+                      <div style={{ width: 20, height: 20, borderRadius: 5, border: v.completado ? 'none' : `2px solid ${cfg.color}`, background: v.completado ? '#10B981' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {v.completado && <Check size={12} color="#fff" />}
+                      </div>
+                      {/* Content */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '0.8125rem', fontWeight: 500, textDecoration: v.completado ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.descripcion}</div>
+                        <span style={{ fontSize: '0.5625rem', fontWeight: 600, color: cfg.color }}>{cfg.label}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Form modal */}
+        {showForm && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', zIndex: 200, display: 'flex', flexDirection: 'column' }} onClick={() => setShowForm(false)}>
+            <div style={{ flex: 1 }} />
+            <div style={{ background: 'var(--color-bg-base)', borderRadius: '20px 20px 0 0', padding: '20px 16px 80px' }} onClick={e => e.stopPropagation()}>
+              <div style={{ width: 36, height: 4, borderRadius: 99, background: 'var(--color-border)', margin: '0 auto 16px' }} />
+              <h3 style={{ fontWeight: 700, fontSize: '1.0625rem', margin: '0 0 16px' }}>Nuevo vencimiento</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <select className="form-input" value={formData.tipo} onChange={e => setFormData(f => ({ ...f, tipo: e.target.value }))} style={{ height: 42, borderRadius: 10 }}>
+                  {TIPOS.map(t => <option key={t} value={t}>{TIPO_CFG[t]?.label}</option>)}
+                </select>
+                <input type="date" className="form-input" value={formData.fecha} onChange={e => setFormData(f => ({ ...f, fecha: e.target.value }))} style={{ height: 42, borderRadius: 10 }} />
+                <textarea className="form-input" rows={3} placeholder="Descripción..." value={formData.descripcion} onChange={e => setFormData(f => ({ ...f, descripcion: e.target.value }))} style={{ borderRadius: 10, resize: 'vertical' }} />
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                <button onClick={() => setShowForm(false)} className="btn btn-secondary" style={{ flex: 1, height: 42, borderRadius: 10 }}>Cancelar</button>
+                <button onClick={saveNew} className="btn btn-primary" disabled={!formData.fecha || !formData.descripcion} style={{ flex: 1, height: 42, borderRadius: 10 }}>Guardar</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  /* ═══════ DESKTOP (unchanged) ═══════ */
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* ─── Header (Desktop) ─── */}
