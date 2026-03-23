@@ -2167,6 +2167,30 @@ body:has([style*="position: fixed"][style*="inset: 0"]) {
   font-weight: 700;
 }
 
+.mobile-nav-item-center {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35), 0 2px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.15s, box-shadow 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+  top: -8px;
+  flex-shrink: 0;
+}
+
+.mobile-nav-item-center:active {
+  transform: scale(0.92);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
 /* ── Mobile menu overlay ── */
 .mobile-menu-overlay {
   position: fixed;

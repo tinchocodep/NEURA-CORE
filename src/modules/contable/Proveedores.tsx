@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
-import { Search, Plus, Edit2, AlertTriangle, X, Save, Trash2, Loader, Globe, ChevronDown, ChevronRight, Download, Clock, FileText, Filter, Eye, Send, Star } from 'lucide-react';
+import { Search, Plus, Edit2, AlertTriangle, X, Save, Trash2, Loader, Globe, ChevronDown, ChevronRight, Download, Clock, FileText, Filter, Eye, Send, Star, MoreVertical } from 'lucide-react';
 import { SkeletonTable } from '../../shared/components/SkeletonKit';
 import { DocumentViewer } from '../../shared/components/DocumentViewer';
 
@@ -157,6 +157,7 @@ export default function Proveedores() {
     const [expandedComprobante, setExpandedComprobante] = useState<string | null>(null);
     const [docPreview, setDocPreview] = useState<string | null>(null);
     const [activityFilter, setActivityFilter] = useState<'all' | 'recent' | 'month' | 'dormant' | 'none'>('all');
+    const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
     const [productoFilter, setProductoFilter] = useState<string>('');
     const [showProdFilterDrop, setShowProdFilterDrop] = useState(false);
     const [prodFilterSearch, setProdFilterSearch] = useState('');
@@ -918,7 +919,7 @@ export default function Proveedores() {
                                         const stats = providerStats.get(p.id);
                                         const activity = formatTimeAgo(stats?.ultima_actividad ?? null);
                                         return (
-                                            <tr key={p.id} onClick={() => openDetail(p)} style={{ cursor: 'pointer' }}>
+                                            <tr key={p.id} style={{ cursor: 'default' }}>
                                                 <td style={{ fontWeight: 600 }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                                         <button
@@ -993,21 +994,80 @@ export default function Proveedores() {
                                                     )}
                                                 </td>
                                                 <td>
-                                                    <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                                                    <div style={{ position: 'relative', display: 'flex', justifyContent: 'flex-end' }}>
                                                         <button
-                                                            onClick={(e) => { e.stopPropagation(); navigate(`/contable/comprobantes?tab=upload&proveedor_id=${p.id}`); }}
-                                                            className="btn btn-primary"
-                                                            style={{ padding: '0.3rem 0.5rem', fontSize: '0.7rem', gap: 4 }}
-                                                            title="Emitir factura a este proveedor"
+                                                            onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === p.id ? null : p.id); }}
+                                                            className="btn btn-ghost"
+                                                            style={{ padding: '0.3rem', borderRadius: 8 }}
                                                         >
-                                                            <Send size={12} /> Factura
+                                                            <MoreVertical size={16} />
                                                         </button>
-                                                        <button onClick={(e) => { e.stopPropagation(); openEdit(p); }} className="btn btn-secondary" style={{ padding: '0.3rem 0.5rem' }}>
-                                                            <Edit2 size={14} />
-                                                        </button>
-                                                        <button onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }} className="btn btn-secondary" style={{ padding: '0.3rem 0.5rem' }}>
-                                                            <Trash2 size={14} />
-                                                        </button>
+                                                        {menuOpenId === p.id && (
+                                                            <>
+                                                                <div style={{ position: 'fixed', inset: 0, zIndex: 90 }} onClick={(e) => { e.stopPropagation(); setMenuOpenId(null); }} />
+                                                                <div style={{
+                                                                    position: 'absolute', right: 0, top: '100%', zIndex: 100,
+                                                                    background: 'var(--bg-card, #fff)', borderRadius: 12,
+                                                                    border: '1px solid var(--border-subtle, #e2e8f0)',
+                                                                    boxShadow: '0 8px 24px rgba(0,0,0,0.12)', minWidth: 180,
+                                                                    padding: '0.35rem', overflow: 'hidden',
+                                                                }}>
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); setMenuOpenId(null); openDetail(p); }}
+                                                                        style={{
+                                                                            display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                                                                            padding: '0.55rem 0.75rem', border: 'none', background: 'none',
+                                                                            cursor: 'pointer', borderRadius: 8, fontSize: '0.8rem', fontWeight: 500,
+                                                                            color: 'var(--text-main)', fontFamily: 'var(--font-sans)',
+                                                                        }}
+                                                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover, #f1f5f9)'}
+                                                                        onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                                                    >
+                                                                        <Eye size={15} color="#6366f1" /> Ver comprobantes
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); setMenuOpenId(null); openEdit(p); }}
+                                                                        style={{
+                                                                            display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                                                                            padding: '0.55rem 0.75rem', border: 'none', background: 'none',
+                                                                            cursor: 'pointer', borderRadius: 8, fontSize: '0.8rem', fontWeight: 500,
+                                                                            color: 'var(--text-main)', fontFamily: 'var(--font-sans)',
+                                                                        }}
+                                                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover, #f1f5f9)'}
+                                                                        onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                                                    >
+                                                                        <Edit2 size={15} color="#3b82f6" /> Editar proveedor
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); setMenuOpenId(null); navigate(`/contable/comprobantes?tab=upload&proveedor_id=${p.id}`); }}
+                                                                        style={{
+                                                                            display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                                                                            padding: '0.55rem 0.75rem', border: 'none', background: 'none',
+                                                                            cursor: 'pointer', borderRadius: 8, fontSize: '0.8rem', fontWeight: 500,
+                                                                            color: 'var(--text-main)', fontFamily: 'var(--font-sans)',
+                                                                        }}
+                                                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover, #f1f5f9)'}
+                                                                        onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                                                    >
+                                                                        <Send size={15} color="#10b981" /> Cargar factura
+                                                                    </button>
+                                                                    <div style={{ height: 1, background: 'var(--border-subtle, #e2e8f0)', margin: '0.25rem 0.5rem' }} />
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); setMenuOpenId(null); handleDelete(p.id); }}
+                                                                        style={{
+                                                                            display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                                                                            padding: '0.55rem 0.75rem', border: 'none', background: 'none',
+                                                                            cursor: 'pointer', borderRadius: 8, fontSize: '0.8rem', fontWeight: 500,
+                                                                            color: '#ef4444', fontFamily: 'var(--font-sans)',
+                                                                        }}
+                                                                        onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'}
+                                                                        onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                                                    >
+                                                                        <Trash2 size={15} /> Eliminar
+                                                                    </button>
+                                                                </div>
+                                                            </>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>

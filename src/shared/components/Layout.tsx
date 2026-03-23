@@ -212,7 +212,7 @@ export default function Layout() {
 
     // Mobile: map routes to display names matching the new tab bar
     // In mobile, Contable/Tesorería/CRM routes are absorbed into Gestión (no "Administración" in mobile)
-    const isOperaciones = isInmobiliaria && (location.pathname.startsWith('/inmobiliaria/propiedades') || location.pathname.startsWith('/inmobiliaria/contratos') || location.pathname.startsWith('/inmobiliaria/ordenes'));
+    const isOperaciones = isInmobiliaria && (location.pathname.startsWith('/inmobiliaria/propiedades') || location.pathname.startsWith('/inmobiliaria/contratos') || location.pathname.startsWith('/inmobiliaria/ordenes') || location.pathname.startsWith('/inmobiliaria/liquidaciones') || location.pathname.startsWith('/inmobiliaria/facturar') || location.pathname.startsWith('/inmobiliaria/proveedores'));
     const isMobileGestion = isMobile && (
         (isInmobiliaria && !isOperaciones) ||
         isTesoreria ||
@@ -228,13 +228,14 @@ export default function Layout() {
         { name: 'Propiedades', path: '/inmobiliaria/propiedades', icon: Home },
         { name: 'Contratos', path: '/inmobiliaria/contratos', icon: FileSignature },
         { name: 'Órdenes', path: '/inmobiliaria/ordenes', icon: ClipboardList },
+        { name: 'Liquidaciones', path: '/inmobiliaria/liquidaciones', icon: Wallet },
+        { name: 'Facturar', path: '/inmobiliaria/facturar', icon: Receipt },
+        { name: 'Proveedores', path: '/inmobiliaria/proveedores', icon: Building2 },
     ];
     const gestionItems = [
         { name: 'Dashboard', path: '/inmobiliaria', icon: LayoutDashboard },
-        { name: 'Liquidaciones', path: '/inmobiliaria/liquidaciones', icon: Wallet },
         { name: 'Cuentas', path: '/inmobiliaria/cuentas', icon: Receipt },
         { name: 'Agenda', path: '/inmobiliaria/agenda', icon: CalendarClock },
-        { name: 'Proveedores', path: '/inmobiliaria/proveedores', icon: Building2 },
         { name: 'Comprobantes', path: '/contable/comprobantes', icon: ClipboardList },
         { name: 'Proyecciones', path: '/tesoreria', icon: TrendingUp },
     ];

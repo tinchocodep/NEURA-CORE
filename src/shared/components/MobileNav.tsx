@@ -31,9 +31,11 @@ export default function MobileNav() {
     createSections.push({
       title: 'Operaciones',
       actions: [
-        { name: 'Propiedad', icon: Building2, path: '/inmobiliaria/propiedades?action=crear' },
-        { name: 'Contrato', icon: FileSignature, path: '/inmobiliaria/contratos?action=crear' },
-        { name: 'Orden de\ntrabajo', icon: Receipt, path: '/inmobiliaria/ordenes?action=crear' },
+        { name: 'Nueva\npropiedad', icon: Building2, path: '/inmobiliaria/propiedades?action=crear' },
+        { name: 'Nuevo\ncontrato', icon: FileSignature, path: '/inmobiliaria/contratos?action=crear' },
+        { name: 'Crear orden\nde trabajo', icon: Receipt, path: '/inmobiliaria/ordenes?action=crear' },
+        { name: 'Nueva\nliquidación', icon: Wallet, path: '/inmobiliaria/liquidaciones?action=crear' },
+        { name: 'Emitir\nfactura', icon: BarChart3, path: '/inmobiliaria/facturar' },
       ]
     });
   }
@@ -43,13 +45,12 @@ export default function MobileNav() {
       title: 'Gestión',
       actions: [
         ...(hasModule('inmobiliaria') ? [
-          { name: 'Liquidación', icon: Wallet, path: '/inmobiliaria/liquidaciones?action=crear' },
-          { name: 'Vencimiento', icon: CalendarPlus, path: '/inmobiliaria/agenda?action=crear' },
-          { name: 'Comprobante', icon: Upload, path: '/contable/comprobantes?tab=upload' },
+          { name: 'Nuevo\nvencimiento', icon: CalendarPlus, path: '/inmobiliaria/agenda?action=crear' },
+          { name: 'Cargar\ncomprobante', icon: Upload, path: '/contable/comprobantes?tab=upload' },
         ] : []),
         ...(hasModule('crm') ? [
-          { name: 'Contacto', icon: UserPlus, path: '/crm/contactos?action=crear' },
-          { name: 'Prospecto', icon: Users, path: '/crm/prospectos?action=crear' },
+          { name: 'Nuevo\ncontacto', icon: UserPlus, path: '/crm/contactos?action=crear' },
+          { name: 'Nuevo\nprospecto', icon: Users, path: '/crm/prospectos?action=crear' },
         ] : []),
       ]
     });
@@ -72,7 +73,7 @@ export default function MobileNav() {
         </Link>
 
         {/* 2. Operaciones */}
-        <Link to="/inmobiliaria/propiedades" className={`mobile-nav-item${isActive('/inmobiliaria/propiedades') || isActive('/inmobiliaria/contratos') || isActive('/inmobiliaria/proveedores') || isActive('/inmobiliaria/ordenes') ? ' active' : ''}`} onClick={closeAll}>
+        <Link to="/inmobiliaria/propiedades" className={`mobile-nav-item${isActive('/inmobiliaria/propiedades') || isActive('/inmobiliaria/contratos') || isActive('/inmobiliaria/proveedores') || isActive('/inmobiliaria/ordenes') || isActive('/inmobiliaria/liquidaciones') || isActive('/inmobiliaria/facturar') ? ' active' : ''}`} onClick={closeAll}>
           <CheckCircle size={20} />
           <span>Operac.</span>
         </Link>
@@ -83,7 +84,7 @@ export default function MobileNav() {
         </button>
 
         {/* 4. Gestión */}
-        <Link to="/inmobiliaria" className={`mobile-nav-item${(isActive('/inmobiliaria') && !isActive('/inmobiliaria/propiedades') && !isActive('/inmobiliaria/contratos') && !isActive('/inmobiliaria/proveedores') && !isActive('/inmobiliaria/ordenes')) || isActive('/inmobiliaria/liquidaciones') || isActive('/inmobiliaria/cuentas') || isActive('/inmobiliaria/agenda') ? ' active' : ''}`} onClick={closeAll}>
+        <Link to="/inmobiliaria" className={`mobile-nav-item${(isActive('/inmobiliaria') && !isActive('/inmobiliaria/propiedades') && !isActive('/inmobiliaria/contratos') && !isActive('/inmobiliaria/proveedores') && !isActive('/inmobiliaria/ordenes') && !isActive('/inmobiliaria/liquidaciones')) || isActive('/inmobiliaria/cuentas') || isActive('/inmobiliaria/agenda') ? ' active' : ''}`} onClick={closeAll}>
           <Building2 size={20} />
           <span>Gestión</span>
         </Link>
@@ -170,6 +171,9 @@ export default function MobileNav() {
                   { name: 'Propiedades', path: '/inmobiliaria/propiedades', badge: '10' },
                   { name: 'Contratos', path: '/inmobiliaria/contratos', badge: '2 vencen', badgeColor: '#F59E0B' },
                   { name: 'Órdenes de trabajo', path: '/inmobiliaria/ordenes' },
+                  { name: 'Liquidaciones', path: '/inmobiliaria/liquidaciones' },
+                  { name: 'Facturar', path: '/inmobiliaria/facturar' },
+                  { name: 'Proveedores', path: '/inmobiliaria/proveedores' },
                 ] as { name: string; path: string; badge?: string; badgeColor?: string }[]).map(item => (
                   <Link key={item.path} to={item.path} onClick={() => setShowMenu(false)}
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 0 11px 32px', borderBottom: '1px solid #f8f8f8', textDecoration: 'none', color: '#555', fontSize: '0.8125rem' }}>
@@ -190,10 +194,8 @@ export default function MobileNav() {
                 </div>
                 {([
                   { name: 'Dashboard', path: '/inmobiliaria' },
-                  { name: 'Liquidaciones', path: '/inmobiliaria/liquidaciones' },
                   { name: 'Cuentas corrientes', path: '/inmobiliaria/cuentas' },
                   { name: 'Agenda / Vencimientos', path: '/inmobiliaria/agenda' },
-                  { name: 'Proveedores', path: '/inmobiliaria/proveedores' },
                   { name: 'Comprobantes', path: '/contable/comprobantes' },
                   { name: 'Proyecciones', path: '/tesoreria' },
                   ...(hasModule('crm') ? [

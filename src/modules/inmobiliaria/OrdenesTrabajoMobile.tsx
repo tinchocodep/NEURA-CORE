@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, Wrench, Upload, Phone, FileText, CheckCircle, AlertTriangle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
@@ -38,7 +39,8 @@ export default function OrdenesTrabajo() {
   const [propiedades, setPropiedades] = useState<Propiedad[]>([]);
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterEstado, setFilterEstado] = useState('');
+  const [searchParams] = useSearchParams();
+  const [filterEstado, setFilterEstado] = useState(searchParams.get('filter') || '');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<OrdenTrabajo | null>(null);
   const [form, setForm] = useState({ propiedad_id: '', proveedor_id: '', titulo: '', descripcion: '', prioridad: 'media', monto_presupuesto: '' });

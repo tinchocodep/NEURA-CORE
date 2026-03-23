@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { DolarService, type DolarResumen } from '../services/DolarService';
-import { Calendar, Settings, AlertTriangle, Clock, ArrowRight, X, GripVertical, Bell, HelpCircle, FileSignature, DollarSign, Receipt, Upload, Wallet, CalendarClock, Home, Users, TrendingUp, ChevronRight } from 'lucide-react';
+import { Calendar, Settings, AlertTriangle, Clock, ArrowRight, X, GripVertical, Bell, HelpCircle, FileSignature, DollarSign, Receipt, Upload, Wallet, CalendarClock, Home, Users, TrendingUp, ChevronRight, Building2, Wrench, UserPlus, CreditCard, FileText, Plus, ChevronDown } from 'lucide-react';
 
 function useIsMobile() {
     const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
@@ -423,9 +423,9 @@ export default function VisionGeneral() {
                     <div style={{ display: 'flex', justifyContent: 'space-around', padding: '4px 0', marginTop: 8 }}>
                         {[
                             { icon: FileSignature, label: 'Nuevo contrato', color: '#185FA5', path: '/inmobiliaria/contratos?action=crear' },
-                            { icon: DollarSign, label: 'Registrar cobro', color: '#1D9E75', path: '/tesoreria/movimientos' },
-                            { icon: Receipt, label: 'Facturar', color: '#BA7517', path: '/contable/comprobantes' },
-                            { icon: Upload, label: 'Subir comprobante', color: '#534AB7', path: '/contable/comprobantes' },
+                            { icon: DollarSign, label: 'Registrar cobro', color: '#1D9E75', path: '/inmobiliaria/liquidaciones' },
+                            { icon: Receipt, label: 'Facturar', color: '#BA7517', path: '/inmobiliaria/facturar' },
+                            { icon: Upload, label: 'Subir comprobante', color: '#534AB7', path: '/inmobiliaria/ordenes?filter=completado' },
                         ].map(action => (
                             <button key={action.label} onClick={() => navigate(action.path)}
                                 style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', width: 72 }}>

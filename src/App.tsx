@@ -42,6 +42,7 @@ import InmoCuentas from './modules/inmobiliaria/CuentasCorrientes';
 import InmoAgenda from './modules/inmobiliaria/Agenda';
 import InmoProveedores from './modules/inmobiliaria/Proveedores';
 import InmoOrdenesTrabajo from './modules/inmobiliaria/OrdenesTrabajoMobile';
+import FacturarMobile from './modules/inmobiliaria/FacturarMobile';
 import { useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 
@@ -132,6 +133,7 @@ export default function App() {
               <Route path="agenda" element={<InmoAgenda />} />
               <Route path="proveedores" element={<InmoProveedores />} />
               <Route path="ordenes" element={<InmoOrdenesTrabajo />} />
+              <Route path="facturar" element={<FacturarMobile />} />
             </Route>
 
             {/* Global Configuracion */}
