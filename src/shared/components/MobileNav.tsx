@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home, Building2, Menu,
   Upload, FileSignature, CalendarPlus, DollarSign, UserPlus,
-  Settings, LogOut, Landmark, Briefcase,
+  Settings, LogOut,
   Users, BarChart3, Receipt, Wallet, HelpCircle, Shield,
   FilePlus, PlusCircle, Banknote, CheckCircle, CircleDollarSign
 } from 'lucide-react';
