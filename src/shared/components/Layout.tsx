@@ -210,17 +210,23 @@ export default function Layout() {
     // Determine current section nav items (Ocultamos sub-opciones en configuración)
     const sectionItems = (isContable && !isConfiguracion) ? contableItems : isTesoreria ? tesoreriaItems : isCRM ? crmItems : isComercial ? comercialItems : isInmobiliaria ? inmobiliariaItems : [];
 
-    // Mobile: module title for toggle
     // Mobile: map routes to display names matching the new tab bar
-    const isOperaciones = isInmobiliaria && (location.pathname.startsWith('/inmobiliaria/propiedades') || location.pathname.startsWith('/inmobiliaria/contratos') || location.pathname.startsWith('/inmobiliaria/proveedores') || location.pathname.startsWith('/inmobiliaria/ordenes'));
-    const isGestion = isInmobiliaria && !isOperaciones;
-    const currentModuleName = isCRM ? 'CRM' : isTesoreria ? 'Administración' : (isContable && !isConfiguracion) ? 'Administración' : isComercial ? 'Comercial' : isOperaciones ? 'Operaciones' : isGestion ? 'Gestión' : '';
+    // In mobile, Contable/Tesorería/CRM routes are absorbed into Gestión (no "Administración" in mobile)
+    const isOperaciones = isInmobiliaria && (location.pathname.startsWith('/inmobiliaria/propiedades') || location.pathname.startsWith('/inmobiliaria/contratos') || location.pathname.startsWith('/inmobiliaria/ordenes'));
+    const isMobileGestion = isMobile && (
+        (isInmobiliaria && !isOperaciones) ||
+        isTesoreria ||
+        (isContable && !isConfiguracion) ||
+        isCRM
+    );
+    const currentModuleName = isMobile
+        ? (isOperaciones ? 'Operaciones' : isMobileGestion ? 'Gestión' : '')
+        : (isCRM ? 'CRM' : isTesoreria ? 'Tesorería' : (isContable && !isConfiguracion) ? 'Contable' : isComercial ? 'Comercial' : isInmobiliaria ? 'Inmobiliaria' : '');
 
     // Mobile: override sectionItems for Operaciones and Gestión
     const operacionesItems = [
         { name: 'Propiedades', path: '/inmobiliaria/propiedades', icon: Home },
         { name: 'Contratos', path: '/inmobiliaria/contratos', icon: FileSignature },
-        { name: 'Proveedores', path: '/inmobiliaria/proveedores', icon: Building2 },
         { name: 'Órdenes', path: '/inmobiliaria/ordenes', icon: ClipboardList },
     ];
     const gestionItems = [
@@ -228,9 +234,11 @@ export default function Layout() {
         { name: 'Liquidaciones', path: '/inmobiliaria/liquidaciones', icon: Wallet },
         { name: 'Cuentas', path: '/inmobiliaria/cuentas', icon: Receipt },
         { name: 'Agenda', path: '/inmobiliaria/agenda', icon: CalendarClock },
+        { name: 'Proveedores', path: '/inmobiliaria/proveedores', icon: Building2 },
+        { name: 'Comprobantes', path: '/contable/comprobantes', icon: ClipboardList },
         { name: 'Proyecciones', path: '/tesoreria', icon: TrendingUp },
     ];
-    const mobileSectionItems = isMobile && isOperaciones ? operacionesItems : isMobile && isGestion ? gestionItems : sectionItems;
+    const mobileSectionItems = isMobile && isOperaciones ? operacionesItems : isMobileGestion ? gestionItems : sectionItems;
 
     // Ref callback for auto-scrolling to active subnav item — must be declared at top level (Rules of Hooks)
     const subnavScrollRef = useCallback((node: HTMLDivElement | null) => {

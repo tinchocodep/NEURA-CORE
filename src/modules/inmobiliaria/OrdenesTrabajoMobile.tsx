@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Plus, Wrench, Upload, Phone } from 'lucide-react';
+import { useEffect, useState, useRef } from 'react';
+import { Plus, Wrench, Upload, Phone, FileText, CheckCircle, AlertTriangle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 
@@ -30,6 +30,8 @@ const PRIORIDAD_CFG: Record<string, { label: string; color: string }> = {
 };
 const ESTADOS_LIST = ['reportado', 'asignado', 'en_curso', 'completado', 'facturado', 'liquidado'];
 
+const isImageUrl = (url: string) => /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(url);
+
 export default function OrdenesTrabajo() {
   const { tenant } = useTenant();
   const [items, setItems] = useState<OrdenTrabajo[]>([]);
@@ -39,7 +41,10 @@ export default function OrdenesTrabajo() {
   const [filterEstado, setFilterEstado] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<OrdenTrabajo | null>(null);
-  const [form, setForm] = useState({ propiedad_id: '', proveedor_id: '', titulo: '', descripcion: '', prioridad: 'media' });
+  const [form, setForm] = useState({ propiedad_id: '', proveedor_id: '', titulo: '', descripcion: '', prioridad: 'media', monto_presupuesto: '' });
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingOrdenRef = useRef<OrdenTrabajo | null>(null);
 
   useEffect(() => { if (tenant) loadData(); }, [tenant]);
 
@@ -60,16 +65,20 @@ export default function OrdenesTrabajo() {
   const provName = (id: string | null) => id ? proveedores.find(p => p.id === id)?.nombre || '—' : 'Sin asignar';
   const provTel = (id: string | null) => id ? proveedores.find(p => p.id === id)?.telefono || null : null;
 
-  const openNew = () => { setEditing(null); setForm({ propiedad_id: '', proveedor_id: '', titulo: '', descripcion: '', prioridad: 'media' }); setShowModal(true); };
+  const openNew = () => { setEditing(null); setForm({ propiedad_id: '', proveedor_id: '', titulo: '', descripcion: '', prioridad: 'media', monto_presupuesto: '' }); setShowModal(true); };
 
   const save = async () => {
     if (!form.titulo.trim() || !form.propiedad_id) return;
-    const payload = {
+    const montoPresupuesto = form.monto_presupuesto ? parseFloat(form.monto_presupuesto) : null;
+    const payload: Record<string, unknown> = {
       tenant_id: tenant!.id, propiedad_id: form.propiedad_id,
       proveedor_id: form.proveedor_id || null, titulo: form.titulo.trim(),
       descripcion: form.descripcion || null, prioridad: form.prioridad,
       estado: form.proveedor_id ? 'asignado' : 'reportado',
     };
+    if (montoPresupuesto !== null && !isNaN(montoPresupuesto)) {
+      payload.monto_presupuesto = montoPresupuesto;
+    }
     if (editing) {
       await supabase.from('inmobiliaria_ordenes_trabajo').update(payload).eq('id', editing.id);
     } else {
@@ -83,11 +92,94 @@ export default function OrdenesTrabajo() {
     const idx = ESTADOS_LIST.indexOf(ot.estado);
     if (idx < 0 || idx >= ESTADOS_LIST.length - 1) return;
     const next = ESTADOS_LIST[idx + 1];
+    if (next === 'facturado') return; // facturado is handled by upload flow
     const updates: Record<string, unknown> = { estado: next, updated_at: new Date().toISOString() };
     if (next === 'asignado') updates.fecha_asignacion = new Date().toISOString().slice(0, 10);
     if (next === 'completado') updates.fecha_completado = new Date().toISOString().slice(0, 10);
     await supabase.from('inmobiliaria_ordenes_trabajo').update(updates).eq('id', ot.id);
     setItems(prev => prev.map(o => o.id === ot.id ? { ...o, ...updates } as OrdenTrabajo : o));
+  };
+
+  const handleSubirFactura = (ot: OrdenTrabajo) => {
+    pendingOrdenRef.current = ot;
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const ot = pendingOrdenRef.current;
+    if (!file || !ot || !tenant) return;
+
+    // Reset file input so the same file can be re-selected
+    e.target.value = '';
+    setUploadingId(ot.id);
+
+    try {
+      // 1. Upload file to Supabase storage — sanitize filename
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const filePath = `${tenant.id}/${Date.now()}_${safeName}`;
+      const { error: uploadError } = await supabase.storage
+        .from('comprobantes')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) {
+        console.error('Storage upload error:', uploadError);
+        throw uploadError;
+      }
+
+      // 2. Get public URL
+      const { data: urlData } = supabase.storage
+        .from('comprobantes')
+        .getPublicUrl(filePath);
+      const comprobanteUrl = urlData.publicUrl;
+
+      // 3. Send to OCR webhook — returns array with created comprobante data
+      const formData = new FormData();
+      formData.append('data', file);
+      formData.append('filename', file.name);
+      formData.append('tenant_id', tenant.id);
+      if ((tenant as any).cuit) formData.append('cuit_empresa', (tenant as any).cuit);
+      const resp = await fetch('/api/n8n-comprobantes', { method: 'POST', body: formData });
+
+      // 4. Parse webhook response — returns [{id, monto_original, ...}]
+      let montoFacturado: number | null = null;
+      let comprobanteId: string | null = null;
+      try {
+        const text = await resp.text();
+        if (text) {
+          const parsed = JSON.parse(text);
+          const comp = Array.isArray(parsed) ? parsed[0] : parsed;
+          if (comp) {
+            montoFacturado = Number(comp.monto_original || comp.monto_ars || 0) || null;
+            comprobanteId = comp.id || null;
+          }
+        }
+      } catch { /* webhook response not parseable — continue */ }
+
+      // 5. Fix pdf_url on the comprobante n8n created — n8n saves original filename, we need our sanitized URL
+      if (comprobanteId) {
+        await supabase.from('contable_comprobantes')
+          .update({ pdf_url: comprobanteUrl })
+          .eq('id', comprobanteId);
+      }
+
+      // 6. Update the orden with facturado state, comprobante URL, and monto from OCR
+      const updates: Record<string, unknown> = {
+        estado: 'facturado',
+        comprobante_url: comprobanteUrl,
+      };
+      if (montoFacturado && montoFacturado > 0) {
+        updates.monto_final = montoFacturado;
+      }
+      await supabase.from('inmobiliaria_ordenes_trabajo').update(updates).eq('id', ot.id);
+      setItems(prev => prev.map(o => o.id === ot.id ? { ...o, ...updates } as OrdenTrabajo : o));
+    } catch (err) {
+      console.error('Error subiendo factura:', err);
+      alert('Error al procesar la factura. Intente nuevamente.');
+    } finally {
+      setUploadingId(null);
+      pendingOrdenRef.current = null;
+    }
   };
 
   const filtered = items.filter(o => !filterEstado || o.estado === filterEstado);
@@ -101,6 +193,15 @@ export default function OrdenesTrabajo() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      {/* Hidden file input for invoice upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,.pdf"
+        style={{ display: 'none' }}
+        onChange={handleFileSelected}
+      />
+
       {/* KPIs */}
       <div style={{ display: 'flex', gap: 6 }}>
         <div onClick={() => setFilterEstado('reportado')} style={{ flex: 1, padding: '8px 6px', borderRadius: 8, background: reportados > 0 ? '#EF444408' : 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', textAlign: 'center', cursor: 'pointer' }}>
@@ -142,6 +243,10 @@ export default function OrdenesTrabajo() {
           const est = ESTADO_CFG[ot.estado] || ESTADO_CFG.reportado;
           const pri = PRIORIDAD_CFG[ot.prioridad] || PRIORIDAD_CFG.media;
           const tel = provTel(ot.proveedor_id);
+          const isUploading = uploadingId === ot.id;
+          const hasBudget = ot.monto_presupuesto != null;
+          const hasInvoice = ot.monto_final != null;
+          const overBudget = hasBudget && hasInvoice && ot.monto_final! > ot.monto_presupuesto!;
           return (
             <div key={ot.id} style={{ padding: '12px 14px', borderRadius: 12, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderLeft: `4px solid ${est.color}` }}>
               {/* Row 1: title + priority */}
@@ -151,6 +256,25 @@ export default function OrdenesTrabajo() {
               </div>
               {/* Row 2: propiedad */}
               <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', marginBottom: 4 }}>{propDir(ot.propiedad_id)}</div>
+              {/* Row 2.5: budget/invoice comparison */}
+              {(hasBudget || hasInvoice) && (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6, fontSize: '0.75rem', fontFamily: 'var(--font-mono)' }}>
+                  {hasBudget && (
+                    <span style={{ color: 'var(--color-text-secondary)' }}>
+                      Presupuesto: ${ot.monto_presupuesto!.toLocaleString('es-AR')}
+                    </span>
+                  )}
+                  {hasInvoice && (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: overBudget ? '#F59E0B' : '#10B981' }}>
+                      Facturado: ${ot.monto_final!.toLocaleString('es-AR')}
+                      {overBudget
+                        ? <AlertTriangle size={12} />
+                        : <CheckCircle size={12} />
+                      }
+                    </span>
+                  )}
+                </div>
+              )}
               {/* Row 3: badges */}
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
                 <span style={{ fontSize: '0.625rem', fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: `${est.color}15`, color: est.color }}>{est.label}</span>
@@ -159,15 +283,28 @@ export default function OrdenesTrabajo() {
                     <Wrench size={10} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 2 }} />{provName(ot.proveedor_id)}
                   </span>
                 )}
-                {ot.monto_final && (
-                  <span style={{ fontSize: '0.625rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: 'var(--color-bg-surface-2)', color: 'var(--color-text-secondary)', fontFamily: 'var(--font-mono)' }}>
-                    ${ot.monto_final.toLocaleString('es-AR')}
-                  </span>
-                )}
                 {ot.notificado_inquilino && (
                   <span style={{ fontSize: '0.625rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: '#10B98115', color: '#10B981' }}>Notificado</span>
                 )}
               </div>
+              {/* Row 3.5: invoice preview */}
+              {ot.comprobante_url && (
+                <div style={{ marginBottom: 8 }}>
+                  {isImageUrl(ot.comprobante_url) ? (
+                    <a href={ot.comprobante_url} target="_blank" rel="noopener noreferrer">
+                      <img
+                        src={ot.comprobante_url}
+                        alt="Comprobante"
+                        style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--color-border-subtle)' }}
+                      />
+                    </a>
+                  ) : (
+                    <a href={ot.comprobante_url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderRadius: 8, background: 'var(--color-bg-surface-2)', color: '#8B5CF6', fontSize: '0.75rem', fontWeight: 600, textDecoration: 'none', border: '1px solid var(--color-border-subtle)' }}>
+                      <FileText size={14} /> Ver factura
+                    </a>
+                  )}
+                </div>
+              )}
               {/* Row 4: actions */}
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {ot.estado !== 'completado' && ot.estado !== 'facturado' && ot.estado !== 'liquidado' && ot.estado !== 'cancelado' && (
@@ -181,11 +318,15 @@ export default function OrdenesTrabajo() {
                   </a>
                 )}
                 {ot.estado === 'completado' && (
-                  <button onClick={() => avanzarEstado(ot)} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #8B5CF6', background: 'transparent', color: '#8B5CF6', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', gap: 3 }}>
-                    <Upload size={12} /> Facturar
+                  <button
+                    onClick={() => handleSubirFactura(ot)}
+                    disabled={isUploading}
+                    style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #8B5CF6', background: isUploading ? '#8B5CF615' : 'transparent', color: '#8B5CF6', fontSize: '0.75rem', fontWeight: 600, cursor: isUploading ? 'wait' : 'pointer', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', gap: 3, opacity: isUploading ? 0.7 : 1 }}
+                  >
+                    <Upload size={12} /> {isUploading ? 'Procesando factura...' : 'Subir factura'}
                   </button>
                 )}
-                <button onClick={() => { setEditing(ot); setForm({ propiedad_id: ot.propiedad_id, proveedor_id: ot.proveedor_id || '', titulo: ot.titulo, descripcion: ot.descripcion || '', prioridad: ot.prioridad }); setShowModal(true); }}
+                <button onClick={() => { setEditing(ot); setForm({ propiedad_id: ot.propiedad_id, proveedor_id: ot.proveedor_id || '', titulo: ot.titulo, descripcion: ot.descripcion || '', prioridad: ot.prioridad, monto_presupuesto: ot.monto_presupuesto != null ? String(ot.monto_presupuesto) : '' }); setShowModal(true); }}
                   style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '0.75rem', fontWeight: 500, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
                   Ver detalle
                 </button>
@@ -229,6 +370,9 @@ export default function OrdenesTrabajo() {
                     );
                   })}
                 </div>
+              </div>
+              <div className="form-group"><label className="form-label">Monto presupuesto</label>
+                <input className="form-input" type="number" min="0" step="0.01" value={form.monto_presupuesto} onChange={e => setForm(f => ({ ...f, monto_presupuesto: e.target.value }))} placeholder="Ej: 45000" style={{ height: 42, borderRadius: 10 }} />
               </div>
               <div className="form-group"><label className="form-label">Descripción</label>
                 <textarea className="form-input" rows={3} value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} placeholder="Detalle del problema..." style={{ borderRadius: 10, resize: 'vertical' }} />

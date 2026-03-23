@@ -12,6 +12,12 @@ import { getColpyService } from '../../services/ColpyService';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 
+function useIsMobile() {
+    const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
+    useEffect(() => { const h = () => setM(window.innerWidth <= 768); window.addEventListener('resize', h); return () => window.removeEventListener('resize', h); }, []);
+    return m;
+}
+
 /* ─── Types ─────────────────── */
 interface Config {
     id: string;
@@ -49,6 +55,7 @@ const TABS: { key: TabKey; label: string; icon: any }[] = [
 
 /* ─── Component ─────────────── */
 export default function Configuracion() {
+    const isMobile = useIsMobile();
     const { tenant, refreshTenant } = useTenant();
     const { refreshProfile } = useAuth();
     const { theme, setTheme } = useTheme();
@@ -462,7 +469,7 @@ export default function Configuracion() {
         return (
             <div>
                 <div className="page-header"><h1>Configuración</h1><p>Cargando...</p></div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? '1rem' : '1.5rem' }}>
                     <SkeletonCard lines={4} />
                     <SkeletonCard lines={4} />
                 </div>
@@ -472,7 +479,7 @@ export default function Configuracion() {
 
     /* ─── Tab Content Renderers ─── */
     const renderEmpresa = () => (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? '1rem' : '1.5rem', alignItems: 'start' }}>
             {/* Logo + Color */}
             <div className="card" style={{ padding: '1.5rem' }}>
                 <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -577,7 +584,7 @@ export default function Configuracion() {
                 <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Building2 size={16} color="#3b82f6" /> Datos Fiscales
                 </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '0.75rem' }}>
                     <div className="form-group" style={{ marginBottom: 0 }}>
                         <label className="form-label">Razón Social</label>
                         <input className="form-input" value={tenantRazonSocial} onChange={e => setTenantRazonSocial(e.target.value)} placeholder="Mi Empresa S.R.L." />
@@ -604,7 +611,7 @@ export default function Configuracion() {
                 <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Settings size={16} color="var(--text-muted)" /> Parámetros Generales
                 </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? '1rem' : '2rem' }}>
                     <div className="form-group" style={{ marginBottom: 0 }}>
                         <label className="form-label">Umbral de Auto-Aprobación</label>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -1018,19 +1025,21 @@ export default function Configuracion() {
 
     /* ─── Main Render ─── */
     return (
-        <div>
-            <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ padding: isMobile ? 0 : undefined }}>
+            {/* Header */}
+            <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'center' : 'flex-start', flexWrap: isMobile ? 'wrap' : undefined, gap: isMobile ? 8 : undefined }}>
                 <div>
-                    <h1>Configuración</h1>
-                    <p>Parámetros, integraciones y usuarios del módulo contable</p>
+                    <h1 style={isMobile ? { fontSize: '1.125rem', marginBottom: 2 } : undefined}>Configuración</h1>
+                    {!isMobile && <p>Parámetros, integraciones y usuarios del módulo contable</p>}
                 </div>
-                <button className="btn btn-primary" onClick={activeTab === 'integraciones' ? handleSave : handleSaveTenant} disabled={saving || savingTenant}>
-                    {tenantSaved ? <><CheckCircle size={16} /> Guardado</> : <><Save size={16} /> {saving || savingTenant ? 'Guardando...' : 'Guardar cambios'}</>}
+                <button className="btn btn-primary" onClick={activeTab === 'integraciones' ? handleSave : handleSaveTenant} disabled={saving || savingTenant}
+                    style={isMobile ? { fontSize: '0.8rem', padding: '6px 14px' } : undefined}>
+                    {tenantSaved ? <><CheckCircle size={16} /> Guardado</> : <><Save size={16} /> {saving || savingTenant ? 'Guardando...' : 'Guardar'}</>}
                 </button>
             </div>
 
-            {/* Tabs */}
-            <div style={{ display: 'flex', gap: 4, marginBottom: '1.5rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 0 }}>
+            {/* Tabs — scrollable on mobile */}
+            <div style={{ display: 'flex', gap: 4, marginBottom: isMobile ? '1rem' : '1.5rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 0, overflowX: isMobile ? 'auto' : undefined, WebkitOverflowScrolling: 'touch' }}>
                 {TABS.map(tab => {
                     const Icon = tab.icon;
                     const isActive = activeTab === tab.key;
@@ -1040,11 +1049,13 @@ export default function Configuracion() {
                             onClick={() => setActiveTab(tab.key)}
                             style={{
                                 display: 'flex', alignItems: 'center', gap: 6,
-                                padding: '0.6rem 1.25rem', fontSize: '0.8rem', fontWeight: isActive ? 700 : 500,
+                                padding: isMobile ? '0.5rem 1rem' : '0.6rem 1.25rem',
+                                fontSize: isMobile ? '0.75rem' : '0.8rem', fontWeight: isActive ? 700 : 500,
                                 color: isActive ? 'var(--brand)' : 'var(--text-muted)',
                                 background: 'transparent', border: 'none', cursor: 'pointer',
                                 borderBottom: isActive ? '2px solid var(--brand)' : '2px solid transparent',
                                 marginBottom: -1, transition: 'all 0.15s ease',
+                                whiteSpace: 'nowrap', flexShrink: 0,
                             }}
                         >
                             <Icon size={14} />

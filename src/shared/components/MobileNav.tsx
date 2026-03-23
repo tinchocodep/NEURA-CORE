@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home, Building2, Menu, Plus, X,
-  Upload, FileSignature, CalendarPlus, DollarSign, UserPlus,
+  Upload, FileSignature, CalendarPlus, UserPlus,
   Settings, LogOut,
   Users, BarChart3, Receipt, Wallet, HelpCircle, Shield,
-  FilePlus, PlusCircle, Banknote, CheckCircle, CircleDollarSign
+  CheckCircle
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
@@ -24,57 +24,33 @@ export default function MobileNav() {
   const tenantModules = (tenant as any)?.enabled_modules || [];
   const hasModule = (id: string) => tenantModules.includes(id);
 
-  // Create menu sections
+  // Create menu sections — Operaciones + Gestión (no Administración in mobile)
   const createSections: CreateSection[] = [];
-
-  if (hasModule('crm')) {
-    createSections.push({
-      title: 'CRM',
-      actions: [
-        { name: 'Contacto', icon: UserPlus, path: '/crm/contactos?action=crear' },
-        { name: 'Prospecto', icon: Users, path: '/crm/prospectos?action=crear' },
-      ]
-    });
-  }
-
-  if (hasModule('tesoreria')) {
-    createSections.push({
-      title: 'Tesorería',
-      actions: [
-        { name: 'Movimiento', icon: DollarSign, path: '/tesoreria/movimientos?action=crear' },
-        { name: 'Caja', icon: Wallet, path: '/tesoreria/cajas?action=crear' },
-        { name: 'Orden de\nPago', icon: Banknote, path: '/tesoreria/ordenes-pago?tab=nueva' },
-      ]
-    });
-  }
-
-  if (hasModule('contable')) {
-    createSections.push({
-      title: 'Contable',
-      actions: [
-        { name: 'Subir\nComprobante', icon: Upload, path: '/contable/comprobantes?tab=upload' },
-        { name: 'Gasto', icon: Receipt, path: '/contable/comprobantes?tab=gasto' },
-        { name: 'Ingreso', icon: FilePlus, path: '/contable/comprobantes?tab=ingreso' },
-      ]
-    });
-  }
 
   if (hasModule('inmobiliaria')) {
     createSections.push({
-      title: 'Inmobiliaria',
+      title: 'Operaciones',
       actions: [
         { name: 'Propiedad', icon: Building2, path: '/inmobiliaria/propiedades?action=crear' },
         { name: 'Contrato', icon: FileSignature, path: '/inmobiliaria/contratos?action=crear' },
-        { name: 'Vencimiento', icon: CalendarPlus, path: '/inmobiliaria/agenda?action=crear' },
+        { name: 'Orden de\ntrabajo', icon: Receipt, path: '/inmobiliaria/ordenes?action=crear' },
       ]
     });
   }
 
-  if (hasModule('comercial')) {
+  if (hasModule('inmobiliaria') || hasModule('crm')) {
     createSections.push({
-      title: 'Comercial',
+      title: 'Gestión',
       actions: [
-        { name: 'Lead', icon: PlusCircle, path: '/comercial/pipeline?action=crear' },
+        ...(hasModule('inmobiliaria') ? [
+          { name: 'Liquidación', icon: Wallet, path: '/inmobiliaria/liquidaciones?action=crear' },
+          { name: 'Vencimiento', icon: CalendarPlus, path: '/inmobiliaria/agenda?action=crear' },
+          { name: 'Comprobante', icon: Upload, path: '/contable/comprobantes?tab=upload' },
+        ] : []),
+        ...(hasModule('crm') ? [
+          { name: 'Contacto', icon: UserPlus, path: '/crm/contactos?action=crear' },
+          { name: 'Prospecto', icon: Users, path: '/crm/prospectos?action=crear' },
+        ] : []),
       ]
     });
   }
@@ -184,16 +160,42 @@ export default function MobileNav() {
                 Módulos
               </div>
 
-              {/* Operaciones */}
+              {/* Operaciones (matches tab bar "Operac.") */}
               {hasModule('inmobiliaria') && (<>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0' }}>
                   <CheckCircle size={18} color="#185FA5" />
                   <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>Operaciones</span>
                 </div>
                 {([
+                  { name: 'Propiedades', path: '/inmobiliaria/propiedades', badge: '10' },
+                  { name: 'Contratos', path: '/inmobiliaria/contratos', badge: '2 vencen', badgeColor: '#F59E0B' },
+                  { name: 'Órdenes de trabajo', path: '/inmobiliaria/ordenes' },
+                ] as { name: string; path: string; badge?: string; badgeColor?: string }[]).map(item => (
+                  <Link key={item.path} to={item.path} onClick={() => setShowMenu(false)}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 0 11px 32px', borderBottom: '1px solid #f8f8f8', textDecoration: 'none', color: '#555', fontSize: '0.8125rem' }}>
+                    <span>{item.name}</span>
+                    {item.badge && (
+                      <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: `${item.badgeColor || '#3B82F6'}15`, color: item.badgeColor || '#3B82F6' }}>{item.badge}</span>
+                    )}
+                  </Link>
+                ))}
+                <div style={{ height: 1, background: '#f0f0f0', margin: '8px 0' }} />
+              </>)}
+
+              {/* Gestión (matches tab bar "Gestión") */}
+              {hasModule('inmobiliaria') && (<>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0' }}>
+                  <Building2 size={18} color="#185FA5" />
+                  <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>Gestión</span>
+                </div>
+                {([
+                  { name: 'Dashboard', path: '/inmobiliaria' },
                   { name: 'Liquidaciones', path: '/inmobiliaria/liquidaciones' },
-                  { name: 'Agenda / Vencimientos', path: '/inmobiliaria/agenda' },
                   { name: 'Cuentas corrientes', path: '/inmobiliaria/cuentas' },
+                  { name: 'Agenda / Vencimientos', path: '/inmobiliaria/agenda' },
+                  { name: 'Proveedores', path: '/inmobiliaria/proveedores' },
+                  { name: 'Comprobantes', path: '/contable/comprobantes' },
+                  { name: 'Proyecciones', path: '/tesoreria' },
                   ...(hasModule('crm') ? [
                     { name: 'Contactos', path: '/crm/contactos' },
                     { name: 'Prospectos', path: '/crm/prospectos' },
@@ -210,58 +212,6 @@ export default function MobileNav() {
                 <div style={{ height: 1, background: '#f0f0f0', margin: '8px 0' }} />
               </>)}
 
-              {/* Inmobiliaria */}
-              {hasModule('inmobiliaria') && (<>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0' }}>
-                  <Building2 size={18} color="#185FA5" />
-                  <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>Inmobiliaria</span>
-                </div>
-                {([
-                  { name: 'Dashboard', path: '/inmobiliaria' },
-                  { name: 'Propiedades', path: '/inmobiliaria/propiedades', badge: '10' },
-                  { name: 'Contratos', path: '/inmobiliaria/contratos', badge: '2 vencen', badgeColor: '#F59E0B' },
-                ] as { name: string; path: string; badge?: string; badgeColor?: string }[]).map(item => (
-                  <Link key={item.path} to={item.path} onClick={() => setShowMenu(false)}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 0 11px 32px', borderBottom: '1px solid #f8f8f8', textDecoration: 'none', color: '#555', fontSize: '0.8125rem' }}>
-                    <span>{item.name}</span>
-                    {item.badge && (
-                      <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: `${item.badgeColor || '#3B82F6'}15`, color: item.badgeColor || '#3B82F6' }}>{item.badge}</span>
-                    )}
-                  </Link>
-                ))}
-                <div style={{ height: 1, background: '#f0f0f0', margin: '8px 0' }} />
-              </>)}
-
-              {/* Administración (Tesorería + Contable) */}
-              {(hasModule('tesoreria') || hasModule('contable')) && (<>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0' }}>
-                  <CircleDollarSign size={18} color="#185FA5" />
-                  <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>Administración</span>
-                </div>
-                {([
-                  ...(hasModule('tesoreria') ? [
-                    { name: 'Proyecciones', path: '/tesoreria' },
-                    { name: 'Movimientos', path: '/tesoreria/movimientos', badge: '3 pend.', badgeColor: '#F59E0B' },
-                    { name: 'Órdenes de pago', path: '/tesoreria/ordenes-pago' },
-                    { name: 'Cajas', path: '/tesoreria/cajas' },
-                    { name: 'Bancos', path: '/tesoreria/bancos' },
-                  ] : []),
-                  ...(hasModule('contable') ? [
-                    { name: 'Comprobantes', path: '/contable/comprobantes' },
-                    { name: 'Gastos', path: '/contable/comprobantes?tab=gasto' },
-                    { name: 'Ingresos', path: '/contable/comprobantes?tab=ingreso' },
-                  ] : []),
-                ] as { name: string; path: string; badge?: string; badgeColor?: string }[]).map(item => (
-                  <Link key={item.path + item.name} to={item.path} onClick={() => setShowMenu(false)}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 0 11px 32px', borderBottom: '1px solid #f8f8f8', textDecoration: 'none', color: '#555', fontSize: '0.8125rem' }}>
-                    <span>{item.name}</span>
-                    {item.badge && (
-                      <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: `${item.badgeColor || '#3B82F6'}15`, color: item.badgeColor || '#3B82F6' }}>{item.badge}</span>
-                    )}
-                  </Link>
-                ))}
-                <div style={{ height: 1, background: '#f0f0f0', margin: '8px 0' }} />
-              </>)}
 
 
               {/* ── HERRAMIENTAS ── */}

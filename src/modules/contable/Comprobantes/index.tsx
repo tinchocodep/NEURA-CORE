@@ -12,14 +12,25 @@ import { CommandBar, useCommandBar } from '../../../design-system/components/Com
 import ComprobanteForm from './ComprobanteForm';
 import GastoIngresoForm from './GastoIngresoForm';
 import { DocumentViewer } from '../../../shared/components/DocumentViewer';
+import ComprobantesMobile from './ComprobantesMobile';
+
+function useIsMobile() {
+    const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
+    useEffect(() => { const h = () => setM(window.innerWidth <= 768); window.addEventListener('resize', h); return () => window.removeEventListener('resize', h); }, []);
+    return m;
+}
 
 type TabKey = 'listado' | 'crear' | 'upload' | 'gasto' | 'ingreso';
 
 export default function ComprobantesIndex() {
+    const isMobile = useIsMobile();
     const { tenant } = useTenant();
     const { addToast } = useToast();
     const [searchParams, setSearchParams] = useSearchParams();
     const tabParam = (searchParams.get('tab') as TabKey) || 'listado';
+
+    // Mobile: render simplified view (Gestión — only view comprobantes + generate OP)
+    if (isMobile) return <ComprobantesMobile />;
 
     const [activeTab, setActiveTab] = useState<TabKey>(tabParam);
     const [filtroTipo, setFiltroTipo] = useState('todos');
