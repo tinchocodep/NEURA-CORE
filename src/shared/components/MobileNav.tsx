@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Home, Building2, Menu,
+  Home, Building2, Menu, Plus, X,
   Upload, FileSignature, CalendarPlus, DollarSign, UserPlus,
   Settings, LogOut,
   Users, BarChart3, Receipt, Wallet, HelpCircle, Shield,
@@ -96,21 +96,20 @@ export default function MobileNav() {
         </Link>
 
         {/* 2. Operaciones */}
-        <Link to="/inmobiliaria/liquidaciones" className={`mobile-nav-item${(isActive('/inmobiliaria/liquidaciones') || isActive('/inmobiliaria/agenda')) && !showMenu ? ' active' : ''}`} onClick={closeAll}>
+        <Link to="/inmobiliaria/propiedades" className={`mobile-nav-item${isActive('/inmobiliaria/propiedades') || isActive('/inmobiliaria/contratos') || isActive('/inmobiliaria/proveedores') || isActive('/inmobiliaria/ordenes') ? ' active' : ''}`} onClick={closeAll}>
           <CheckCircle size={20} />
           <span>Operac.</span>
         </Link>
 
-        {/* 3. Inmob. */}
-        <Link to="/inmobiliaria" className={`mobile-nav-item${isActive('/inmobiliaria') && !isActive('/inmobiliaria/liquidaciones') && !isActive('/inmobiliaria/agenda') && !showMenu ? ' active' : ''}`} onClick={closeAll}>
-          <Building2 size={20} />
-          <span>Inmob.</span>
-        </Link>
+        {/* 3. + (FAB) */}
+        <button className="mobile-nav-item-center" onClick={() => { setShowCreate(a => !a); setShowMenu(false); }}>
+          {showCreate ? <X size={22} /> : <Plus size={22} />}
+        </button>
 
-        {/* 4. Admin. */}
-        <Link to="/tesoreria" className={`mobile-nav-item${(isActive('/tesoreria') || isActive('/contable')) && !showMenu ? ' active' : ''}`} onClick={closeAll}>
-          <CircleDollarSign size={20} />
-          <span>Admin.</span>
+        {/* 4. Gestión */}
+        <Link to="/inmobiliaria" className={`mobile-nav-item${(isActive('/inmobiliaria') && !isActive('/inmobiliaria/propiedades') && !isActive('/inmobiliaria/contratos') && !isActive('/inmobiliaria/proveedores') && !isActive('/inmobiliaria/ordenes')) || isActive('/inmobiliaria/liquidaciones') || isActive('/inmobiliaria/cuentas') || isActive('/inmobiliaria/agenda') ? ' active' : ''}`} onClick={closeAll}>
+          <Building2 size={20} />
+          <span>Gestión</span>
         </Link>
 
         {/* 5. Más */}
