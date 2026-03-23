@@ -211,7 +211,9 @@ export default function Layout() {
     const sectionItems = (isContable && !isConfiguracion) ? contableItems : isTesoreria ? tesoreriaItems : isCRM ? crmItems : isComercial ? comercialItems : isInmobiliaria ? inmobiliariaItems : [];
 
     // Mobile: module title for toggle
-    const currentModuleName = isCRM ? 'CRM' : isTesoreria ? 'Tesorería' : (isContable && !isConfiguracion) ? 'Contable' : isComercial ? 'Comercial' : isInmobiliaria ? 'Inmobiliaria' : '';
+    // Mobile: map routes to display names matching the new tab bar
+    const isOperaciones = isInmobiliaria && (location.pathname.startsWith('/inmobiliaria/liquidaciones') || location.pathname.startsWith('/inmobiliaria/agenda'));
+    const currentModuleName = isCRM ? 'CRM' : isTesoreria ? 'Administración' : (isContable && !isConfiguracion) ? 'Administración' : isComercial ? 'Comercial' : isOperaciones ? 'Operaciones' : isInmobiliaria ? 'Inmobiliaria' : '';
     const [mobileSubnavOpen, setMobileSubnavOpen] = useState(false);
 
     // Mobile: current section name (e.g. "Dashboard", "Contratos")
