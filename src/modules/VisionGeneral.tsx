@@ -104,7 +104,6 @@ export default function VisionGeneral() {
     const { user, displayName } = useAuth();
     const navigate = useNavigate();
     const isMobile = useIsMobile();
-    const tenantModules = (tenant as any)?.enabled_modules || [];
     // Use first name from email if displayName looks like a company name
     const userName = (() => {
         const email = user?.email || '';

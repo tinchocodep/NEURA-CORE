@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Home, TrendingUp, Plus, X, Building2, Menu,
+  Home, Building2, Menu,
   Upload, FileSignature, CalendarPlus, DollarSign, UserPlus,
-  Settings, LogOut, Landmark, BookOpen, Briefcase, Funnel,
-  Users, BarChart3, Receipt, Wallet, Bell, HelpCircle, Shield,
+  Settings, LogOut, Landmark, Briefcase,
+  Users, BarChart3, Receipt, Wallet, HelpCircle, Shield,
   FilePlus, PlusCircle, Banknote, CheckCircle, CircleDollarSign
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -23,9 +23,6 @@ export default function MobileNav() {
 
   const tenantModules = (tenant as any)?.enabled_modules || [];
   const hasModule = (id: string) => tenantModules.includes(id);
-
-  const rubroModule = tenantModules.find((m: string) => m === 'inmobiliaria') || null;
-  const rubroPath = '/inmobiliaria';
 
   // Create menu sections
   const createSections: CreateSection[] = [];
@@ -81,58 +78,6 @@ export default function MobileNav() {
       ]
     });
   }
-
-  // Menu items for hamburger (Mercado Pago style)
-  const menuSections = [
-    {
-      title: 'Principal',
-      items: [
-        { name: 'Inicio', icon: Home, path: '/' },
-        { name: 'Notificaciones', icon: Bell, path: '/notificaciones' },
-        ...(hasModule('tesoreria') ? [{ name: 'Proyecciones', icon: TrendingUp, path: '/tesoreria' }] : []),
-      ]
-    },
-    {
-      title: 'Módulos',
-      items: [
-        ...(hasModule('contable') ? [
-          { name: 'Contable', icon: BookOpen, path: '/contable' },
-          { name: 'Comprobantes', icon: Receipt, path: '/contable/comprobantes' },
-        ] : []),
-        ...(hasModule('tesoreria') ? [
-          { name: 'Tesorería', icon: Landmark, path: '/tesoreria' },
-          { name: 'Movimientos', icon: DollarSign, path: '/tesoreria/movimientos' },
-        ] : []),
-        ...(hasModule('crm') ? [
-          { name: 'CRM', icon: Briefcase, path: '/crm' },
-          { name: 'Contactos', icon: Users, path: '/crm/contactos' },
-        ] : []),
-        ...(hasModule('comercial') ? [
-          { name: 'Comercial', icon: Funnel, path: '/comercial' },
-        ] : []),
-        ...(hasModule('inmobiliaria') ? [
-          { name: 'Inmobiliaria', icon: Building2, path: '/inmobiliaria' },
-          { name: 'Propiedades', icon: Building2, path: '/inmobiliaria/propiedades' },
-          { name: 'Contratos', icon: FileSignature, path: '/inmobiliaria/contratos' },
-          { name: 'Agenda', icon: CalendarPlus, path: '/inmobiliaria/agenda' },
-        ] : []),
-      ]
-    },
-    {
-      title: 'Reportes',
-      items: [
-        { name: 'Reportes', icon: BarChart3, path: '/reportes' },
-      ]
-    },
-    {
-      title: 'Cuenta',
-      items: [
-        { name: 'Configuración', icon: Settings, path: '/configuracion' },
-        { name: 'Ayuda', icon: HelpCircle, path: '/ayuda' },
-        ...(role === 'superadmin' ? [{ name: 'Super Admin', icon: Shield, path: '/superadmin' }] : []),
-      ]
-    },
-  ];
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/';

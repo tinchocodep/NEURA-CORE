@@ -29,7 +29,6 @@ export default function TopBar() {
     const role = user?.user_metadata?.role || 'user';
     const location = useLocation();
     const isSubpage = isMobile && location.pathname.split('/').filter(Boolean).length > 1;
-    const isHome = location.pathname === '/';
 
     /* ── MOBILE ── */
     if (isMobile) {
