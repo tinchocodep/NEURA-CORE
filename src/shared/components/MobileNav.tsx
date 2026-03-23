@@ -195,6 +195,10 @@ export default function MobileNav() {
                   { name: 'Liquidaciones', path: '/inmobiliaria/liquidaciones' },
                   { name: 'Agenda / Vencimientos', path: '/inmobiliaria/agenda' },
                   { name: 'Cuentas corrientes', path: '/inmobiliaria/cuentas' },
+                  ...(hasModule('crm') ? [
+                    { name: 'Contactos', path: '/crm/contactos' },
+                    { name: 'Prospectos', path: '/crm/prospectos' },
+                  ] : []),
                 ] as { name: string; path: string; badge?: string; badgeColor?: string }[]).map(item => (
                   <Link key={item.path} to={item.path} onClick={() => setShowMenu(false)}
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 0 11px 32px', borderBottom: '1px solid #f8f8f8', textDecoration: 'none', color: '#555', fontSize: '0.8125rem' }}>
@@ -260,23 +264,6 @@ export default function MobileNav() {
                 <div style={{ height: 1, background: '#f0f0f0', margin: '8px 0' }} />
               </>)}
 
-              {/* CRM */}
-              {hasModule('crm') && (<>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0' }}>
-                  <Briefcase size={18} color="#185FA5" />
-                  <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>CRM</span>
-                </div>
-                {([
-                  { name: 'Contactos', path: '/crm/contactos' },
-                  { name: 'Prospectos', path: '/crm/prospectos' },
-                ] as { name: string; path: string; badge?: string; badgeColor?: string }[]).map(item => (
-                  <Link key={item.path} to={item.path} onClick={() => setShowMenu(false)}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 0 11px 32px', borderBottom: '1px solid #f8f8f8', textDecoration: 'none', color: '#555', fontSize: '0.8125rem' }}>
-                    <span>{item.name}</span>
-                  </Link>
-                ))}
-                <div style={{ height: 1, background: '#f0f0f0', margin: '8px 0' }} />
-              </>)}
 
               {/* ── HERRAMIENTAS ── */}
               <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#999', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '8px 0 10px' }}>
