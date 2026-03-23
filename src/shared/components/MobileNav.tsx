@@ -185,6 +185,28 @@ export default function MobileNav() {
                 Módulos
               </div>
 
+              {/* Operaciones */}
+              {hasModule('inmobiliaria') && (<>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0' }}>
+                  <CheckCircle size={18} color="#185FA5" />
+                  <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>Operaciones</span>
+                </div>
+                {([
+                  { name: 'Liquidaciones', path: '/inmobiliaria/liquidaciones' },
+                  { name: 'Agenda / Vencimientos', path: '/inmobiliaria/agenda' },
+                  { name: 'Cuentas corrientes', path: '/inmobiliaria/cuentas' },
+                ] as { name: string; path: string; badge?: string; badgeColor?: string }[]).map(item => (
+                  <Link key={item.path} to={item.path} onClick={() => setShowMenu(false)}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 0 11px 32px', borderBottom: '1px solid #f8f8f8', textDecoration: 'none', color: '#555', fontSize: '0.8125rem' }}>
+                    <span>{item.name}</span>
+                    {item.badge && (
+                      <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: `${item.badgeColor || '#3B82F6'}15`, color: item.badgeColor || '#3B82F6' }}>{item.badge}</span>
+                    )}
+                  </Link>
+                ))}
+                <div style={{ height: 1, background: '#f0f0f0', margin: '8px 0' }} />
+              </>)}
+
               {/* Inmobiliaria */}
               {hasModule('inmobiliaria') && (<>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0' }}>
@@ -195,9 +217,6 @@ export default function MobileNav() {
                   { name: 'Dashboard', path: '/inmobiliaria' },
                   { name: 'Propiedades', path: '/inmobiliaria/propiedades', badge: '10' },
                   { name: 'Contratos', path: '/inmobiliaria/contratos', badge: '2 vencen', badgeColor: '#F59E0B' },
-                  { name: 'Liquidaciones', path: '/inmobiliaria/liquidaciones' },
-                  { name: 'Cuentas', path: '/inmobiliaria/cuentas' },
-                  { name: 'Agenda', path: '/inmobiliaria/agenda' },
                 ] as { name: string; path: string; badge?: string; badgeColor?: string }[]).map(item => (
                   <Link key={item.path} to={item.path} onClick={() => setShowMenu(false)}
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 0 11px 32px', borderBottom: '1px solid #f8f8f8', textDecoration: 'none', color: '#555', fontSize: '0.8125rem' }}>
@@ -213,11 +232,12 @@ export default function MobileNav() {
               {/* Administración (Tesorería + Contable) */}
               {(hasModule('tesoreria') || hasModule('contable')) && (<>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0' }}>
-                  <Landmark size={18} color="#185FA5" />
+                  <CircleDollarSign size={18} color="#185FA5" />
                   <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>Administración</span>
                 </div>
                 {([
                   ...(hasModule('tesoreria') ? [
+                    { name: 'Proyecciones', path: '/tesoreria' },
                     { name: 'Movimientos', path: '/tesoreria/movimientos', badge: '3 pend.', badgeColor: '#F59E0B' },
                     { name: 'Órdenes de pago', path: '/tesoreria/ordenes-pago' },
                     { name: 'Cajas', path: '/tesoreria/cajas' },
@@ -227,9 +247,6 @@ export default function MobileNav() {
                     { name: 'Comprobantes', path: '/contable/comprobantes' },
                     { name: 'Gastos', path: '/contable/comprobantes?tab=gasto' },
                     { name: 'Ingresos', path: '/contable/comprobantes?tab=ingreso' },
-                  ] : []),
-                  ...(hasModule('tesoreria') ? [
-                    { name: 'Proyecciones', path: '/tesoreria' },
                   ] : []),
                 ] as { name: string; path: string; badge?: string; badgeColor?: string }[]).map(item => (
                   <Link key={item.path + item.name} to={item.path} onClick={() => setShowMenu(false)}
@@ -266,7 +283,6 @@ export default function MobileNav() {
                 Herramientas
               </div>
               {([
-                { name: 'Agenda', icon: CalendarPlus, path: '/inmobiliaria/agenda' },
                 { name: 'Reportes', icon: BarChart3, path: '/comercial/reportes' },
               ]).map(item => (
                 <Link key={item.name} to={item.path} onClick={() => setShowMenu(false)}
