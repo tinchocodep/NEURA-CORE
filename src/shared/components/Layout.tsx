@@ -573,8 +573,8 @@ export default function Layout() {
                 </div>
             </main>
 
-            {/* ──────────────── AGENT MONITOR ──────────────── */}
-            {!isMobile && (
+            {/* ──────────────── AGENT MONITOR (hidden for inmobiliaria tenants) ──────────────── */}
+            {!isMobile && !hasInmob && (
                 <AgentMonitorPanel
                     collapsed={agentCollapsed}
                     onToggle={() => setAgentCollapsed(c => !c)}

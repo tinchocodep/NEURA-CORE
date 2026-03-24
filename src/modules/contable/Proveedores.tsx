@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
@@ -154,11 +155,12 @@ export default function Proveedores() {
     const [selectedProvider, setSelectedProvider] = useState<Proveedor | null>(null);
     const [detailComprobantes, setDetailComprobantes] = useState<ComprobanteResumen[]>([]);
     const [detailLoading, setDetailLoading] = useState(false);
+    const [detailContactos, setDetailContactos] = useState<{ id: string; nombre: string; apellido: string | null; email: string | null; telefono: string | null; cargo: string | null }[]>([]);
     const [expandedComprobante, setExpandedComprobante] = useState<string | null>(null);
     const [docPreview, setDocPreview] = useState<string | null>(null);
     const [activityFilter, setActivityFilter] = useState<'all' | 'recent' | 'month' | 'dormant' | 'none'>('all');
     const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
-    const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
+    const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
     const [productoFilter, setProductoFilter] = useState<string>('');
     const [showProdFilterDrop, setShowProdFilterDrop] = useState(false);
     const [prodFilterSearch, setProdFilterSearch] = useState('');
@@ -325,6 +327,15 @@ export default function Proveedores() {
         });
 
         setDetailComprobantes(combined.slice(0, 30));
+
+        // Load linked contacts
+        const { data: contactos } = await supabase
+            .from('crm_contactos')
+            .select('id, nombre, apellido, email, telefono, cargo')
+            .eq('proveedor_id', p.id)
+            .eq('activo', true)
+            .order('nombre');
+        setDetailContactos(contactos || []);
         setDetailLoading(false);
     }
 
@@ -1002,68 +1013,71 @@ export default function Proveedores() {
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
+                                                                console.log('[Proveedores] 3-dot clicked for:', p.razon_social, 'current menuOpenId:', menuOpenId);
                                                                 if (menuOpenId === p.id) { setMenuOpenId(null); return; }
                                                                 const rect = e.currentTarget.getBoundingClientRect();
-                                                                setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+                                                                const top = rect.bottom + 4;
+                                                                const left = rect.right - 200; // align menu right edge with button right edge
+                                                                console.log('[Proveedores] Opening menu at:', { top, left });
+                                                                setMenuPos({ top, left });
                                                                 setMenuOpenId(p.id);
                                                             }}
-                                                            className="btn btn-ghost"
-                                                            style={{ padding: '0.3rem', borderRadius: 8 }}
+                                                            style={{ padding: '0.4rem', borderRadius: 8, border: 'none', background: menuOpenId === p.id ? '#f1f5f9' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}
                                                         >
                                                             <MoreVertical size={16} />
                                                         </button>
-                                                        {menuOpenId === p.id && (
+                                                        {menuOpenId === p.id && createPortal(
                                                             <>
-                                                                <div style={{ position: 'fixed', inset: 0, zIndex: 90 }} onClick={(e) => { e.stopPropagation(); setMenuOpenId(null); }} />
+                                                                <div style={{ position: 'fixed', inset: 0, zIndex: 9998 }} onClick={() => setMenuOpenId(null)} />
                                                                 <div style={{
-                                                                    position: 'fixed', top: menuPos.top, right: menuPos.right, zIndex: 100,
-                                                                    background: 'var(--bg-card, #fff)', borderRadius: 12,
-                                                                    border: '1px solid var(--border-subtle, #e2e8f0)',
-                                                                    boxShadow: '0 8px 24px rgba(0,0,0,0.12)', minWidth: 180,
-                                                                    padding: '0.35rem', overflow: 'hidden',
+                                                                    position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 9999,
+                                                                    background: '#ffffff', borderRadius: 12,
+                                                                    border: '1px solid #e2e8f0',
+                                                                    boxShadow: '0 12px 32px rgba(0,0,0,0.18)', minWidth: 200,
+                                                                    padding: '0.4rem',
                                                                 }}>
                                                                     <button
-                                                                        onClick={(e) => { e.stopPropagation(); setMenuOpenId(null); openDetail(p); }}
+                                                                        onClick={() => { setMenuOpenId(null); openDetail(p); }}
                                                                         style={{
                                                                             display: 'flex', alignItems: 'center', gap: 10, width: '100%',
                                                                             padding: '0.55rem 0.75rem', border: 'none', background: 'none',
                                                                             cursor: 'pointer', borderRadius: 8, fontSize: '0.8rem', fontWeight: 500,
-                                                                            color: 'var(--text-main)', fontFamily: 'var(--font-sans)',
+                                                                            color: '#1e293b', fontFamily: 'var(--font-sans)',
                                                                         }}
-                                                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover, #f1f5f9)'}
+                                                                        onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
                                                                         onMouseLeave={e => e.currentTarget.style.background = 'none'}
                                                                     >
-                                                                        <Eye size={15} color="#6366f1" /> Ver comprobantes
+                                                                        <Eye size={15} color="#6366f1" /> Ver detalle
                                                                     </button>
                                                                     <button
-                                                                        onClick={(e) => { e.stopPropagation(); setMenuOpenId(null); openEdit(p); }}
+                                                                        onClick={() => { setMenuOpenId(null); openEdit(p); }}
                                                                         style={{
                                                                             display: 'flex', alignItems: 'center', gap: 10, width: '100%',
                                                                             padding: '0.55rem 0.75rem', border: 'none', background: 'none',
                                                                             cursor: 'pointer', borderRadius: 8, fontSize: '0.8rem', fontWeight: 500,
-                                                                            color: 'var(--text-main)', fontFamily: 'var(--font-sans)',
+                                                                            color: '#1e293b', fontFamily: 'var(--font-sans)',
                                                                         }}
-                                                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover, #f1f5f9)'}
+                                                                        onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
                                                                         onMouseLeave={e => e.currentTarget.style.background = 'none'}
                                                                     >
                                                                         <Edit2 size={15} color="#3b82f6" /> Editar proveedor
                                                                     </button>
                                                                     <button
-                                                                        onClick={(e) => { e.stopPropagation(); setMenuOpenId(null); navigate(`/contable/comprobantes?tab=upload&proveedor_id=${p.id}`); }}
+                                                                        onClick={() => { setMenuOpenId(null); navigate(`/contable/comprobantes?tab=upload&proveedor_id=${p.id}`); }}
                                                                         style={{
                                                                             display: 'flex', alignItems: 'center', gap: 10, width: '100%',
                                                                             padding: '0.55rem 0.75rem', border: 'none', background: 'none',
                                                                             cursor: 'pointer', borderRadius: 8, fontSize: '0.8rem', fontWeight: 500,
-                                                                            color: 'var(--text-main)', fontFamily: 'var(--font-sans)',
+                                                                            color: '#1e293b', fontFamily: 'var(--font-sans)',
                                                                         }}
-                                                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover, #f1f5f9)'}
+                                                                        onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
                                                                         onMouseLeave={e => e.currentTarget.style.background = 'none'}
                                                                     >
                                                                         <Send size={15} color="#10b981" /> Cargar factura
                                                                     </button>
-                                                                    <div style={{ height: 1, background: 'var(--border-subtle, #e2e8f0)', margin: '0.25rem 0.5rem' }} />
+                                                                    <div style={{ height: 1, background: '#e2e8f0', margin: '0.25rem 0.5rem' }} />
                                                                     <button
-                                                                        onClick={(e) => { e.stopPropagation(); setMenuOpenId(null); handleDelete(p.id); }}
+                                                                        onClick={() => { setMenuOpenId(null); handleDelete(p.id); }}
                                                                         style={{
                                                                             display: 'flex', alignItems: 'center', gap: 10, width: '100%',
                                                                             padding: '0.55rem 0.75rem', border: 'none', background: 'none',
@@ -1076,7 +1090,8 @@ export default function Proveedores() {
                                                                         <Trash2 size={15} /> Eliminar
                                                                     </button>
                                                                 </div>
-                                                            </>
+                                                            </>,
+                                                            document.body
                                                         )}
                                                     </div>
                                                 </td>
@@ -1476,8 +1491,8 @@ export default function Proveedores() {
                                     })()}
                                     {(selectedProvider.telefono || selectedProvider.email || selectedProvider.direccion) && (
                                         <div style={{ marginTop: 8, fontSize: '0.75rem', color: '#64748b', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                            {selectedProvider.telefono && <span>📞 {selectedProvider.telefono}</span>}
-                                            {selectedProvider.email && <span>✉️ {selectedProvider.email}</span>}
+                                            {selectedProvider.telefono && <span style={{ cursor: 'pointer' }} onClick={() => { navigator.clipboard.writeText(selectedProvider!.telefono!); }} title="Click para copiar">📞 {selectedProvider.telefono}</span>}
+                                            {selectedProvider.email && <span style={{ cursor: 'pointer' }} onClick={() => { navigator.clipboard.writeText(selectedProvider!.email!); }} title="Click para copiar">✉️ {selectedProvider.email}</span>}
                                             {selectedProvider.direccion && <span>📍 {selectedProvider.direccion}</span>}
                                         </div>
                                     )}
@@ -1684,6 +1699,33 @@ export default function Proveedores() {
                                                             </div>
                                                         );
                                                     })}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Contactos vinculados */}
+                                        <div style={{ marginTop: '1.5rem' }}>
+                                            <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                                Contactos ({detailContactos.length})
+                                            </div>
+                                            {detailContactos.length === 0 ? (
+                                                <div style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.8rem', border: '1px dashed #e2e8f0', borderRadius: 8 }}>
+                                                    Sin contactos vinculados
+                                                </div>
+                                            ) : (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                                    {detailContactos.map(ct => (
+                                                        <div key={ct.id} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fafafa' }}>
+                                                            <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#0f172a' }}>
+                                                                {ct.nombre} {ct.apellido || ''}
+                                                            </div>
+                                                            {ct.cargo && <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: 1 }}>{ct.cargo}</div>}
+                                                            <div style={{ display: 'flex', gap: 12, marginTop: 4, fontSize: '0.75rem', color: '#64748b' }}>
+                                                                {ct.email && <a href={`mailto:${ct.email}`} style={{ color: '#2563EB', textDecoration: 'none' }}>{ct.email}</a>}
+                                                                {ct.telefono && <a href={`tel:${ct.telefono}`} style={{ color: '#2563EB', textDecoration: 'none' }}>{ct.telefono}</a>}
+                                                            </div>
+                                                        </div>
+                                                    ))}
                                                 </div>
                                             )}
                                         </div>

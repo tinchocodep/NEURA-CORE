@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import { useTenant } from '../../../contexts/TenantContext';
 import { useToast } from '../../../contexts/ToastContext';
@@ -26,6 +26,7 @@ export default function ComprobantesIndex() {
     const isMobile = useIsMobile();
     const { tenant } = useTenant();
     const { addToast } = useToast();
+    const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const tabParam = (searchParams.get('tab') as TabKey) || 'listado';
 
@@ -687,10 +688,7 @@ export default function ComprobantesIndex() {
 
     const tabs = [
         { key: 'listado' as TabKey, label: 'Listado', icon: <Search size={13} /> },
-        { key: 'crear' as TabKey, label: 'Emitir Factura', icon: <Plus size={13} /> },
         { key: 'upload' as TabKey, label: 'Cargar Factura', icon: <UploadIcon size={13} /> },
-        { key: 'gasto' as TabKey, label: 'Cargar Gasto', icon: <FileText size={13} /> },
-        { key: 'ingreso' as TabKey, label: 'Cargar Ingreso', icon: <FileText size={13} /> },
     ];
 
     return (
@@ -817,7 +815,7 @@ export default function ComprobantesIndex() {
                     ))}
                     <button
                         className="btn btn-primary"
-                        onClick={() => handleTab('crear')}
+                        onClick={() => navigate('/inmobiliaria/facturar')}
                         style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 18px', fontSize: '0.8rem', borderRadius: 10 }}
                     >
                         <Plus size={16} /> Emitir factura
