@@ -217,15 +217,16 @@ export default function Layout() {
 
     // Mobile: map routes to display names matching the new tab bar
     // In mobile, Contable/Tesorería/CRM routes are absorbed into Gestión (no "Administración" in mobile)
-    const isOperaciones = isInmobiliaria && (location.pathname.startsWith('/inmobiliaria/propiedades') || location.pathname.startsWith('/inmobiliaria/contratos') || location.pathname.startsWith('/inmobiliaria/ordenes') || location.pathname.startsWith('/inmobiliaria/liquidaciones') || location.pathname.startsWith('/inmobiliaria/facturar') || location.pathname.startsWith('/inmobiliaria/proveedores'));
     const hasInmob = tenantModules.includes('inmobiliaria');
+    const isOperaciones = (isInmobiliaria && (location.pathname.startsWith('/inmobiliaria/propiedades') || location.pathname.startsWith('/inmobiliaria/contratos') || location.pathname.startsWith('/inmobiliaria/ordenes') || location.pathname.startsWith('/inmobiliaria/liquidaciones') || location.pathname.startsWith('/inmobiliaria/facturar') || location.pathname.startsWith('/inmobiliaria/proveedores')))
+        || (hasInmob && location.pathname.startsWith('/contable/proveedores'));
     const isGestion = (isInmobiliaria && !isOperaciones) ||
         (hasInmob && isTesoreria && location.pathname === '/tesoreria') ||
         (hasInmob && location.pathname === '/contable/comprobantes') ||
         (hasInmob && isCRM && (location.pathname.startsWith('/crm/contactos') || location.pathname.startsWith('/crm/prospectos')));
-    const isFinanzas = hasInmob && (
+    const isFinanzas = hasInmob && !isOperaciones && (
         (isTesoreria && location.pathname !== '/tesoreria') ||
-        ((isContable && !isConfiguracion) && location.pathname !== '/contable/comprobantes') ||
+        ((isContable && !isConfiguracion) && location.pathname !== '/contable/comprobantes' && !location.pathname.startsWith('/contable/proveedores')) ||
         (isCRM && !location.pathname.startsWith('/crm/contactos') && !location.pathname.startsWith('/crm/prospectos'))
     );
     const isMobileGestion = isMobile && isGestion;
