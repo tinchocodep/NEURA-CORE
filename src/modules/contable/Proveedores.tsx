@@ -158,6 +158,7 @@ export default function Proveedores() {
     const [docPreview, setDocPreview] = useState<string | null>(null);
     const [activityFilter, setActivityFilter] = useState<'all' | 'recent' | 'month' | 'dormant' | 'none'>('all');
     const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+    const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
     const [productoFilter, setProductoFilter] = useState<string>('');
     const [showProdFilterDrop, setShowProdFilterDrop] = useState(false);
     const [prodFilterSearch, setProdFilterSearch] = useState('');
@@ -938,8 +939,13 @@ export default function Proveedores() {
                                                         {p.es_caso_rojo && (
                                                             <span className="badge badge-warning" style={{ fontSize: '0.6rem', flexShrink: 0 }}>ROJO</span>
                                                         )}
+                                                        {(p.producto_servicio_default as ProductoServicio | null)?.grupo && (
+                                                            <span style={{ fontSize: '0.6rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: 99, background: 'rgba(13, 148, 136, 0.1)', color: '#0d9488', border: '1px solid rgba(13, 148, 136, 0.2)', flexShrink: 0 }}>
+                                                                {(p.producto_servicio_default as ProductoServicio | null)!.grupo}
+                                                            </span>
+                                                        )}
                                                         {p.categoria_default && (
-                                                            <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '0.15rem 0.5rem', borderRadius: 99, background: `${p.categoria_default.color}15`, color: p.categoria_default.color, border: `1px solid ${p.categoria_default.color}30` }}>
+                                                            <span style={{ fontSize: '0.6rem', fontWeight: 600, padding: '0.1rem 0.45rem', borderRadius: 99, background: `${p.categoria_default.color}15`, color: p.categoria_default.color, border: `1px solid ${p.categoria_default.color}30`, flexShrink: 0 }}>
                                                                 {p.categoria_default.nombre}
                                                             </span>
                                                         )}
@@ -994,9 +1000,15 @@ export default function Proveedores() {
                                                     )}
                                                 </td>
                                                 <td>
-                                                    <div style={{ position: 'relative', display: 'flex', justifyContent: 'flex-end' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                                                         <button
-                                                            onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === p.id ? null : p.id); }}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (menuOpenId === p.id) { setMenuOpenId(null); return; }
+                                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                                setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+                                                                setMenuOpenId(p.id);
+                                                            }}
                                                             className="btn btn-ghost"
                                                             style={{ padding: '0.3rem', borderRadius: 8 }}
                                                         >
@@ -1006,7 +1018,7 @@ export default function Proveedores() {
                                                             <>
                                                                 <div style={{ position: 'fixed', inset: 0, zIndex: 90 }} onClick={(e) => { e.stopPropagation(); setMenuOpenId(null); }} />
                                                                 <div style={{
-                                                                    position: 'absolute', right: 0, top: '100%', zIndex: 100,
+                                                                    position: 'fixed', top: menuPos.top, right: menuPos.right, zIndex: 100,
                                                                     background: 'var(--bg-card, #fff)', borderRadius: 12,
                                                                     border: '1px solid var(--border-subtle, #e2e8f0)',
                                                                     boxShadow: '0 8px 24px rgba(0,0,0,0.12)', minWidth: 180,

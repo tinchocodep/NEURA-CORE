@@ -25,7 +25,11 @@ export default function Layout() {
     const [agentCollapsed, setAgentCollapsed] = useState(true);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
-    const [finanzasOpen, setFinanzasOpen] = useState(false);
+    const [finanzasOpen, setFinanzasOpen] = useState(() => {
+        // Auto-open if user is on a finanzas route
+        const p = typeof window !== 'undefined' ? window.location.pathname : '';
+        return (p.startsWith('/tesoreria/') || (p.startsWith('/contable') && p !== '/contable/comprobantes' && p !== '/contable/proveedores'));
+    });
 
     useEffect(() => {
         if (!tenant || (role !== 'admin' && role !== 'superadmin')) return;
@@ -253,11 +257,28 @@ export default function Layout() {
         ] : []),
     ];
     // Finanzas subtab items (for when navigating within Tesorería/Contable advanced)
-    const finanzasTesoreriaItems = tesoreriaItems.filter(i => i.path !== '/tesoreria'); // exclude Proyecciones (already in Gestión)
-    const finanzasContableItems = contableItems.filter(i => i.path !== '/contable/comprobantes' && i.path !== '/contable/proveedores'); // exclude promoted items
+    // Finanzas: flat list merging tesorería + contable items (excluding promoted ones)
+    const finanzasItems = [
+        // Comprobantes tesorería first
+        ...(hasModuleAccess('tesoreria') ? tesoreriaItems.filter(i => i.path === '/tesoreria/comprobantes') : []),
+        // Órdenes de Pago
+        ...(hasModuleAccess('tesoreria') ? tesoreriaItems.filter(i => i.path === '/tesoreria/ordenes-pago') : []),
+        // Bancos
+        ...(hasModuleAccess('tesoreria') ? tesoreriaItems.filter(i => i.path === '/tesoreria/bancos') : []),
+        // Movimientos
+        ...(hasModuleAccess('tesoreria') ? tesoreriaItems.filter(i => i.path === '/tesoreria/movimientos') : []),
+        // Cajas
+        ...(hasModuleAccess('tesoreria') ? tesoreriaItems.filter(i => i.path === '/tesoreria/cajas') : []),
+        // Monitor
+        ...(hasModuleAccess('tesoreria') ? tesoreriaItems.filter(i => i.path === '/tesoreria/monitor') : []),
+        // Equipo
+        ...(hasModuleAccess('tesoreria') ? tesoreriaItems.filter(i => i.path === '/tesoreria/equipo') : []),
+        // Contable items (excluding Comprobantes and Proveedores — promoted to Gestión/Operaciones)
+        ...contableItems.filter(i => i.path !== '/contable/comprobantes' && i.path !== '/contable/proveedores'),
+    ];
 
     const effectiveSectionItems = hasInmob
-        ? (isOperaciones ? operacionesItems : isGestion ? gestionItems : isFinanzas ? (isTesoreria ? finanzasTesoreriaItems : isContable ? finanzasContableItems : sectionItems) : sectionItems)
+        ? (isOperaciones ? operacionesItems : isGestion ? gestionItems : isFinanzas ? finanzasItems : sectionItems)
         : sectionItems;
     const mobileSectionItems = isMobile ? (isOperaciones ? operacionesItems : isMobileGestion ? gestionItems : sectionItems) : effectiveSectionItems;
 
@@ -337,42 +358,24 @@ export default function Layout() {
                             ))}
                         </div>
 
-                        <div className="sidebar-section">
-                            <button
-                                onClick={() => setFinanzasOpen(f => !f)}
-                                className="sidebar-section-label"
-                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: 'inherit', color: 'inherit', fontSize: 'inherit', fontWeight: 'inherit', textTransform: 'inherit' as any, letterSpacing: 'inherit' }}
-                            >
-                                Finanzas
-                                <ChevronDown size={12} style={{ transform: finanzasOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
-                            </button>
-                            {finanzasOpen && (
-                                <>
-                                    {hasModuleAccess('tesoreria') && (
-                                        <>
-                                            <div style={{ fontSize: '0.6rem', fontWeight: 600, color: 'var(--color-text-faint)', padding: '0.5rem 0.75rem 0.2rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tesorería</div>
-                                            {finanzasTesoreriaItems.map(item => (
-                                                <Link key={item.path} to={item.path} className={`sidebar-link${location.pathname.startsWith(item.path) ? ' active' : ''}`}>
-                                                    <item.icon size={16} />
-                                                    {item.name}
-                                                </Link>
-                                            ))}
-                                        </>
-                                    )}
-                                    {hasModuleAccess('contable') && finanzasContableItems.length > 0 && (
-                                        <>
-                                            <div style={{ fontSize: '0.6rem', fontWeight: 600, color: 'var(--color-text-faint)', padding: '0.5rem 0.75rem 0.2rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Contable</div>
-                                            {finanzasContableItems.map(item => (
-                                                <Link key={item.path} to={item.path} className={`sidebar-link${location.pathname.startsWith(item.path) ? ' active' : ''}`}>
-                                                    <item.icon size={16} />
-                                                    {item.name}
-                                                </Link>
-                                            ))}
-                                        </>
-                                    )}
-                                </>
-                            )}
-                        </div>
+                        {finanzasItems.length > 0 && (
+                            <div className="sidebar-section">
+                                <button
+                                    onClick={() => setFinanzasOpen(f => !f)}
+                                    className="sidebar-section-label"
+                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: 'inherit', color: 'inherit', fontSize: 'inherit', fontWeight: 'inherit', textTransform: 'inherit' as any, letterSpacing: 'inherit' }}
+                                >
+                                    Finanzas
+                                    <ChevronDown size={12} style={{ transform: finanzasOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                                </button>
+                                {finanzasOpen && finanzasItems.map(item => (
+                                    <Link key={item.path} to={item.path} className={`sidebar-link${location.pathname.startsWith(item.path) ? ' active' : ''}`}>
+                                        <item.icon size={16} />
+                                        {item.name}
+                                    </Link>
+                                ))}
+                            </div>
+                        )}
 
                         {role === 'superadmin' && (
                             <div className="sidebar-section">

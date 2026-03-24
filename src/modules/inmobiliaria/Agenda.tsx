@@ -252,117 +252,203 @@ export default function Agenda() {
     );
   }
 
-  /* ═══════ DESKTOP (unchanged) ═══════ */
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* ─── Header (Desktop) ─── */}
-      <div className="module-header-desktop" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>Agenda</h1>
-        {overdueCount > 0 && (
-          <span style={{ background: '#EF444420', color: '#EF4444', fontSize: '0.75rem', fontWeight: 700, padding: '3px 10px', borderRadius: 99, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <AlertTriangle size={12} /> {overdueCount} vencidos
-          </span>
-        )}
-        <div style={{ flex: 1 }} />
+  /* ═══════ DESKTOP: 2-column layout (sidebar filters + calendar) ═══════ */
+  const nowHour = new Date().getHours() + new Date().getMinutes() / 60;
 
-        {/* View tabs */}
-        <div style={{ display: 'flex', border: '1px solid var(--color-border-subtle)', borderRadius: 10, overflow: 'hidden' }}>
-          {(['mes', 'semana', 'dia', 'tabla'] as ViewType[]).map(v => (
-            <button key={v} onClick={() => setView(v)}
-              style={{ padding: '5px 12px', fontSize: '0.75rem', fontWeight: view === v ? 700 : 500, background: view === v ? 'var(--color-cta, #2563EB)' : 'var(--color-bg-surface)', color: view === v ? '#fff' : 'var(--color-text-muted)', border: 'none', cursor: 'pointer', borderLeft: v !== 'mes' ? '1px solid var(--color-border-subtle)' : 'none', textTransform: 'capitalize' }}>
-              {v === 'tabla' ? 'Tabla' : v === 'mes' ? 'Mes' : v === 'semana' ? 'Semana' : 'Día'}
-            </button>
-          ))}
+  return (
+    <div style={{ display: 'flex', gap: 16, height: 'calc(100vh - 140px)', position: 'relative' }}>
+      {/* ── LEFT SIDEBAR: Mini calendar + Filters ── */}
+      <div style={{ width: 220, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* Mini month calendar */}
+        <div className="card" style={{ padding: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <button onClick={() => setCurDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: 'var(--color-text-muted)' }}><ChevronLeft size={14} /></button>
+            <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'capitalize' }}>{curDate.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}</span>
+            <button onClick={() => setCurDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: 'var(--color-text-muted)' }}><ChevronRight size={14} /></button>
+          </div>
+          {(() => {
+            const y = curDate.getFullYear(), mo = curDate.getMonth();
+            const startDow = (new Date(y, mo, 1).getDay() + 6) % 7;
+            const dim = new Date(y, mo + 1, 0).getDate();
+            const datesWithEvents = new Set(filtered.map(v => v.fecha));
+            return (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 0 }}>
+                {DIAS_HEADER.map(d => <div key={d} style={{ textAlign: 'center', fontSize: '0.5rem', fontWeight: 700, color: 'var(--color-text-muted)', padding: '2px 0' }}>{d}</div>)}
+                {Array.from({ length: startDow }).map((_, i) => <div key={`e${i}`} />)}
+                {Array.from({ length: dim }).map((_, i) => {
+                  const day = i + 1;
+                  const ds = `${y}-${String(mo + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                  const isToday = ds === today;
+                  const hasEv = datesWithEvents.has(ds);
+                  return (
+                    <button key={day} onClick={() => { setCurDate(new Date(y, mo, day)); setView('dia'); }}
+                      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, padding: '2px 0', border: 'none', background: 'none', cursor: 'pointer' }}>
+                      <span style={{ width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', fontWeight: isToday ? 700 : 400, background: isToday ? 'var(--color-cta)' : 'transparent', color: isToday ? '#fff' : 'var(--color-text-primary)' }}>{day}</span>
+                      {hasEv && <span style={{ width: 3, height: 3, borderRadius: '50%', background: isToday ? 'var(--color-cta)' : '#3B82F6' }} />}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
+          <button onClick={goToday} style={{ width: '100%', marginTop: 8, padding: '4px 0', borderRadius: 6, fontSize: '0.7rem', fontWeight: 600, background: 'var(--color-cta-dim, rgba(37,99,235,0.1))', color: 'var(--color-cta)', border: 'none', cursor: 'pointer' }}>Hoy</button>
         </div>
 
         {/* Filters */}
-        <select value={filterTipo} onChange={e => setFilterTipo(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.75rem', width: 'auto' }}>
-          <option value="">Todos</option>
-          {TIPOS.map(t => <option key={t} value={t}>{TIPO_CFG[t]?.label}</option>)}
-        </select>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', cursor: 'pointer', color: 'var(--color-text-muted)' }}>
-          <input type="checkbox" checked={showCompleted} onChange={e => setShowCompleted(e.target.checked)} /> Completados
-        </label>
-        <button onClick={() => { setFormData({ tipo: 'otro', fecha: '', descripcion: '' }); setShowForm(true); }} className="btn btn-primary" style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 4 }}>
-          <Plus size={14} /> Nuevo
-        </button>
-      </div>
-
-      {/* ─── Header (Mobile) ─── */}
-      <div className="module-header-mobile" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <button onClick={() => { setFormData({ tipo: 'otro', fecha: '', descripcion: '' }); setShowForm(true); }} className="btn btn-primary" style={{ fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: 6, alignSelf: 'flex-end', padding: '8px 16px' }}>
-          <Plus size={16} /> Nuevo
-        </button>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <select value={filterTipo} onChange={e => setFilterTipo(e.target.value)} className="form-input" style={{ height: 40, fontSize: '0.875rem', width: 'auto' }}>
-            <option value="">Todos</option>
-            {TIPOS.map(t => <option key={t} value={t}>{TIPO_CFG[t]?.label}</option>)}
-          </select>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', cursor: 'pointer', color: 'var(--color-text-muted)' }}>
-            <input type="checkbox" checked={showCompleted} onChange={e => setShowCompleted(e.target.checked)} /> Completados
+        <div className="card" style={{ padding: 12 }}>
+          <div style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-muted)', marginBottom: 8 }}>Filtros</div>
+          {TIPOS.map(t => {
+            const cfg = TIPO_CFG[t];
+            const active = filterTipo === t;
+            const count = items.filter(v => v.tipo === t && !v.completado).length;
+            return (
+              <button key={t} onClick={() => setFilterTipo(active ? '' : t)}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 8px', borderRadius: 6, border: 'none', background: active ? `${cfg.color}10` : 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)', marginBottom: 2 }}>
+                <div style={{ width: 10, height: 10, borderRadius: 2, background: cfg.color, flexShrink: 0, opacity: active ? 1 : 0.5 }} />
+                <span style={{ fontSize: '0.75rem', fontWeight: active ? 600 : 400, color: active ? cfg.color : 'var(--color-text-secondary)', flex: 1, textAlign: 'left' }}>{cfg.label}</span>
+                {count > 0 && <span style={{ fontSize: '0.6rem', fontWeight: 600, color: 'var(--color-text-muted)' }}>{count}</span>}
+              </button>
+            );
+          })}
+          <div style={{ height: 1, background: 'var(--color-border-subtle)', margin: '8px 0' }} />
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.7rem', cursor: 'pointer', color: 'var(--color-text-muted)', padding: '4px 8px' }}>
+            <input type="checkbox" checked={showCompleted} onChange={e => setShowCompleted(e.target.checked)} style={{ accentColor: '#10B981' }} /> Mostrar completados
           </label>
         </div>
-        {/* View tabs */}
-        <div style={{ display: 'flex', border: '1px solid var(--color-border-subtle)', borderRadius: 10, overflow: 'hidden', alignSelf: 'flex-start' }}>
-          {(['mes', 'semana', 'dia', 'tabla'] as ViewType[]).map(v => (
-            <button key={v} onClick={() => setView(v)}
-              style={{ padding: '7px 14px', fontSize: '0.8rem', fontWeight: view === v ? 700 : 500, background: view === v ? 'var(--color-cta, #2563EB)' : 'var(--color-bg-surface)', color: view === v ? '#fff' : 'var(--color-text-muted)', border: 'none', cursor: 'pointer', borderLeft: v !== 'mes' ? '1px solid var(--color-border-subtle)' : 'none', textTransform: 'capitalize' }}>
-              {v === 'tabla' ? 'Tabla' : v === 'mes' ? 'Mes' : v === 'semana' ? 'Semana' : 'Día'}
-            </button>
-          ))}
+
+        {/* Overdue count */}
+        {overdueCount > 0 && (
+          <div className="card" style={{ padding: '10px 12px', background: '#FEF2F2', border: '1px solid #FECACA' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <AlertTriangle size={14} color="#EF4444" />
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#991B1B' }}>{overdueCount} vencidos</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── RIGHT: Calendar area ── */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
+        {/* Top bar: nav + view toggle */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button onClick={() => nav(-1)} className="btn btn-ghost btn-icon" style={{ width: 28, height: 28 }}><ChevronLeft size={16} /></button>
+          <span style={{ fontWeight: 700, fontSize: '0.95rem', textTransform: 'capitalize', minWidth: 180 }}>{navLabel()}</span>
+          <button onClick={() => nav(1)} className="btn btn-ghost btn-icon" style={{ width: 28, height: 28 }}><ChevronRight size={16} /></button>
+          <div style={{ flex: 1 }} />
+
+          <div style={{ display: 'flex', border: '1px solid var(--color-border-subtle)', borderRadius: 8, overflow: 'hidden' }}>
+            {(['mes', 'semana', 'dia', 'tabla'] as ViewType[]).map(v => (
+              <button key={v} onClick={() => setView(v)}
+                style={{ padding: '5px 14px', fontSize: '0.7rem', fontWeight: view === v ? 700 : 500, background: view === v ? 'var(--color-cta, #2563EB)' : 'var(--color-bg-surface)', color: view === v ? '#fff' : 'var(--color-text-muted)', border: 'none', cursor: 'pointer', borderLeft: v !== 'mes' ? '1px solid var(--color-border-subtle)' : 'none' }}>
+                {v === 'tabla' ? 'Tabla' : v === 'mes' ? 'Mes' : v === 'semana' ? 'Semana' : 'Día'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Calendar content */}
+        <div style={{ flex: 1, overflow: 'auto' }}>
+          {view === 'mes' && <MonthView date={curDate} events={filtered} today={today} onToggle={toggleComplete} />}
+
+          {view === 'semana' && (() => {
+            const start = startOfWeek(curDate);
+            const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
+            const hours = Array.from({ length: 18 }, (_, i) => i + 6); // 06:00 - 23:00
+            return (
+              <div className="card" style={{ overflow: 'auto', position: 'relative' }}>
+                {/* Header row */}
+                <div style={{ display: 'grid', gridTemplateColumns: '50px repeat(7, 1fr)', borderBottom: '1px solid var(--color-border-subtle)', position: 'sticky', top: 0, zIndex: 2, background: 'var(--color-bg-card)' }}>
+                  <div />
+                  {days.map(d => {
+                    const ds = dateStr(d);
+                    const isToday = ds === today;
+                    return (
+                      <div key={ds} style={{ padding: '8px 4px', textAlign: 'center', borderLeft: '1px solid var(--color-border-subtle)' }}>
+                        <div style={{ fontSize: '0.6rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>{d.toLocaleDateString('es-AR', { weekday: 'short' })}</div>
+                        <div style={{ fontSize: '0.85rem', fontWeight: isToday ? 800 : 500, color: isToday ? 'var(--color-cta)' : 'var(--color-text-primary)' }}>{d.getDate()}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Time grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: '50px repeat(7, 1fr)', position: 'relative' }}>
+                  {hours.map(h => (
+                    <div key={h} style={{ display: 'contents' }}>
+                      <div style={{ padding: '2px 6px', fontSize: '0.6rem', color: 'var(--color-text-muted)', textAlign: 'right', height: 48, borderTop: '1px solid var(--color-border-subtle)' }}>
+                        {String(h).padStart(2, '0')}:00
+                      </div>
+                      {days.map(d => {
+                        const ds = dateStr(d);
+                        const dayEvents = filtered.filter(v => v.fecha === ds);
+                        const showEvents = h === 9; // Show events at 09:00 row
+                        return (
+                          <div key={`${ds}-${h}`} style={{ borderTop: '1px solid var(--color-border-subtle)', borderLeft: '1px solid var(--color-border-subtle)', height: 48, padding: '1px 2px', position: 'relative' }}>
+                            {showEvents && dayEvents.map(ev => <EventPill key={ev.id} v={ev} onToggle={toggleComplete} />)}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                  {/* Current time line */}
+                  {(() => {
+                    const todayIdx = days.findIndex(d => dateStr(d) === today);
+                    if (todayIdx === -1 || nowHour < 6 || nowHour > 23) return null;
+                    const topPx = (nowHour - 6) * 48;
+                    return (
+                      <div style={{ position: 'absolute', top: topPx, left: 50, right: 0, height: 2, background: '#EF4444', zIndex: 1, pointerEvents: 'none' }}>
+                        <div style={{ position: 'absolute', left: `calc(${todayIdx} * (100% / 7))`, top: -4, width: 10, height: 10, borderRadius: '50%', background: '#EF4444' }} />
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            );
+          })()}
+
+          {view === 'dia' && <DayView date={curDate} events={filtered} today={today} onToggle={toggleComplete} />}
+
+          {view === 'tabla' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <label className="form-label" style={{ margin: 0 }}>Desde</label>
+                <input type="date" className="form-input" value={rangeFrom} onChange={e => setRangeFrom(e.target.value)} style={{ width: 'auto' }} />
+                <label className="form-label" style={{ margin: 0 }}>Hasta</label>
+                <input type="date" className="form-input" value={rangeTo} onChange={e => setRangeTo(e.target.value)} style={{ width: 'auto' }} />
+              </div>
+              <TableView events={filtered.filter(v => {
+                if (rangeFrom && v.fecha < rangeFrom) return false;
+                if (rangeTo && v.fecha > rangeTo) return false;
+                return true;
+              })} today={today} onToggle={toggleComplete} />
+            </div>
+          )}
         </div>
       </div>
 
-      {/* ─── Nav bar (not for tabla) ─── */}
-      {view !== 'tabla' && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button onClick={() => nav(-1)} className="btn btn-ghost btn-icon" style={{ width: 28, height: 28 }}><ChevronLeft size={16} /></button>
-          <span style={{ fontWeight: 700, fontSize: '0.9375rem', textTransform: 'capitalize', minWidth: 200, textAlign: 'center' }}>{navLabel()}</span>
-          <button onClick={() => nav(1)} className="btn btn-ghost btn-icon" style={{ width: 28, height: 28 }}><ChevronRight size={16} /></button>
-          <button onClick={goToday} style={{ fontSize: '0.65rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: 'var(--color-cta-dim, rgba(37,99,235,0.1))', color: 'var(--color-cta, #2563EB)', border: 'none', cursor: 'pointer' }}>Hoy</button>
-          {/* Legend */}
-          <div style={{ flex: 1 }} />
-          {Object.entries(TIPO_CFG).map(([k, c]) => (
-            <button key={k} onClick={() => setFilterTipo(filterTipo === k ? '' : k)}
-              style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: '0.625rem', color: filterTipo === k ? c.color : 'var(--color-text-muted)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: filterTipo === k ? 700 : 400 }}>
-              <span style={{ width: 6, height: 6, borderRadius: 2, background: c.color, display: 'inline-block' }} />{c.label}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* ── FAB: New event ── */}
+      <button
+        onClick={() => { setFormData({ tipo: 'otro', fecha: dateStr(curDate), descripcion: '' }); setShowForm(true); }}
+        style={{
+          position: 'absolute', bottom: 20, right: 20, width: 52, height: 52,
+          borderRadius: '50%', border: 'none',
+          background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
+          color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer', boxShadow: '0 4px 16px rgba(37, 99, 235, 0.35)',
+          zIndex: 10, transition: 'transform 0.15s',
+        }}
+        onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.08)'}
+        onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+        title="Nuevo evento"
+      >
+        <Plus size={24} />
+      </button>
 
-      {/* ─── MES ─── */}
-      {view === 'mes' && <MonthView date={curDate} events={filtered} today={today} onToggle={toggleComplete} />}
-
-      {/* ─── SEMANA ─── */}
-      {view === 'semana' && <WeekView date={curDate} events={filtered} today={today} onToggle={toggleComplete} />}
-
-      {/* ─── DÍA ─── */}
-      {view === 'dia' && <DayView date={curDate} events={filtered} today={today} onToggle={toggleComplete} />}
-
-      {/* ─── TABLA ─── */}
-      {view === 'tabla' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <label className="form-label" style={{ margin: 0 }}>Desde</label>
-            <input type="date" className="form-input" value={rangeFrom} onChange={e => setRangeFrom(e.target.value)} style={{ width: 'auto' }} />
-            <label className="form-label" style={{ margin: 0 }}>Hasta</label>
-            <input type="date" className="form-input" value={rangeTo} onChange={e => setRangeTo(e.target.value)} style={{ width: 'auto' }} />
-          </div>
-          <TableView events={filtered.filter(v => {
-            if (rangeFrom && v.fecha < rangeFrom) return false;
-            if (rangeTo && v.fecha > rangeTo) return false;
-            return true;
-          })} today={today} onToggle={toggleComplete} />
-        </div>
-      )}
-
-      {/* ─── NEW FORM ─── */}
+      {/* ── NEW FORM MODAL ── */}
       {showForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => setShowForm(false)}>
           <div className="card" style={{ width: 440, padding: 24, borderRadius: 'var(--radius-xl)', boxShadow: '0 8px 30px rgba(0,0,0,0.12)', border: '1px solid var(--color-border-subtle)' }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <h3 style={{ fontWeight: 700, fontSize: '1rem', margin: 0 }}>Nuevo vencimiento</h3>
+              <h3 style={{ fontWeight: 700, fontSize: '1rem', margin: 0 }}>Nuevo evento</h3>
               <button onClick={() => setShowForm(false)} className="btn btn-ghost btn-icon"><X size={16} /></button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -373,7 +459,7 @@ export default function Agenda() {
                 <input type="date" className="form-input" value={formData.fecha} onChange={e => setFormData(f => ({ ...f, fecha: e.target.value }))} />
               </div>
               <div className="form-group"><label className="form-label">Descripción</label>
-                <textarea className="form-input" rows={3} value={formData.descripcion} onChange={e => setFormData(f => ({ ...f, descripcion: e.target.value }))} style={{ resize: 'vertical' }} />
+                <textarea className="form-input" rows={3} placeholder="Descripción del evento o tarea..." value={formData.descripcion} onChange={e => setFormData(f => ({ ...f, descripcion: e.target.value }))} style={{ resize: 'vertical' }} />
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
