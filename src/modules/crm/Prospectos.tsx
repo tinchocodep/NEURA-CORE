@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
-import { Plus, Search, ChevronRight, ChevronLeft, Trash2, DollarSign, X, Phone, Mail, Home, Edit2 } from 'lucide-react';
+import { Plus, Search, ChevronRight, ChevronLeft, Trash2, DollarSign, X, Phone } from 'lucide-react';
 
 interface Contacto { id: string; nombre: string; apellido: string | null; }
 interface Propiedad { id: string; direccion: string; }
