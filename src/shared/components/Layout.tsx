@@ -5,7 +5,7 @@ import {
     Briefcase, Zap, Users, BookOpen, Tag, Building2, Settings, ClipboardList,
     Receipt, GitMerge, TrendingUp, HardHat,
     Funnel, Columns3, Contact, BarChart3, Car, ChevronLeft, ChevronDown,
-    Home, FileSignature, Wallet, CalendarClock, Wrench, UserPlus
+    Home, FileSignature, Wallet, CalendarClock, UserPlus
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
