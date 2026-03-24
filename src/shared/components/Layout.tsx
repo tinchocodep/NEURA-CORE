@@ -4,8 +4,8 @@ import {
     LogOut, LayoutDashboard, ArrowRightLeft, FileText, Activity, Landmark,
     Briefcase, Zap, Users, BookOpen, Tag, Building2, Settings, ClipboardList,
     Receipt, GitMerge, TrendingUp, HardHat,
-    Funnel, Columns3, Contact, BarChart3, Car, ChevronLeft,
-    Home, FileSignature, Wallet, CalendarClock
+    Funnel, Columns3, Contact, BarChart3, Car, ChevronLeft, ChevronDown,
+    Home, FileSignature, Wallet, CalendarClock, Wrench, UserPlus
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
@@ -25,6 +25,7 @@ export default function Layout() {
     const [agentCollapsed, setAgentCollapsed] = useState(true);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
+    const [finanzasOpen, setFinanzasOpen] = useState(false);
 
     useEffect(() => {
         if (!tenant || (role !== 'admin' && role !== 'superadmin')) return;
@@ -213,15 +214,23 @@ export default function Layout() {
     // Mobile: map routes to display names matching the new tab bar
     // In mobile, Contable/Tesorería/CRM routes are absorbed into Gestión (no "Administración" in mobile)
     const isOperaciones = isInmobiliaria && (location.pathname.startsWith('/inmobiliaria/propiedades') || location.pathname.startsWith('/inmobiliaria/contratos') || location.pathname.startsWith('/inmobiliaria/ordenes') || location.pathname.startsWith('/inmobiliaria/liquidaciones') || location.pathname.startsWith('/inmobiliaria/facturar') || location.pathname.startsWith('/inmobiliaria/proveedores'));
-    const isMobileGestion = isMobile && (
-        (isInmobiliaria && !isOperaciones) ||
-        isTesoreria ||
-        (isContable && !isConfiguracion) ||
-        isCRM
+    const hasInmob = tenantModules.includes('inmobiliaria');
+    const isGestion = (isInmobiliaria && !isOperaciones) ||
+        (hasInmob && isTesoreria && location.pathname === '/tesoreria') ||
+        (hasInmob && location.pathname === '/contable/comprobantes') ||
+        (hasInmob && isCRM && (location.pathname.startsWith('/crm/contactos') || location.pathname.startsWith('/crm/prospectos')));
+    const isFinanzas = hasInmob && (
+        (isTesoreria && location.pathname !== '/tesoreria') ||
+        ((isContable && !isConfiguracion) && location.pathname !== '/contable/comprobantes') ||
+        (isCRM && !location.pathname.startsWith('/crm/contactos') && !location.pathname.startsWith('/crm/prospectos'))
     );
-    const currentModuleName = isMobile
-        ? (isOperaciones ? 'Operaciones' : isMobileGestion ? 'Gestión' : '')
-        : (isCRM ? 'CRM' : isTesoreria ? 'Tesorería' : (isContable && !isConfiguracion) ? 'Contable' : isComercial ? 'Comercial' : isInmobiliaria ? 'Inmobiliaria' : '');
+    const isMobileGestion = isMobile && isGestion;
+
+    const currentModuleName = hasInmob
+        ? (isOperaciones ? 'Operaciones' : isGestion ? 'Gestión' : isFinanzas ? 'Finanzas' : '')
+        : isMobile
+            ? ''
+            : (isCRM ? 'CRM' : isTesoreria ? 'Tesorería' : (isContable && !isConfiguracion) ? 'Contable' : isComercial ? 'Comercial' : '');
 
     // Mobile: override sectionItems for Operaciones and Gestión
     const operacionesItems = [
@@ -230,7 +239,7 @@ export default function Layout() {
         { name: 'Órdenes', path: '/inmobiliaria/ordenes', icon: ClipboardList },
         { name: 'Liquidaciones', path: '/inmobiliaria/liquidaciones', icon: Wallet },
         { name: 'Facturar', path: '/inmobiliaria/facturar', icon: Receipt },
-        { name: 'Proveedores', path: '/inmobiliaria/proveedores', icon: Building2 },
+        { name: 'Proveedores', path: '/contable/proveedores', icon: Building2 },
     ];
     const gestionItems = [
         { name: 'Dashboard', path: '/inmobiliaria', icon: LayoutDashboard },
@@ -238,8 +247,19 @@ export default function Layout() {
         { name: 'Agenda', path: '/inmobiliaria/agenda', icon: CalendarClock },
         { name: 'Comprobantes', path: '/contable/comprobantes', icon: ClipboardList },
         { name: 'Proyecciones', path: '/tesoreria', icon: TrendingUp },
+        ...(hasModuleAccess('crm') ? [
+            { name: 'Contactos', path: '/crm/contactos', icon: UserPlus },
+            { name: 'Prospectos', path: '/crm/prospectos', icon: Users },
+        ] : []),
     ];
-    const mobileSectionItems = isMobile && isOperaciones ? operacionesItems : isMobileGestion ? gestionItems : sectionItems;
+    // Finanzas subtab items (for when navigating within Tesorería/Contable advanced)
+    const finanzasTesoreriaItems = tesoreriaItems.filter(i => i.path !== '/tesoreria'); // exclude Proyecciones (already in Gestión)
+    const finanzasContableItems = contableItems.filter(i => i.path !== '/contable/comprobantes' && i.path !== '/contable/proveedores'); // exclude promoted items
+
+    const effectiveSectionItems = hasInmob
+        ? (isOperaciones ? operacionesItems : isGestion ? gestionItems : isFinanzas ? (isTesoreria ? finanzasTesoreriaItems : isContable ? finanzasContableItems : sectionItems) : sectionItems)
+        : sectionItems;
+    const mobileSectionItems = isMobile ? (isOperaciones ? operacionesItems : isMobileGestion ? gestionItems : sectionItems) : effectiveSectionItems;
 
     // Ref callback for auto-scrolling to active subnav item — must be declared at top level (Rules of Hooks)
     const subnavScrollRef = useCallback((node: HTMLDivElement | null) => {
@@ -287,66 +307,128 @@ export default function Layout() {
                 </div>
 
                 {/* Module Navigation */}
-                <div className="sidebar-section">
-                    <div className="sidebar-section-label">Módulos</div>
+                {hasInmob ? (
+                    /* ── INMOBILIARIA TENANT: Operaciones / Gestión / Finanzas ── */
+                    <>
+                        <div className="sidebar-section">
+                            <Link to="/" className={`sidebar-link${location.pathname === '/' ? ' active' : ''}`}>
+                                <LayoutDashboard size={16} />
+                                Visión General
+                            </Link>
+                        </div>
 
-                    <Link to="/" className={`sidebar-link${location.pathname === '/' ? ' active' : ''}`}>
-                        <LayoutDashboard size={16} />
-                        Visión General
-                    </Link>
+                        <div className="sidebar-section">
+                            <div className="sidebar-section-label">Operaciones</div>
+                            {operacionesItems.map(item => (
+                                <Link key={item.path} to={item.path} className={`sidebar-link${location.pathname.startsWith(item.path) ? ' active' : ''}`}>
+                                    <item.icon size={16} />
+                                    {item.name}
+                                </Link>
+                            ))}
+                        </div>
 
-                    {hasModuleAccess('tesoreria') && (
-                        <Link
-                            to={role === 'admin' || role === 'superadmin' ? '/tesoreria' : '/tesoreria/movimientos'}
-                            className={`sidebar-link${isTesoreria ? ' active' : ''}`}
-                        >
-                            <Landmark size={16} />
-                            Tesorería
+                        <div className="sidebar-section">
+                            <div className="sidebar-section-label">Gestión</div>
+                            {gestionItems.map(item => (
+                                <Link key={item.path} to={item.path} className={`sidebar-link${item.path === '/inmobiliaria' ? (location.pathname === '/inmobiliaria' ? ' active' : '') : location.pathname.startsWith(item.path) ? ' active' : ''}`}>
+                                    <item.icon size={16} />
+                                    {item.name}
+                                </Link>
+                            ))}
+                        </div>
+
+                        <div className="sidebar-section">
+                            <button
+                                onClick={() => setFinanzasOpen(f => !f)}
+                                className="sidebar-section-label"
+                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: 'inherit', color: 'inherit', fontSize: 'inherit', fontWeight: 'inherit', textTransform: 'inherit' as any, letterSpacing: 'inherit' }}
+                            >
+                                Finanzas
+                                <ChevronDown size={12} style={{ transform: finanzasOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                            </button>
+                            {finanzasOpen && (
+                                <>
+                                    {hasModuleAccess('tesoreria') && (
+                                        <>
+                                            <div style={{ fontSize: '0.6rem', fontWeight: 600, color: 'var(--color-text-faint)', padding: '0.5rem 0.75rem 0.2rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tesorería</div>
+                                            {finanzasTesoreriaItems.map(item => (
+                                                <Link key={item.path} to={item.path} className={`sidebar-link${location.pathname.startsWith(item.path) ? ' active' : ''}`}>
+                                                    <item.icon size={16} />
+                                                    {item.name}
+                                                </Link>
+                                            ))}
+                                        </>
+                                    )}
+                                    {hasModuleAccess('contable') && finanzasContableItems.length > 0 && (
+                                        <>
+                                            <div style={{ fontSize: '0.6rem', fontWeight: 600, color: 'var(--color-text-faint)', padding: '0.5rem 0.75rem 0.2rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Contable</div>
+                                            {finanzasContableItems.map(item => (
+                                                <Link key={item.path} to={item.path} className={`sidebar-link${location.pathname.startsWith(item.path) ? ' active' : ''}`}>
+                                                    <item.icon size={16} />
+                                                    {item.name}
+                                                </Link>
+                                            ))}
+                                        </>
+                                    )}
+                                </>
+                            )}
+                        </div>
+
+                        {role === 'superadmin' && (
+                            <div className="sidebar-section">
+                                <Link to="/superadmin" className={`sidebar-link${location.pathname.startsWith('/superadmin') ? ' active' : ''}`} style={{ color: 'var(--color-accent)' }}>
+                                    <Activity size={16} />
+                                    Super Admin
+                                </Link>
+                            </div>
+                        )}
+                    </>
+                ) : (
+                    /* ── OTHER TENANTS: Original sidebar ── */
+                    <div className="sidebar-section">
+                        <div className="sidebar-section-label">Módulos</div>
+
+                        <Link to="/" className={`sidebar-link${location.pathname === '/' ? ' active' : ''}`}>
+                            <LayoutDashboard size={16} />
+                            Visión General
                         </Link>
-                    )}
 
-                    {hasModuleAccess('contable') && (
-                        <Link
-                            to="/contable"
-                            className={`sidebar-link${isContable ? ' active' : ''}`}
-                        >
-                            <BookOpen size={16} />
-                            Contable
-                        </Link>
-                    )}
+                        {hasModuleAccess('tesoreria') && (
+                            <Link to={role === 'admin' || role === 'superadmin' ? '/tesoreria' : '/tesoreria/movimientos'} className={`sidebar-link${isTesoreria ? ' active' : ''}`}>
+                                <Landmark size={16} />
+                                Tesorería
+                            </Link>
+                        )}
 
-                    {hasModuleAccess('crm') && (
-                        <Link to="/crm" className={`sidebar-link${location.pathname.startsWith('/crm') ? ' active' : ''}`}>
-                            <Briefcase size={16} />
-                            CRM
-                        </Link>
-                    )}
+                        {hasModuleAccess('contable') && (
+                            <Link to="/contable" className={`sidebar-link${isContable ? ' active' : ''}`}>
+                                <BookOpen size={16} />
+                                Contable
+                            </Link>
+                        )}
 
-                    {hasModuleAccess('comercial') && (
-                        <Link to="/comercial" className={`sidebar-link${isComercial ? ' active' : ''}`}>
-                            <Funnel size={16} />
-                            Comercial
-                        </Link>
-                    )}
+                        {hasModuleAccess('crm') && (
+                            <Link to="/crm" className={`sidebar-link${location.pathname.startsWith('/crm') ? ' active' : ''}`}>
+                                <Briefcase size={16} />
+                                CRM
+                            </Link>
+                        )}
 
-                    {hasModuleAccess('inmobiliaria') && (
-                        <Link to="/inmobiliaria" className={`sidebar-link${isInmobiliaria ? ' active' : ''}`}>
-                            <Home size={16} />
-                            Inmobiliaria
-                        </Link>
-                    )}
+                        {hasModuleAccess('comercial') && (
+                            <Link to="/comercial" className={`sidebar-link${isComercial ? ' active' : ''}`}>
+                                <Funnel size={16} />
+                                Comercial
+                            </Link>
+                        )}
 
-                    {role === 'superadmin' && (
-                        <Link
-                            to="/superadmin"
-                            className={`sidebar-link${location.pathname.startsWith('/superadmin') ? ' active' : ''}`}
-                            style={{ color: 'var(--color-accent)' }}
-                        >
-                            <Activity size={16} />
-                            Super Admin
-                        </Link>
-                    )}
-                </div>
+                        {role === 'superadmin' && (
+                            <Link to="/superadmin" className={`sidebar-link${location.pathname.startsWith('/superadmin') ? ' active' : ''}`} style={{ color: 'var(--color-accent)' }}>
+                                <Activity size={16} />
+                                Super Admin
+                            </Link>
+                        )}
+                    </div>
+                )}
 
                 {/* Section sub-navigation removed from sidebar — now rendered as subtabs above content */}
 
@@ -396,7 +478,7 @@ export default function Layout() {
             {/* ──────────────── MAIN CONTENT ──────────────── */}
             <main className="main-content">
                 <TopBar />
-                {(isMobile ? mobileSectionItems : sectionItems).length > 0 && (
+                {(isMobile ? mobileSectionItems : (hasInmob ? effectiveSectionItems : sectionItems)).length > 0 && (
                     isMobile ? (
                         /* ── MOBILE: Title + horizontal scroll tabs ── */
                         <div className="mobile-subnav">
@@ -422,7 +504,7 @@ export default function Layout() {
                     ) : (
                         /* ── DESKTOP: Horizontal subtabs ── */
                         <div className="subtabs">
-                            {sectionItems.map(item => {
+                            {(hasInmob ? effectiveSectionItems : sectionItems).map(item => {
                                 const isDashboardPath = ['/tesoreria', '/contable', '/crm', '/comercial', '/inmobiliaria'].includes(item.path);
                                 const isActive = isDashboardPath
                                     ? location.pathname === item.path
