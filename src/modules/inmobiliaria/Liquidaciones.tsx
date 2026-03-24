@@ -280,7 +280,7 @@ export default function Liquidaciones() {
           </button>
         </div>
         {/* New button */}
-        <button onClick={openNew} className="btn btn-primary" style={{ width: '100%', height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: '0.9375rem', fontWeight: 600, borderRadius: 10 }}>
+        <button onClick={() => openNew()} className="btn btn-primary" style={{ width: '100%', height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: '0.9375rem', fontWeight: 600, borderRadius: 10 }}>
           <Plus size={18} /> Nueva Liquidación
         </button>
         {/* Search + filter */}
