@@ -35,11 +35,12 @@ interface Props {
     sortCol?: string | null;
     sortDir?: 'asc' | 'desc';
     onAttachInvoice?: (id: string) => void;
+    hasErp?: boolean;
 }
 
 export default function ComprobantesGrid({
     data, totalCount, isLoading, hasMore, onLoadMore, onAction, onDocPreview,
-    selectedIds, onSelectionChange, onSort, sortCol, sortDir, onAttachInvoice
+    selectedIds, onSelectionChange, onSort, sortCol, sortDir, onAttachInvoice, hasErp
 }: Props) {
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -146,7 +147,7 @@ export default function ComprobantesGrid({
                 let name = c.tipo === 'compra'
                     ? (c.proveedor as any)?.razon_social
                     : (c.cliente as any)?.razon_social;
-                
+
                 // Si viene de colpy y no matcheó un UUID, intentamos rescatarlo del string guardado
                 if (!name && c.source === 'colpy' && c.descripcion) {
                     const match = c.descripcion.match(/Entidad:\s*(.+)/i);
@@ -155,7 +156,19 @@ export default function ComprobantesGrid({
                      }
                 }
 
-                return name || <span style={{ color: 'var(--color-text-muted)' }}>—</span>;
+                const prodGrupo = (c.producto_servicio as any)?.grupo;
+                const prodNombre = (c.producto_servicio as any)?.nombre;
+
+                return (
+                    <div>
+                        <div>{name || <span style={{ color: 'var(--color-text-muted)' }}>—</span>}</div>
+                        {prodGrupo && (
+                            <span style={{ display: 'inline-block', marginTop: 2, fontSize: '0.6rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: 'rgba(13, 148, 136, 0.1)', color: '#0d9488', border: '1px solid rgba(13, 148, 136, 0.2)' }}>
+                                {prodGrupo}{prodNombre ? ` · ${prodNombre}` : ''}
+                            </span>
+                        )}
+                    </div>
+                );
             },
         },
         {
@@ -297,7 +310,7 @@ export default function ComprobantesGrid({
                             </button>
                         </>
                     )}
-                    {c.estado === 'aprobado' && c.source !== 'colpy' && (
+                    {c.estado === 'aprobado' && c.source !== 'colpy' && hasErp && (
                         <button
                             className="btn btn-sm btn-primary"
                             onClick={() => onAction(c.id, 'inyectar')}
@@ -402,7 +415,7 @@ export default function ComprobantesGrid({
             keyboardShortcuts={{
                 a: (row) => onAction(row.id, 'aprobar'),
                 r: (row) => onAction(row.id, 'rechazar'),
-                i: (row) => onAction(row.id, 'inyectar'),
+                ...(hasErp ? { i: (row: any) => onAction(row.id, 'inyectar') } : {}),
             }}
         />
     );

@@ -7,7 +7,10 @@ import { useTenant } from '../../contexts/TenantContext';
 interface Vencimiento {
   id: string; tipo: string; referencia_id: string | null; fecha: string;
   descripcion: string; completado: boolean;
+  propiedad_id: string | null; hora_inicio: string | null; hora_fin: string | null;
+  color: string | null; notas: string | null;
 }
+interface Propiedad { id: string; direccion: string; }
 
 const TIPOS = ['contrato_vence', 'pago_pendiente', 'ajuste_alquiler', 'habilitacion', 'otro'];
 const TIPO_CFG: Record<string, { label: string; color: string }> = {
@@ -18,6 +21,16 @@ const TIPO_CFG: Record<string, { label: string; color: string }> = {
   otro: { label: 'Otro', color: '#6B7280' },
 };
 const DIAS_HEADER = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+const EVENT_COLORS = [
+  { value: '#3B82F6', label: 'Azul' },
+  { value: '#10B981', label: 'Verde' },
+  { value: '#F59E0B', label: 'Amarillo' },
+  { value: '#EF4444', label: 'Rojo' },
+  { value: '#8B5CF6', label: 'Violeta' },
+  { value: '#EC4899', label: 'Rosa' },
+  { value: '#0D9488', label: 'Teal' },
+  { value: '#6B7280', label: 'Gris' },
+];
 type ViewType = 'mes' | 'semana' | 'dia' | 'tabla';
 
 function useIsMobile() {
@@ -44,14 +57,20 @@ export default function Agenda() {
   const [rangeFrom, setRangeFrom] = useState('');
   const [rangeTo, setRangeTo] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ tipo: 'otro', fecha: '', descripcion: '' });
+  const [formData, setFormData] = useState({ tipo: 'otro', fecha: '', descripcion: '', propiedad_id: '', hora_inicio: '', hora_fin: '', color: '', notas: '' });
+  const [propiedades, setPropiedades] = useState<Propiedad[]>([]);
 
-  useEffect(() => { if (tenant) loadData(); }, [tenant]);
+  useEffect(() => { if (tenant) { loadData(); loadPropiedades(); } }, [tenant]);
+
+  const loadPropiedades = async () => {
+    const { data } = await supabase.from('inmobiliaria_propiedades').select('id, direccion').eq('tenant_id', tenant!.id).order('direccion');
+    if (data) setPropiedades(data);
+  };
 
   // Auto-open form if navigated with ?action=crear
   useEffect(() => {
     if (searchParams.get('action') === 'crear') {
-      setFormData({ tipo: 'otro', fecha: '', descripcion: '' });
+      setFormData(emptyForm);
       setShowForm(true);
       searchParams.delete('action');
       setSearchParams(searchParams, { replace: true });
@@ -70,13 +89,25 @@ export default function Agenda() {
     setItems(prev => prev.map(v => v.id === id ? { ...v, completado: !current } : v));
   };
 
+  const emptyForm = { tipo: 'otro', fecha: '', descripcion: '', propiedad_id: '', hora_inicio: '', hora_fin: '', color: '', notas: '' };
   const saveNew = async () => {
     if (!formData.fecha || !formData.descripcion) return;
-    const { data } = await supabase.from('inmobiliaria_vencimientos')
-      .insert({ tenant_id: tenant!.id, ...formData, completado: false }).select().single();
+    const payload = {
+      tenant_id: tenant!.id,
+      tipo: formData.tipo,
+      fecha: formData.fecha,
+      descripcion: formData.descripcion,
+      propiedad_id: formData.propiedad_id || null,
+      hora_inicio: formData.hora_inicio || null,
+      hora_fin: formData.hora_fin || null,
+      color: formData.color || null,
+      notas: formData.notas || null,
+      completado: false,
+    };
+    const { data } = await supabase.from('inmobiliaria_vencimientos').insert(payload).select().single();
     if (data) setItems(prev => [...prev, data].sort((a, b) => a.fecha.localeCompare(b.fecha)));
     setShowForm(false);
-    setFormData({ tipo: 'otro', fecha: '', descripcion: '' });
+    setFormData(emptyForm);
   };
 
   const today = dateStr(new Date());
@@ -427,7 +458,7 @@ export default function Agenda() {
 
       {/* ── FAB: New event ── */}
       <button
-        onClick={() => { setFormData({ tipo: 'otro', fecha: dateStr(curDate), descripcion: '' }); setShowForm(true); }}
+        onClick={() => { setFormData({ ...emptyForm, fecha: dateStr(curDate) }); setShowForm(true); }}
         style={{
           position: 'absolute', bottom: 20, right: 20, width: 52, height: 52,
           borderRadius: '50%', border: 'none',
@@ -446,25 +477,87 @@ export default function Agenda() {
       {/* ── NEW FORM MODAL ── */}
       {showForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => setShowForm(false)}>
-          <div className="card" style={{ width: 440, padding: 24, borderRadius: 'var(--radius-xl)', boxShadow: '0 8px 30px rgba(0,0,0,0.12)', border: '1px solid var(--color-border-subtle)' }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <h3 style={{ fontWeight: 700, fontSize: '1rem', margin: 0 }}>Nuevo evento</h3>
+          <div className="card" style={{ width: 500, padding: 0, borderRadius: 'var(--radius-xl)', boxShadow: '0 8px 30px rgba(0,0,0,0.12)', border: '1px solid var(--color-border-subtle)', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+            {/* Header with color accent */}
+            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: formData.color ? `${formData.color}08` : undefined }}>
+              <h3 style={{ fontWeight: 700, fontSize: '1.05rem', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                {formData.color && <span style={{ width: 12, height: 12, borderRadius: 3, background: formData.color }} />}
+                Nuevo evento
+              </h3>
               <button onClick={() => setShowForm(false)} className="btn btn-ghost btn-icon"><X size={16} /></button>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div className="form-group"><label className="form-label">Tipo</label>
-                <select className="form-input" value={formData.tipo} onChange={e => setFormData(f => ({ ...f, tipo: e.target.value }))}>{TIPOS.map(t => <option key={t} value={t}>{TIPO_CFG[t]?.label}</option>)}</select>
+
+            <div style={{ padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Row 1: Tipo + Fecha */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Tipo</label>
+                  <select className="form-input" value={formData.tipo} onChange={e => setFormData(f => ({ ...f, tipo: e.target.value }))}>
+                    {TIPOS.map(t => <option key={t} value={t}>{TIPO_CFG[t]?.label}</option>)}
+                  </select>
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Fecha *</label>
+                  <input type="date" className="form-input" value={formData.fecha} onChange={e => setFormData(f => ({ ...f, fecha: e.target.value }))} />
+                </div>
               </div>
-              <div className="form-group"><label className="form-label">Fecha</label>
-                <input type="date" className="form-input" value={formData.fecha} onChange={e => setFormData(f => ({ ...f, fecha: e.target.value }))} />
+
+              {/* Row 2: Hora inicio + Hora fin */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Hora inicio</label>
+                  <input type="time" className="form-input" value={formData.hora_inicio} onChange={e => setFormData(f => ({ ...f, hora_inicio: e.target.value }))} />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Hora fin</label>
+                  <input type="time" className="form-input" value={formData.hora_fin} onChange={e => setFormData(f => ({ ...f, hora_fin: e.target.value }))} />
+                </div>
               </div>
-              <div className="form-group"><label className="form-label">Descripción</label>
-                <textarea className="form-input" rows={3} placeholder="Descripción del evento o tarea..." value={formData.descripcion} onChange={e => setFormData(f => ({ ...f, descripcion: e.target.value }))} style={{ resize: 'vertical' }} />
+
+              {/* Row 3: Propiedad */}
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Propiedad (opcional)</label>
+                <select className="form-input" value={formData.propiedad_id} onChange={e => setFormData(f => ({ ...f, propiedad_id: e.target.value }))}>
+                  <option value="">Sin propiedad</option>
+                  {propiedades.map(p => <option key={p.id} value={p.id}>{p.direccion}</option>)}
+                </select>
+              </div>
+
+              {/* Row 4: Descripción */}
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Descripción *</label>
+                <input className="form-input" placeholder="Ej: Renovar contrato, Cobrar alquiler, Visita técnica..." value={formData.descripcion} onChange={e => setFormData(f => ({ ...f, descripcion: e.target.value }))} />
+              </div>
+
+              {/* Row 5: Color picker */}
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Color</label>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {EVENT_COLORS.map(c => (
+                    <button key={c.value} onClick={() => setFormData(f => ({ ...f, color: f.color === c.value ? '' : c.value }))}
+                      title={c.label}
+                      style={{
+                        width: 28, height: 28, borderRadius: 8, border: formData.color === c.value ? `2px solid ${c.value}` : '2px solid transparent',
+                        background: `${c.value}20`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        transition: 'transform 0.1s',
+                      }}>
+                      <div style={{ width: 14, height: 14, borderRadius: 4, background: c.value }} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Row 6: Notas */}
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Notas (opcional)</label>
+                <textarea className="form-input" rows={2} placeholder="Notas adicionales..." value={formData.notas} onChange={e => setFormData(f => ({ ...f, notas: e.target.value }))} style={{ resize: 'vertical' }} />
               </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+
+            {/* Footer */}
+            <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--color-border-subtle)', display: 'flex', justifyContent: 'flex-end', gap: 8, background: 'var(--color-bg-subtle, #f8fafc)' }}>
               <button onClick={() => setShowForm(false)} className="btn btn-secondary">Cancelar</button>
-              <button onClick={saveNew} className="btn btn-primary" disabled={!formData.fecha || !formData.descripcion}>Guardar</button>
+              <button onClick={saveNew} className="btn btn-primary" disabled={!formData.fecha || !formData.descripcion}>Guardar evento</button>
             </div>
           </div>
         </div>
@@ -476,10 +569,12 @@ export default function Agenda() {
 /* ═══════ EVENT PILL ═══════ */
 function EventPill({ v, onToggle }: { v: Vencimiento; onToggle: (id: string, c: boolean) => void }) {
   const cfg = TIPO_CFG[v.tipo] || TIPO_CFG.otro;
+  const eventColor = v.color || cfg.color;
+  const timeLabel = v.hora_inicio ? `${v.hora_inicio.slice(0, 5)} ` : '';
   return (
     <div onClick={() => onToggle(v.id, v.completado)} title={v.descripcion}
-      style={{ fontSize: '0.6rem', padding: '1px 4px', borderRadius: 3, background: v.completado ? '#10B98115' : `${cfg.color}15`, color: v.completado ? '#10B981' : cfg.color, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer', textDecoration: v.completado ? 'line-through' : 'none', borderLeft: `2px solid ${v.completado ? '#10B981' : cfg.color}` }}>
-      {v.descripcion}
+      style={{ fontSize: '0.6rem', padding: '1px 4px', borderRadius: 3, background: v.completado ? '#10B98115' : `${eventColor}15`, color: v.completado ? '#10B981' : eventColor, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer', textDecoration: v.completado ? 'line-through' : 'none', borderLeft: `2px solid ${v.completado ? '#10B981' : eventColor}` }}>
+      {timeLabel}{v.descripcion}
     </div>
   );
 }
@@ -543,31 +638,7 @@ function MonthView({ date, events, today, onToggle }: { date: Date; events: Venc
 }
 
 /* ═══════ WEEK VIEW ═══════ */
-function WeekView({ date, events, today, onToggle }: { date: Date; events: Vencimiento[]; today: string; onToggle: (id: string, c: boolean) => void }) {
-  const start = startOfWeek(date);
-  const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
-
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
-      {days.map(d => {
-        const ds = dateStr(d);
-        const isToday = ds === today;
-        const dayEvents = events.filter(v => v.fecha === ds);
-        return (
-          <div key={ds} className="card" style={{ minHeight: 200, padding: 10, background: isToday ? 'var(--color-cta-dim, rgba(37,99,235,0.06))' : undefined }}>
-            <div style={{ fontSize: '0.6875rem', fontWeight: isToday ? 800 : 600, color: isToday ? 'var(--color-cta)' : 'var(--color-text-secondary)', marginBottom: 8, textTransform: 'capitalize' }}>
-              {d.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric' })}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {dayEvents.map(ev => <EventPill key={ev.id} v={ev} onToggle={onToggle} />)}
-              {dayEvents.length === 0 && <div style={{ fontSize: '0.6rem', color: 'var(--color-text-faint)', textAlign: 'center', paddingTop: 20 }}>—</div>}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+/* WeekView removed — replaced by inline timeline in desktop view */
 
 /* ═══════ DAY VIEW ═══════ */
 function DayView({ date, events, today, onToggle }: { date: Date; events: Vencimiento[]; today: string; onToggle: (id: string, c: boolean) => void }) {

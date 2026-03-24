@@ -599,31 +599,29 @@ export default function Proveedores() {
     return (
         <>
             <div>
-                <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                        <h1>Proveedores</h1>
-                        <p>Gestión de proveedores y clasificación de compras · {proveedores.length} activos</p>
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button className="btn btn-secondary" onClick={exportCSV} style={{ gap: 6 }}>
-                            <Download size={16} /> CSV
-                        </button>
-                        <button className="btn btn-primary" onClick={openNew}>
-                            <Plus size={16} /> Nuevo Proveedor
-                        </button>
-                    </div>
+                {/* Header — standardized */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                    <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>Proveedores</h1>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{proveedores.length} activos</span>
+                    <div style={{ flex: 1 }} />
+                    <button className="btn btn-secondary" onClick={exportCSV} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', fontSize: '0.8rem', borderRadius: 10 }}>
+                        <Download size={14} /> CSV
+                    </button>
+                    <button className="btn btn-primary" onClick={openNew} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 18px', fontSize: '0.8rem', borderRadius: 10 }}>
+                        <Plus size={16} /> Nuevo proveedor
+                    </button>
                 </div>
 
                 {/* Search & Filters */}
                 <div className="card" style={{ padding: '0.75rem 1.25rem', marginBottom: '1.25rem' }}>
                     <div style={{ position: 'relative', marginBottom: '0.625rem' }}>
-                        <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+                        <Search size={14} color="var(--color-text-muted)" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
                         <input
                             className="form-input"
                             placeholder="Buscar por razón social o CUIT..."
                             value={busqueda}
                             onChange={e => setBusqueda(e.target.value)}
-                            style={{ paddingLeft: 38, height: 40 }}
+                            style={{ paddingLeft: 32, height: 36, fontSize: '0.8rem' }}
                         />
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>

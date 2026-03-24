@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Plus, Wrench, Upload, Phone, FileText, CheckCircle, AlertTriangle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -33,8 +33,15 @@ const ESTADOS_LIST = ['reportado', 'asignado', 'en_curso', 'completado', 'factur
 
 const isImageUrl = (url: string) => /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(url);
 
+function useIsMobile() {
+  const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
+  useEffect(() => { const h = () => setM(window.innerWidth <= 768); window.addEventListener('resize', h); return () => window.removeEventListener('resize', h); }, []);
+  return m;
+}
+
 export default function OrdenesTrabajo() {
   const { tenant } = useTenant();
+  const isMobile = useIsMobile();
   const [items, setItems] = useState<OrdenTrabajo[]>([]);
   const [propiedades, setPropiedades] = useState<Propiedad[]>([]);
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
@@ -204,39 +211,51 @@ export default function OrdenesTrabajo() {
         onChange={handleFileSelected}
       />
 
+      {/* Header: desktop vs mobile */}
+      {!isMobile && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+          <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>Órdenes de trabajo</h1>
+          <div style={{ flex: 1 }} />
+          <button onClick={openNew} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 18px', fontSize: '0.8rem', borderRadius: 10 }}>
+            <Plus size={16} /> Nueva orden
+          </button>
+        </div>
+      )}
+
       {/* KPIs */}
-      <div style={{ display: 'flex', gap: 6 }}>
-        <div onClick={() => setFilterEstado('reportado')} style={{ flex: 1, padding: '8px 6px', borderRadius: 8, background: reportados > 0 ? '#EF444408' : 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', textAlign: 'center', cursor: 'pointer' }}>
-          <div style={{ fontSize: '1rem', fontWeight: 800, color: reportados > 0 ? '#EF4444' : 'var(--color-text-primary)' }}>{reportados}</div>
-          <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)' }}>Reportados</div>
-        </div>
-        <div onClick={() => setFilterEstado('en_curso')} style={{ flex: 1, padding: '8px 6px', borderRadius: 8, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', textAlign: 'center', cursor: 'pointer' }}>
-          <div style={{ fontSize: '1rem', fontWeight: 800, color: '#3B82F6' }}>{enCurso}</div>
-          <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)' }}>En curso</div>
-        </div>
-        <div onClick={() => setFilterEstado('completado')} style={{ flex: 1, padding: '8px 6px', borderRadius: 8, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', textAlign: 'center', cursor: 'pointer' }}>
-          <div style={{ fontSize: '1rem', fontWeight: 800, color: '#10B981' }}>{completados}</div>
-          <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)' }}>Resueltos</div>
-        </div>
+      <div style={{ display: 'flex', gap: isMobile ? 6 : 10 }}>
+        {[
+          { label: 'Reportados', count: reportados, color: reportados > 0 ? '#EF4444' : 'var(--color-text-primary)', filter: 'reportado' },
+          { label: 'En curso', count: enCurso, color: '#3B82F6', filter: 'en_curso' },
+          { label: 'Resueltos', count: completados, color: '#10B981', filter: 'completado' },
+        ].map(kpi => (
+          <div key={kpi.label} onClick={() => setFilterEstado(kpi.filter)}
+            style={{ flex: 1, padding: isMobile ? '8px 6px' : '12px 10px', borderRadius: isMobile ? 8 : 10, background: kpi.count > 0 && kpi.label === 'Reportados' ? '#EF444408' : 'var(--color-bg-card)', border: `1px solid ${filterEstado === kpi.filter ? kpi.color + '40' : 'var(--color-border-subtle)'}`, textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.15s' }}>
+            <div style={{ fontSize: isMobile ? '1rem' : '1.25rem', fontWeight: 800, color: kpi.color }}>{kpi.count}</div>
+            <div style={{ fontSize: isMobile ? '0.6rem' : '0.7rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>{kpi.label}</div>
+          </div>
+        ))}
       </div>
 
-      {/* New + filter */}
+      {/* Filter pills + new button (mobile) */}
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
         <div style={{ flex: 1, display: 'flex', gap: 4, overflowX: 'auto' }}>
-          <button onClick={() => setFilterEstado('')} style={{ padding: '4px 10px', borderRadius: 99, border: '1px solid var(--color-border-subtle)', background: !filterEstado ? 'var(--color-text-primary)' : 'var(--color-bg-surface)', color: !filterEstado ? '#fff' : 'var(--color-text-muted)', fontSize: '0.6875rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--font-sans)' }}>Todos</button>
+          <button onClick={() => setFilterEstado('')} style={{ padding: isMobile ? '4px 10px' : '5px 14px', borderRadius: 99, border: '1px solid var(--color-border-subtle)', background: !filterEstado ? 'var(--color-text-primary)' : 'var(--color-bg-surface)', color: !filterEstado ? '#fff' : 'var(--color-text-muted)', fontSize: isMobile ? '0.6875rem' : '0.75rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--font-sans)' }}>Todos</button>
           {ESTADOS_LIST.map(e => {
             const cfg = ESTADO_CFG[e];
             return (
               <button key={e} onClick={() => setFilterEstado(filterEstado === e ? '' : e)}
-                style={{ padding: '4px 10px', borderRadius: 99, border: `1px solid ${filterEstado === e ? cfg.color : 'var(--color-border-subtle)'}`, background: filterEstado === e ? `${cfg.color}15` : 'var(--color-bg-surface)', color: filterEstado === e ? cfg.color : 'var(--color-text-muted)', fontSize: '0.6875rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--font-sans)' }}>
+                style={{ padding: isMobile ? '4px 10px' : '5px 14px', borderRadius: 99, border: `1px solid ${filterEstado === e ? cfg.color : 'var(--color-border-subtle)'}`, background: filterEstado === e ? `${cfg.color}15` : 'var(--color-bg-surface)', color: filterEstado === e ? cfg.color : 'var(--color-text-muted)', fontSize: isMobile ? '0.6875rem' : '0.75rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--font-sans)' }}>
                 {cfg.label}
               </button>
             );
           })}
         </div>
-        <button onClick={openNew} style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--color-cta, #2563EB)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <Plus size={18} />
-        </button>
+        {isMobile && (
+          <button onClick={openNew} style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--color-cta, #2563EB)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Plus size={18} />
+          </button>
+        )}
       </div>
 
       {/* List */}
@@ -339,28 +358,43 @@ export default function OrdenesTrabajo() {
         {filtered.length === 0 && <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin órdenes de trabajo</div>}
       </div>
 
-      {/* Modal */}
+      {/* Modal — desktop: centered card / mobile: bottom sheet */}
       {showModal && (
-        <div onClick={() => setShowModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', zIndex: 200, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ flex: 1 }} />
-          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--color-bg-base)', borderRadius: '20px 20px 0 0', padding: '20px 16px 80px' }}>
-            <div style={{ width: 36, height: 4, borderRadius: 99, background: 'var(--color-border)', margin: '0 auto 16px' }} />
-            <h3 style={{ fontWeight: 700, fontSize: '1.0625rem', margin: '0 0 16px' }}>{editing ? 'Editar orden' : 'Reportar problema'}</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div className="form-group"><label className="form-label">Título *</label><input className="form-input" value={form.titulo} onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))} placeholder="Ej: Pérdida de agua en baño" style={{ height: 42, borderRadius: 10 }} /></div>
-              <div className="form-group"><label className="form-label">Propiedad *</label>
-                <select className="form-input" value={form.propiedad_id} onChange={e => setForm(f => ({ ...f, propiedad_id: e.target.value }))} style={{ height: 42, borderRadius: 10 }}>
-                  <option value="">Seleccionar...</option>
-                  {propiedades.map(p => <option key={p.id} value={p.id}>{p.direccion}</option>)}
-                </select>
+        <div onClick={() => setShowModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', zIndex: 200, display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center' }}>
+          <div onClick={e => e.stopPropagation()} className="card" style={{
+            width: '100%', maxWidth: isMobile ? undefined : 500, padding: 0, overflow: 'hidden',
+            borderRadius: isMobile ? '20px 20px 0 0' : 'var(--radius-xl)',
+            boxShadow: '0 8px 30px rgba(0,0,0,0.12)', border: '1px solid var(--color-border-subtle)',
+          }}>
+            {/* Header */}
+            <div style={{ padding: isMobile ? '16px 16px 0' : '1.25rem 1.5rem', borderBottom: isMobile ? 'none' : '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              {isMobile && <div style={{ width: 36, height: 4, borderRadius: 99, background: 'var(--color-border)', position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)' }} />}
+              <h3 style={{ fontWeight: 700, fontSize: '1.05rem', margin: 0 }}>{editing ? 'Editar orden' : 'Nueva orden de trabajo'}</h3>
+              {!isMobile && <button onClick={() => setShowModal(false)} className="btn btn-ghost btn-icon"><Plus size={16} style={{ transform: 'rotate(45deg)' }} /></button>}
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: isMobile ? '16px 16px' : '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: isMobile ? '60vh' : '65vh', overflowY: 'auto' }}>
+              <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label">Título *</label>
+                <input className="form-input" value={form.titulo} onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))} placeholder="Ej: Pérdida de agua en baño" />
               </div>
-              <div className="form-group"><label className="form-label">Proveedor (opcional)</label>
-                <select className="form-input" value={form.proveedor_id} onChange={e => setForm(f => ({ ...f, proveedor_id: e.target.value }))} style={{ height: 42, borderRadius: 10 }}>
-                  <option value="">Sin asignar</option>
-                  {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre} ({p.rubro})</option>)}
-                </select>
+
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
+                <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label">Propiedad *</label>
+                  <select className="form-input" value={form.propiedad_id} onChange={e => setForm(f => ({ ...f, propiedad_id: e.target.value }))}>
+                    <option value="">Seleccionar...</option>
+                    {propiedades.map(p => <option key={p.id} value={p.id}>{p.direccion}</option>)}
+                  </select>
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label">Proveedor (opcional)</label>
+                  <select className="form-input" value={form.proveedor_id} onChange={e => setForm(f => ({ ...f, proveedor_id: e.target.value }))}>
+                    <option value="">Sin asignar</option>
+                    {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre} ({p.rubro})</option>)}
+                  </select>
+                </div>
               </div>
-              <div className="form-group"><label className="form-label">Prioridad</label>
+
+              <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label">Prioridad</label>
                 <div style={{ display: 'flex', gap: 6 }}>
                   {(['baja', 'media', 'alta', 'urgente'] as const).map(p => {
                     const cfg = PRIORIDAD_CFG[p];
@@ -373,17 +407,21 @@ export default function OrdenesTrabajo() {
                   })}
                 </div>
               </div>
-              <div className="form-group"><label className="form-label">Monto presupuesto</label>
-                <input className="form-input" type="number" min="0" step="0.01" value={form.monto_presupuesto} onChange={e => setForm(f => ({ ...f, monto_presupuesto: e.target.value }))} placeholder="Ej: 45000" style={{ height: 42, borderRadius: 10 }} />
+
+              <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label">Monto presupuesto</label>
+                <input className="form-input" type="number" min="0" step="0.01" value={form.monto_presupuesto} onChange={e => setForm(f => ({ ...f, monto_presupuesto: e.target.value }))} placeholder="Ej: 45000" />
               </div>
-              <div className="form-group"><label className="form-label">Descripción</label>
-                <textarea className="form-input" rows={3} value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} placeholder="Detalle del problema..." style={{ borderRadius: 10, resize: 'vertical' }} />
+
+              <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label">Descripción</label>
+                <textarea className="form-input" rows={3} value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} placeholder="Detalle del problema..." style={{ resize: 'vertical' }} />
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-              <button onClick={() => setShowModal(false)} className="btn btn-secondary" style={{ flex: 1, height: 42, borderRadius: 10 }}>Cancelar</button>
-              <button onClick={save} className="btn btn-primary" disabled={!form.titulo.trim() || !form.propiedad_id} style={{ flex: 1, height: 42, borderRadius: 10 }}>
-                {editing ? 'Guardar' : 'Reportar'}
+
+            {/* Footer */}
+            <div style={{ padding: isMobile ? '12px 16px 80px' : '1rem 1.5rem', borderTop: '1px solid var(--color-border-subtle)', display: 'flex', gap: 8, justifyContent: isMobile ? 'stretch' : 'flex-end', background: isMobile ? undefined : 'var(--color-bg-subtle, #f8fafc)' }}>
+              <button onClick={() => setShowModal(false)} className="btn btn-secondary" style={{ flex: isMobile ? 1 : undefined }}>Cancelar</button>
+              <button onClick={save} className="btn btn-primary" disabled={!form.titulo.trim() || !form.propiedad_id} style={{ flex: isMobile ? 1 : undefined }}>
+                {editing ? 'Guardar cambios' : 'Crear orden'}
               </button>
             </div>
           </div>

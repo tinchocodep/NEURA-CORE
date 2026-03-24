@@ -17,14 +17,14 @@ interface Contrato {
 }
 
 const ESTADO_COLOR: Record<string, string> = { borrador: '#F59E0B', aprobada: '#3B82F6', pagada: '#10B981' };
-const CATEGORIAS = ['alquiler', 'mantenimiento', 'impuestos', 'servicios', 'consorcio'];
+const CATEGORIAS = ['alquiler', 'mantenimiento', 'impuestos', 'servicios', 'consorcio', 'otro'];
 const CAT_LABEL: Record<string, string> = {
   alquiler: 'Alquiler', mantenimiento: 'Mantenimiento', impuestos: 'Impuestos',
-  servicios: 'Servicios', consorcio: 'Consorcio',
+  servicios: 'Servicios', consorcio: 'Consorcio', otro: 'Otro',
 };
 const CAT_COLOR: Record<string, string> = {
   alquiler: '#3B82F6', mantenimiento: '#F97316', impuestos: '#8B5CF6',
-  servicios: '#0D9488', consorcio: '#EC4899',
+  servicios: '#0D9488', consorcio: '#EC4899', otro: '#6B7280',
 };
 
 function useIsMobile() {
@@ -45,6 +45,7 @@ export default function Liquidaciones() {
   const [searchText, setSearchText] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
+  const [showNewMenu, setShowNewMenu] = useState(false);
 
   // Form state
   const [selContrato, setSelContrato] = useState('');
@@ -79,9 +80,10 @@ export default function Liquidaciones() {
     return (c?.propietario as any)?.razon_social || '—';
   };
 
-  const openNew = () => {
+  const openNew = (categoria?: string) => {
     setEditing(null); setSelContrato(''); setPeriodo(new Date().toISOString().slice(0, 7));
-    setIngreso(0); setDeducciones([]); setFormCategoria('alquiler'); setShowModal(true);
+    setIngreso(0); setDeducciones([]); setFormCategoria(categoria || 'alquiler'); setShowModal(true);
+    setShowNewMenu(false);
   };
 
   const openEdit = (l: Liquidacion) => {
@@ -171,24 +173,91 @@ export default function Liquidaciones() {
   if (loading) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Cargando liquidaciones...</div>;
 
   return (
-    <div style={{ padding: isMobile ? '0' : '1.5rem', display: 'flex', flexDirection: 'column', gap: isMobile ? '0.5rem' : '1rem' }}>
-      {/* Desktop header */}
-      <div className="module-header-desktop" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-        <h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Liquidaciones</h1>
-        <select value={filterEstado} onChange={e => setFilterEstado(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
-          <option value="">Todos</option>
-          <option value="borrador">Borrador</option>
-          <option value="aprobada">Aprobada</option>
-          <option value="pagada">Pagada</option>
-        </select>
-        <select value={filterCategoria} onChange={e => setFilterCategoria(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
-          <option value="">Todas las categorías</option>
-          {CATEGORIAS.map(c => <option key={c} value={c}>{CAT_LABEL[c]}</option>)}
-        </select>
-        <button onClick={openNew} className="btn btn-primary" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem' }}>
-          <Plus size={14} /> Nueva
-        </button>
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '0.5rem' : '0.75rem' }}>
+      {/* Desktop header — same pattern as Órdenes */}
+      {!isMobile && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+          <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>Liquidaciones</h1>
+          <div style={{ flex: 1 }} />
+          <div style={{ position: 'relative' }}>
+            <button onClick={() => setShowNewMenu(m => !m)} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 18px', fontSize: '0.8rem', borderRadius: 10 }}>
+              <Plus size={16} /> Nueva liquidación
+            </button>
+            {showNewMenu && (<>
+              <div style={{ position: 'fixed', inset: 0, zIndex: 90 }} onClick={() => setShowNewMenu(false)} />
+              <div style={{ position: 'absolute', right: 0, top: '100%', marginTop: 6, zIndex: 100, background: 'var(--color-bg-card, #fff)', borderRadius: 12, border: '1px solid var(--color-border-subtle)', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', minWidth: 220, padding: '0.35rem', overflow: 'hidden' }}>
+                {[
+                  { cat: 'alquiler', label: 'Liquidación de alquiler', desc: 'Monto se autocompleta del contrato', color: '#3B82F6' },
+                  { cat: 'consorcio', label: 'Expensas / Consorcio', desc: 'Gastos comunes del edificio', color: '#EC4899' },
+                  { cat: 'mantenimiento', label: 'Gasto de mantenimiento', desc: 'Reparaciones, mejoras', color: '#F97316' },
+                  { cat: 'impuestos', label: 'Impuestos', desc: 'ABL, IIBB, inmobiliario', color: '#8B5CF6' },
+                  { cat: 'servicios', label: 'Servicios', desc: 'Luz, agua, gas, internet', color: '#0D9488' },
+                  { cat: 'otro', label: 'Otro', desc: 'Concepto personalizado', color: '#6B7280' },
+                ].map(opt => (
+                  <button key={opt.cat} onClick={() => openNew(opt.cat)}
+                    style={{ display: 'flex', alignItems: 'flex-start', gap: 10, width: '100%', padding: '10px 12px', border: 'none', background: 'none', cursor: 'pointer', borderRadius: 8, textAlign: 'left', fontFamily: 'var(--font-sans)' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-hover, #f1f5f9)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                  >
+                    <div style={{ width: 8, height: 8, borderRadius: 2, background: opt.color, marginTop: 5, flexShrink: 0 }} />
+                    <div>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{opt.label}</div>
+                      <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', marginTop: 1 }}>{opt.desc}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </>)}
+          </div>
+        </div>
+      )}
+
+      {/* KPIs — full width like Órdenes */}
+      {!isMobile && (
+        <div style={{ display: 'flex', gap: 10 }}>
+          {[
+            { label: 'Pendientes', value: String(pendientes), color: pendientes > 0 ? '#F59E0B' : 'var(--color-text-primary)', filter: 'borrador' },
+            { label: 'Por pagar', value: fmtMoney(porPagar), color: porPagar > 0 ? '#3B82F6' : 'var(--color-text-primary)', filter: 'aprobada', mono: true },
+            { label: 'Pagado mes', value: fmtMoney(pagadoMes), color: '#10B981', filter: 'pagada', mono: true },
+          ].map(kpi => (
+            <div key={kpi.label} onClick={() => setFilterEstado(kpi.filter)}
+              style={{ flex: 1, padding: '12px 10px', borderRadius: 10, background: 'var(--color-bg-card)', border: `1px solid ${filterEstado === kpi.filter ? kpi.color + '40' : 'var(--color-border-subtle)'}`, textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.15s' }}>
+              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: kpi.color, fontFamily: kpi.mono ? 'var(--font-mono)' : undefined }}>{kpi.value}</div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>{kpi.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Desktop filters — inline like Órdenes pills */}
+      {!isMobile && (
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <div style={{ flex: 1, display: 'flex', gap: 4 }}>
+            {[
+              { key: '', label: 'Todos' },
+              { key: 'borrador', label: 'Borrador' },
+              { key: 'aprobada', label: 'Aprobada' },
+              { key: 'pagada', label: 'Pagada' },
+            ].map(f => (
+              <button key={f.key} onClick={() => setFilterEstado(filterEstado === f.key ? '' : f.key)}
+                style={{ padding: '5px 14px', borderRadius: 99, border: `1px solid ${filterEstado === f.key ? 'var(--color-text-primary)' : 'var(--color-border-subtle)'}`, background: filterEstado === f.key ? 'var(--color-text-primary)' : 'var(--color-bg-surface)', color: filterEstado === f.key ? '#fff' : 'var(--color-text-muted)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--font-sans)' }}>
+                {f.label}
+              </button>
+            ))}
+            {CATEGORIAS.map(c => (
+              <button key={c} onClick={() => setFilterCategoria(filterCategoria === c ? '' : c)}
+                style={{ padding: '5px 14px', borderRadius: 99, border: `1px solid ${filterCategoria === c ? (CAT_COLOR[c] || '#6B7280') : 'var(--color-border-subtle)'}`, background: filterCategoria === c ? `${CAT_COLOR[c]}15` : 'var(--color-bg-surface)', color: filterCategoria === c ? CAT_COLOR[c] : 'var(--color-text-muted)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--font-sans)' }}>
+                {CAT_LABEL[c]}
+              </button>
+            ))}
+          </div>
+          <div style={{ position: 'relative', width: 240 }}>
+            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
+            <input type="text" placeholder="Buscar..." value={searchText} onChange={e => setSearchText(e.target.value)}
+              className="form-input" style={{ paddingLeft: 32, height: 36, fontSize: '0.8rem' }} />
+          </div>
+        </div>
+      )}
 
       {/* Mobile header */}
       <div className="module-header-mobile">
@@ -372,48 +441,61 @@ export default function Liquidaciones() {
         </div>
       )}
 
-      {/* Modal */}
+      {/* Modal — same pattern as Órdenes/Agenda */}
       {showModal && (
-          <div onClick={() => setShowModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div onClick={e => e.stopPropagation()} className="card" style={{ width: '100%', maxWidth: 740, maxHeight: '92vh', overflowY: 'auto', padding: '1.5rem', borderRadius: 'var(--radius-xl)', boxShadow: '0 8px 30px rgba(0,0,0,0.12)', border: '1px solid var(--color-border-subtle)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>{editing ? 'Editar liquidación' : 'Nueva liquidación'}</h3>
-              <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)' }}><X size={18} /></button>
+        <div onClick={() => setShowModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', zIndex: 200, display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center' }}>
+          <div onClick={e => e.stopPropagation()} className="card" style={{
+            width: '100%', maxWidth: isMobile ? undefined : 560, padding: 0, overflow: 'hidden',
+            borderRadius: isMobile ? '20px 20px 0 0' : 'var(--radius-xl)',
+            boxShadow: '0 8px 30px rgba(0,0,0,0.12)', border: '1px solid var(--color-border-subtle)',
+          }}>
+            {/* Header */}
+            <div style={{ padding: isMobile ? '16px 16px 0' : '1.25rem 1.5rem', borderBottom: isMobile ? 'none' : '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              {isMobile && <div style={{ width: 36, height: 4, borderRadius: 99, background: 'var(--color-border)', position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)' }} />}
+              <h3 style={{ fontWeight: 700, fontSize: '1.05rem', margin: 0 }}>{editing ? 'Editar liquidación' : 'Nueva liquidación'}</h3>
+              {!isMobile && <button onClick={() => setShowModal(false)} className="btn btn-ghost btn-icon"><X size={16} /></button>}
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <div style={{ flex: 1 }}>
+
+            {/* Body */}
+            <div style={{ padding: isMobile ? '16px' : '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: isMobile ? '60vh' : '65vh', overflowY: 'auto' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Categoría</label>
                   <select className="form-input" value={formCategoria} onChange={e => setFormCategoria(e.target.value)}>
                     {CATEGORIAS.map(c => <option key={c} value={c}>{CAT_LABEL[c]}</option>)}
                   </select>
                 </div>
-                <div style={{ flex: 1 }}>
-                  <label className="form-label">Periodo (YYYY-MM)</label>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Periodo</label>
                   <input type="month" className="form-input" value={periodo} onChange={e => setPeriodo(e.target.value)} />
                 </div>
               </div>
-              <label className="form-label">Propiedad *</label>
-              <select className="form-input" value={selContrato} onChange={e => onSelectContrato(e.target.value)}>
-                <option value="">Seleccionar propiedad...</option>
-                {contratos.map(c => <option key={c.id} value={c.id}>{(c.propiedad as any)?.direccion} — {(c.propietario as any)?.razon_social}</option>)}
-              </select>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Propiedad *</label>
+                <select className="form-input" value={selContrato} onChange={e => onSelectContrato(e.target.value)}>
+                  <option value="">Seleccionar propiedad...</option>
+                  {contratos.map(c => <option key={c.id} value={c.id}>{(c.propiedad as any)?.direccion} — {(c.propietario as any)?.razon_social}</option>)}
+                </select>
+              </div>
+
               {formCategoria === 'alquiler' && (
-                <div style={{ flex: 1 }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Ingreso alquiler</label>
                   <input type="number" className="form-input" value={ingreso || ''} onChange={e => setIngreso(Number(e.target.value))} />
                 </div>
               )}
 
-              <div style={{ marginTop: '0.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+              {/* Deducciones */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                   <label className="form-label" style={{ margin: 0 }}>{formCategoria === 'alquiler' ? 'Deducciones' : 'Detalle de gastos'}</label>
-                  <button onClick={addDeduccion} style={{ padding: '0.2rem 0.5rem', borderRadius: 4, border: '1px solid var(--color-border-subtle)', background: 'transparent', color: 'var(--color-text-primary)', cursor: 'pointer', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Plus size={12} /> Agregar
+                  <button onClick={addDeduccion} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 99, border: '1px solid var(--color-border-subtle)', background: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-cta, #2563EB)', fontFamily: 'var(--font-sans)' }}>
+                    <Plus size={14} /> Agregar
                   </button>
                 </div>
                 {deducciones.map((d, i) => (
-                  <div key={i} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.4rem', alignItems: 'center' }}>
+                  <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6, alignItems: 'center' }}>
                     <input className="form-input" placeholder="Concepto" value={d.concepto} onChange={e => updateDeduccion(i, 'concepto', e.target.value)} style={{ flex: 2 }} />
                     <input type="number" className="form-input" placeholder="Monto" value={d.monto || ''} onChange={e => updateDeduccion(i, 'monto', Number(e.target.value))} style={{ flex: 1 }} />
                     <button onClick={() => removeDeduccion(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', padding: 4 }}><Trash2 size={14} /></button>
@@ -421,29 +503,34 @@ export default function Liquidaciones() {
                 ))}
               </div>
 
-              <div style={{ background: 'var(--color-bg-subtle, rgba(255,255,255,0.02))', borderRadius: 'var(--radius-sm)', padding: '0.75rem', marginTop: '0.5rem' }}>
+              {/* Totales */}
+              <div style={{ background: 'var(--color-bg-subtle, #f8fafc)', borderRadius: 8, padding: '0.75rem' }}>
                 {formCategoria === 'alquiler' && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.3rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: 4 }}>
                     <span>Ingreso</span><span style={{ fontFamily: 'var(--font-mono)' }}>${ingreso.toLocaleString('es-AR')}</span>
                   </div>
                 )}
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: formCategoria === 'alquiler' ? '#EF4444' : 'var(--color-text-primary)', marginBottom: '0.3rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: formCategoria === 'alquiler' ? '#EF4444' : 'var(--color-text-primary)', marginBottom: 4 }}>
                   <span>{formCategoria === 'alquiler' ? 'Deducciones' : 'Total gasto'}</span>
                   <span style={{ fontFamily: 'var(--font-mono)' }}>{formCategoria === 'alquiler' ? '-' : ''}${totalDeducciones.toLocaleString('es-AR')}</span>
                 </div>
                 {formCategoria === 'alquiler' && (
-                  <div style={{ borderTop: '1px solid var(--color-border-subtle)', paddingTop: '0.3rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', fontWeight: 700 }}>
+                  <div style={{ borderTop: '2px solid var(--color-border-subtle)', paddingTop: 6, display: 'flex', justifyContent: 'space-between', fontSize: '1rem', fontWeight: 700 }}>
                     <span>Neto propietario</span><span style={{ fontFamily: 'var(--font-mono)', color: '#10B981' }}>${neto.toLocaleString('es-AR')}</span>
                   </div>
                 )}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
-              <button onClick={() => setShowModal(false)} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>Cancelar</button>
-              <button onClick={save} className="btn btn-primary" style={{ fontSize: '0.85rem' }}>Guardar</button>
+
+            {/* Footer */}
+            <div style={{ padding: isMobile ? '12px 16px 80px' : '1rem 1.5rem', borderTop: '1px solid var(--color-border-subtle)', display: 'flex', gap: 8, justifyContent: isMobile ? 'stretch' : 'flex-end', background: isMobile ? undefined : 'var(--color-bg-subtle, #f8fafc)' }}>
+              <button onClick={() => setShowModal(false)} className="btn btn-secondary" style={{ flex: isMobile ? 1 : undefined }}>Cancelar</button>
+              <button onClick={save} className="btn btn-primary" style={{ flex: isMobile ? 1 : undefined }}>
+                {editing ? 'Guardar cambios' : 'Crear liquidación'}
+              </button>
             </div>
           </div>
-          </div>
+        </div>
       )}
     </div>
   );

@@ -59,12 +59,18 @@ export default function ComprobantesIndex() {
     const [dragOver, setDragOver] = useState(false);
     const [uploadResults, setUploadResults] = useState<{ name: string; status: 'ok' | 'error'; msg: string; duplicate?: boolean; duplicateCount?: number; data?: { numero_comprobante?: string; tipo?: string; tipo_comprobante?: string; fecha?: string; monto?: number; proveedor_nombre?: string; proveedor_cuit?: string; proveedor_nuevo?: boolean; pdf_url?: string; descripcion?: string } }[]>([]);
 
-    // CUIT de la empresa (de contable_config → arca_cuit)
+    // CUIT de la empresa + ERP connection status
     const [empresaCuit, setEmpresaCuit] = useState<string | null>(null);
+    const [hasErp, setHasErp] = useState(false);
     useEffect(() => {
         if (!tenant?.id) return;
-        supabase.from('contable_config').select('arca_cuit').eq('tenant_id', tenant.id).maybeSingle()
-            .then(({ data }) => { if (data?.arca_cuit) setEmpresaCuit(data.arca_cuit); });
+        supabase.from('contable_config').select('arca_cuit, xubio_client_id, xubio_client_secret, colpy_username, colpy_password').eq('tenant_id', tenant.id).maybeSingle()
+            .then(({ data }) => {
+                if (data?.arca_cuit) setEmpresaCuit(data.arca_cuit);
+                const hasXubio = !!(data?.xubio_client_id && data?.xubio_client_secret);
+                const hasColppy = !!(data?.colpy_username && data?.colpy_password);
+                setHasErp(hasXubio || hasColppy);
+            });
     }, [tenant?.id]);
 
     // Attach to existing state
@@ -294,6 +300,7 @@ export default function ComprobantesIndex() {
         }
 
         if (action === 'inyectar') {
+            if (!hasErp) return; // No ERP configured
             // OPEN MODAL FOR INJECTION
             try {
                 const { getXubioService } = await import('../../../services/XubioService');
@@ -780,52 +787,41 @@ export default function ComprobantesIndex() {
                 </div>
             )}
             
-            {/* Page header */}
-            <div className="page-header">
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                    <div>
-                        <h1>Comprobantes</h1>
-                        <p>Facturas de compra y venta · {totalCount.toLocaleString('es-AR')} registros</p>
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                        {syncingColpy ? (
-                            <button
-                                className="btn btn-sm"
-                                onClick={async () => {
-                                    if (!tenant) return;
-                                    const { getColpyService } = await import('../../../services/ColpyService');
-                                    getColpyService(tenant.id).abortSync();
-                                    addToast('warning', 'Cancelando', 'Deteniendo sincronización en breve...');
-                                }}
-                                title="Frenar descarga de Colppy"
-                                style={{ background: 'var(--color-danger)', color: 'white', borderColor: 'var(--color-danger)' }}
-                            >
-                                <XCircle size={13} /> Parar Sincronización
-                            </button>
-                        ) : (
-                            <button
-                                className="btn btn-secondary btn-sm"
-                                onClick={() => setIsSyncModalOpen(true)}
-                                title="Descargar comprobantes de Colppy"
-                            >
-                                <RefreshCw size={13} /> Sincronizar Colppy
-                            </button>
-                        )}
+            {/* Page header — standardized */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+                <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>Comprobantes</h1>
+                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{totalCount.toLocaleString('es-AR')} registros</span>
+                <div style={{ flex: 1 }} />
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    {hasErp && (syncingColpy ? (
                         <button
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => setCmdOpen(true)}
-                            title="Buscar (⌘K)"
+                            className="btn btn-secondary"
+                            onClick={async () => {
+                                if (!tenant) return;
+                                const { getColpyService } = await import('../../../services/ColpyService');
+                                getColpyService(tenant.id).abortSync();
+                                addToast('warning', 'Cancelando', 'Deteniendo sincronización en breve...');
+                            }}
+                            style={{ padding: '8px 14px', fontSize: '0.8rem', borderRadius: 10, background: 'var(--color-danger)', color: 'white', borderColor: 'var(--color-danger)' }}
                         >
-                            <Search size={13} /> Buscar <kbd style={{ marginLeft: 4 }}>⌘K</kbd>
+                            <XCircle size={14} /> Parar sync
                         </button>
+                    ) : (
                         <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() => handleTab('crear')}
-                            title="Emitir factura (⌘N)"
+                            className="btn btn-secondary"
+                            onClick={() => setIsSyncModalOpen(true)}
+                            style={{ padding: '8px 14px', fontSize: '0.8rem', borderRadius: 10 }}
                         >
-                            <Plus size={13} /> Emitir <kbd style={{ background: 'rgba(0,0,0,0.2)', borderColor: 'transparent', color: 'inherit', marginLeft: 4 }}>⌘N</kbd>
+                            <RefreshCw size={14} /> Sincronizar
                         </button>
-                    </div>
+                    ))}
+                    <button
+                        className="btn btn-primary"
+                        onClick={() => handleTab('crear')}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 18px', fontSize: '0.8rem', borderRadius: 10 }}
+                    >
+                        <Plus size={16} /> Emitir factura
+                    </button>
                 </div>
             </div>
 
@@ -940,8 +936,10 @@ export default function ComprobantesIndex() {
                         <kbd style={{ fontSize: '0.55rem', padding: '1px 4px', borderRadius: 3, background: 'var(--color-bg-hover)', border: '1px solid var(--color-border-subtle)', color: 'var(--color-text-muted)' }}>R</kbd>
                         <span style={{ fontSize: '0.55rem', color: 'var(--color-text-muted)' }}>rechazar</span>
                         <span style={{ fontSize: '0.55rem', color: 'var(--color-border-subtle)', margin: '0 2px' }}>·</span>
-                        <kbd style={{ fontSize: '0.55rem', padding: '1px 4px', borderRadius: 3, background: 'var(--color-bg-hover)', border: '1px solid var(--color-border-subtle)', color: 'var(--color-text-muted)' }}>I</kbd>
-                        <span style={{ fontSize: '0.55rem', color: 'var(--color-text-muted)' }}>inyectar</span>
+                        {hasErp && (<>
+                            <kbd style={{ fontSize: '0.55rem', padding: '1px 4px', borderRadius: 3, background: 'var(--color-bg-hover)', border: '1px solid var(--color-border-subtle)', color: 'var(--color-text-muted)' }}>I</kbd>
+                            <span style={{ fontSize: '0.55rem', color: 'var(--color-text-muted)' }}>inyectar</span>
+                        </>)}
                     </div>
 
                     {/* Bulk Action Bar */}
@@ -1002,20 +1000,22 @@ export default function ComprobantesIndex() {
                             >
                                 <X size={13} /> Eliminar todos
                             </button>
-                            <button
-                                className="btn btn-sm btn-primary"
-                                style={{ gap: 4 }}
-                                disabled={bulkProcessing}
-                                onClick={async () => {
-                                    setBulkProcessing(true);
-                                    for (const id of selectedIds) await handleAction(id, 'inyectar');
-                                    setSelectedIds(new Set());
-                                    setBulkProcessing(false);
-                                    reset();
-                                }}
-                            >
-                                <Send size={13} /> Inyectar todos
-                            </button>
+                            {hasErp && (
+                                <button
+                                    className="btn btn-sm btn-primary"
+                                    style={{ gap: 4 }}
+                                    disabled={bulkProcessing}
+                                    onClick={async () => {
+                                        setBulkProcessing(true);
+                                        for (const id of selectedIds) await handleAction(id, 'inyectar');
+                                        setSelectedIds(new Set());
+                                        setBulkProcessing(false);
+                                        reset();
+                                    }}
+                                >
+                                    <Send size={13} /> Inyectar todos
+                                </button>
+                            )}
                             <button
                                 className="btn btn-ghost btn-sm"
                                 onClick={() => setSelectedIds(new Set())}
@@ -1043,6 +1043,7 @@ export default function ComprobantesIndex() {
                         sortCol={sortCol}
                         sortDir={sortDir}
                         onAttachInvoice={handleAttachInvoiceClick}
+                        hasErp={hasErp}
                     />
                 </>
             )}

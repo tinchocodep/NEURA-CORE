@@ -165,6 +165,8 @@ export default function VisionGeneral() {
             .on('postgres_changes', { event: '*', schema: 'public', table: 'contable_clientes', filter: `tenant_id=eq.${tenant.id}` }, () => loadAll())
             .on('postgres_changes', { event: '*', schema: 'public', table: 'treasury_accounts', filter: `tenant_id=eq.${tenant.id}` }, () => loadAll())
             .on('postgres_changes', { event: '*', schema: 'public', table: 'treasury_transactions', filter: `tenant_id=eq.${tenant.id}` }, () => loadAll())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'inmobiliaria_liquidaciones', filter: `tenant_id=eq.${tenant.id}` }, () => loadAll())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'inmobiliaria_ordenes_trabajo', filter: `tenant_id=eq.${tenant.id}` }, () => loadAll())
             .subscribe();
         return () => { supabase.removeChannel(channel); };
     }, [tenant?.id, period, customStart, customEnd]);
@@ -249,14 +251,42 @@ export default function VisionGeneral() {
         setTopProveedores(Array.from(provMap.values()).sort((a, b) => b.amount - a.amount).slice(0, 5));
         setTopClientes(Array.from(cliMap.values()).sort((a, b) => b.amount - a.amount).slice(0, 5));
 
-        const actList: RecentActivity[] = (recentComp.data || []).map((c: any) => ({
+        // Build activity list from comprobantes + liquidaciones + ordenes
+        const actComp: RecentActivity[] = (recentComp.data || []).map((c: any) => ({
             id: c.id, type: 'comprobante' as const,
             title: `${c.tipo_comprobante || c.tipo} ${c.numero_comprobante || ''}`.trim(),
             subtitle: c.tipo === 'compra' ? ((c.proveedor as any)?.razon_social || '—') : ((c.cliente as any)?.razon_social || '—'),
             amount: Number(c.monto_ars || 0), date: c.fecha,
             direction: c.tipo === 'venta' ? 'in' as const : 'out' as const,
         }));
-        setActivity(actList);
+
+        // Recent liquidaciones
+        const { data: recentLiq } = await supabase.from('inmobiliaria_liquidaciones')
+            .select('id, periodo, estado, ingreso_alquiler, neto_propietario, categoria, contrato_id')
+            .eq('tenant_id', tid).order('created_at', { ascending: false }).limit(4);
+        const actLiq: RecentActivity[] = (recentLiq || []).map((l: any) => ({
+            id: l.id, type: 'movimiento' as const,
+            title: `Liquidación ${l.periodo}`,
+            subtitle: l.estado === 'pagada' ? 'Pagada' : l.estado === 'aprobada' ? 'Aprobada' : 'Borrador',
+            amount: l.neto_propietario || l.ingreso_alquiler || 0, date: l.periodo + '-01',
+            direction: 'out' as const,
+        }));
+
+        // Recent ordenes de trabajo
+        const { data: recentOT } = await supabase.from('inmobiliaria_ordenes_trabajo')
+            .select('id, titulo, estado, monto_final, created_at')
+            .eq('tenant_id', tid).order('created_at', { ascending: false }).limit(4);
+        const actOT: RecentActivity[] = (recentOT || []).map((o: any) => ({
+            id: o.id, type: 'movimiento' as const,
+            title: o.titulo,
+            subtitle: o.estado,
+            amount: Number(o.monto_final || 0), date: o.created_at?.split('T')[0] || '',
+            direction: 'neutral' as const,
+        }));
+
+        // Merge and sort by date desc, take top 8
+        const allAct = [...actComp, ...actLiq, ...actOT].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
+        setActivity(allAct);
 
         // Load inmobiliaria metrics for mobile home
         const [propsRes, contratosRes] = await Promise.all([

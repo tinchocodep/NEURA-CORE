@@ -26,6 +26,7 @@ interface LineaDetalle {
 
 interface Props {
     onSuccess?: () => void;
+    forceVenta?: boolean;
 }
 
 /* ─── Constants ─────────────────────────────────────── */
@@ -81,12 +82,12 @@ const renderColppyOptions = (nodes: any[], depth = 0): React.ReactElement[] => {
 
 /* ─── Component ─────────────────────────────────────── */
 
-export default function ComprobanteForm({ onSuccess }: Props) {
+export default function ComprobanteForm({ onSuccess, forceVenta }: Props) {
     const { tenant } = useTenant();
     const [searchParams, setSearchParams] = useSearchParams();
 
     // Header fields
-    const [tipo, setTipo] = useState<'compra' | 'venta'>('compra');
+    const [tipo, setTipo] = useState<'compra' | 'venta'>(forceVenta ? 'venta' : 'compra');
     const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
     const [numero, setNumero] = useState('');
     const [tipoComp, setTipoComp] = useState('');
@@ -743,8 +744,8 @@ export default function ComprobanteForm({ onSuccess }: Props) {
                         Datos del Comprobante
                     </div>
 
-                    {/* Tipo toggle */}
-                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem' }}>
+                    {/* Tipo toggle — hidden when forceVenta */}
+                    {!forceVenta && <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem' }}>
                         {(['compra', 'venta'] as const).map(t => (
                             <button
                                 key={t}
@@ -762,7 +763,7 @@ export default function ComprobanteForm({ onSuccess }: Props) {
                                 {t === 'compra' ? '↙ Compra' : '↗ Venta'}
                             </button>
                         ))}
-                    </div>
+                    </div>}
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
                         {/* Fecha */}

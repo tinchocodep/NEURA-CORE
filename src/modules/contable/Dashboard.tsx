@@ -48,6 +48,17 @@ export default function ContableDashboard() {
     useEffect(() => {
         if (!tenant) return;
         loadData();
+
+        // Realtime: refresh stats when comprobantes change
+        const channel = supabase.channel('contable-dashboard-realtime')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'contable_comprobantes', filter: `tenant_id=eq.${tenant.id}` },
+                () => loadData()
+            )
+            .subscribe();
+
+        return () => { supabase.removeChannel(channel); };
     }, [tenant]);
 
     useEffect(() => {

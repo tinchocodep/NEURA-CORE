@@ -3,6 +3,13 @@ import { Plus, Trash2, Save, CheckCircle, ChevronLeft, FileText, Receipt, Clipbo
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import jsPDF from 'jspdf';
+import ComprobanteForm from '../contable/Comprobantes/ComprobanteForm';
+
+function useIsMobile() {
+    const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
+    useEffect(() => { const h = () => setM(window.innerWidth <= 768); window.addEventListener('resize', h); return () => window.removeEventListener('resize', h); }, []);
+    return m;
+}
 
 interface Cliente { id: string; razon_social: string; cuit: string | null; }
 interface LineaDetalle { id: string; descripcion: string; cantidad: number; precio_unitario: number; iva_porcentaje: number; }
@@ -16,7 +23,12 @@ const fmt = (n: number) => new Intl.NumberFormat('es-AR', { style: 'currency', c
 type Mode = 'select' | 'factura' | 'remito' | 'recibo';
 
 export default function FacturarMobile() {
+    const isMobile = useIsMobile();
     const { tenant } = useTenant();
+
+    // Desktop: use the full ComprobanteForm with 2-column preview, forced to venta
+    if (!isMobile) return <ComprobanteForm forceVenta />;
+
     const [mode, setMode] = useState<Mode>('select');
 
     // Shared

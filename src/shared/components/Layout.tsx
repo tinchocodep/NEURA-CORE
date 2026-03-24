@@ -231,12 +231,31 @@ export default function Layout() {
     const isMobileGestion = isMobile && isGestion;
 
     const currentModuleName = hasInmob
-        ? (isOperaciones ? 'Operaciones' : isGestion ? 'Gestión' : isFinanzas ? 'Finanzas' : '')
+        ? (isMobile
+            ? (isOperaciones ? 'Operaciones' : (isGestion || isMobileGestion) ? 'Gestión' : '')
+            : (isOperaciones ? 'Operaciones' : isGestion ? 'Gestión' : isFinanzas ? 'Finanzas' : ''))
         : isMobile
             ? ''
             : (isCRM ? 'CRM' : isTesoreria ? 'Tesorería' : (isContable && !isConfiguracion) ? 'Contable' : isComercial ? 'Comercial' : '');
 
-    // Mobile: override sectionItems for Operaciones and Gestión
+    // Mobile items — NO finanzas, proveedores goes to /inmobiliaria/proveedores
+    const mobileOperacionesItems = [
+        { name: 'Propiedades', path: '/inmobiliaria/propiedades', icon: Home },
+        { name: 'Contratos', path: '/inmobiliaria/contratos', icon: FileSignature },
+        { name: 'Órdenes', path: '/inmobiliaria/ordenes', icon: ClipboardList },
+        { name: 'Liquidaciones', path: '/inmobiliaria/liquidaciones', icon: Wallet },
+        { name: 'Facturar', path: '/inmobiliaria/facturar', icon: Receipt },
+        { name: 'Proveedores', path: '/inmobiliaria/proveedores', icon: Building2 },
+    ];
+    const mobileGestionItems = [
+        { name: 'Dashboard', path: '/inmobiliaria', icon: LayoutDashboard },
+        { name: 'Cuentas', path: '/inmobiliaria/cuentas', icon: Receipt },
+        { name: 'Agenda', path: '/inmobiliaria/agenda', icon: CalendarClock },
+        { name: 'Comprobantes', path: '/contable/comprobantes', icon: ClipboardList },
+        { name: 'Proyecciones', path: '/tesoreria', icon: TrendingUp },
+    ];
+
+    // Desktop items — proveedores goes to /contable/proveedores, includes CRM contacts
     const operacionesItems = [
         { name: 'Propiedades', path: '/inmobiliaria/propiedades', icon: Home },
         { name: 'Contratos', path: '/inmobiliaria/contratos', icon: FileSignature },
@@ -280,7 +299,7 @@ export default function Layout() {
     const effectiveSectionItems = hasInmob
         ? (isOperaciones ? operacionesItems : isGestion ? gestionItems : isFinanzas ? finanzasItems : sectionItems)
         : sectionItems;
-    const mobileSectionItems = isMobile ? (isOperaciones ? operacionesItems : isMobileGestion ? gestionItems : sectionItems) : effectiveSectionItems;
+    const mobileSectionItems = isMobile ? (isOperaciones ? mobileOperacionesItems : isMobileGestion ? mobileGestionItems : sectionItems) : effectiveSectionItems;
 
     // Ref callback for auto-scrolling to active subnav item — must be declared at top level (Rules of Hooks)
     const subnavScrollRef = useCallback((node: HTMLDivElement | null) => {
@@ -340,22 +359,30 @@ export default function Layout() {
 
                         <div className="sidebar-section">
                             <div className="sidebar-section-label">Operaciones</div>
-                            {operacionesItems.map(item => (
-                                <Link key={item.path} to={item.path} className={`sidebar-link${location.pathname.startsWith(item.path) ? ' active' : ''}`}>
-                                    <item.icon size={16} />
-                                    {item.name}
-                                </Link>
-                            ))}
+                            {operacionesItems.map(item => {
+                                const isExact = ['/inmobiliaria', '/tesoreria', '/contable', '/crm'].includes(item.path);
+                                const isActive = isExact ? location.pathname === item.path : location.pathname.startsWith(item.path);
+                                return (
+                                    <Link key={item.path} to={item.path} className={`sidebar-link${isActive ? ' active' : ''}`}>
+                                        <item.icon size={16} />
+                                        {item.name}
+                                    </Link>
+                                );
+                            })}
                         </div>
 
                         <div className="sidebar-section">
                             <div className="sidebar-section-label">Gestión</div>
-                            {gestionItems.map(item => (
-                                <Link key={item.path} to={item.path} className={`sidebar-link${item.path === '/inmobiliaria' ? (location.pathname === '/inmobiliaria' ? ' active' : '') : location.pathname.startsWith(item.path) ? ' active' : ''}`}>
-                                    <item.icon size={16} />
-                                    {item.name}
-                                </Link>
-                            ))}
+                            {gestionItems.map(item => {
+                                const isExact = ['/inmobiliaria', '/tesoreria', '/contable', '/crm'].includes(item.path);
+                                const isActive = isExact ? location.pathname === item.path : location.pathname.startsWith(item.path);
+                                return (
+                                    <Link key={item.path} to={item.path} className={`sidebar-link${isActive ? ' active' : ''}`}>
+                                        <item.icon size={16} />
+                                        {item.name}
+                                    </Link>
+                                );
+                            })}
                         </div>
 
                         {finanzasItems.length > 0 && (
@@ -368,12 +395,16 @@ export default function Layout() {
                                     Finanzas
                                     <ChevronDown size={12} style={{ transform: finanzasOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
                                 </button>
-                                {finanzasOpen && finanzasItems.map(item => (
-                                    <Link key={item.path} to={item.path} className={`sidebar-link${location.pathname.startsWith(item.path) ? ' active' : ''}`}>
-                                        <item.icon size={16} />
-                                        {item.name}
-                                    </Link>
-                                ))}
+                                {finanzasOpen && finanzasItems.map(item => {
+                                    const isExact = ['/inmobiliaria', '/tesoreria', '/contable', '/crm'].includes(item.path);
+                                    const isActive = isExact ? location.pathname === item.path : location.pathname.startsWith(item.path);
+                                    return (
+                                        <Link key={item.path} to={item.path} className={`sidebar-link${isActive ? ' active' : ''}`}>
+                                            <item.icon size={16} />
+                                            {item.name}
+                                        </Link>
+                                    );
+                                })}
                             </div>
                         )}
 
