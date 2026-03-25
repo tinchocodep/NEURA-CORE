@@ -25,6 +25,7 @@ export default function Layout() {
     const [agentCollapsed, setAgentCollapsed] = useState(true);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
+    const [sidebarActionsOpen, setSidebarActionsOpen] = useState(false);
     const [finanzasOpen, setFinanzasOpen] = useState(() => {
         // Auto-open if user is on a finanzas route
         const p = typeof window !== 'undefined' ? window.location.pathname : '';
@@ -223,7 +224,7 @@ export default function Layout() {
     const isGestion = (isInmobiliaria && !isOperaciones) ||
         (hasInmob && isTesoreria && location.pathname === '/tesoreria') ||
         (hasInmob && location.pathname === '/contable/comprobantes') ||
-        (hasInmob && isCRM && (location.pathname.startsWith('/crm/contactos') || location.pathname.startsWith('/crm/prospectos')));
+        (hasInmob && isCRM && location.pathname.startsWith('/crm/contactos'));
     const isFinanzas = hasInmob && !isOperaciones && (
         (isTesoreria && location.pathname !== '/tesoreria') ||
         ((isContable && !isConfiguracion) && location.pathname !== '/contable/comprobantes' && !location.pathname.startsWith('/contable/proveedores')) ||
@@ -245,35 +246,30 @@ export default function Layout() {
         { name: 'Contratos', path: '/inmobiliaria/contratos', icon: FileSignature },
         { name: 'Órdenes', path: '/inmobiliaria/ordenes', icon: ClipboardList },
         { name: 'Liquidaciones', path: '/inmobiliaria/liquidaciones', icon: Wallet },
-        { name: 'Facturar', path: '/inmobiliaria/facturar', icon: Receipt },
-        { name: 'Proveedores', path: '/inmobiliaria/proveedores', icon: Building2 },
+        { name: 'Comprobantes', path: '/inmobiliaria/facturar', icon: Receipt },
     ];
     const mobileGestionItems = [
-        { name: 'Dashboard', path: '/inmobiliaria', icon: LayoutDashboard },
         { name: 'Cuentas', path: '/inmobiliaria/cuentas', icon: Receipt },
-        { name: 'Agenda', path: '/inmobiliaria/agenda', icon: CalendarClock },
+        { name: 'Proveedores', path: '/inmobiliaria/proveedores', icon: Building2 },
         { name: 'Comprobantes', path: '/contable/comprobantes', icon: ClipboardList },
         { name: 'Proyecciones', path: '/tesoreria', icon: TrendingUp },
     ];
 
-    // Desktop items — proveedores goes to /contable/proveedores, includes CRM contacts
+    // Desktop items
     const operacionesItems = [
         { name: 'Propiedades', path: '/inmobiliaria/propiedades', icon: Home },
         { name: 'Contratos', path: '/inmobiliaria/contratos', icon: FileSignature },
         { name: 'Órdenes', path: '/inmobiliaria/ordenes', icon: ClipboardList },
         { name: 'Liquidaciones', path: '/inmobiliaria/liquidaciones', icon: Wallet },
-        { name: 'Facturar', path: '/inmobiliaria/facturar', icon: Receipt },
-        { name: 'Proveedores', path: '/contable/proveedores', icon: Building2 },
+        { name: 'Comprobantes', path: '/inmobiliaria/facturar', icon: Receipt },
     ];
     const gestionItems = [
-        { name: 'Dashboard', path: '/inmobiliaria', icon: LayoutDashboard },
         { name: 'Cuentas', path: '/inmobiliaria/cuentas', icon: Receipt },
-        { name: 'Agenda', path: '/inmobiliaria/agenda', icon: CalendarClock },
+        { name: 'Proveedores', path: '/inmobiliaria/proveedores', icon: Building2 },
         { name: 'Comprobantes', path: '/contable/comprobantes', icon: ClipboardList },
         { name: 'Proyecciones', path: '/tesoreria', icon: TrendingUp },
         ...(hasModuleAccess('crm') ? [
             { name: 'Contactos', path: '/crm/contactos', icon: UserPlus },
-            { name: 'Prospectos', path: '/crm/prospectos', icon: Users },
         ] : []),
     ];
     // Finanzas subtab items (for when navigating within Tesorería/Contable advanced)
@@ -315,10 +311,67 @@ export default function Layout() {
     return (
         <>
             <div
-                className={`app-shell${agentCollapsed ? ' agent-collapsed' : ''}${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}
+                className={`app-shell${agentCollapsed ? ' agent-collapsed' : ''}${sidebarCollapsed ? ' sidebar-collapsed' : ''}${hasInmob ? ' inmob-layout' : ''}`}
             >
-                {/* ──────────────── SIDEBAR ──────────────── */}
-                {!isMobile && <aside className="sidebar">
+                {/* ──────────────── SIDEBAR (INMOB = icon-only) ──────────────── */}
+                {!isMobile && hasInmob && (
+                    <aside className="sidebar">
+                        {/* + Button */}
+                        <div style={{ position: 'relative', marginBottom: 8 }}>
+                            <button onClick={() => setSidebarActionsOpen((o: boolean) => !o)} title="Nueva acción"
+                                style={{ width: 44, height: 44, borderRadius: 12, border: 'none', background: sidebarActionsOpen ? 'var(--color-cta, #2563EB)' : 'var(--color-bg-surface)', color: sidebarActionsOpen ? '#fff' : 'var(--color-cta, #2563EB)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-sm)', transition: 'all 0.15s', fontSize: '1.25rem', fontWeight: 700 }}>
+                                +
+                            </button>
+                            {sidebarActionsOpen && (
+                                <>
+                                <div style={{ position: 'fixed', inset: 0, zIndex: 998 }} onClick={() => setSidebarActionsOpen(false)} />
+                                <div style={{ position: 'absolute', left: '100%', top: -44, marginLeft: 8, zIndex: 999, background: 'var(--color-bg-surface)', border: '1px solid var(--color-border-subtle)', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', overflow: 'hidden', minWidth: 200 }}>
+                                    {[
+                                        { label: 'Comprobantes', path: '/inmobiliaria/facturar' },
+                                        { label: 'Cobranzas', path: '/inmobiliaria/liquidaciones' },
+                                        { label: 'Órdenes de trabajo', path: '/inmobiliaria/ordenes' },
+                                        { label: 'Nuevo contrato', path: '/inmobiliaria/contratos?action=crear' },
+                                        { label: 'Nueva propiedad', path: '/inmobiliaria/propiedades?action=crear' },
+                                    ].map(a => (
+                                        <Link key={a.label} to={a.path} onClick={() => setSidebarActionsOpen(false)}
+                                            style={{ display: 'block', padding: '10px 16px', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--color-text-primary)', textDecoration: 'none', borderBottom: '1px solid var(--color-border-subtle)' }}
+                                            onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
+                                            onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                                            {a.label}
+                                        </Link>
+                                    ))}
+                                </div>
+                                </>
+                            )}
+                        </div>
+
+                        {/* Spacer */}
+                        <div style={{ flex: 1 }} />
+
+                        {/* Nav icons — centered */}
+                        {[
+                            { icon: LayoutDashboard, label: 'Home', path: '/', match: (p: string) => p === '/' },
+                            { icon: ClipboardList, label: 'Operaciones', path: '/inmobiliaria/propiedades', match: () => isOperaciones },
+                            { icon: Briefcase, label: 'Gestión', path: '/inmobiliaria', match: () => isGestion },
+                            { icon: Landmark, label: 'Finanzas', path: '/tesoreria', match: () => isFinanzas },
+                        ].map(item => {
+                            const active = item.match(location.pathname);
+                            return (
+                                <Link key={item.label} to={item.path} className="sidebar-icon-btn"
+                                    style={{ width: 44, height: 44, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', background: active ? 'var(--color-accent)' : 'var(--color-bg-surface)', color: active ? '#fff' : 'var(--color-text-muted)', textDecoration: 'none', boxShadow: active ? 'none' : 'var(--shadow-sm)', transition: 'all 0.15s', border: active ? 'none' : '1px solid var(--color-border-subtle)' }}>
+                                    <item.icon size={20} />
+                                    <span className="sidebar-icon-tooltip">{item.label}</span>
+                                </Link>
+                            );
+                        })}
+
+                        {/* Spacer */}
+                        <div style={{ flex: 1 }} />
+                    </aside>
+                )}
+
+                {/* ──────────────── SIDEBAR (other tenants = full) ──────────────── */}
+                {!isMobile && !hasInmob && <aside className="sidebar">
                 {/* Logo + collapse toggle */}
                 <div className="sidebar-logo" onClick={() => setSidebarCollapsed(c => !c)} style={{ cursor: 'pointer' }}>
                     {tenant?.logo_url ? (
@@ -510,9 +563,12 @@ export default function Layout() {
             </aside>}
 
 
+            {/* ──────────────── TOPBAR (full width for inmob) ──────────────── */}
+            {hasInmob && !isMobile && <TopBar />}
+
             {/* ──────────────── MAIN CONTENT ──────────────── */}
             <main className="main-content">
-                <TopBar />
+                {(!hasInmob || isMobile) && <TopBar />}
                 {(isMobile ? mobileSectionItems : (hasInmob ? effectiveSectionItems : sectionItems)).length > 0 && (
                     isMobile ? (
                         /* ── MOBILE: Title + horizontal scroll tabs ── */

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, Plus, X, Grid3X3, List, MapPin, FileSignature } from 'lucide-react';
+import { Search, Plus, X, Grid3X3, List, MapPin, FileSignature, Check, ChevronRight, ChevronLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 
@@ -41,10 +41,11 @@ export default function Propiedades() {
   const [search, setSearch] = useState('');
   const [filterEstado, setFilterEstado] = useState('');
   const [filterTipo, setFilterTipo] = useState('');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Propiedad | null>(null);
   const [form, setForm] = useState(emptyProp);
+  const [wizardStep, setWizardStep] = useState(0);
 
   useEffect(() => { if (tenant) loadData(); }, [tenant]);
 
@@ -64,8 +65,8 @@ export default function Propiedades() {
     setLoading(false);
   };
 
-  const openNew = () => { setEditing(null); setForm(emptyProp); setShowModal(true); };
-  const openEdit = (p: Propiedad) => { setEditing(p); setForm(p); setShowModal(true); };
+  const openNew = () => { setEditing(null); setForm(emptyProp); setWizardStep(0); setShowModal(true); };
+  const openEdit = (p: Propiedad) => { setEditing(p); setForm(p); setWizardStep(0); setShowModal(true); };
 
   const save = async () => {
     if (!form.direccion.trim()) return;
@@ -151,9 +152,10 @@ export default function Propiedades() {
             }}
             onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--color-accent)')}
             onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--color-border-subtle)')}>
-              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: `${TIPO_COLOR[p.tipo] || '#6B7280'}20`, color: TIPO_COLOR[p.tipo] || '#6B7280', textTransform: 'capitalize' }}>{p.tipo}</span>
-                <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: `${ESTADO_COLOR[p.estado] || '#6B7280'}20`, color: ESTADO_COLOR[p.estado] || '#6B7280', textTransform: 'capitalize' }}>{p.estado.replace(/_/g, ' ')}</span>
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.65rem', fontWeight: 500, color: 'var(--color-text-muted)', textTransform: 'capitalize' }}>{p.tipo}</span>
+                <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--color-text-faint)' }} />
+                <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: `${ESTADO_COLOR[p.estado] || '#6B7280'}15`, color: ESTADO_COLOR[p.estado] || '#6B7280', textTransform: 'capitalize' }}>{p.estado.replace(/_/g, ' ')}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.4rem', marginBottom: '0.5rem' }}>
                 <MapPin size={14} color="var(--color-text-muted)" style={{ flexShrink: 0, marginTop: 2 }} />
@@ -180,79 +182,207 @@ export default function Propiedades() {
           {filtered.length === 0 && <div style={{ gridColumn: '1/-1', padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin propiedades</div>}
         </div>
       ) : (
-        <div className="mobile-table-scroll" style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-          <table style={{ width: '100%', fontSize: '0.8rem', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
-                {['Direccion', 'Tipo', 'Estado', 'Superficie', 'Amb.', 'Alquiler', 'Venta'].map(h => (
-                  <th key={h} style={{ padding: '0.6rem 0.75rem', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-muted)', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(p => (
-                <tr key={p.id} onClick={() => openEdit(p)} style={{ borderBottom: '1px solid var(--color-border-subtle)', cursor: 'pointer' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover, rgba(255,255,255,0.03))')}
-                  onMouseLeave={e => (e.currentTarget.style.background = '')}>
-                  <td style={{ padding: '0.5rem 0.75rem', fontWeight: 600 }}>{p.direccion}</td>
-                  <td style={{ padding: '0.5rem 0.75rem', textTransform: 'capitalize' }}>{p.tipo}</td>
-                  <td style={{ padding: '0.5rem 0.75rem' }}>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: `${ESTADO_COLOR[p.estado]}20`, color: ESTADO_COLOR[p.estado], textTransform: 'capitalize' }}>{p.estado.replace(/_/g, ' ')}</span>
-                  </td>
-                  <td style={{ padding: '0.5rem 0.75rem' }}>{p.superficie_m2 ? `${p.superficie_m2} m2` : '—'}</td>
-                  <td style={{ padding: '0.5rem 0.75rem' }}>{p.ambientes || '—'}</td>
-                  <td style={{ padding: '0.5rem 0.75rem', fontFamily: 'var(--font-mono)' }}>{fmtPrice(p.precio_alquiler, p.moneda)}</td>
-                  <td style={{ padding: '0.5rem 0.75rem', fontFamily: 'var(--font-mono)' }}>{fmtPrice(p.precio_venta, p.moneda)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+          {/* Header */}
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 100px 80px 60px 110px 110px 40px', padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <span>Propiedad</span><span>Estado</span><span>Superficie</span><span>Amb.</span><span>Alquiler</span><span>Venta</span><span></span>
+          </div>
+          {/* Rows */}
+          {filtered.map(p => (
+            <div key={p.id} onClick={() => openEdit(p)}
+              style={{ display: 'grid', gridTemplateColumns: '2fr 100px 80px 60px 110px 110px 40px', padding: '14px 16px', borderBottom: '1px solid var(--color-border-subtle)', cursor: 'pointer', alignItems: 'center', transition: 'background 0.1s' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
+              onMouseLeave={e => (e.currentTarget.style.background = '')}>
+              {/* Propiedad: nombre + subtexto */}
+              <div>
+                <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{p.direccion}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                  <span style={{ fontSize: '0.625rem', fontWeight: 600, padding: '1px 7px', borderRadius: 99, background: `${TIPO_COLOR[p.tipo] || '#6B7280'}12`, color: TIPO_COLOR[p.tipo] || '#6B7280', textTransform: 'capitalize' }}>{p.tipo}</span>
+                  {p.localidad && <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{p.localidad}</span>}
+                </div>
+              </div>
+              {/* Estado badge */}
+              <div>
+                <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: `${ESTADO_COLOR[p.estado] || '#6B7280'}15`, color: ESTADO_COLOR[p.estado] || '#6B7280', textTransform: 'capitalize', whiteSpace: 'nowrap' }}>
+                  {p.estado.replace(/_/g, ' ')}
+                </span>
+              </div>
+              {/* Superficie */}
+              <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>{p.superficie_m2 ? `${p.superficie_m2} m2` : '—'}</div>
+              {/* Ambientes */}
+              <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>{p.ambientes || '—'}</div>
+              {/* Alquiler */}
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{fmtPrice(p.precio_alquiler, p.moneda)}</div>
+              {/* Venta */}
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', fontWeight: 600, color: p.precio_venta ? 'var(--color-text-primary)' : 'var(--color-text-muted)' }}>{fmtPrice(p.precio_venta, p.moneda)}</div>
+              {/* Actions */}
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <button onClick={e => { e.stopPropagation(); openEdit(p); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: 4 }}>⋮</button>
+              </div>
+            </div>
+          ))}
+          {filtered.length === 0 && <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin propiedades</div>}
         </div>
       )}
 
-      {/* Modal */}
-      {showModal && (
-          <div onClick={() => setShowModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div onClick={e => e.stopPropagation()} className="card" style={{ width: '100%', maxWidth: 740, maxHeight: '92vh', overflowY: 'auto', padding: '1.5rem', borderRadius: 'var(--radius-xl)', boxShadow: '0 8px 30px rgba(0,0,0,0.12)', border: '1px solid var(--color-border-subtle)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>{editing ? 'Editar propiedad' : 'Nueva propiedad'}</h3>
-              <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)' }}><X size={18} /></button>
+      {/* ─── WIZARD MODAL ─── */}
+      {showModal && (() => {
+        const STEPS = [{ label: 'Ubicación' }, { label: 'Características' }, { label: 'Precios' }];
+        const totalSteps = STEPS.length;
+        const canNext = wizardStep === 0 ? !!form.direccion.trim() : true;
+        const isLast = wizardStep === totalSteps - 1;
+
+        const TIPO_EMOJI: Record<string, string> = {
+          departamento: '🏢', casa: '🏠', local: '🏪', oficina: '💼', terreno: '🌳', cochera: '🚗', deposito: '📦',
+        };
+
+        return (
+          <div className="wizard-overlay" onClick={() => setShowModal(false)}>
+          <div className="wizard-card" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="wizard-header">
+              <h3>{editing ? 'Editar propiedad' : 'Nueva propiedad'}</h3>
+              <button className="wizard-close" onClick={() => setShowModal(false)}><X size={18} /></button>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-              <label className="form-label">Direccion *</label>
-              <input className="form-input" value={form.direccion} onChange={e => setForm(f => ({ ...f, direccion: e.target.value }))} />
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <div style={{ flex: 1 }}><label className="form-label">Tipo</label><select className="form-input" value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))}>{TIPOS.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
-                <div style={{ flex: 1 }}><label className="form-label">Estado</label><select className="form-input" value={form.estado} onChange={e => setForm(f => ({ ...f, estado: e.target.value }))}>{ESTADOS.map(e => <option key={e} value={e}>{e.replace(/_/g, ' ')}</option>)}</select></div>
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <div style={{ flex: 1 }}><label className="form-label">Superficie m2</label><input type="number" className="form-input" value={form.superficie_m2 || ''} onChange={e => setForm(f => ({ ...f, superficie_m2: e.target.value ? Number(e.target.value) : null }))} /></div>
-                <div style={{ flex: 1 }}><label className="form-label">Ambientes</label><input type="number" className="form-input" value={form.ambientes || ''} onChange={e => setForm(f => ({ ...f, ambientes: e.target.value ? Number(e.target.value) : null }))} /></div>
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <div style={{ flex: 1 }}><label className="form-label">Piso</label><input className="form-input" value={form.piso || ''} onChange={e => setForm(f => ({ ...f, piso: e.target.value || null }))} /></div>
-                <div style={{ flex: 1 }}><label className="form-label">Unidad</label><input className="form-input" value={form.unidad || ''} onChange={e => setForm(f => ({ ...f, unidad: e.target.value || null }))} /></div>
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <div style={{ flex: 1 }}><label className="form-label">Localidad</label><input className="form-input" value={form.localidad || ''} onChange={e => setForm(f => ({ ...f, localidad: e.target.value || null }))} /></div>
-                <div style={{ flex: 1 }}><label className="form-label">Provincia</label><input className="form-input" value={form.provincia || ''} onChange={e => setForm(f => ({ ...f, provincia: e.target.value || null }))} /></div>
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <div style={{ flex: 1 }}><label className="form-label">Moneda</label><select className="form-input" value={form.moneda} onChange={e => setForm(f => ({ ...f, moneda: e.target.value }))}>{MONEDAS.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
-                <div style={{ flex: 1 }}><label className="form-label">Precio alquiler</label><input type="number" className="form-input" value={form.precio_alquiler || ''} onChange={e => setForm(f => ({ ...f, precio_alquiler: e.target.value ? Number(e.target.value) : null }))} /></div>
-                <div style={{ flex: 1 }}><label className="form-label">Precio venta</label><input type="number" className="form-input" value={form.precio_venta || ''} onChange={e => setForm(f => ({ ...f, precio_venta: e.target.value ? Number(e.target.value) : null }))} /></div>
-              </div>
-              <label className="form-label">Descripcion</label>
-              <textarea className="form-input" rows={3} value={form.descripcion || ''} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value || null }))} />
+
+            {/* Step indicator */}
+            <div className="wizard-steps">
+              {STEPS.map((s, i) => (
+                <div key={i} className="wizard-step" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    {i > 0 && <div className={`wizard-step-line${i <= wizardStep ? ' done' : ''}`} />}
+                    <div className={`wizard-step-dot${i === wizardStep ? ' active' : i < wizardStep ? ' done' : ' pending'}`}
+                      onClick={() => i < wizardStep && setWizardStep(i)} style={{ cursor: i < wizardStep ? 'pointer' : 'default' }}>
+                      {i < wizardStep ? <Check size={14} /> : i + 1}
+                    </div>
+                  </div>
+                  <div className={`wizard-step-label${i === wizardStep ? ' active' : i < wizardStep ? ' done' : ''}`}>{s.label}</div>
+                </div>
+              ))}
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
-              {editing && <button onClick={remove} style={{ marginRight: 'auto', padding: '0.4rem 1rem', borderRadius: 6, border: '1px solid #EF4444', background: 'transparent', color: '#EF4444', cursor: 'pointer', fontSize: '0.85rem' }}>Eliminar</button>}
-              <button onClick={() => setShowModal(false)} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>Cancelar</button>
-              <button onClick={save} className="btn btn-primary" style={{ fontSize: '0.85rem' }}>Guardar</button>
+
+            {/* Body */}
+            <div className="wizard-body">
+              {/* ── STEP 0: Ubicación ── */}
+              {wizardStep === 0 && (<>
+                <div className="wizard-field">
+                  <label className="form-label">Dirección *</label>
+                  <input className="form-input" value={form.direccion} onChange={e => setForm(f => ({ ...f, direccion: e.target.value }))} placeholder="Ej: Av. Corrientes 1234, 5° A" />
+                </div>
+                <div className="wizard-row">
+                  <div className="wizard-field">
+                    <label className="form-label">Localidad</label>
+                    <input className="form-input" value={form.localidad || ''} onChange={e => setForm(f => ({ ...f, localidad: e.target.value || null }))} placeholder="Ej: CABA" />
+                  </div>
+                  <div className="wizard-field">
+                    <label className="form-label">Provincia</label>
+                    <input className="form-input" value={form.provincia || ''} onChange={e => setForm(f => ({ ...f, provincia: e.target.value || null }))} placeholder="Ej: Buenos Aires" />
+                  </div>
+                </div>
+                <div className="wizard-row">
+                  <div className="wizard-field">
+                    <label className="form-label">Piso</label>
+                    <input className="form-input" value={form.piso || ''} onChange={e => setForm(f => ({ ...f, piso: e.target.value || null }))} placeholder="Ej: 5" />
+                  </div>
+                  <div className="wizard-field">
+                    <label className="form-label">Unidad</label>
+                    <input className="form-input" value={form.unidad || ''} onChange={e => setForm(f => ({ ...f, unidad: e.target.value || null }))} placeholder="Ej: A" />
+                  </div>
+                </div>
+              </>)}
+
+              {/* ── STEP 1: Características ── */}
+              {wizardStep === 1 && (<>
+                <div className="wizard-field">
+                  <div className="wizard-section-title">Tipo de propiedad</div>
+                  <div className="wizard-card-options" style={{ marginTop: 8 }}>
+                    {TIPOS.map(t => (
+                      <div key={t} className={`wizard-card-option${form.tipo === t ? ' selected' : ''}`}
+                        onClick={() => setForm(f => ({ ...f, tipo: t }))}>
+                        <div className="card-icon">{TIPO_EMOJI[t] || '🏠'}</div>
+                        <div className="card-label">{t}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="wizard-field">
+                  <div className="wizard-section-title">Estado</div>
+                  <div className="wizard-pills" style={{ marginTop: 8 }}>
+                    {ESTADOS.map(e => (
+                      <button key={e} className={`wizard-pill${form.estado === e ? ' selected' : ''}`}
+                        onClick={() => setForm(f => ({ ...f, estado: e }))}
+                        style={form.estado === e ? { background: ESTADO_COLOR[e], borderColor: ESTADO_COLOR[e] } : {}}>
+                        {e.replace(/_/g, ' ')}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="wizard-row">
+                  <div className="wizard-field">
+                    <label className="form-label">Superficie m²</label>
+                    <input type="number" className="form-input" value={form.superficie_m2 || ''} onChange={e => setForm(f => ({ ...f, superficie_m2: e.target.value ? Number(e.target.value) : null }))} placeholder="0" />
+                  </div>
+                  <div className="wizard-field">
+                    <label className="form-label">Ambientes</label>
+                    <input type="number" className="form-input" value={form.ambientes || ''} onChange={e => setForm(f => ({ ...f, ambientes: e.target.value ? Number(e.target.value) : null }))} placeholder="0" />
+                  </div>
+                </div>
+              </>)}
+
+              {/* ── STEP 2: Precios ── */}
+              {wizardStep === 2 && (<>
+                <div className="wizard-field">
+                  <div className="wizard-section-title">Moneda</div>
+                  <div className="wizard-pills" style={{ marginTop: 8 }}>
+                    {MONEDAS.map(m => (
+                      <button key={m} className={`wizard-pill${form.moneda === m ? ' selected' : ''}`}
+                        onClick={() => setForm(f => ({ ...f, moneda: m }))}>{m === 'ARS' ? '$ Pesos' : 'US$ Dólares'}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="wizard-row">
+                  <div className="wizard-field">
+                    <label className="form-label">Precio alquiler</label>
+                    <input type="number" className="form-input" value={form.precio_alquiler || ''} onChange={e => setForm(f => ({ ...f, precio_alquiler: e.target.value ? Number(e.target.value) : null }))} placeholder="0" />
+                  </div>
+                  <div className="wizard-field">
+                    <label className="form-label">Precio venta</label>
+                    <input type="number" className="form-input" value={form.precio_venta || ''} onChange={e => setForm(f => ({ ...f, precio_venta: e.target.value ? Number(e.target.value) : null }))} placeholder="0" />
+                  </div>
+                </div>
+                <div className="wizard-field">
+                  <label className="form-label">Descripción</label>
+                  <textarea className="form-input" rows={3} value={form.descripcion || ''} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value || null }))} placeholder="Detalles adicionales de la propiedad..." />
+                </div>
+              </>)}
+            </div>
+
+            {/* Footer */}
+            <div className="wizard-footer">
+              <div className="wizard-footer-left">
+                {editing && <button className="wizard-btn-danger" onClick={remove}>Eliminar</button>}
+              </div>
+              <div className="wizard-footer-right">
+                {wizardStep > 0 && (
+                  <button className="wizard-btn-back" onClick={() => setWizardStep(s => s - 1)}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><ChevronLeft size={16} /> Anterior</span>
+                  </button>
+                )}
+                {isLast ? (
+                  <button className="wizard-btn-next" onClick={save}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Check size={16} /> Guardar</span>
+                  </button>
+                ) : (
+                  <button className="wizard-btn-next" onClick={() => setWizardStep(s => s + 1)} disabled={!canNext}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Siguiente <ChevronRight size={16} /></span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
           </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

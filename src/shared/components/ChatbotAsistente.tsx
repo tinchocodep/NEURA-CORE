@@ -81,9 +81,9 @@ export const ChatbotAsistente: React.FC = () => {
     return (
         <div style={{
             position: 'fixed',
-            bottom: '2rem',
-            right: '2rem',
-            zIndex: 999999,
+            bottom: '1.5rem',
+            right: '1.5rem',
+            zIndex: 50,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'flex-end',
@@ -227,8 +227,8 @@ export const ChatbotAsistente: React.FC = () => {
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 style={{
-                    width: '60px',
-                    height: '60px',
+                    width: '44px',
+                    height: '44px',
                     borderRadius: '50%',
                     background: 'var(--color-accent)',
                     color: 'black',
@@ -244,7 +244,7 @@ export const ChatbotAsistente: React.FC = () => {
                 onMouseOver={e => e.currentTarget.style.transform = 'scale(1.05)'}
                 onMouseOut={e => e.currentTarget.style.transform = isOpen ? 'scale(0.9)' : 'scale(1)'}
             >
-                {isOpen ? <X size={28} /> : <MessageSquare size={28} />}
+                {isOpen ? <X size={20} /> : <MessageSquare size={20} />}
             </button>
 
             <style>{`

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Plus, X, Check, Trash2, Search, SlidersHorizontal, MoreVertical } from 'lucide-react';
+import { Plus, X, Check, Trash2, Search, ChevronRight, ChevronLeft, Eye, FileText } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
+import CustomSelect from '../../shared/components/CustomSelect';
 
 interface Liquidacion {
   id: string; contrato_id: string; propietario_id: string; periodo: string;
@@ -36,6 +38,7 @@ function useIsMobile() {
 export default function Liquidaciones() {
   const { tenant } = useTenant();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   const [items, setItems] = useState<Liquidacion[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,9 +46,7 @@ export default function Liquidaciones() {
   const [filterEstado, setFilterEstado] = useState('');
   const [filterCategoria, setFilterCategoria] = useState('');
   const [searchText, setSearchText] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
-  const [actionMenuId, setActionMenuId] = useState<string | null>(null);
-  const [showNewMenu, setShowNewMenu] = useState(false);
+  const [wizardStep, setWizardStep] = useState(0);
 
   // Form state
   const [selContrato, setSelContrato] = useState('');
@@ -72,8 +73,7 @@ export default function Liquidaciones() {
 
   const contratoLabel = (id: string) => {
     const c = contratos.find(ct => ct.id === id);
-    if (!c) return '—';
-    return `${(c.propiedad as any)?.direccion || '—'}`;
+    return (c?.propiedad as any)?.direccion || '—';
   };
   const contratoPropietario = (id: string) => {
     const c = contratos.find(ct => ct.id === id);
@@ -82,14 +82,13 @@ export default function Liquidaciones() {
 
   const openNew = (categoria?: string) => {
     setEditing(null); setSelContrato(''); setPeriodo(new Date().toISOString().slice(0, 7));
-    setIngreso(0); setDeducciones([]); setFormCategoria(categoria || 'alquiler'); setShowModal(true);
-    setShowNewMenu(false);
+    setIngreso(0); setDeducciones([]); setFormCategoria(categoria || 'alquiler');
+    setWizardStep(0); setShowModal(true);
   };
-
   const openEdit = (l: Liquidacion) => {
     setEditing(l); setSelContrato(l.contrato_id); setPeriodo(l.periodo);
     setIngreso(l.ingreso_alquiler); setDeducciones(l.deducciones_json || []);
-    setFormCategoria(l.categoria || 'alquiler'); setShowModal(true);
+    setFormCategoria(l.categoria || 'alquiler'); setWizardStep(0); setShowModal(true);
   };
 
   const onSelectContrato = (id: string) => {
@@ -98,7 +97,7 @@ export default function Liquidaciones() {
     if (c && formCategoria === 'alquiler') {
       setIngreso(c.monto_mensual);
       const comision = c.comision_porcentaje ? c.monto_mensual * c.comision_porcentaje / 100 : 0;
-      setDeducciones(comision > 0 ? [{ concepto: 'Comision administracion', monto: Math.round(comision) }] : []);
+      setDeducciones(comision > 0 ? [{ concepto: 'Comisión administración', monto: Math.round(comision) }] : []);
     }
   };
 
@@ -129,6 +128,12 @@ export default function Liquidaciones() {
     setShowModal(false);
   };
 
+  const remove = async (l: Liquidacion) => {
+    if (!confirm('Eliminar esta liquidación?')) return;
+    await supabase.from('inmobiliaria_liquidaciones').delete().eq('id', l.id);
+    setItems(prev => prev.filter(x => x.id !== l.id));
+  };
+
   const updateEstado = async (id: string, estado: string) => {
     const updates: Record<string, unknown> = { estado };
     if (estado === 'pagada') updates.fecha_pago = new Date().toISOString().slice(0, 10);
@@ -141,19 +146,16 @@ export default function Liquidaciones() {
   const porPagar = items.filter(l => l.estado === 'aprobada').reduce((s, l) => s + Math.abs(l.neto_propietario), 0);
   const pagadoMes = items.filter(l => l.estado === 'pagada' && l.periodo === new Date().toISOString().slice(0, 7))
     .reduce((s, l) => s + Math.abs(l.neto_propietario), 0);
-
   const fmtMoney = (n: number) => {
     if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
     if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
     return `$${n.toLocaleString('es-AR')}`;
   };
-
   const getConcepto = (l: Liquidacion) => {
     if (l.categoria === 'alquiler') return `Alquiler ${l.periodo}`;
     const first = l.deducciones_json?.[0];
     return first?.concepto || CAT_LABEL[l.categoria] || l.categoria;
   };
-
   const getMonto = (l: Liquidacion) => {
     if (l.categoria === 'alquiler') return l.neto_propietario;
     return l.deducciones_json?.reduce((s: number, d: Deduccion) => s + d.monto, 0) || 0;
@@ -163,375 +165,312 @@ export default function Liquidaciones() {
     if (filterEstado && l.estado !== filterEstado) return false;
     if (filterCategoria && l.categoria !== filterCategoria) return false;
     if (searchText) {
-      const label = contratoLabel(l.contrato_id).toLowerCase();
-      const concepto = getConcepto(l).toLowerCase();
-      if (!label.includes(searchText.toLowerCase()) && !concepto.includes(searchText.toLowerCase())) return false;
+      const q = searchText.toLowerCase();
+      if (!contratoLabel(l.contrato_id).toLowerCase().includes(q) && !getConcepto(l).toLowerCase().includes(q)) return false;
     }
     return true;
   });
 
   if (loading) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Cargando liquidaciones...</div>;
 
+  const iconBtn: React.CSSProperties = {
+    width: 28, height: 28, borderRadius: 8, border: '1px solid var(--color-border-subtle)',
+    background: 'var(--color-bg-surface)', cursor: 'pointer', display: 'flex', alignItems: 'center',
+    justifyContent: 'center', transition: 'all 0.12s', flexShrink: 0,
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '0.5rem' : '0.75rem' }}>
-      {/* Desktop header — same pattern as Órdenes */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      {/* Desktop header */}
       {!isMobile && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
           <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>Liquidaciones</h1>
-          <div style={{ flex: 1 }} />
-          <div style={{ position: 'relative' }}>
-            <button onClick={() => setShowNewMenu(m => !m)} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 18px', fontSize: '0.8rem', borderRadius: 10 }}>
-              <Plus size={16} /> Nueva liquidación
-            </button>
-            {showNewMenu && (<>
-              <div style={{ position: 'fixed', inset: 0, zIndex: 90 }} onClick={() => setShowNewMenu(false)} />
-              <div style={{ position: 'absolute', right: 0, top: '100%', marginTop: 6, zIndex: 100, background: 'var(--color-bg-card, #fff)', borderRadius: 12, border: '1px solid var(--color-border-subtle)', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', minWidth: 220, padding: '0.35rem', overflow: 'hidden' }}>
-                {[
-                  { cat: 'alquiler', label: 'Liquidación de alquiler', desc: 'Monto se autocompleta del contrato', color: '#3B82F6' },
-                  { cat: 'consorcio', label: 'Expensas / Consorcio', desc: 'Gastos comunes del edificio', color: '#EC4899' },
-                  { cat: 'mantenimiento', label: 'Gasto de mantenimiento', desc: 'Reparaciones, mejoras', color: '#F97316' },
-                  { cat: 'impuestos', label: 'Impuestos', desc: 'ABL, IIBB, inmobiliario', color: '#8B5CF6' },
-                  { cat: 'servicios', label: 'Servicios', desc: 'Luz, agua, gas, internet', color: '#0D9488' },
-                  { cat: 'otro', label: 'Otro', desc: 'Concepto personalizado', color: '#6B7280' },
-                ].map(opt => (
-                  <button key={opt.cat} onClick={() => openNew(opt.cat)}
-                    style={{ display: 'flex', alignItems: 'flex-start', gap: 10, width: '100%', padding: '10px 12px', border: 'none', background: 'none', cursor: 'pointer', borderRadius: 8, textAlign: 'left', fontFamily: 'var(--font-sans)' }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-hover, #f1f5f9)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                  >
-                    <div style={{ width: 8, height: 8, borderRadius: 2, background: opt.color, marginTop: 5, flexShrink: 0 }} />
-                    <div>
-                      <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{opt.label}</div>
-                      <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', marginTop: 1 }}>{opt.desc}</div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </>)}
-          </div>
-        </div>
-      )}
-
-      {/* KPIs — full width like Órdenes */}
-      {!isMobile && (
-        <div style={{ display: 'flex', gap: 10 }}>
-          {[
-            { label: 'Pendientes', value: String(pendientes), color: pendientes > 0 ? '#F59E0B' : 'var(--color-text-primary)', filter: 'borrador' },
-            { label: 'Por pagar', value: fmtMoney(porPagar), color: porPagar > 0 ? '#3B82F6' : 'var(--color-text-primary)', filter: 'aprobada', mono: true },
-            { label: 'Pagado mes', value: fmtMoney(pagadoMes), color: '#10B981', filter: 'pagada', mono: true },
-          ].map(kpi => (
-            <div key={kpi.label} onClick={() => setFilterEstado(kpi.filter)}
-              style={{ flex: 1, padding: '12px 10px', borderRadius: 10, background: 'var(--color-bg-card)', border: `1px solid ${filterEstado === kpi.filter ? kpi.color + '40' : 'var(--color-border-subtle)'}`, textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.15s' }}>
-              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: kpi.color, fontFamily: kpi.mono ? 'var(--font-mono)' : undefined }}>{kpi.value}</div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>{kpi.label}</div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Desktop filters — inline like Órdenes pills */}
-      {!isMobile && (
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <div style={{ flex: 1, display: 'flex', gap: 4 }}>
-            {[
-              { key: '', label: 'Todos' },
-              { key: 'borrador', label: 'Borrador' },
-              { key: 'aprobada', label: 'Aprobada' },
-              { key: 'pagada', label: 'Pagada' },
-            ].map(f => (
-              <button key={f.key} onClick={() => setFilterEstado(filterEstado === f.key ? '' : f.key)}
-                style={{ padding: '5px 14px', borderRadius: 99, border: `1px solid ${filterEstado === f.key ? 'var(--color-text-primary)' : 'var(--color-border-subtle)'}`, background: filterEstado === f.key ? 'var(--color-text-primary)' : 'var(--color-bg-surface)', color: filterEstado === f.key ? '#fff' : 'var(--color-text-muted)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--font-sans)' }}>
-                {f.label}
-              </button>
-            ))}
-            {CATEGORIAS.map(c => (
-              <button key={c} onClick={() => setFilterCategoria(filterCategoria === c ? '' : c)}
-                style={{ padding: '5px 14px', borderRadius: 99, border: `1px solid ${filterCategoria === c ? (CAT_COLOR[c] || '#6B7280') : 'var(--color-border-subtle)'}`, background: filterCategoria === c ? `${CAT_COLOR[c]}15` : 'var(--color-bg-surface)', color: filterCategoria === c ? CAT_COLOR[c] : 'var(--color-text-muted)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--font-sans)' }}>
-                {CAT_LABEL[c]}
-              </button>
-            ))}
-          </div>
-          <div style={{ position: 'relative', width: 240 }}>
+          <div style={{ flex: 1, position: 'relative', maxWidth: 260 }}>
             <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
             <input type="text" placeholder="Buscar..." value={searchText} onChange={e => setSearchText(e.target.value)}
-              className="form-input" style={{ paddingLeft: 32, height: 36, fontSize: '0.8rem' }} />
+              className="form-input" style={{ paddingLeft: 30, height: 34, fontSize: '0.8rem' }} />
           </div>
+          <button onClick={() => openNew()} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 18px', fontSize: '0.8rem', borderRadius: 10 }}>
+            <Plus size={16} /> Nueva
+          </button>
         </div>
       )}
 
-      {/* Mobile header */}
-      <div className="module-header-mobile">
-        {/* KPIs */}
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => { setFilterEstado('borrador'); setShowFilters(true); }}
-            style={{ flex: 1, padding: '10px 8px', borderRadius: 10, border: '1px solid var(--color-border-subtle)', background: pendientes > 0 ? '#F59E0B10' : 'var(--color-bg-card)', cursor: 'pointer', textAlign: 'center' }}>
-            <div style={{ fontSize: '1.1rem', fontWeight: 800, color: pendientes > 0 ? '#F59E0B' : 'var(--color-text-primary)' }}>{pendientes}</div>
-            <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', fontWeight: 500, marginTop: 2 }}>Pendientes</div>
-          </button>
-          <button onClick={() => { setFilterEstado('aprobada'); setShowFilters(true); }}
-            style={{ flex: 1, padding: '10px 8px', borderRadius: 10, border: '1px solid var(--color-border-subtle)', background: porPagar > 0 ? '#3B82F610' : 'var(--color-bg-card)', cursor: 'pointer', textAlign: 'center' }}>
-            <div style={{ fontSize: '1.1rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: porPagar > 0 ? '#3B82F6' : 'var(--color-text-primary)' }}>{fmtMoney(porPagar)}</div>
-            <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', fontWeight: 500, marginTop: 2 }}>Por pagar</div>
-          </button>
-          <button onClick={() => { setFilterEstado('pagada'); setShowFilters(true); }}
-            style={{ flex: 1, padding: '10px 8px', borderRadius: 10, border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-card)', cursor: 'pointer', textAlign: 'center' }}>
-            <div style={{ fontSize: '1.1rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#10B981' }}>{fmtMoney(pagadoMes)}</div>
-            <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', fontWeight: 500, marginTop: 2 }}>Pagado mes</div>
-          </button>
-        </div>
-        {/* New button */}
-        <button onClick={() => openNew()} className="btn btn-primary" style={{ width: '100%', height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: '0.9375rem', fontWeight: 600, borderRadius: 10 }}>
-          <Plus size={18} /> Nueva Liquidación
-        </button>
-        {/* Search + filter */}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <div style={{ flex: 1, position: 'relative' }}>
-            <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
-            <input type="text" placeholder="Buscar..." value={searchText} onChange={e => setSearchText(e.target.value)}
-              className="form-input" style={{ paddingLeft: 34, height: 42, fontSize: '0.9rem', borderRadius: 10 }} />
+      {/* KPIs */}
+      <div style={{ display: 'flex', gap: 10 }}>
+        {[
+          { label: 'Pendientes', value: String(pendientes), color: pendientes > 0 ? '#F59E0B' : 'var(--color-text-primary)', filter: 'borrador' },
+          { label: 'Por pagar', value: fmtMoney(porPagar), color: porPagar > 0 ? '#3B82F6' : 'var(--color-text-primary)', filter: 'aprobada', mono: true },
+          { label: 'Pagado mes', value: fmtMoney(pagadoMes), color: '#10B981', filter: 'pagada', mono: true },
+        ].map(kpi => (
+          <div key={kpi.label} onClick={() => setFilterEstado(filterEstado === kpi.filter ? '' : kpi.filter)}
+            style={{ flex: 1, padding: '12px 10px', borderRadius: 10, background: 'var(--color-bg-card)', border: `1px solid ${filterEstado === kpi.filter ? kpi.color + '40' : 'var(--color-border-subtle)'}`, textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.15s' }}>
+            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: kpi.color, fontFamily: kpi.mono ? 'var(--font-mono)' : undefined }}>{kpi.value}</div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>{kpi.label}</div>
           </div>
-          <button onClick={() => setShowFilters(f => !f)}
-            style={{ width: 42, height: 42, borderRadius: 10, border: '1px solid var(--color-border-subtle)', background: showFilters ? 'var(--color-accent)' : 'var(--color-bg-card)', color: showFilters ? '#fff' : 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
-            <SlidersHorizontal size={18} />
-          </button>
-        </div>
-        {showFilters && (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', animation: 'fadeIn 0.15s ease' }}>
-            <select value={filterEstado} onChange={e => setFilterEstado(e.target.value)} className="form-input" style={{ height: 36, fontSize: '0.8rem', width: 'auto', borderRadius: 8 }}>
-              <option value="">Todos los estados</option>
-              <option value="borrador">Borrador</option>
-              <option value="aprobada">Aprobada</option>
-              <option value="pagada">Pagada</option>
-            </select>
-            <select value={filterCategoria} onChange={e => setFilterCategoria(e.target.value)} className="form-input" style={{ height: 36, fontSize: '0.8rem', width: 'auto', borderRadius: 8 }}>
-              <option value="">Todas las categorías</option>
-              {CATEGORIAS.map(c => <option key={c} value={c}>{CAT_LABEL[c]}</option>)}
-            </select>
-            {(filterEstado || filterCategoria) && (
-              <button onClick={() => { setFilterEstado(''); setFilterCategoria(''); }} style={{ height: 36, padding: '0 10px', borderRadius: 8, border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-card)', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '0.75rem' }}>
-                Limpiar
-              </button>
-            )}
-          </div>
-        )}
-        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', padding: '2px 0' }}>
-          {filtered.length} liquidaci{filtered.length !== 1 ? 'ones' : 'ón'}
-        </div>
+        ))}
       </div>
 
-      {isMobile ? (
-        /* ── MOBILE: List rows ── */
-        <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 12, overflow: 'hidden' }}>
-          {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.7rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            <span style={{ flex: 1 }}>Concepto</span>
-            <span style={{ width: 80, textAlign: 'right' }}>Monto</span>
-            <span style={{ width: 36 }}></span>
-          </div>
-          {filtered.map(l => {
-            const monto = getMonto(l);
-            const concepto = getConcepto(l);
-            const cat = l.categoria || 'alquiler';
-            return (
-              <div key={l.id} style={{ display: 'flex', alignItems: 'center', padding: '10px 12px', borderBottom: '1px solid var(--color-border-subtle)', cursor: 'pointer', position: 'relative' }}
-                onClick={() => openEdit(l)}>
-                {/* Estado dot */}
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: ESTADO_COLOR[l.estado] || '#6B7280', flexShrink: 0, marginRight: 10 }} />
-                {/* Info */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: '0.875rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {concepto}
-                    </span>
-                    <span style={{ fontSize: '0.55rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: `${CAT_COLOR[cat] || '#6B7280'}15`, color: CAT_COLOR[cat] || '#6B7280', whiteSpace: 'nowrap', flexShrink: 0, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-                      {CAT_LABEL[cat] || cat}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {contratoLabel(l.contrato_id)} · {l.periodo}
-                  </div>
+      {/* Filter pills */}
+      <div style={{ display: 'flex', gap: 4, overflowX: 'auto', flexShrink: 0 }}>
+        {[{ key: '', label: 'Todos' }, { key: 'borrador', label: 'Borrador' }, { key: 'aprobada', label: 'Aprobada' }, { key: 'pagada', label: 'Pagada' }].map(f => (
+          <button key={f.key} onClick={() => setFilterEstado(filterEstado === f.key ? '' : f.key)}
+            style={{ padding: '5px 12px', borderRadius: 99, border: `1px solid ${filterEstado === f.key ? 'var(--color-text-primary)' : 'var(--color-border-subtle)'}`, background: filterEstado === f.key ? 'var(--color-text-primary)' : 'var(--color-bg-surface)', color: filterEstado === f.key ? '#fff' : 'var(--color-text-muted)', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--font-sans)' }}>
+            {f.label}
+          </button>
+        ))}
+        <div style={{ width: 1, background: 'var(--color-border-subtle)', margin: '0 2px' }} />
+        {CATEGORIAS.map(c => (
+          <button key={c} onClick={() => setFilterCategoria(filterCategoria === c ? '' : c)}
+            style={{ padding: '5px 12px', borderRadius: 99, border: `1px solid ${filterCategoria === c ? (CAT_COLOR[c]) : 'var(--color-border-subtle)'}`, background: filterCategoria === c ? `${CAT_COLOR[c]}15` : 'var(--color-bg-surface)', color: filterCategoria === c ? CAT_COLOR[c] : 'var(--color-text-muted)', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--font-sans)' }}>
+            {CAT_LABEL[c]}
+          </button>
+        ))}
+      </div>
+
+      {/* ─── GRID TABLE ─── */}
+      <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+        {/* Header */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 90px 90px 80px 130px', padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', alignItems: 'center' }}>
+          <span>Propiedad</span><span>Categoría</span><span>Periodo</span><span>Neto</span><span>Estado</span><span style={{ textAlign: 'right' }}>Acciones</span>
+        </div>
+        {/* Rows */}
+        {filtered.map(l => {
+          const cat = l.categoria || 'alquiler';
+          const monto = getMonto(l);
+          return (
+            <div key={l.id}
+              style={{ display: 'grid', gridTemplateColumns: '1fr 80px 90px 90px 80px 130px', padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', alignItems: 'center', transition: 'background 0.1s' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
+              onMouseLeave={e => (e.currentTarget.style.background = '')}>
+              {/* Propiedad + propietario + concepto */}
+              <div style={{ cursor: 'pointer', minWidth: 0 }} onClick={() => openEdit(l)}>
+                <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary)', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{contratoLabel(l.contrato_id)}</div>
+                <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {contratoPropietario(l.contrato_id)} · {getConcepto(l)}
                 </div>
-                {/* Monto */}
-                <div style={{ width: 80, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', fontWeight: 600, flexShrink: 0, color: cat === 'alquiler' ? '#10B981' : 'var(--color-text-primary)' }}>
-                  {cat === 'alquiler' ? '' : '-'}${Math.abs(monto).toLocaleString('es-AR')}
-                </div>
-                {/* Actions */}
-                <button onClick={e => { e.stopPropagation(); setActionMenuId(actionMenuId === l.id ? null : l.id); }}
-                  style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', flexShrink: 0, borderRadius: 6 }}>
-                  <MoreVertical size={16} />
-                </button>
-                {actionMenuId === l.id && (
-                  <div style={{ position: 'absolute', right: 12, top: '100%', zIndex: 50, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', overflow: 'hidden', minWidth: 150 }}>
-                    <button onClick={e => { e.stopPropagation(); openEdit(l); setActionMenuId(null); }}
-                      style={{ width: '100%', padding: '10px 14px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500, color: 'var(--color-text-primary)', fontFamily: 'var(--font-sans)' }}>
-                      Editar
+              </div>
+              {/* Categoría */}
+              <div>
+                <span style={{ fontSize: '0.5625rem', fontWeight: 700, padding: '2px 6px', borderRadius: 99, background: `${CAT_COLOR[cat]}15`, color: CAT_COLOR[cat], textTransform: 'uppercase' }}>{CAT_LABEL[cat]}</span>
+              </div>
+              {/* Periodo */}
+              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{l.periodo}</div>
+              {/* Neto */}
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 600, color: l.neto_propietario >= 0 ? '#10B981' : 'var(--color-text-primary)' }}>
+                ${Math.abs(monto).toLocaleString('es-AR')}
+              </div>
+              {/* Estado */}
+              <div>
+                <span style={{ fontSize: '0.5625rem', fontWeight: 700, padding: '2px 6px', borderRadius: 99, background: `${ESTADO_COLOR[l.estado]}15`, color: ESTADO_COLOR[l.estado], textTransform: 'capitalize' }}>{l.estado}</span>
+              </div>
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                {l.estado === 'borrador' && (
+                  <div className="row-action-wrap">
+                    <button onClick={e => { e.stopPropagation(); updateEstado(l.id, 'aprobada'); }}
+                      style={{ ...iconBtn, color: '#3B82F6', borderColor: '#3B82F630' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = '#3B82F610'; e.currentTarget.style.borderColor = '#3B82F6'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; e.currentTarget.style.borderColor = '#3B82F630'; }}>
+                      <Check size={14} />
                     </button>
-                    {l.estado === 'borrador' && (
-                      <button onClick={e => { e.stopPropagation(); updateEstado(l.id, 'aprobada'); setActionMenuId(null); }}
-                        style={{ width: '100%', padding: '10px 14px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500, color: '#3B82F6', fontFamily: 'var(--font-sans)', borderTop: '1px solid var(--color-border-subtle)' }}>
-                        Aprobar
-                      </button>
-                    )}
-                    {l.estado === 'aprobada' && (
-                      <button onClick={e => { e.stopPropagation(); updateEstado(l.id, 'pagada'); setActionMenuId(null); }}
-                        style={{ width: '100%', padding: '10px 14px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500, color: '#10B981', fontFamily: 'var(--font-sans)', borderTop: '1px solid var(--color-border-subtle)' }}>
-                        Marcar pagada
-                      </button>
-                    )}
+                    <span className="row-action-tooltip">Aprobar</span>
                   </div>
                 )}
+                {l.estado === 'aprobada' && (
+                  <div className="row-action-wrap">
+                    <button onClick={e => { e.stopPropagation(); updateEstado(l.id, 'pagada'); }}
+                      style={{ ...iconBtn, color: '#10B981', borderColor: '#10B98130' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = '#10B98110'; e.currentTarget.style.borderColor = '#10B981'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; e.currentTarget.style.borderColor = '#10B98130'; }}>
+                      <Check size={14} />
+                    </button>
+                    <span className="row-action-tooltip">Marcar pagada</span>
+                  </div>
+                )}
+                {/* Link to OP */}
+                <div className="row-action-wrap">
+                  <button onClick={e => { e.stopPropagation(); navigate('/tesoreria/ordenes-pago'); }}
+                    style={{ ...iconBtn, color: '#8B5CF6', borderColor: '#8B5CF630' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#8B5CF610'; e.currentTarget.style.borderColor = '#8B5CF6'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; e.currentTarget.style.borderColor = '#8B5CF630'; }}>
+                    <FileText size={14} />
+                  </button>
+                  <span className="row-action-tooltip">Ver orden de pago</span>
+                </div>
+                {/* View */}
+                <div className="row-action-wrap">
+                  <button onClick={e => { e.stopPropagation(); openEdit(l); }}
+                    style={{ ...iconBtn, color: 'var(--color-text-muted)' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg-hover)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; }}>
+                    <Eye size={14} />
+                  </button>
+                  <span className="row-action-tooltip">Ver detalles</span>
+                </div>
+                {/* Delete */}
+                <div className="row-action-wrap">
+                  <button onClick={e => { e.stopPropagation(); remove(l); }}
+                    style={{ ...iconBtn, color: '#EF4444', borderColor: '#EF444420' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#EF44440a'; e.currentTarget.style.borderColor = '#EF4444'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; e.currentTarget.style.borderColor = '#EF444420'; }}>
+                    <Trash2 size={14} />
+                  </button>
+                  <span className="row-action-tooltip">Eliminar</span>
+                </div>
               </div>
-            );
-          })}
-          {filtered.length === 0 && (
-            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin liquidaciones</div>
-          )}
-        </div>
-      ) : (
-        /* ── DESKTOP: Table ── */
-        <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-          <table style={{ width: '100%', fontSize: '0.8rem', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
-                {['Periodo', 'Categoría', 'Propiedad / Propietario', 'Concepto', 'Monto', 'Neto', 'Estado', 'Acciones'].map(h => (
-                  <th key={h} style={{ padding: '0.6rem 0.75rem', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-muted)', fontSize: '0.75rem' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(l => {
-                const monto = getMonto(l);
-                const concepto = getConcepto(l);
-                const cat = l.categoria || 'alquiler';
-                return (
-                  <tr key={l.id} style={{ borderBottom: '1px solid var(--color-border-subtle)' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover, rgba(255,255,255,0.03))')}
-                    onMouseLeave={e => (e.currentTarget.style.background = '')}>
-                    <td style={{ padding: '0.5rem 0.75rem', fontWeight: 600 }}>{l.periodo}</td>
-                    <td style={{ padding: '0.5rem 0.75rem' }}>
-                      <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: `${CAT_COLOR[cat]}15`, color: CAT_COLOR[cat], textTransform: 'capitalize' }}>{CAT_LABEL[cat]}</span>
-                    </td>
-                    <td style={{ padding: '0.5rem 0.75rem', cursor: 'pointer' }} onClick={() => openEdit(l)}>{contratoLabel(l.contrato_id)} — {contratoPropietario(l.contrato_id)}</td>
-                    <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{concepto}</td>
-                    <td style={{ padding: '0.5rem 0.75rem', fontFamily: 'var(--font-mono)' }}>${Math.abs(monto).toLocaleString('es-AR')}</td>
-                    <td style={{ padding: '0.5rem 0.75rem', fontFamily: 'var(--font-mono)', fontWeight: 700, color: l.neto_propietario >= 0 ? '#10B981' : 'var(--color-text-primary)' }}>${l.neto_propietario.toLocaleString('es-AR')}</td>
-                    <td style={{ padding: '0.5rem 0.75rem' }}>
-                      <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: `${ESTADO_COLOR[l.estado]}20`, color: ESTADO_COLOR[l.estado], textTransform: 'capitalize' }}>{l.estado}</span>
-                    </td>
-                    <td style={{ padding: '0.5rem 0.75rem' }}>
-                      <div style={{ display: 'flex', gap: '0.3rem' }}>
-                        {l.estado === 'borrador' && (
-                          <button onClick={() => updateEstado(l.id, 'aprobada')} style={{ padding: '0.2rem 0.5rem', borderRadius: 4, border: '1px solid #3B82F6', background: 'transparent', color: '#3B82F6', cursor: 'pointer', fontSize: '0.7rem' }}>Aprobar</button>
-                        )}
-                        {l.estado === 'aprobada' && (
-                          <button onClick={() => updateEstado(l.id, 'pagada')} style={{ padding: '0.2rem 0.5rem', borderRadius: 4, border: '1px solid #10B981', background: 'transparent', color: '#10B981', cursor: 'pointer', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: 2 }}>
-                            <Check size={12} /> Pagada
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-              {filtered.length === 0 && (
-                <tr><td colSpan={8} style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin liquidaciones</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+            </div>
+          );
+        })}
+        {filtered.length === 0 && <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin liquidaciones</div>}
+      </div>
 
-      {/* Modal — same pattern as Órdenes/Agenda */}
-      {showModal && (
-        <div onClick={() => setShowModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', zIndex: 200, display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center' }}>
-          <div onClick={e => e.stopPropagation()} className="card" style={{
-            width: '100%', maxWidth: isMobile ? undefined : 560, padding: 0, overflow: 'hidden',
-            borderRadius: isMobile ? '20px 20px 0 0' : 'var(--radius-xl)',
-            boxShadow: '0 8px 30px rgba(0,0,0,0.12)', border: '1px solid var(--color-border-subtle)',
-          }}>
-            {/* Header */}
-            <div style={{ padding: isMobile ? '16px 16px 0' : '1.25rem 1.5rem', borderBottom: isMobile ? 'none' : '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              {isMobile && <div style={{ width: 36, height: 4, borderRadius: 99, background: 'var(--color-border)', position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)' }} />}
-              <h3 style={{ fontWeight: 700, fontSize: '1.05rem', margin: 0 }}>{editing ? 'Editar liquidación' : 'Nueva liquidación'}</h3>
-              {!isMobile && <button onClick={() => setShowModal(false)} className="btn btn-ghost btn-icon"><X size={16} /></button>}
+      {/* ─── WIZARD MODAL ─── */}
+      {showModal && (() => {
+        const STEPS = formCategoria === 'alquiler'
+          ? [{ label: 'Tipo' }, { label: 'Propiedad' }, { label: 'Deducciones' }]
+          : [{ label: 'Tipo' }, { label: 'Propiedad' }, { label: 'Gastos' }];
+        const totalSteps = STEPS.length;
+        const canNext = wizardStep === 1 ? !!selContrato : true;
+        const isLast = wizardStep === totalSteps - 1;
+
+        return (
+          <div className="wizard-overlay" onClick={() => setShowModal(false)}>
+          <div className="wizard-card" onClick={e => e.stopPropagation()}>
+            <div className="wizard-header">
+              <h3>{editing ? 'Editar liquidación' : 'Nueva liquidación'}</h3>
+              <button className="wizard-close" onClick={() => setShowModal(false)}><X size={18} /></button>
             </div>
 
-            {/* Body */}
-            <div style={{ padding: isMobile ? '16px' : '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: isMobile ? '60vh' : '65vh', overflowY: 'auto' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Categoría</label>
-                  <select className="form-input" value={formCategoria} onChange={e => setFormCategoria(e.target.value)}>
-                    {CATEGORIAS.map(c => <option key={c} value={c}>{CAT_LABEL[c]}</option>)}
-                  </select>
+            <div className="wizard-steps">
+              {STEPS.map((s, i) => (
+                <div key={i} className="wizard-step" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    {i > 0 && <div className={`wizard-step-line${i <= wizardStep ? ' done' : ''}`} />}
+                    <div className={`wizard-step-dot${i === wizardStep ? ' active' : i < wizardStep ? ' done' : ' pending'}`}
+                      onClick={() => i < wizardStep && setWizardStep(i)} style={{ cursor: i < wizardStep ? 'pointer' : 'default' }}>
+                      {i < wizardStep ? <Check size={14} /> : i + 1}
+                    </div>
+                  </div>
+                  <div className={`wizard-step-label${i === wizardStep ? ' active' : i < wizardStep ? ' done' : ''}`}>{s.label}</div>
                 </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
+              ))}
+            </div>
+
+            <div className="wizard-body">
+              {/* Step 0: Categoría + Periodo */}
+              {wizardStep === 0 && (<>
+                <div className="wizard-field">
+                  <div className="wizard-section-title">Categoría</div>
+                  <div className="wizard-card-options" style={{ marginTop: 8, gridTemplateColumns: 'repeat(3, 1fr)' }}>
+                    {CATEGORIAS.map(c => (
+                      <div key={c} className={`wizard-card-option${formCategoria === c ? ' selected' : ''}`}
+                        onClick={() => setFormCategoria(c)}
+                        style={formCategoria === c ? { borderColor: CAT_COLOR[c], background: `${CAT_COLOR[c]}08` } : {}}>
+                        <div style={{ width: 10, height: 10, borderRadius: 3, background: CAT_COLOR[c], margin: '0 auto 4px' }} />
+                        <div className="card-label" style={{ fontSize: '0.75rem' }}>{CAT_LABEL[c]}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="wizard-field">
                   <label className="form-label">Periodo</label>
                   <input type="month" className="form-input" value={periodo} onChange={e => setPeriodo(e.target.value)} />
                 </div>
-              </div>
+              </>)}
 
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Propiedad *</label>
-                <select className="form-input" value={selContrato} onChange={e => onSelectContrato(e.target.value)}>
-                  <option value="">Seleccionar propiedad...</option>
-                  {contratos.map(c => <option key={c.id} value={c.id}>{(c.propiedad as any)?.direccion} — {(c.propietario as any)?.razon_social}</option>)}
-                </select>
-              </div>
-
-              {formCategoria === 'alquiler' && (
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Ingreso alquiler</label>
-                  <input type="number" className="form-input" value={ingreso || ''} onChange={e => setIngreso(Number(e.target.value))} />
-                </div>
-              )}
-
-              {/* Deducciones */}
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <label className="form-label" style={{ margin: 0 }}>{formCategoria === 'alquiler' ? 'Deducciones' : 'Detalle de gastos'}</label>
-                  <button onClick={addDeduccion} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 99, border: '1px solid var(--color-border-subtle)', background: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-cta, #2563EB)', fontFamily: 'var(--font-sans)' }}>
-                    <Plus size={14} /> Agregar
-                  </button>
-                </div>
-                {deducciones.map((d, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6, alignItems: 'center' }}>
-                    <input className="form-input" placeholder="Concepto" value={d.concepto} onChange={e => updateDeduccion(i, 'concepto', e.target.value)} style={{ flex: 2 }} />
-                    <input type="number" className="form-input" placeholder="Monto" value={d.monto || ''} onChange={e => updateDeduccion(i, 'monto', Number(e.target.value))} style={{ flex: 1 }} />
-                    <button onClick={() => removeDeduccion(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', padding: 4 }}><Trash2 size={14} /></button>
-                  </div>
-                ))}
-              </div>
-
-              {/* Totales */}
-              <div style={{ background: 'var(--color-bg-subtle, #f8fafc)', borderRadius: 8, padding: '0.75rem' }}>
-                {formCategoria === 'alquiler' && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: 4 }}>
-                    <span>Ingreso</span><span style={{ fontFamily: 'var(--font-mono)' }}>${ingreso.toLocaleString('es-AR')}</span>
-                  </div>
-                )}
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: formCategoria === 'alquiler' ? '#EF4444' : 'var(--color-text-primary)', marginBottom: 4 }}>
-                  <span>{formCategoria === 'alquiler' ? 'Deducciones' : 'Total gasto'}</span>
-                  <span style={{ fontFamily: 'var(--font-mono)' }}>{formCategoria === 'alquiler' ? '-' : ''}${totalDeducciones.toLocaleString('es-AR')}</span>
+              {/* Step 1: Propiedad + Ingreso */}
+              {wizardStep === 1 && (<>
+                <div className="wizard-field">
+                  <label className="form-label">Propiedad (contrato vigente) *</label>
+                  <CustomSelect
+                    value={selContrato}
+                    onChange={v => onSelectContrato(v)}
+                    placeholder="Seleccionar propiedad..."
+                    options={contratos.map(c => ({
+                      value: c.id,
+                      label: (c.propiedad as any)?.direccion || '—',
+                      sub: (c.propietario as any)?.razon_social || '',
+                    }))}
+                  />
                 </div>
                 {formCategoria === 'alquiler' && (
-                  <div style={{ borderTop: '2px solid var(--color-border-subtle)', paddingTop: 6, display: 'flex', justifyContent: 'space-between', fontSize: '1rem', fontWeight: 700 }}>
-                    <span>Neto propietario</span><span style={{ fontFamily: 'var(--font-mono)', color: '#10B981' }}>${neto.toLocaleString('es-AR')}</span>
+                  <div className="wizard-field">
+                    <label className="form-label">Ingreso alquiler</label>
+                    <input type="number" className="form-input" value={ingreso || ''} onChange={e => setIngreso(Number(e.target.value))} placeholder="Se autocompleta del contrato" />
                   </div>
                 )}
-              </div>
+              </>)}
+
+              {/* Step 2: Deducciones/Gastos + Resumen */}
+              {wizardStep === 2 && (<>
+                <div className="wizard-field">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div className="wizard-section-title" style={{ border: 'none' }}>{formCategoria === 'alquiler' ? 'Deducciones' : 'Detalle de gastos'}</div>
+                    <button onClick={addDeduccion} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 12px', borderRadius: 99, border: '1.5px solid var(--color-cta, #2563EB)', background: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-cta, #2563EB)', fontFamily: 'var(--font-sans)' }}>
+                      <Plus size={14} /> Agregar
+                    </button>
+                  </div>
+                  {deducciones.length === 0 && (
+                    <div style={{ padding: '16px', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.8125rem', fontStyle: 'italic' }}>
+                      Sin {formCategoria === 'alquiler' ? 'deducciones' : 'gastos'}. Presioná "Agregar" para sumar.
+                    </div>
+                  )}
+                  {deducciones.map((d, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6, alignItems: 'center' }}>
+                      <input className="form-input" placeholder="Concepto" value={d.concepto} onChange={e => updateDeduccion(i, 'concepto', e.target.value)} style={{ flex: 2 }} />
+                      <input type="number" className="form-input" placeholder="$0" value={d.monto || ''} onChange={e => updateDeduccion(i, 'monto', Number(e.target.value))} style={{ flex: 1 }} />
+                      <button onClick={() => removeDeduccion(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', padding: 4 }}><Trash2 size={14} /></button>
+                    </div>
+                  ))}
+                </div>
+                {/* Totales */}
+                <div style={{ background: 'var(--color-bg-surface-2)', borderRadius: 12, padding: '1rem' }}>
+                  {formCategoria === 'alquiler' && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', marginBottom: 6 }}>
+                      <span style={{ color: 'var(--color-text-muted)' }}>Ingreso</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>${ingreso.toLocaleString('es-AR')}</span>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', color: formCategoria === 'alquiler' ? '#EF4444' : 'var(--color-text-primary)', marginBottom: 6 }}>
+                    <span>{formCategoria === 'alquiler' ? 'Deducciones' : 'Total gasto'}</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{formCategoria === 'alquiler' ? '-' : ''}${totalDeducciones.toLocaleString('es-AR')}</span>
+                  </div>
+                  {formCategoria === 'alquiler' && (
+                    <div style={{ borderTop: '2px solid var(--color-border-subtle)', paddingTop: 8, display: 'flex', justifyContent: 'space-between', fontSize: '1.05rem', fontWeight: 700 }}>
+                      <span>Neto propietario</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', color: '#10B981' }}>${neto.toLocaleString('es-AR')}</span>
+                    </div>
+                  )}
+                </div>
+              </>)}
             </div>
 
-            {/* Footer */}
-            <div style={{ padding: isMobile ? '12px 16px 80px' : '1rem 1.5rem', borderTop: '1px solid var(--color-border-subtle)', display: 'flex', gap: 8, justifyContent: isMobile ? 'stretch' : 'flex-end', background: isMobile ? undefined : 'var(--color-bg-subtle, #f8fafc)' }}>
-              <button onClick={() => setShowModal(false)} className="btn btn-secondary" style={{ flex: isMobile ? 1 : undefined }}>Cancelar</button>
-              <button onClick={save} className="btn btn-primary" style={{ flex: isMobile ? 1 : undefined }}>
-                {editing ? 'Guardar cambios' : 'Crear liquidación'}
-              </button>
+            <div className="wizard-footer">
+              <div className="wizard-footer-left">
+                {editing && <button className="wizard-btn-danger" onClick={() => { remove(editing); setShowModal(false); }}>Eliminar</button>}
+              </div>
+              <div className="wizard-footer-right">
+                {wizardStep > 0 && (
+                  <button className="wizard-btn-back" onClick={() => setWizardStep(s => s - 1)}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><ChevronLeft size={16} /> Anterior</span>
+                  </button>
+                )}
+                {isLast ? (
+                  <button className="wizard-btn-next" onClick={save} disabled={!selContrato}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Check size={16} /> {editing ? 'Guardar' : 'Crear'}</span>
+                  </button>
+                ) : (
+                  <button className="wizard-btn-next" onClick={() => setWizardStep(s => s + 1)} disabled={!canNext}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Siguiente <ChevronRight size={16} /></span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+          </div>
+        );
+      })()}
     </div>
   );
 }

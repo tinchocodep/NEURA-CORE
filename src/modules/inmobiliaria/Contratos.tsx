@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Search, Plus, X, FileText, Grid3X3, List, Upload, Paperclip, TrendingUp, Trash2, MoreVertical } from 'lucide-react';
+import { Search, Plus, X, FileText, Grid3X3, List, Upload, Paperclip, TrendingUp, Trash2, Check, ChevronRight, ChevronLeft, Receipt, Wrench, Wallet, Eye } from 'lucide-react';
 import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
+import CustomSelect from '../../shared/components/CustomSelect';
 
 interface Documento { nombre: string; url: string; tipo: string; fecha: string; }
 interface Ajuste { fecha: string; monto_anterior: number; monto_nuevo: number; indice: string; porcentaje: number; }
@@ -47,10 +48,10 @@ export default function Contratos() {
   const [editing, setEditing] = useState<Contrato | null>(null);
   const [form, setForm] = useState(emptyContrato);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
-  const [actionMenuId, setActionMenuId] = useState<string | null>(null);
   const [showNewCliente, setShowNewCliente] = useState<'inquilino' | 'propietario' | null>(null);
   const [newClienteNombre, setNewClienteNombre] = useState('');
   const [newClienteCuit, setNewClienteCuit] = useState('');
+  const [wizardStep, setWizardStep] = useState(0);
 
   useEffect(() => { if (tenant) loadData(); }, [tenant]);
 
@@ -107,8 +108,8 @@ export default function Contratos() {
     setNewClienteCuit('');
   };
 
-  const openNew = () => { setEditing(null); setForm(emptyContrato); setShowModal(true); };
-  const openEdit = (c: Contrato) => { setEditing(c); setForm(c); setShowModal(true); };
+  const openNew = () => { setEditing(null); setForm(emptyContrato); setWizardStep(0); setShowModal(true); };
+  const openEdit = (c: Contrato) => { setEditing(c); setForm(c); setWizardStep(0); setShowModal(true); };
 
   const save = async () => {
     if (!form.propiedad_id || !form.fecha_inicio) return;
@@ -233,96 +234,72 @@ export default function Contratos() {
         </div>
       </div>
 
-      {/* ─── LIST VIEW (mobile-optimized rows) ─── */}
+      {/* ─── LIST VIEW ─── */}
       {viewMode === 'list' ? (
-        <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 12, overflow: 'hidden' }}>
-          {/* Column header */}
-          <div style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.7rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            <span style={{ flex: 1 }}>Propiedad</span>
-            <span style={{ width: 80, textAlign: 'right' }}>Monto</span>
-            <span style={{ width: 44 }}></span>
+        <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+          {/* Header */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 95px 90px 160px', padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', alignItems: 'center' }}>
+            <span>Propiedad</span><span>Estado</span><span>Monto</span><span>Vence</span><span style={{ textAlign: 'right' }}>Acciones</span>
           </div>
+          {/* Rows */}
           {filtered.map(c => {
             const dias = daysUntil(c.fecha_fin);
             const isUrgent = c.estado === 'vigente' && dias <= 30 && dias > 0;
             const isOverdue = c.estado === 'vigente' && dias <= 0;
+            const estadoLabel = isOverdue ? 'Moroso' : isUrgent ? `${dias}d` : c.estado;
+            const estadoColor = isOverdue ? '#EF4444' : isUrgent ? '#F59E0B' : (ESTADO_COLOR[c.estado] || '#6B7280');
+            const iconBtn: React.CSSProperties = {
+              width: 28, height: 28, borderRadius: 8, border: '1px solid var(--color-border-subtle)',
+              background: 'var(--color-bg-surface)', cursor: 'pointer', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', transition: 'all 0.12s', flexShrink: 0,
+            };
             return (
-              <div key={c.id} style={{ padding: '12px 14px', borderBottom: '1px solid var(--color-border-subtle)', background: isOverdue ? '#EF444406' : isUrgent ? '#F59E0B04' : 'transparent' }}>
-                {/* Row 1: address + price */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                  <div style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--color-text-primary)' }}>{propDir(c.propiedad_id)}</div>
-                  <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 8 }}>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.9375rem', fontWeight: 700 }}>
-                      {c.moneda === 'USD' ? 'US$' : '$'}{c.monto_mensual.toLocaleString('es-AR')}
+              <div key={c.id}
+                style={{ display: 'grid', gridTemplateColumns: '1fr 80px 95px 90px 160px', padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', alignItems: 'center', transition: 'background 0.1s' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
+                onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                {/* Propiedad + inquilino + tipo badge */}
+                <div style={{ cursor: 'pointer', minWidth: 0 }} onClick={() => openEdit(c)}>
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary)', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{propDir(c.propiedad_id)}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                    <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cliName(c.inquilino_id)}</span>
+                    <span style={{ fontSize: '0.5625rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: 'rgba(99,102,241,0.08)', color: '#6366F1', textTransform: 'capitalize', flexShrink: 0 }}>{c.tipo}</span>
+                  </div>
+                </div>
+                {/* Estado */}
+                <div>
+                  <span style={{ fontSize: '0.625rem', fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: `${estadoColor}15`, color: estadoColor, textTransform: 'capitalize', whiteSpace: 'nowrap' }}>
+                    {estadoLabel}
+                  </span>
+                </div>
+                {/* Monto */}
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                  {c.moneda === 'USD' ? 'US$' : '$'}{c.monto_mensual.toLocaleString('es-AR')}
+                </div>
+                {/* Fecha fin */}
+                <div style={{ fontSize: '0.6875rem', color: isOverdue ? '#EF4444' : 'var(--color-text-muted)' }}>
+                  {new Date(c.fecha_fin + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: '2-digit' })}
+                </div>
+                {/* Action icon buttons */}
+                <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                  {[
+                    { icon: Receipt, label: 'Facturar', color: '#3B82F6', onClick: () => navigate('/inmobiliaria/facturar') },
+                    { icon: Wallet, label: 'Liquidar', color: '#10B981', onClick: () => navigate('/inmobiliaria/liquidaciones') },
+                    { icon: Wrench, label: 'Problema', color: '#8B5CF6', onClick: () => navigate(`/inmobiliaria/ordenes?propiedad=${c.propiedad_id}`) },
+                    { icon: Eye, label: 'Ver detalles', color: 'var(--color-text-muted)', onClick: () => openEdit(c) },
+                    { icon: Trash2, label: 'Eliminar', color: '#EF4444', onClick: () => { setEditing(c); remove(); } },
+                  ].map(btn => (
+                    <div key={btn.label} className="row-action-wrap">
+                      <button onClick={e => { e.stopPropagation(); btn.onClick(); }}
+                        className="row-action-btn"
+                        style={{ ...iconBtn, color: btn.color, borderColor: `${btn.color}30` }}
+                        onMouseEnter={e => { e.currentTarget.style.background = `${btn.color}10`; e.currentTarget.style.borderColor = btn.color; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; e.currentTarget.style.borderColor = `${btn.color}30`; }}>
+                        <btn.icon size={14} />
+                      </button>
+                      <span className="row-action-tooltip">{btn.label}</span>
                     </div>
-                    <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', textTransform: 'capitalize' }}>{c.tipo}</div>
-                  </div>
-                </div>
-                {/* Row 2: inquilino */}
-                <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', marginBottom: 6 }}>
-                  {cliName(c.inquilino_id)}
-                </div>
-                {/* Row 3: status badge */}
-                {isUrgent && (
-                  <div style={{ marginBottom: 8 }}>
-                    <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: '#F59E0B18', color: '#D97706' }}>
-                      Vence en {dias}d
-                    </span>
-                  </div>
-                )}
-                {isOverdue && (
-                  <div style={{ marginBottom: 8 }}>
-                    <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: '#EF444418', color: '#DC2626' }}>
-                      Moroso - {Math.abs(dias)} días
-                    </span>
-                  </div>
-                )}
-                {!isUrgent && !isOverdue && c.estado === 'vigente' && (
-                  <div style={{ marginBottom: 8 }}>
-                    <span style={{ fontSize: '0.6875rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: '#10B98118', color: '#16A34A' }}>
-                      Activo
-                    </span>
-                  </div>
-                )}
-                {/* Row 4: Facturar + ⋮ menú */}
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center', position: 'relative' }}>
-                  <button onClick={() => {}} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Facturar</button>
-                  {isOverdue && (
-                    <button onClick={() => {}} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #DC2626', background: 'transparent', color: '#DC2626', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Reclamar</button>
-                  )}
-                  <button onClick={() => setActionMenuId(actionMenuId === c.id ? null : c.id)}
-                    style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid var(--color-border-subtle)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
-                    <MoreVertical size={16} />
-                  </button>
-                  {actionMenuId === c.id && (
-                    <>
-                      <div style={{ position: 'fixed', inset: 0, zIndex: 49 }} onClick={() => setActionMenuId(null)} />
-                      <div style={{ position: 'absolute', right: 0, top: '100%', zIndex: 50, marginTop: 4, background: 'var(--color-bg-surface)', border: '1px solid var(--color-border-subtle)', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', overflow: 'hidden', minWidth: 170 }}>
-                        <button onClick={() => { openEdit(c); setActionMenuId(null); }}
-                          style={{ width: '100%', padding: '11px 14px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--color-text-primary)', fontFamily: 'var(--font-sans)', borderBottom: '1px solid var(--color-border-subtle)' }}>
-                          Ver detalle
-                        </button>
-                        <button onClick={() => { navigate('/inmobiliaria/liquidaciones'); setActionMenuId(null); }}
-                          style={{ width: '100%', padding: '11px 14px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--color-text-primary)', fontFamily: 'var(--font-sans)', borderBottom: '1px solid var(--color-border-subtle)' }}>
-                          Liquidar
-                        </button>
-                        <button onClick={() => { navigate(`/inmobiliaria/ordenes?propiedad=${c.propiedad_id}`); setActionMenuId(null); }}
-                          style={{ width: '100%', padding: '11px 14px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 500, color: '#8B5CF6', fontFamily: 'var(--font-sans)', borderBottom: '1px solid var(--color-border-subtle)' }}>
-                          Enviar proveedor
-                        </button>
-                        {isUrgent && (
-                          <button onClick={() => { setActionMenuId(null); }}
-                            style={{ width: '100%', padding: '11px 14px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--color-text-primary)', fontFamily: 'var(--font-sans)', borderBottom: '1px solid var(--color-border-subtle)' }}>
-                            Renovar contrato
-                          </button>
-                        )}
-                        <button onClick={() => { setEditing(c); remove(); setActionMenuId(null); }}
-                          style={{ width: '100%', padding: '11px 14px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 500, color: '#EF4444', fontFamily: 'var(--font-sans)' }}>
-                          Eliminar
-                        </button>
-                      </div>
-                    </>
-                  )}
+                  ))}
                 </div>
               </div>
             );
@@ -369,77 +346,193 @@ export default function Contratos() {
       </div>
       )}
 
-      {/* Modal */}
-      {showModal && (
-          <div onClick={() => setShowModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div onClick={e => e.stopPropagation()} className="card" style={{ width: '100%', maxWidth: 740, maxHeight: '92vh', overflowY: 'auto', padding: '1.5rem', borderRadius: 'var(--radius-xl)', boxShadow: '0 8px 30px rgba(0,0,0,0.12)', border: '1px solid var(--color-border-subtle)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>{editing ? 'Editar contrato' : 'Nuevo contrato'}</h3>
-              <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)' }}><X size={18} /></button>
+      {/* ─── WIZARD MODAL ─── */}
+      {showModal && (() => {
+        const STEPS = editing
+          ? [{ label: 'Tipo' }, { label: 'Partes' }, { label: 'Condiciones' }, { label: 'Adicional' }, { label: 'Docs' }]
+          : [{ label: 'Tipo' }, { label: 'Partes' }, { label: 'Condiciones' }, { label: 'Adicional' }];
+        const totalSteps = STEPS.length;
+        const canNext = wizardStep === 0 ? !!form.propiedad_id
+          : wizardStep === 2 ? !!form.fecha_inicio
+          : true;
+        const isLast = wizardStep === totalSteps - 1;
+
+        return (
+          <div className="wizard-overlay" onClick={() => setShowModal(false)}>
+          <div className="wizard-card" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="wizard-header">
+              <h3>{editing ? 'Editar contrato' : 'Nuevo contrato'}</h3>
+              <button className="wizard-close" onClick={() => setShowModal(false)}><X size={18} /></button>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-              <label className="form-label">Propiedad *</label>
-              <select className="form-input" value={form.propiedad_id} onChange={e => setForm(f => ({ ...f, propiedad_id: e.target.value }))}>
-                <option value="">Seleccionar...</option>
-                {propiedades.map(p => <option key={p.id} value={p.id}>{p.direccion}</option>)}
-              </select>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <div style={{ flex: 1 }}>
+
+            {/* Step indicator */}
+            <div className="wizard-steps">
+              {STEPS.map((s, i) => (
+                <div key={i} className="wizard-step" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    {i > 0 && <div className={`wizard-step-line${i <= wizardStep ? ' done' : ''}`} />}
+                    <div className={`wizard-step-dot${i === wizardStep ? ' active' : i < wizardStep ? ' done' : ' pending'}`}
+                      onClick={() => i < wizardStep && setWizardStep(i)} style={{ cursor: i < wizardStep ? 'pointer' : 'default' }}>
+                      {i < wizardStep ? <Check size={14} /> : i + 1}
+                    </div>
+                  </div>
+                  <div className={`wizard-step-label${i === wizardStep ? ' active' : i < wizardStep ? ' done' : ''}`}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Body */}
+            <div className="wizard-body">
+              {/* ── STEP 0: Tipo y Propiedad ── */}
+              {wizardStep === 0 && (<>
+                <div className="wizard-field">
+                  <div className="wizard-section-title">Tipo de contrato</div>
+                  <div className="wizard-pills" style={{ marginTop: 8 }}>
+                    {TIPOS.map(t => (
+                      <button key={t} className={`wizard-pill${form.tipo === t ? ' selected' : ''}`}
+                        onClick={() => setForm(f => ({ ...f, tipo: t }))}>{t}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="wizard-field">
+                  <label className="form-label">Propiedad *</label>
+                  <CustomSelect
+                    value={form.propiedad_id}
+                    onChange={v => setForm(f => ({ ...f, propiedad_id: v }))}
+                    placeholder="Seleccionar propiedad..."
+                    options={propiedades.map(p => ({ value: p.id, label: p.direccion }))}
+                  />
+                </div>
+                <div className="wizard-field">
+                  <div className="wizard-section-title">Estado</div>
+                  <div className="wizard-pills" style={{ marginTop: 8 }}>
+                    {ESTADOS.map(e => (
+                      <button key={e} className={`wizard-pill${form.estado === e ? ' selected' : ''}`}
+                        onClick={() => setForm(f => ({ ...f, estado: e }))}>{e}</button>
+                    ))}
+                  </div>
+                </div>
+              </>)}
+
+              {/* ── STEP 1: Partes ── */}
+              {wizardStep === 1 && (<>
+                <div className="wizard-field">
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <label className="form-label">Inquilino</label>
                     <button type="button" onClick={() => { setShowNewCliente('inquilino'); setNewClienteNombre(''); setNewClienteCuit(''); }}
-                      style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--color-cta, #2563EB)', background: 'none', border: 'none', cursor: 'pointer' }}>+ Crear nuevo</button>
+                      style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-cta, #2563EB)', background: 'none', border: 'none', cursor: 'pointer' }}>+ Crear nuevo</button>
                   </div>
-                  <select className="form-input" value={form.inquilino_id} onChange={e => setForm(f => ({ ...f, inquilino_id: e.target.value }))}><option value="">Seleccionar...</option>{clientes.map(c => <option key={c.id} value={c.id}>{c.razon_social}</option>)}</select>
+                  <CustomSelect
+                    value={form.inquilino_id}
+                    onChange={v => setForm(f => ({ ...f, inquilino_id: v }))}
+                    placeholder="Buscar inquilino..."
+                    options={clientes.map(c => ({ value: c.id, label: c.razon_social }))}
+                  />
                 </div>
-                <div style={{ flex: 1 }}>
+                <div className="wizard-field">
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <label className="form-label">Propietario</label>
                     <button type="button" onClick={() => { setShowNewCliente('propietario'); setNewClienteNombre(''); setNewClienteCuit(''); }}
-                      style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--color-cta, #2563EB)', background: 'none', border: 'none', cursor: 'pointer' }}>+ Crear nuevo</button>
+                      style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-cta, #2563EB)', background: 'none', border: 'none', cursor: 'pointer' }}>+ Crear nuevo</button>
                   </div>
-                  <select className="form-input" value={form.propietario_id} onChange={e => setForm(f => ({ ...f, propietario_id: e.target.value }))}><option value="">Seleccionar...</option>{clientes.map(c => <option key={c.id} value={c.id}>{c.razon_social}</option>)}</select>
+                  <CustomSelect
+                    value={form.propietario_id}
+                    onChange={v => setForm(f => ({ ...f, propietario_id: v }))}
+                    placeholder="Buscar propietario..."
+                    options={clientes.map(c => ({ value: c.id, label: c.razon_social }))}
+                  />
                 </div>
-              </div>
-              {/* Inline crear cliente */}
-              {showNewCliente && (
-                <div style={{ padding: 12, borderRadius: 'var(--radius-md)', background: 'var(--color-bg-surface-2)', border: '1px solid var(--color-border-subtle)', display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-                  <div style={{ flex: 2 }}><label className="form-label">Nombre / Razón Social *</label><input className="form-input" value={newClienteNombre} onChange={e => setNewClienteNombre(e.target.value)} placeholder={showNewCliente === 'inquilino' ? 'Ej: Juan Pérez' : 'Ej: María López'} /></div>
-                  <div style={{ flex: 1 }}><label className="form-label">CUIT (opcional)</label><input className="form-input" value={newClienteCuit} onChange={e => setNewClienteCuit(e.target.value)} placeholder="20-12345678-9" /></div>
-                  <button onClick={crearCliente} className="btn btn-primary" style={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }} disabled={!newClienteNombre.trim()}>Crear {showNewCliente}</button>
-                  <button onClick={() => setShowNewCliente(null)} className="btn btn-ghost btn-icon"><X size={14} /></button>
-                </div>
-              )}
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <div style={{ flex: 1 }}><label className="form-label">Tipo</label><select className="form-input" value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))}>{TIPOS.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
-                <div style={{ flex: 1 }}><label className="form-label">Estado</label><select className="form-input" value={form.estado} onChange={e => setForm(f => ({ ...f, estado: e.target.value }))}>{ESTADOS.map(e => <option key={e} value={e}>{e}</option>)}</select></div>
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <div style={{ flex: 1 }}><label className="form-label">Fecha inicio *</label><input type="date" className="form-input" value={form.fecha_inicio} onChange={e => setForm(f => ({ ...f, fecha_inicio: e.target.value }))} /></div>
-                <div style={{ flex: 1 }}><label className="form-label">Fecha fin</label><input type="date" className="form-input" value={form.fecha_fin} onChange={e => setForm(f => ({ ...f, fecha_fin: e.target.value }))} /></div>
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <div style={{ flex: 1 }}><label className="form-label">Moneda</label><select className="form-input" value={form.moneda} onChange={e => setForm(f => ({ ...f, moneda: e.target.value }))}>{MONEDAS.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
-                <div style={{ flex: 1 }}><label className="form-label">Monto mensual</label><input type="number" className="form-input" value={form.monto_mensual || ''} onChange={e => setForm(f => ({ ...f, monto_mensual: Number(e.target.value) }))} /></div>
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <div style={{ flex: 1 }}><label className="form-label">Indice ajuste</label><select className="form-input" value={form.indice_ajuste} onChange={e => setForm(f => ({ ...f, indice_ajuste: e.target.value }))}>{INDICES.map(i => <option key={i} value={i}>{i}</option>)}</select></div>
-                <div style={{ flex: 1 }}><label className="form-label">Periodo ajuste (meses)</label><input type="number" className="form-input" value={form.periodo_ajuste_meses || ''} onChange={e => setForm(f => ({ ...f, periodo_ajuste_meses: e.target.value ? Number(e.target.value) : null }))} /></div>
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <div style={{ flex: 1 }}><label className="form-label">Deposito</label><input type="number" className="form-input" value={form.deposito || ''} onChange={e => setForm(f => ({ ...f, deposito: e.target.value ? Number(e.target.value) : null }))} /></div>
-                <div style={{ flex: 1 }}><label className="form-label">Comision %</label><input type="number" className="form-input" value={form.comision_porcentaje || ''} onChange={e => setForm(f => ({ ...f, comision_porcentaje: e.target.value ? Number(e.target.value) : null }))} /></div>
-              </div>
-              <label className="form-label">Notas</label>
-              <textarea className="form-input" rows={2} value={form.notas || ''} onChange={e => setForm(f => ({ ...f, notas: e.target.value || null }))} />
+                {/* Inline crear cliente */}
+                {showNewCliente && (
+                  <div style={{ padding: 14, borderRadius: 12, background: 'var(--color-bg-surface-2)', border: '1px solid var(--color-border-subtle)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{ fontSize: '0.8125rem', fontWeight: 600 }}>Nuevo {showNewCliente}</div>
+                    <div className="wizard-row">
+                      <div className="wizard-field">
+                        <label className="form-label">Nombre / Razón Social *</label>
+                        <input className="form-input" value={newClienteNombre} onChange={e => setNewClienteNombre(e.target.value)} placeholder={showNewCliente === 'inquilino' ? 'Ej: Juan Pérez' : 'Ej: María López'} />
+                      </div>
+                      <div className="wizard-field">
+                        <label className="form-label">CUIT (opcional)</label>
+                        <input className="form-input" value={newClienteCuit} onChange={e => setNewClienteCuit(e.target.value)} placeholder="20-12345678-9" />
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                      <button onClick={() => setShowNewCliente(null)} className="wizard-btn-back" style={{ padding: '6px 14px', fontSize: '0.8125rem' }}>Cancelar</button>
+                      <button onClick={crearCliente} className="wizard-btn-next" style={{ padding: '6px 14px', fontSize: '0.8125rem' }} disabled={!newClienteNombre.trim()}>Crear</button>
+                    </div>
+                  </div>
+                )}
+              </>)}
 
-              {/* ── DOCUMENTOS (solo en edición) ── */}
-              {editing && (
-                <div style={{ borderTop: '1px solid var(--color-border-subtle)', paddingTop: 14, marginTop: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <label className="form-label" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 4 }}><Paperclip size={14} /> Documentos</label>
-                    <label style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--color-cta, #2563EB)', color: 'var(--color-cta, #2563EB)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3 }}>
-                      <Upload size={12} /> Subir
+              {/* ── STEP 2: Condiciones ── */}
+              {wizardStep === 2 && (<>
+                <div className="wizard-row">
+                  <div className="wizard-field">
+                    <label className="form-label">Fecha inicio *</label>
+                    <input type="date" className="form-input" value={form.fecha_inicio} onChange={e => setForm(f => ({ ...f, fecha_inicio: e.target.value }))} />
+                  </div>
+                  <div className="wizard-field">
+                    <label className="form-label">Fecha fin</label>
+                    <input type="date" className="form-input" value={form.fecha_fin} onChange={e => setForm(f => ({ ...f, fecha_fin: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="wizard-field">
+                  <div className="wizard-section-title">Moneda</div>
+                  <div className="wizard-pills" style={{ marginTop: 8 }}>
+                    {MONEDAS.map(m => (
+                      <button key={m} className={`wizard-pill${form.moneda === m ? ' selected' : ''}`}
+                        onClick={() => setForm(f => ({ ...f, moneda: m }))}>{m === 'ARS' ? '$ Pesos' : 'US$ Dólares'}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="wizard-field">
+                  <label className="form-label">Monto mensual</label>
+                  <input type="number" className="form-input" value={form.monto_mensual || ''} onChange={e => setForm(f => ({ ...f, monto_mensual: Number(e.target.value) }))} placeholder="0" />
+                </div>
+                <div className="wizard-row">
+                  <div className="wizard-field">
+                    <label className="form-label">Índice de ajuste</label>
+                    <div className="wizard-pills">
+                      {INDICES.map(i => (
+                        <button key={i} className={`wizard-pill${form.indice_ajuste === i ? ' selected' : ''}`}
+                          onClick={() => setForm(f => ({ ...f, indice_ajuste: i }))}>{i}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="wizard-field">
+                    <label className="form-label">Período ajuste (meses)</label>
+                    <input type="number" className="form-input" value={form.periodo_ajuste_meses || ''} onChange={e => setForm(f => ({ ...f, periodo_ajuste_meses: e.target.value ? Number(e.target.value) : null }))} placeholder="12" />
+                  </div>
+                </div>
+              </>)}
+
+              {/* ── STEP 3: Adicional ── */}
+              {wizardStep === 3 && (<>
+                <div className="wizard-row">
+                  <div className="wizard-field">
+                    <label className="form-label">Depósito</label>
+                    <input type="number" className="form-input" value={form.deposito || ''} onChange={e => setForm(f => ({ ...f, deposito: e.target.value ? Number(e.target.value) : null }))} placeholder="0" />
+                  </div>
+                  <div className="wizard-field">
+                    <label className="form-label">Comisión %</label>
+                    <input type="number" className="form-input" value={form.comision_porcentaje || ''} onChange={e => setForm(f => ({ ...f, comision_porcentaje: e.target.value ? Number(e.target.value) : null }))} placeholder="0" />
+                  </div>
+                </div>
+                <div className="wizard-field">
+                  <label className="form-label">Notas</label>
+                  <textarea className="form-input" rows={3} value={form.notas || ''} onChange={e => setForm(f => ({ ...f, notas: e.target.value || null }))} placeholder="Observaciones adicionales..." />
+                </div>
+              </>)}
+
+              {/* ── STEP 4: Documentos & Ajustes (solo en edición) ── */}
+              {wizardStep === 4 && editing && (<>
+                {/* Documentos */}
+                <div className="wizard-field">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div className="wizard-section-title" style={{ border: 'none', display: 'flex', alignItems: 'center', gap: 6 }}><Paperclip size={14} /> Documentos</div>
+                    <label style={{ padding: '6px 14px', borderRadius: 10, border: '1.5px solid var(--color-cta, #2563EB)', color: 'var(--color-cta, #2563EB)', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Upload size={13} /> Subir
                       <input type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: 'none' }} onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (!file || !editing) return;
@@ -456,12 +549,12 @@ export default function Contratos() {
                     </label>
                   </div>
                   {(editing.documentos || []).length === 0 ? (
-                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontStyle: 'italic', padding: '8px 0' }}>Sin documentos adjuntos. Subí contrato firmado, garantía, DNI, etc.</div>
+                    <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', fontStyle: 'italic', padding: '12px 0' }}>Sin documentos adjuntos. Subí contrato firmado, garantía, DNI, etc.</div>
                   ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       {(editing.documentos || []).map((doc, i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 8, background: 'var(--color-bg-surface-2)', border: '1px solid var(--color-border-subtle)' }}>
-                          <FileText size={14} style={{ color: doc.tipo === 'PDF' ? '#EF4444' : '#3B82F6', flexShrink: 0 }} />
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 10, background: 'var(--color-bg-surface-2)', border: '1px solid var(--color-border-subtle)' }}>
+                          <FileText size={16} style={{ color: doc.tipo === 'PDF' ? '#EF4444' : '#3B82F6', flexShrink: 0 }} />
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <a href={doc.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--color-cta, #2563EB)', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{doc.nombre}</a>
                             <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>{doc.tipo} · {doc.fecha}</div>
@@ -471,69 +564,85 @@ export default function Contratos() {
                             await supabase.from('inmobiliaria_contratos').update({ documentos: docs }).eq('id', editing.id);
                             setItems(prev => prev.map(c => c.id === editing.id ? { ...c, documentos: docs } : c));
                             setEditing({ ...editing, documentos: docs });
-                          }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: 2 }}><Trash2 size={13} /></button>
+                          }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: 4 }}><Trash2 size={14} /></button>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
-              )}
 
-              {/* ── AJUSTES DE ALQUILER (solo en edición, tipo alquiler) ── */}
-              {editing && editing.tipo === 'alquiler' && (
-                <div style={{ borderTop: '1px solid var(--color-border-subtle)', paddingTop: 14, marginTop: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <label className="form-label" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 4 }}><TrendingUp size={14} /> Ajustes de Alquiler</label>
-                    <button onClick={async () => {
-                      if (!editing) return;
-                      const porcentaje = prompt('Porcentaje de ajuste (ej: 25.5):');
-                      if (!porcentaje || isNaN(Number(porcentaje))) return;
-                      const pct = Number(porcentaje);
-                      const montoAnterior = editing.monto_mensual;
-                      const montoNuevo = Math.round(montoAnterior * (1 + pct / 100));
-                      const nuevoAjuste: Ajuste = { fecha: new Date().toISOString().slice(0, 10), monto_anterior: montoAnterior, monto_nuevo: montoNuevo, indice: editing.indice_ajuste, porcentaje: pct };
-                      const historial = [...(editing.historial_ajustes || []), nuevoAjuste];
-                      await supabase.from('inmobiliaria_contratos').update({ monto_mensual: montoNuevo, ultimo_ajuste: nuevoAjuste.fecha, historial_ajustes: historial }).eq('id', editing.id);
-                      setItems(prev => prev.map(c => c.id === editing.id ? { ...c, monto_mensual: montoNuevo, ultimo_ajuste: nuevoAjuste.fecha, historial_ajustes: historial } : c));
-                      setEditing({ ...editing, monto_mensual: montoNuevo, ultimo_ajuste: nuevoAjuste.fecha, historial_ajustes: historial });
-                    }} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--color-cta, #2563EB)', color: 'var(--color-cta, #2563EB)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', background: 'transparent', display: 'flex', alignItems: 'center', gap: 3, fontFamily: 'var(--font-sans)' }}>
-                      <TrendingUp size={12} /> Aplicar ajuste
-                    </button>
-                  </div>
-                  {/* Current info */}
-                  <div style={{ display: 'flex', gap: 12, marginBottom: 8, fontSize: '0.8125rem' }}>
-                    <div><span style={{ color: 'var(--color-text-muted)' }}>Original:</span> <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>${(editing.monto_original || editing.monto_mensual).toLocaleString('es-AR')}</span></div>
-                    <div><span style={{ color: 'var(--color-text-muted)' }}>Actual:</span> <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#10B981' }}>${editing.monto_mensual.toLocaleString('es-AR')}</span></div>
-                    <div><span style={{ color: 'var(--color-text-muted)' }}>Índice:</span> <span style={{ fontWeight: 600 }}>{editing.indice_ajuste}</span></div>
-                  </div>
-                  {/* Historial */}
-                  {(editing.historial_ajustes || []).length > 0 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      {(editing.historial_ajustes || []).slice().reverse().map((aj, i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 8, background: 'var(--color-bg-surface-2)', fontSize: '0.75rem' }}>
-                          <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)', width: 72, flexShrink: 0 }}>{aj.fecha}</span>
-                          <span style={{ fontFamily: 'var(--font-mono)' }}>${aj.monto_anterior.toLocaleString('es-AR')}</span>
-                          <span style={{ color: '#10B981' }}>→</span>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>${aj.monto_nuevo.toLocaleString('es-AR')}</span>
-                          <span style={{ fontSize: '0.625rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#10B98115', color: '#10B981', marginLeft: 'auto' }}>+{aj.porcentaje}%</span>
-                        </div>
-                      ))}
+                {/* Ajustes de Alquiler */}
+                {editing.tipo === 'alquiler' && (
+                  <div className="wizard-field" style={{ marginTop: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div className="wizard-section-title" style={{ border: 'none', display: 'flex', alignItems: 'center', gap: 6 }}><TrendingUp size={14} /> Ajustes de Alquiler</div>
+                      <button onClick={async () => {
+                        if (!editing) return;
+                        const porcentaje = prompt('Porcentaje de ajuste (ej: 25.5):');
+                        if (!porcentaje || isNaN(Number(porcentaje))) return;
+                        const pct = Number(porcentaje);
+                        const montoAnterior = editing.monto_mensual;
+                        const montoNuevo = Math.round(montoAnterior * (1 + pct / 100));
+                        const nuevoAjuste: Ajuste = { fecha: new Date().toISOString().slice(0, 10), monto_anterior: montoAnterior, monto_nuevo: montoNuevo, indice: editing.indice_ajuste, porcentaje: pct };
+                        const historial = [...(editing.historial_ajustes || []), nuevoAjuste];
+                        await supabase.from('inmobiliaria_contratos').update({ monto_mensual: montoNuevo, ultimo_ajuste: nuevoAjuste.fecha, historial_ajustes: historial }).eq('id', editing.id);
+                        setItems(prev => prev.map(c => c.id === editing.id ? { ...c, monto_mensual: montoNuevo, ultimo_ajuste: nuevoAjuste.fecha, historial_ajustes: historial } : c));
+                        setEditing({ ...editing, monto_mensual: montoNuevo, ultimo_ajuste: nuevoAjuste.fecha, historial_ajustes: historial });
+                      }} style={{ padding: '6px 14px', borderRadius: 10, border: '1.5px solid var(--color-cta, #2563EB)', color: 'var(--color-cta, #2563EB)', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer', background: 'transparent', display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-sans)' }}>
+                        <TrendingUp size={13} /> Aplicar ajuste
+                      </button>
                     </div>
-                  )}
-                  {(editing.historial_ajustes || []).length === 0 && (
-                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>Sin ajustes aplicados. El próximo ajuste es cada {editing.periodo_ajuste_meses || 12} meses por {editing.indice_ajuste}.</div>
-                  )}
-                </div>
-              )}
+                    <div style={{ display: 'flex', gap: 16, padding: '8px 0', fontSize: '0.8125rem' }}>
+                      <div><span style={{ color: 'var(--color-text-muted)' }}>Original:</span> <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>${(editing.monto_original || editing.monto_mensual).toLocaleString('es-AR')}</span></div>
+                      <div><span style={{ color: 'var(--color-text-muted)' }}>Actual:</span> <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#10B981' }}>${editing.monto_mensual.toLocaleString('es-AR')}</span></div>
+                      <div><span style={{ color: 'var(--color-text-muted)' }}>Índice:</span> <span style={{ fontWeight: 600 }}>{editing.indice_ajuste}</span></div>
+                    </div>
+                    {(editing.historial_ajustes || []).length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {(editing.historial_ajustes || []).slice().reverse().map((aj, i) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 10, background: 'var(--color-bg-surface-2)', fontSize: '0.8125rem' }}>
+                            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)', width: 76, flexShrink: 0 }}>{aj.fecha}</span>
+                            <span style={{ fontFamily: 'var(--font-mono)' }}>${aj.monto_anterior.toLocaleString('es-AR')}</span>
+                            <span style={{ color: '#10B981' }}>→</span>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>${aj.monto_nuevo.toLocaleString('es-AR')}</span>
+                            <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: '#10B98115', color: '#10B981', marginLeft: 'auto' }}>+{aj.porcentaje}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>Sin ajustes aplicados. El próximo ajuste es cada {editing.periodo_ajuste_meses || 12} meses por {editing.indice_ajuste}.</div>
+                    )}
+                  </div>
+                )}
+              </>)}
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
-              {editing && <button onClick={remove} style={{ marginRight: 'auto', padding: '0.4rem 1rem', borderRadius: 6, border: '1px solid #EF4444', background: 'transparent', color: '#EF4444', cursor: 'pointer', fontSize: '0.85rem' }}>Eliminar</button>}
-              <button onClick={() => setShowModal(false)} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>Cancelar</button>
-              <button onClick={save} className="btn btn-primary" style={{ fontSize: '0.85rem' }}>Guardar</button>
+
+            {/* Footer */}
+            <div className="wizard-footer">
+              <div className="wizard-footer-left">
+                {editing && <button className="wizard-btn-danger" onClick={remove}>Eliminar</button>}
+              </div>
+              <div className="wizard-footer-right">
+                {wizardStep > 0 && (
+                  <button className="wizard-btn-back" onClick={() => setWizardStep(s => s - 1)}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><ChevronLeft size={16} /> Anterior</span>
+                  </button>
+                )}
+                {isLast ? (
+                  <button className="wizard-btn-next" onClick={save}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Check size={16} /> Guardar</span>
+                  </button>
+                ) : (
+                  <button className="wizard-btn-next" onClick={() => setWizardStep(s => s + 1)} disabled={!canNext}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Siguiente <ChevronRight size={16} /></span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
           </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

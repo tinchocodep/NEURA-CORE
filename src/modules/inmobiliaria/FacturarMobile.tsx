@@ -1,761 +1,469 @@
 import { useEffect, useState } from 'react';
-import { Plus, Trash2, Save, CheckCircle, ChevronLeft, FileText, Receipt, ClipboardList, Eye, EyeOff, Download, Send, Loader } from 'lucide-react';
+import { Plus, Trash2, X, Check, ChevronRight, ChevronLeft, Eye, Send, Download, Receipt } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
+import CustomSelect from '../../shared/components/CustomSelect';
 import jsPDF from 'jspdf';
-import ComprobanteForm from '../contable/Comprobantes/ComprobanteForm';
 
-function useIsMobile() {
-    const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
-    useEffect(() => { const h = () => setM(window.innerWidth <= 768); window.addEventListener('resize', h); return () => window.removeEventListener('resize', h); }, []);
-    return m;
+interface Comprobante {
+  id: string; tipo: string; fecha: string; numero_comprobante: string | null;
+  tipo_comprobante: string | null; monto_original: number; monto_ars: number;
+  moneda: string; estado: string; descripcion: string | null; pdf_url: string | null;
+  cliente_id: string | null; source: string | null;
+  lineas: LineaDetalle[] | null;
+  cliente: { razon_social: string } | null;
 }
+interface Contrato {
+  id: string; monto_mensual: number; moneda: string;
+  inquilino_id: string; propietario_id: string;
+  propiedad: { direccion: string } | null;
+  inquilino: { razon_social: string } | null;
+}
+interface LineaDetalle { descripcion: string; cantidad: number; precio_unitario: number; iva_porcentaje: number; subtotal: number; iva: number; total: number; }
 
-interface Cliente { id: string; razon_social: string; cuit: string | null; }
-interface LineaDetalle { id: string; descripcion: string; cantidad: number; precio_unitario: number; iva_porcentaje: number; }
-
-const IVA_OPTIONS = [{ value: 21, label: '21%' }, { value: 10.5, label: '10.5%' }, { value: 27, label: '27%' }, { value: 0, label: 'Exento' }];
-
-function newId() { return crypto.randomUUID?.() ?? Math.random().toString(36).slice(2); }
-
-const fmt = (n: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 }).format(n);
-
-type Mode = 'select' | 'factura' | 'remito' | 'recibo';
+const ESTADO_COLOR: Record<string, string> = {
+  pendiente: '#F59E0B', clasificado: '#3B82F6', aprobado: '#8B5CF6',
+  inyectado: '#10B981', pagado: '#10B981', error: '#EF4444', rechazado: '#6B7280',
+};
+const TIPOS_COMP = ['Factura A', 'Factura B', 'Factura C', 'Nota de Crédito A', 'Nota de Crédito B', 'Recibo X'];
 
 export default function FacturarMobile() {
-    const isMobile = useIsMobile();
-    const { tenant } = useTenant();
+  const { tenant } = useTenant();
+  const [items, setItems] = useState<Comprobante[]>([]);
+  const [contratos, setContratos] = useState<Contrato[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [wizardStep, setWizardStep] = useState(0);
+  const [filterEstado, setFilterEstado] = useState('');
 
-    // Desktop: use the full ComprobanteForm with 2-column preview, forced to venta
-    if (!isMobile) return <ComprobanteForm forceVenta />;
+  // Form
+  const [selContrato, setSelContrato] = useState('');
+  const [tipoComp, setTipoComp] = useState('Factura A');
+  const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
+  const [lineas, setLineas] = useState<{ descripcion: string; cantidad: number; precio_unitario: number; iva_porcentaje: number }[]>([]);
+  const [observaciones, setObs] = useState('');
 
-    const [mode, setMode] = useState<Mode>('select');
+  useEffect(() => { if (tenant) loadData(); }, [tenant]);
 
-    // Shared
-    const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
-    const [clienteId, setClienteId] = useState('');
-    const [clienteSearch, setClienteSearch] = useState('');
-    const [showClienteDrop, setShowClienteDrop] = useState(false);
-    const [clientes, setClientes] = useState<Cliente[]>([]);
-    const [descripcion, setDescripcion] = useState('');
-    const [observaciones, setObs] = useState('');
-    const [saving, setSaving] = useState(false);
-    const [success, setSuccess] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [showPreview, setShowPreview] = useState(false);
-
-    // Factura
-    const [tipoComp, setTipoComp] = useState('Factura A');
-    const [lineas, setLineas] = useState<LineaDetalle[]>([
-        { id: newId(), descripcion: '', cantidad: 1, precio_unitario: 0, iva_porcentaje: 21 },
+  const loadData = async () => {
+    setLoading(true);
+    const [cRes, ctRes] = await Promise.all([
+      supabase.from('contable_comprobantes').select('id, tipo, fecha, numero_comprobante, tipo_comprobante, monto_original, monto_ars, moneda, estado, descripcion, pdf_url, cliente_id, source, lineas, cliente:contable_clientes!cliente_id(razon_social)')
+        .eq('tenant_id', tenant!.id).eq('tipo', 'venta').order('fecha', { ascending: false }).limit(50),
+      supabase.from('inmobiliaria_contratos')
+        .select('id, monto_mensual, moneda, inquilino_id, propietario_id, propiedad:inmobiliaria_propiedades(direccion), inquilino:contable_clientes!inquilino_id(razon_social)')
+        .eq('tenant_id', tenant!.id).eq('estado', 'vigente'),
     ]);
+    if (cRes.data) setItems(cRes.data as any);
+    if (ctRes.data) setContratos(ctRes.data as any);
+    setLoading(false);
+  };
 
-    // Remito
-    const [remDireccion, setRemDireccion] = useState('');
-    const [remItems, setRemItems] = useState([{ id: newId(), descripcion: '', cantidad: 1, unidad: 'UN' }]);
+  const openNew = () => {
+    setSelContrato(''); setTipoComp('Factura A'); setFecha(new Date().toISOString().slice(0, 10));
+    setLineas([{ descripcion: '', cantidad: 1, precio_unitario: 0, iva_porcentaje: 21 }]);
+    setObs(''); setWizardStep(0); setShowModal(true);
+  };
 
-    // Recibo
-    const [recFormaPago, setRecFormaPago] = useState('Efectivo');
-    const [recItems, setRecItems] = useState([{ id: newId(), concepto: '', monto: 0 }]);
-
-    // PDF / Email
-    const [emailTo, setEmailTo] = useState('');
-    const [sending, setSending] = useState(false);
-    const [sent, setSent] = useState(false);
-
-    useEffect(() => {
-        if (!tenant) return;
-        supabase.from('contable_clientes').select('id, razon_social, cuit').eq('tenant_id', tenant.id).eq('activo', true).order('razon_social')
-            .then(({ data }) => setClientes((data || []) as Cliente[]));
-    }, [tenant]);
-
-    const selectedCliente = clientes.find(c => c.id === clienteId);
-    const filteredClientes = clienteSearch
-        ? clientes.filter(c => c.razon_social.toLowerCase().includes(clienteSearch.toLowerCase()) || (c.cuit || '').includes(clienteSearch))
-        : clientes;
-
-    // Factura totals
-    const subtotal = lineas.reduce((s, l) => s + l.cantidad * l.precio_unitario, 0);
-    const totalIva = lineas.reduce((s, l) => s + l.cantidad * l.precio_unitario * l.iva_porcentaje / 100, 0);
-    const totalFinal = subtotal + totalIva;
-
-    const recTotal = recItems.reduce((s, i) => s + i.monto, 0);
-
-    const generateRemitoPdf = () => {
-        const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-        const w = doc.internal.pageSize.getWidth();
-        const half = (w - 30) / 2 - 3;
-        const tenantName = tenant?.razon_social || tenant?.name || '';
-        const tenantCuit = tenant?.cuit || '';
-        const tenantDir = tenant?.direccion || '';
-        const clienteName = selectedCliente?.razon_social || '—';
-        const clienteCuit = selectedCliente?.cuit || '';
-
-        doc.setFontSize(18); doc.setFont('helvetica', 'bold');
-        doc.text('REMITO', w / 2, 25, { align: 'center' });
-        doc.setFontSize(10); doc.setFont('helvetica', 'normal');
-        doc.text(`Fecha: ${fecha}`, w - 20, 25, { align: 'right' });
-
-        doc.setDrawColor(200);
-        doc.rect(15, 40, half, 28);
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-        doc.text('REMITENTE', 20, 47);
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
-        doc.text(tenantName, 20, 54);
-        if (tenantCuit) doc.text(`CUIT: ${tenantCuit}`, 20, 60);
-        if (tenantDir) doc.text(tenantDir, 20, 66, { maxWidth: half - 10 });
-
-        const rightX = 15 + half + 6;
-        doc.rect(rightX, 40, half, 28);
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-        doc.text('DESTINATARIO', rightX + 5, 47);
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
-        doc.text(clienteName, rightX + 5, 54);
-        if (clienteCuit) doc.text(`CUIT: ${clienteCuit}`, rightX + 5, 60);
-        if (remDireccion) doc.text(remDireccion, rightX + 5, 66, { maxWidth: half - 10 });
-
-        const tableTop = 80;
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-        doc.setFillColor(240, 240, 240);
-        doc.rect(15, tableTop, w - 30, 8, 'F');
-        doc.text('CANT.', 20, tableTop + 6);
-        doc.text('UNIDAD', 45, tableTop + 6);
-        doc.text('DESCRIPCION', 75, tableTop + 6);
-
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
-        let y = tableTop + 14;
-        remItems.forEach(item => {
-            if (item.descripcion || item.cantidad) {
-                doc.text(String(item.cantidad), 20, y);
-                doc.text(item.unidad, 45, y);
-                doc.text(item.descripcion, 75, y);
-                y += 7;
-            }
-        });
-
-        doc.setDrawColor(200); doc.line(15, y + 2, w - 15, y + 2);
-        if (observaciones) {
-            y += 10; doc.setFontSize(9); doc.setFont('helvetica', 'bold');
-            doc.text('OBSERVACIONES:', 20, y);
-            doc.setFont('helvetica', 'normal');
-            doc.text(observaciones, 20, y + 6, { maxWidth: w - 40 });
-        }
-
-        const sigY = Math.max(y + 30, 240);
-        doc.line(25, sigY, 90, sigY);
-        doc.line(w - 90, sigY, w - 25, sigY);
-        doc.setFontSize(8);
-        doc.text('Firma y aclaracion (entrego)', 30, sigY + 5);
-        doc.text('Firma y aclaracion (recibio)', w - 88, sigY + 5);
-        return doc;
-    };
-
-    const generateReciboPdf = () => {
-        const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-        const w = doc.internal.pageSize.getWidth();
-        const half = (w - 30) / 2 - 3;
-        const tenantName = tenant?.razon_social || tenant?.name || '';
-        const tenantCuit = tenant?.cuit || '';
-        const tenantDir = tenant?.direccion || '';
-        const clienteName = selectedCliente?.razon_social || '—';
-        const clienteCuit = selectedCliente?.cuit || '';
-
-        doc.setFontSize(18); doc.setFont('helvetica', 'bold');
-        doc.text('RECIBO', w / 2, 25, { align: 'center' });
-        doc.setFontSize(10); doc.setFont('helvetica', 'normal');
-        doc.text(`Fecha: ${fecha}`, w - 20, 25, { align: 'right' });
-
-        doc.setDrawColor(200);
-        doc.rect(15, 40, half, 28);
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-        doc.text('EMISOR', 20, 47);
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
-        doc.text(tenantName, 20, 54);
-        if (tenantCuit) doc.text(`CUIT: ${tenantCuit}`, 20, 60);
-        if (tenantDir) doc.text(tenantDir, 20, 66, { maxWidth: half - 10 });
-
-        const rightX = 15 + half + 6;
-        doc.rect(rightX, 40, half, 28);
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-        doc.text('RECIBI DE', rightX + 5, 47);
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
-        doc.text(clienteName, rightX + 5, 54);
-        if (clienteCuit) doc.text(`CUIT: ${clienteCuit}`, rightX + 5, 60);
-
-        doc.rect(15, 73, w - 30, 12);
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-        doc.text('FORMA DE PAGO', 20, 80);
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
-        doc.text(recFormaPago, 60, 80);
-
-        const tableTop = 95;
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-        doc.setFillColor(240, 240, 240);
-        doc.rect(15, tableTop, w - 30, 8, 'F');
-        doc.text('CONCEPTO', 20, tableTop + 6);
-        doc.text('MONTO', w - 20, tableTop + 6, { align: 'right' });
-
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
-        let y = tableTop + 14;
-        recItems.forEach(item => {
-            if (item.concepto || item.monto) {
-                doc.text(item.concepto || '—', 20, y);
-                doc.text(fmt(item.monto), w - 20, y, { align: 'right' });
-                y += 7;
-            }
-        });
-
-        doc.setDrawColor(100); doc.line(15, y + 2, w - 15, y + 2);
-        y += 10;
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
-        doc.text('TOTAL:', w - 70, y);
-        doc.text(fmt(recTotal), w - 20, y, { align: 'right' });
-
-        if (observaciones) {
-            y += 12; doc.setFontSize(9); doc.setFont('helvetica', 'bold');
-            doc.text('OBSERVACIONES:', 20, y);
-            doc.setFont('helvetica', 'normal');
-            doc.text(observaciones, 20, y + 6, { maxWidth: w - 40 });
-        }
-
-        const sigY = Math.max(y + 30, 240);
-        doc.line(25, sigY, 90, sigY);
-        doc.line(w - 90, sigY, w - 25, sigY);
-        doc.setFontSize(8);
-        doc.text('Firma emisor', 40, sigY + 5);
-        doc.text('Firma receptor', w - 75, sigY + 5);
-        return doc;
-    };
-
-    const handleDownloadPdf = () => {
-        const doc = mode === 'remito' ? generateRemitoPdf() : generateReciboPdf();
-        const label = mode === 'remito' ? 'Remito' : 'Recibo';
-        doc.save(`${label}_${fecha}.pdf`);
-    };
-
-    const handleSendEmail = async () => {
-        if (!emailTo) return;
-        setSending(true);
-        try {
-            const doc = mode === 'remito' ? generateRemitoPdf() : generateReciboPdf();
-            const pdfBase64 = doc.output('datauristring');
-            const label = mode === 'remito' ? 'Remito' : 'Recibo';
-            const resp = await fetch('/api/n8n-send-email', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    to: emailTo,
-                    subject: `${label} — ${fecha}`,
-                    pdf_base64: pdfBase64,
-                    filename: `${label}_${fecha}.pdf`,
-                    from_name: tenant?.razon_social || tenant?.name || 'NeuraCore',
-                    from_email: tenant?.email || undefined,
-                }),
-            });
-            if (!resp.ok) throw new Error(`Error ${resp.status}`);
-            setSent(true);
-            setTimeout(() => setSent(false), 3000);
-        } catch (err) {
-            alert('Error al enviar: ' + (err as Error).message);
-        }
-        setSending(false);
-    };
-
-    const handleSave = async () => {
-        if (!tenant || !fecha) return;
-        setSaving(true);
-        setError(null);
-
-        const isRemito = mode === 'remito';
-        const isRecibo = mode === 'recibo';
-        const tipoCompFinal = isRemito ? 'Remito' : isRecibo ? 'Recibo' : tipoComp;
-        const monto = isRemito ? 0 : isRecibo ? recTotal : totalFinal;
-
-        const payload = {
-            tenant_id: tenant.id,
-            tipo: 'venta',
-            fecha,
-            fecha_contable: fecha,
-            numero_comprobante: null, // AFIP lo genera
-            tipo_comprobante: tipoCompFinal,
-            cliente_id: clienteId || null,
-            moneda: 'ARS',
-            monto_original: monto,
-            monto_ars: monto,
-            lineas: isRemito
-                ? remItems.map(i => ({ descripcion: i.descripcion, cantidad: i.cantidad, unidad: i.unidad }))
-                : isRecibo
-                    ? recItems.map(i => ({ descripcion: i.concepto, cantidad: 1, precio_unitario: i.monto, subtotal: i.monto, total: i.monto }))
-                    : lineas.map(l => ({
-                        descripcion: l.descripcion,
-                        cantidad: l.cantidad,
-                        precio_unitario: l.precio_unitario,
-                        iva_porcentaje: l.iva_porcentaje,
-                        subtotal: l.cantidad * l.precio_unitario,
-                        iva: l.cantidad * l.precio_unitario * l.iva_porcentaje / 100,
-                        total: l.cantidad * l.precio_unitario * (1 + l.iva_porcentaje / 100),
-                    })),
-            descripcion: descripcion.trim() || null,
-            observaciones: observaciones.trim() || null,
-            estado: 'pendiente',
-            clasificacion_score: 100,
-            clasificado_por: 'manual',
-            source: isRemito ? 'remito' : isRecibo ? 'recibo' : 'manual',
-        };
-
-        const { error: err } = await supabase.from('contable_comprobantes').insert(payload);
-        setSaving(false);
-
-        if (err) { setError('Error: ' + err.message); return; }
-        setSuccess(true);
-        setTimeout(() => { setSuccess(false); setMode('select'); }, 2000);
-    };
-
-    // ── Mode selector ──
-    if (mode === 'select') {
-        return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '0.5rem 0' }}>
-                <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-text-primary)', margin: 0 }}>
-                    Emitir comprobante
-                </h2>
-                <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', margin: 0 }}>
-                    Seleccioná el tipo de comprobante a emitir
-                </p>
-
-                {[
-                    { mode: 'factura' as Mode, icon: FileText, title: 'Factura', desc: 'Factura A, B o C de venta', color: '#2563EB' },
-                    { mode: 'remito' as Mode, icon: ClipboardList, title: 'Remito', desc: 'Entrega de mercadería o servicio', color: '#7C3AED' },
-                    { mode: 'recibo' as Mode, icon: Receipt, title: 'Recibo', desc: 'Cobro de dinero', color: '#059669' },
-                ].map(opt => (
-                    <button key={opt.mode} onClick={() => setMode(opt.mode)}
-                        style={{
-                            display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px',
-                            borderRadius: 14, border: '1px solid var(--color-border-subtle)',
-                            background: 'var(--color-bg-card)', cursor: 'pointer', textAlign: 'left',
-                            fontFamily: 'var(--font-sans)', transition: 'transform 0.1s',
-                        }}
-                        onTouchStart={e => e.currentTarget.style.transform = 'scale(0.98)'}
-                        onTouchEnd={e => e.currentTarget.style.transform = 'scale(1)'}
-                    >
-                        <div style={{ width: 48, height: 48, borderRadius: 12, background: `${opt.color}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                            <opt.icon size={24} color={opt.color} />
-                        </div>
-                        <div>
-                            <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-text-primary)' }}>{opt.title}</div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: 2 }}>{opt.desc}</div>
-                        </div>
-                    </button>
-                ))}
-            </div>
-        );
+  const onSelectContrato = (id: string) => {
+    setSelContrato(id);
+    const c = contratos.find(ct => ct.id === id);
+    if (c) {
+      const dir = (c.propiedad as any)?.direccion || '';
+      setLineas([{ descripcion: `Alquiler ${dir} - ${new Date().toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}`, cantidad: 1, precio_unitario: c.monto_mensual, iva_porcentaje: 21 }]);
     }
+  };
 
-    // ── Back button + title ──
-    const modeTitle = mode === 'factura' ? 'Nueva Factura' : mode === 'remito' ? 'Nuevo Remito' : 'Nuevo Recibo';
+  const addLinea = () => setLineas(l => [...l, { descripcion: '', cantidad: 1, precio_unitario: 0, iva_porcentaje: 21 }]);
+  const removeLinea = (i: number) => setLineas(l => l.filter((_, idx) => idx !== i));
+  const updateLinea = (i: number, field: string, val: string | number) => {
+    setLineas(l => l.map((ll, idx) => idx === i ? { ...ll, [field]: val } : ll));
+  };
 
-    return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 100 }}>
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <button onClick={() => setMode('select')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--color-text-muted)' }}>
-                    <ChevronLeft size={22} />
-                </button>
-                <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-text-primary)', margin: 0 }}>{modeTitle}</h2>
-            </div>
+  const subtotal = lineas.reduce((s, l) => s + l.cantidad * l.precio_unitario, 0);
+  const totalIva = lineas.reduce((s, l) => s + l.cantidad * l.precio_unitario * l.iva_porcentaje / 100, 0);
+  const totalFinal = subtotal + totalIva;
 
-            {success && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', borderRadius: 10, background: '#D1FAE5', border: '1px solid #6EE7B7', color: '#065F46', fontWeight: 600, fontSize: '0.85rem' }}>
-                    <CheckCircle size={16} /> Comprobante creado
-                </div>
-            )}
-            {error && (
-                <div style={{ padding: '12px 16px', borderRadius: 10, background: '#FEE2E2', border: '1px solid #FCA5A5', color: '#991B1B', fontSize: '0.85rem' }}>
-                    {error}
-                </div>
-            )}
+  const save = async () => {
+    if (!selContrato || lineas.length === 0) return;
+    const c = contratos.find(ct => ct.id === selContrato);
+    const lineasPayload = lineas.map(l => ({
+      descripcion: l.descripcion, cantidad: l.cantidad, precio_unitario: l.precio_unitario,
+      iva_porcentaje: l.iva_porcentaje, subtotal: l.cantidad * l.precio_unitario,
+      iva: l.cantidad * l.precio_unitario * l.iva_porcentaje / 100,
+      total: l.cantidad * l.precio_unitario * (1 + l.iva_porcentaje / 100),
+    }));
+    const { data, error } = await supabase.from('contable_comprobantes').insert({
+      tenant_id: tenant!.id,
+      tipo: 'venta',
+      fecha,
+      tipo_comprobante: tipoComp,
+      numero_comprobante: 'PENDIENTE-ARCA',
+      cliente_id: c?.inquilino_id || null,
+      moneda: c?.moneda || 'ARS',
+      monto_original: totalFinal,
+      monto_ars: totalFinal,
+      tipo_cambio: 1,
+      lineas: lineasPayload,
+      descripcion: lineas.map(l => l.descripcion).join(', '),
+      observaciones: observaciones || null,
+      estado: 'pendiente',
+      clasificacion_score: 100,
+      clasificado_por: 'manual',
+      source: 'manual',
+    }).select('id, tipo, fecha, numero_comprobante, tipo_comprobante, monto_original, monto_ars, moneda, estado, descripcion, pdf_url, cliente_id, source, lineas').single();
+    if (!error && data) {
+      // Re-fetch to get client join
+      await loadData();
+    }
+    setShowModal(false);
+  };
 
-            {/* ── Cliente ── */}
-            <div style={{ borderRadius: 12, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', padding: '14px 16px' }}>
-                <div style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-muted)', marginBottom: 8 }}>Cliente</div>
-                <div style={{ position: 'relative' }}>
-                    <input
-                        className="form-input"
-                        placeholder="Buscar cliente..."
-                        value={clienteSearch}
-                        onChange={e => { setClienteSearch(e.target.value); setShowClienteDrop(true); setClienteId(''); }}
-                        onFocus={() => setShowClienteDrop(true)}
-                        style={{ fontSize: '0.875rem' }}
-                    />
-                    {showClienteDrop && filteredClientes.length > 0 && (
-                        <>
-                            <div style={{ position: 'fixed', inset: 0, zIndex: 50 }} onClick={() => setShowClienteDrop(false)} />
-                            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 60, background: 'var(--color-bg-card, #fff)', borderRadius: 10, border: '1px solid var(--color-border-subtle)', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', maxHeight: 200, overflowY: 'auto' }}>
-                                {filteredClientes.slice(0, 10).map(c => (
-                                    <button key={c.id} onClick={() => { setClienteId(c.id); setClienteSearch(c.razon_social); setShowClienteDrop(false); }}
-                                        style={{ display: 'block', width: '100%', padding: '10px 14px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '0.85rem', fontFamily: 'var(--font-sans)', borderBottom: '1px solid var(--color-border-subtle, #f1f5f9)' }}>
-                                        <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{c.razon_social}</div>
-                                        {c.cuit && <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>CUIT: {c.cuit}</div>}
-                                    </button>
-                                ))}
-                            </div>
-                        </>
-                    )}
-                </div>
-                {selectedCliente && (
-                    <div style={{ marginTop: 6, fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                        {selectedCliente.cuit && `CUIT: ${selectedCliente.cuit}`}
-                    </div>
-                )}
-            </div>
+  const remove = async (comp: Comprobante) => {
+    if (!confirm('Eliminar este comprobante?')) return;
+    await supabase.from('contable_comprobantes').delete().eq('id', comp.id);
+    setItems(prev => prev.filter(c => c.id !== comp.id));
+  };
 
-            {/* ── Datos ── */}
-            <div style={{ borderRadius: 12, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', padding: '14px 16px' }}>
-                <div style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-muted)', marginBottom: 8 }}>Datos</div>
+  const generatePdf = (comp: Comprobante) => {
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const w = doc.internal.pageSize.getWidth();
+    doc.setFontSize(16); doc.setFont('helvetica', 'bold');
+    doc.text(comp.tipo_comprobante || 'Comprobante', w / 2, 25, { align: 'center' });
+    doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+    doc.text(`Fecha: ${comp.fecha}`, w - 20, 25, { align: 'right' });
+    if (comp.numero_comprobante) doc.text(`N°: ${comp.numero_comprobante}`, w - 20, 32, { align: 'right' });
+    doc.text(`Cliente: ${comp.cliente?.razon_social || '—'}`, 20, 45);
+    doc.text(`Total: $${comp.monto_ars.toLocaleString('es-AR')}`, 20, 52);
+    if (comp.descripcion) doc.text(comp.descripcion, 20, 62, { maxWidth: w - 40 });
+    doc.save(`comprobante-${comp.fecha}.pdf`);
+  };
 
-                <div style={{ display: 'grid', gridTemplateColumns: mode === 'factura' ? '1fr 1fr' : '1fr', gap: 10 }}>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label className="form-label">Fecha</label>
-                        <input type="date" className="form-input" value={fecha} onChange={e => setFecha(e.target.value)} />
-                    </div>
-                    {mode === 'factura' && (
-                        <div className="form-group" style={{ marginBottom: 0 }}>
-                            <label className="form-label">Tipo</label>
-                            <select className="form-input" value={tipoComp} onChange={e => setTipoComp(e.target.value)}>
-                                {['Factura A', 'Factura B', 'Factura C'].map(t => <option key={t} value={t}>{t}</option>)}
-                            </select>
-                        </div>
-                    )}
-                </div>
+  // KPIs
+  const pendientes = items.filter(c => c.estado === 'pendiente').length;
+  const aprobados = items.filter(c => c.estado === 'aprobado' || c.estado === 'inyectado').length;
+  const totalMes = items.filter(c => c.fecha.startsWith(new Date().toISOString().slice(0, 7))).reduce((s, c) => s + c.monto_ars, 0);
+  const fmtMoney = (n: number) => n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `$${(n / 1_000).toFixed(0)}K` : `$${n.toLocaleString('es-AR')}`;
 
-                <div className="form-group" style={{ marginBottom: 0, marginTop: 10 }}>
-                    <label className="form-label">Descripción</label>
-                    <input className="form-input" placeholder={mode === 'recibo' ? 'Ej: Cobro alquiler marzo' : mode === 'remito' ? 'Ej: Entrega materiales obra' : 'Ej: Servicios profesionales'} value={descripcion} onChange={e => setDescripcion(e.target.value)} />
-                </div>
+  const filtered = items.filter(c => !filterEstado || c.estado === filterEstado);
 
-                {mode === 'recibo' && (
-                    <div className="form-group" style={{ marginBottom: 0, marginTop: 10 }}>
-                        <label className="form-label">Forma de pago</label>
-                        <select className="form-input" value={recFormaPago} onChange={e => setRecFormaPago(e.target.value)}>
-                            {['Efectivo', 'Transferencia bancaria', 'Cheque', 'Tarjeta de crédito', 'Otro'].map(f => <option key={f} value={f}>{f}</option>)}
-                        </select>
-                    </div>
-                )}
+  if (loading) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Cargando comprobantes...</div>;
 
-                {mode === 'remito' && (
-                    <div className="form-group" style={{ marginBottom: 0, marginTop: 10 }}>
-                        <label className="form-label">Dirección de entrega</label>
-                        <input className="form-input" placeholder="Ej: Av. Corrientes 1234, CABA" value={remDireccion} onChange={e => setRemDireccion(e.target.value)} />
-                    </div>
-                )}
-            </div>
+  const iconBtn: React.CSSProperties = {
+    width: 28, height: 28, borderRadius: 8, border: '1px solid var(--color-border-subtle)',
+    background: 'var(--color-bg-surface)', cursor: 'pointer', display: 'flex', alignItems: 'center',
+    justifyContent: 'center', transition: 'all 0.12s', flexShrink: 0,
+  };
 
-            {/* ── Líneas / Items ── */}
-            <div style={{ borderRadius: 12, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', padding: '14px 16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                    <div style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-muted)' }}>
-                        {mode === 'factura' ? 'Detalle' : mode === 'remito' ? 'Items' : 'Conceptos'}
-                    </div>
-                    <button onClick={() => {
-                        if (mode === 'factura') setLineas(p => [...p, { id: newId(), descripcion: '', cantidad: 1, precio_unitario: 0, iva_porcentaje: 21 }]);
-                        else if (mode === 'remito') setRemItems(p => [...p, { id: newId(), descripcion: '', cantidad: 1, unidad: 'UN' }]);
-                        else setRecItems(p => [...p, { id: newId(), concepto: '', monto: 0 }]);
-                    }} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 99, border: '1px solid var(--color-border-subtle)', background: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-cta, #2563EB)', fontFamily: 'var(--font-sans)' }}>
-                        <Plus size={14} /> Agregar
-                    </button>
-                </div>
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+        <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>Comprobantes</h1>
+        <div style={{ flex: 1 }} />
+        <button onClick={openNew} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 18px', fontSize: '0.8rem', borderRadius: 10 }}>
+          <Plus size={16} /> Nuevo
+        </button>
+      </div>
 
-                {mode === 'factura' && lineas.map((l, i) => (
-                    <div key={l.id} style={{ padding: '10px 0', borderTop: i > 0 ? '1px solid var(--color-border-subtle, #f1f5f9)' : 'none' }}>
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-                            <input className="form-input" placeholder="Descripción" value={l.descripcion} onChange={e => setLineas(p => p.map(x => x.id === l.id ? { ...x, descripcion: e.target.value } : x))} style={{ flex: 1, fontSize: '0.85rem' }} />
-                            {lineas.length > 1 && (
-                                <button onClick={() => setLineas(p => p.filter(x => x.id !== l.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: 4 }}>
-                                    <Trash2 size={16} />
-                                </button>
-                            )}
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                            <div>
-                                <label style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>Cant.</label>
-                                <input type="number" className="form-input" value={l.cantidad} onChange={e => setLineas(p => p.map(x => x.id === l.id ? { ...x, cantidad: +e.target.value } : x))} style={{ fontSize: '0.85rem' }} />
-                            </div>
-                            <div>
-                                <label style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>Precio unit.</label>
-                                <input type="number" className="form-input" value={l.precio_unitario || ''} onChange={e => setLineas(p => p.map(x => x.id === l.id ? { ...x, precio_unitario: +e.target.value } : x))} placeholder="0.00" style={{ fontSize: '0.85rem' }} />
-                            </div>
-                            <div>
-                                <label style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>IVA</label>
-                                <select className="form-input" value={l.iva_porcentaje} onChange={e => setLineas(p => p.map(x => x.id === l.id ? { ...x, iva_porcentaje: +e.target.value } : x))} style={{ fontSize: '0.85rem' }}>
-                                    {IVA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                </select>
-                            </div>
-                        </div>
-                        <div style={{ textAlign: 'right', fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text-primary)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>
-                            Subtotal: {fmt(l.cantidad * l.precio_unitario * (1 + l.iva_porcentaje / 100))}
-                        </div>
-                    </div>
-                ))}
+      {/* KPIs */}
+      <div style={{ display: 'flex', gap: 10 }}>
+        {[
+          { label: 'Pendientes', value: String(pendientes), color: pendientes > 0 ? '#F59E0B' : 'var(--color-text-primary)', filter: 'pendiente' },
+          { label: 'Aprobados', value: String(aprobados), color: '#8B5CF6', filter: 'aprobado' },
+          { label: 'Facturado mes', value: fmtMoney(totalMes), color: '#10B981', filter: '', mono: true },
+        ].map(kpi => (
+          <div key={kpi.label} onClick={() => setFilterEstado(filterEstado === kpi.filter ? '' : kpi.filter)}
+            style={{ flex: 1, padding: '12px 10px', borderRadius: 10, background: 'var(--color-bg-card)', border: `1px solid ${filterEstado === kpi.filter && kpi.filter ? kpi.color + '40' : 'var(--color-border-subtle)'}`, textAlign: 'center', cursor: 'pointer' }}>
+            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: kpi.color, fontFamily: kpi.mono ? 'var(--font-mono)' : undefined }}>{kpi.value}</div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>{kpi.label}</div>
+          </div>
+        ))}
+      </div>
 
-                {mode === 'remito' && remItems.map((item, i) => (
-                    <div key={item.id} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '8px 0', borderTop: i > 0 ? '1px solid var(--color-border-subtle, #f1f5f9)' : 'none' }}>
-                        <input type="number" className="form-input" value={item.cantidad} onChange={e => setRemItems(p => p.map(x => x.id === item.id ? { ...x, cantidad: +e.target.value } : x))} style={{ width: 50, fontSize: '0.85rem', textAlign: 'center' }} />
-                        <select className="form-input" value={item.unidad} onChange={e => setRemItems(p => p.map(x => x.id === item.id ? { ...x, unidad: e.target.value } : x))} style={{ width: 60, fontSize: '0.85rem' }}>
-                            {['UN', 'KG', 'LT', 'MT', 'M2', 'M3'].map(u => <option key={u} value={u}>{u}</option>)}
-                        </select>
-                        <input className="form-input" placeholder="Descripción" value={item.descripcion} onChange={e => setRemItems(p => p.map(x => x.id === item.id ? { ...x, descripcion: e.target.value } : x))} style={{ flex: 1, fontSize: '0.85rem' }} />
-                        {remItems.length > 1 && (
-                            <button onClick={() => setRemItems(p => p.filter(x => x.id !== item.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: 4 }}>
-                                <Trash2 size={14} />
-                            </button>
-                        )}
-                    </div>
-                ))}
+      {/* Filter pills */}
+      <div style={{ display: 'flex', gap: 4, overflowX: 'auto' }}>
+        {[{ key: '', label: 'Todos' }, { key: 'pendiente', label: 'Pendiente' }, { key: 'aprobado', label: 'Aprobado' }, { key: 'inyectado', label: 'Enviado ARCA' }, { key: 'pagado', label: 'Pagado' }].map(f => (
+          <button key={f.key} onClick={() => setFilterEstado(filterEstado === f.key ? '' : f.key)}
+            style={{ padding: '5px 12px', borderRadius: 99, border: `1px solid ${filterEstado === f.key ? 'var(--color-text-primary)' : 'var(--color-border-subtle)'}`, background: filterEstado === f.key ? 'var(--color-text-primary)' : 'var(--color-bg-surface)', color: filterEstado === f.key ? '#fff' : 'var(--color-text-muted)', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--font-sans)' }}>
+            {f.label}
+          </button>
+        ))}
+      </div>
 
-                {mode === 'recibo' && recItems.map((item, i) => (
-                    <div key={item.id} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '8px 0', borderTop: i > 0 ? '1px solid var(--color-border-subtle, #f1f5f9)' : 'none' }}>
-                        <input className="form-input" placeholder="Concepto" value={item.concepto} onChange={e => setRecItems(p => p.map(x => x.id === item.id ? { ...x, concepto: e.target.value } : x))} style={{ flex: 1, fontSize: '0.85rem' }} />
-                        <input type="number" className="form-input" placeholder="Monto" value={item.monto || ''} onChange={e => setRecItems(p => p.map(x => x.id === item.id ? { ...x, monto: +e.target.value } : x))} style={{ width: 100, fontSize: '0.85rem', fontFamily: 'var(--font-mono)' }} />
-                        {recItems.length > 1 && (
-                            <button onClick={() => setRecItems(p => p.filter(x => x.id !== item.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: 4 }}>
-                                <Trash2 size={14} />
-                            </button>
-                        )}
-                    </div>
-                ))}
-            </div>
-
-            {/* ── Totales ── */}
-            {mode === 'factura' && (
-                <div style={{ borderRadius: 12, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', padding: '14px 16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: 4 }}>
-                        <span>Subtotal</span>
-                        <span style={{ fontFamily: 'var(--font-mono)' }}>{fmt(subtotal)}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: 8 }}>
-                        <span>IVA</span>
-                        <span style={{ fontFamily: 'var(--font-mono)' }}>{fmt(totalIva)}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.1rem', fontWeight: 800, color: 'var(--color-text-primary)', paddingTop: 8, borderTop: '2px solid var(--color-border-subtle)' }}>
-                        <span>Total</span>
-                        <span style={{ fontFamily: 'var(--font-mono)' }}>{fmt(totalFinal)}</span>
-                    </div>
-                </div>
-            )}
-
-            {mode === 'recibo' && recTotal > 0 && (
-                <div style={{ borderRadius: 12, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', padding: '14px 16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.1rem', fontWeight: 800, color: 'var(--color-text-primary)' }}>
-                        <span>Total</span>
-                        <span style={{ fontFamily: 'var(--font-mono)' }}>{fmt(recTotal)}</span>
-                    </div>
-                </div>
-            )}
-
-            {/* ── Vista previa (Remito / Recibo) ── */}
-            {(mode === 'remito' || mode === 'recibo') && (
-                <div style={{ borderRadius: 12, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', overflow: 'hidden' }}>
-                    <button onClick={() => setShowPreview(p => !p)}
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '14px 16px', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            {showPreview ? <EyeOff size={16} color="var(--color-text-muted)" /> : <Eye size={16} color="#6366f1" />}
-                            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>Vista previa en tiempo real</span>
-                        </div>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>{showPreview ? 'Ocultar' : 'Mostrar'}</span>
-                    </button>
-
-                    {showPreview && (
-                        <div style={{ padding: '0 12px 12px' }}>
-                            <div style={{
-                                background: '#fff', color: '#111', borderRadius: 10,
-                                boxShadow: '0 2px 12px rgba(0,0,0,0.1)', padding: '1.25rem 1rem',
-                                fontFamily: "'Inter', 'Helvetica', sans-serif",
-                                border: '1px solid #e5e7eb', fontSize: '0.75rem',
-                            }}>
-                                {/* Header */}
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', borderBottom: '2px solid #111', paddingBottom: '0.5rem' }}>
-                                    <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, letterSpacing: '0.08em' }}>
-                                        {mode === 'remito' ? 'REMITO' : 'RECIBO'}
-                                    </h3>
-                                    <div style={{ textAlign: 'right', fontSize: '0.7rem' }}>
-                                        <div style={{ color: '#666' }}>Fecha: {fecha}</div>
-                                    </div>
-                                </div>
-
-                                {/* Emisor + Destinatario/Recibí de */}
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                                    <div style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.5rem 0.625rem' }}>
-                                        <div style={{ fontSize: '0.55rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#888', marginBottom: 2 }}>
-                                            {mode === 'remito' ? 'Remitente' : 'Emisor'}
-                                        </div>
-                                        <div style={{ fontWeight: 700, fontSize: '0.7rem' }}>{tenant?.razon_social || tenant?.name || '...'}</div>
-                                        {tenant?.cuit && <div style={{ fontSize: '0.6rem', color: '#555', fontFamily: 'var(--font-mono)' }}>CUIT: {tenant.cuit}</div>}
-                                    </div>
-                                    <div style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.5rem 0.625rem' }}>
-                                        <div style={{ fontSize: '0.55rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#888', marginBottom: 2 }}>
-                                            {mode === 'remito' ? 'Destinatario' : 'Recibí de'}
-                                        </div>
-                                        <div style={{ fontWeight: 700, fontSize: '0.7rem' }}>{selectedCliente?.razon_social || '...'}</div>
-                                        {selectedCliente?.cuit && <div style={{ fontSize: '0.6rem', color: '#555', fontFamily: 'var(--font-mono)' }}>CUIT: {selectedCliente.cuit}</div>}
-                                        {mode === 'remito' && remDireccion && <div style={{ fontSize: '0.6rem', color: '#555', marginTop: 1 }}>{remDireccion}</div>}
-                                    </div>
-                                </div>
-
-                                {/* Forma de pago (Recibo only) */}
-                                {mode === 'recibo' && (
-                                    <div style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.4rem 0.625rem', marginBottom: '0.75rem', fontSize: '0.7rem' }}>
-                                        <span style={{ fontSize: '0.55rem', fontWeight: 700, textTransform: 'uppercase', color: '#888' }}>Forma de pago: </span>
-                                        <span style={{ fontWeight: 600 }}>{recFormaPago}</span>
-                                    </div>
-                                )}
-
-                                {/* Items table */}
-                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.7rem', marginBottom: '0.5rem' }}>
-                                    <thead>
-                                        <tr style={{ background: '#f3f4f6', borderBottom: '1px solid #d1d5db' }}>
-                                            {mode === 'remito' ? (
-                                                <>
-                                                    <th style={{ padding: '0.35rem 0.5rem', textAlign: 'left', fontWeight: 700, fontSize: '0.55rem', textTransform: 'uppercase', color: '#666' }}>Cant.</th>
-                                                    <th style={{ padding: '0.35rem 0.5rem', textAlign: 'left', fontWeight: 700, fontSize: '0.55rem', textTransform: 'uppercase', color: '#666' }}>Un.</th>
-                                                    <th style={{ padding: '0.35rem 0.5rem', textAlign: 'left', fontWeight: 700, fontSize: '0.55rem', textTransform: 'uppercase', color: '#666' }}>Descripción</th>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <th style={{ padding: '0.35rem 0.5rem', textAlign: 'left', fontWeight: 700, fontSize: '0.55rem', textTransform: 'uppercase', color: '#666' }}>Concepto</th>
-                                                    <th style={{ padding: '0.35rem 0.5rem', textAlign: 'right', fontWeight: 700, fontSize: '0.55rem', textTransform: 'uppercase', color: '#666' }}>Monto</th>
-                                                </>
-                                            )}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {mode === 'remito' && remItems.filter(i => i.descripcion).map((item, idx) => (
-                                            <tr key={item.id} style={{ borderBottom: '1px solid #e5e7eb', background: idx % 2 ? '#fafafa' : '#fff' }}>
-                                                <td style={{ padding: '0.35rem 0.5rem', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{item.cantidad}</td>
-                                                <td style={{ padding: '0.35rem 0.5rem', color: '#555' }}>{item.unidad}</td>
-                                                <td style={{ padding: '0.35rem 0.5rem' }}>{item.descripcion}</td>
-                                            </tr>
-                                        ))}
-                                        {mode === 'recibo' && recItems.filter(i => i.concepto || i.monto > 0).map((item, idx) => (
-                                            <tr key={item.id} style={{ borderBottom: '1px solid #e5e7eb', background: idx % 2 ? '#fafafa' : '#fff' }}>
-                                                <td style={{ padding: '0.35rem 0.5rem' }}>{item.concepto || '...'}</td>
-                                                <td style={{ padding: '0.35rem 0.5rem', textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{fmt(item.monto)}</td>
-                                            </tr>
-                                        ))}
-                                        {((mode === 'remito' && remItems.filter(i => i.descripcion).length === 0) ||
-                                          (mode === 'recibo' && recItems.filter(i => i.concepto || i.monto > 0).length === 0)) && (
-                                            <tr><td colSpan={3} style={{ padding: '0.75rem', textAlign: 'center', color: '#aaa', fontStyle: 'italic' }}>
-                                                {mode === 'remito' ? 'Agregá items al remito' : 'Agregá conceptos al recibo'}
-                                            </td></tr>
-                                        )}
-                                    </tbody>
-                                </table>
-
-                                {/* Total (Recibo only) */}
-                                {mode === 'recibo' && recTotal > 0 && (
-                                    <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.5rem 0', borderTop: '2px solid #111' }}>
-                                        <span style={{ fontSize: '0.8rem', fontWeight: 800 }}>TOTAL:</span>
-                                        <span style={{ fontSize: '0.9rem', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{fmt(recTotal)}</span>
-                                    </div>
-                                )}
-
-                                {/* Observaciones */}
-                                {observaciones && (
-                                    <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '0.5rem', marginTop: '0.5rem' }}>
-                                        <div style={{ fontSize: '0.55rem', fontWeight: 700, textTransform: 'uppercase', color: '#888', marginBottom: 2 }}>Observaciones</div>
-                                        <div style={{ fontSize: '0.7rem', color: '#555' }}>{observaciones}</div>
-                                    </div>
-                                )}
-
-                                {/* Signature lines */}
-                                <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '1.25rem' }}>
-                                    <div style={{ width: '40%', textAlign: 'center' }}>
-                                        <div style={{ borderTop: '1px solid #999', paddingTop: 3, fontSize: '0.55rem', color: '#888' }}>
-                                            {mode === 'remito' ? 'Firma (entregó)' : 'Firma emisor'}
-                                        </div>
-                                    </div>
-                                    <div style={{ width: '40%', textAlign: 'center' }}>
-                                        <div style={{ borderTop: '1px solid #999', paddingTop: 3, fontSize: '0.55rem', color: '#888' }}>
-                                            {mode === 'remito' ? 'Firma (recibió)' : 'Firma receptor'}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* ── Observaciones ── */}
-            <div style={{ borderRadius: 12, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', padding: '14px 16px' }}>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Observaciones (opcional)</label>
-                    <textarea className="form-input" rows={2} placeholder="Notas internas..." value={observaciones} onChange={e => setObs(e.target.value)} style={{ resize: 'vertical', fontSize: '0.85rem' }} />
-                </div>
-            </div>
-
-            {/* ── PDF & Email (Remito / Recibo) ── */}
-            {(mode === 'remito' || mode === 'recibo') && (
-                <div style={{ borderRadius: 12, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', padding: '14px 16px' }}>
-                    <div style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-muted)', marginBottom: 10 }}>
-                        Descargar / Enviar
-                    </div>
-
-                    <button onClick={handleDownloadPdf}
-                        style={{
-                            display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                            padding: '12px 14px', borderRadius: 10, border: '1px solid var(--color-border-subtle)',
-                            background: 'var(--color-bg-subtle, #f8fafc)', cursor: 'pointer',
-                            fontFamily: 'var(--font-sans)', marginBottom: 8,
-                        }}>
-                        <Download size={18} color="#7C3AED" />
-                        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                            Descargar PDF
-                        </span>
-                    </button>
-
-                    <div style={{ display: 'flex', gap: 8 }}>
-                        <input
-                            type="email"
-                            className="form-input"
-                            placeholder="Email del destinatario"
-                            value={emailTo}
-                            onChange={e => setEmailTo(e.target.value)}
-                            style={{ flex: 1, fontSize: '0.85rem' }}
-                        />
-                        <button
-                            onClick={handleSendEmail}
-                            disabled={!emailTo || sending}
-                            style={{
-                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                                padding: '0 16px', borderRadius: 10, border: 'none',
-                                background: sent ? '#059669' : !emailTo || sending ? '#94a3b8' : '#2563EB',
-                                color: '#fff', cursor: !emailTo || sending ? 'default' : 'pointer',
-                                fontWeight: 600, fontSize: '0.8rem', fontFamily: 'var(--font-sans)',
-                                whiteSpace: 'nowrap', flexShrink: 0,
-                            }}
-                        >
-                            {sending ? <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} />
-                                : sent ? <><CheckCircle size={16} /> Enviado</>
-                                : <><Send size={16} /> Enviar</>}
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* ── Submit ── */}
-            <button
-                onClick={handleSave}
-                disabled={saving || (!descripcion.trim() && mode === 'factura' && totalFinal === 0)}
-                style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    width: '100%', padding: '14px', borderRadius: 12, border: 'none',
-                    background: saving ? '#94a3b8' : 'var(--color-cta, #2563EB)', color: '#fff',
-                    fontWeight: 700, fontSize: '0.95rem', cursor: saving ? 'default' : 'pointer',
-                    fontFamily: 'var(--font-sans)',
-                }}
-            >
-                <Save size={18} />
-                {saving ? 'Guardando...' : mode === 'factura' ? `Emitir ${tipoComp}` : mode === 'remito' ? 'Emitir Remito' : 'Emitir Recibo'}
-            </button>
+      {/* ─── GRID TABLE ─── */}
+      <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 100px 70px 130px', padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', alignItems: 'center' }}>
+          <span>Comprobante</span><span>Tipo</span><span>Monto</span><span>Estado</span><span style={{ textAlign: 'right' }}>Acciones</span>
         </div>
-    );
+        {filtered.map(comp => (
+          <div key={comp.id}
+            style={{ display: 'grid', gridTemplateColumns: '1fr 90px 100px 70px 130px', padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', alignItems: 'center', transition: 'background 0.1s' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
+            onMouseLeave={e => (e.currentTarget.style.background = '')}>
+            {/* Descripción + cliente + fecha */}
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {comp.descripcion || comp.tipo_comprobante || 'Comprobante'}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>{comp.cliente?.razon_social || '—'}</span>
+                <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-faint)' }}>{comp.fecha}</span>
+                {comp.numero_comprobante && !comp.numero_comprobante.startsWith('PENDIENTE') && (
+                  <span style={{ fontSize: '0.5625rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: '#10B98115', color: '#10B981' }}>N° {comp.numero_comprobante}</span>
+                )}
+                {(!comp.numero_comprobante || comp.numero_comprobante.startsWith('PENDIENTE')) && (
+                  <span style={{ fontSize: '0.5625rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: '#F59E0B15', color: '#F59E0B' }}>Sin N°</span>
+                )}
+              </div>
+            </div>
+            {/* Tipo */}
+            <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>{comp.tipo_comprobante || '—'}</div>
+            {/* Monto */}
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+              ${comp.monto_ars.toLocaleString('es-AR')}
+            </div>
+            {/* Estado */}
+            <div>
+              <span style={{ fontSize: '0.5625rem', fontWeight: 700, padding: '2px 6px', borderRadius: 99, background: `${ESTADO_COLOR[comp.estado] || '#6B7280'}15`, color: ESTADO_COLOR[comp.estado] || '#6B7280', textTransform: 'capitalize' }}>
+                {comp.estado === 'inyectado' ? 'ARCA' : comp.estado}
+              </span>
+            </div>
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+              {/* Enviar a ARCA (solo pendiente/aprobado sin número) */}
+              {(!comp.numero_comprobante || comp.numero_comprobante.startsWith('PENDIENTE')) && (comp.estado === 'pendiente' || comp.estado === 'aprobado') && (
+                <div className="row-action-wrap">
+                  <button onClick={e => { e.stopPropagation(); alert('Integración ARCA: se enviará a la API para generar el número de comprobante.'); }}
+                    style={{ ...iconBtn, color: '#8B5CF6', borderColor: '#8B5CF630' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#8B5CF610'; e.currentTarget.style.borderColor = '#8B5CF6'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; e.currentTarget.style.borderColor = '#8B5CF630'; }}>
+                    <Send size={14} />
+                  </button>
+                  <span className="row-action-tooltip">Enviar a ARCA</span>
+                </div>
+              )}
+              {/* Download PDF */}
+              <div className="row-action-wrap">
+                <button onClick={e => { e.stopPropagation(); if (comp.pdf_url) window.open(comp.pdf_url, '_blank'); else generatePdf(comp); }}
+                  style={{ ...iconBtn, color: '#3B82F6', borderColor: '#3B82F630' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#3B82F610'; e.currentTarget.style.borderColor = '#3B82F6'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; e.currentTarget.style.borderColor = '#3B82F630'; }}>
+                  <Download size={14} />
+                </button>
+                <span className="row-action-tooltip">Descargar PDF</span>
+              </div>
+              {/* View */}
+              <div className="row-action-wrap">
+                <button onClick={e => { e.stopPropagation(); /* could open detail view */ }}
+                  style={{ ...iconBtn, color: 'var(--color-text-muted)' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg-hover)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; }}>
+                  <Eye size={14} />
+                </button>
+                <span className="row-action-tooltip">Ver detalles</span>
+              </div>
+              {/* Delete */}
+              <div className="row-action-wrap">
+                <button onClick={e => { e.stopPropagation(); remove(comp); }}
+                  style={{ ...iconBtn, color: '#EF4444', borderColor: '#EF444420' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#EF44440a'; e.currentTarget.style.borderColor = '#EF4444'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; e.currentTarget.style.borderColor = '#EF444420'; }}>
+                  <Trash2 size={14} />
+                </button>
+                <span className="row-action-tooltip">Eliminar</span>
+              </div>
+            </div>
+          </div>
+        ))}
+        {filtered.length === 0 && <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin comprobantes</div>}
+      </div>
+
+      {/* ─── WIZARD MODAL ─── */}
+      {showModal && (() => {
+        const STEPS = [{ label: 'Contrato' }, { label: 'Detalle' }, { label: 'Resumen' }];
+        const totalSteps = STEPS.length;
+        const canNext = wizardStep === 0 ? !!selContrato : true;
+        const isLast = wizardStep === totalSteps - 1;
+        const selCt = contratos.find(ct => ct.id === selContrato);
+
+        return (
+          <div className="wizard-overlay" onClick={() => setShowModal(false)}>
+          <div className="wizard-card" onClick={e => e.stopPropagation()}>
+            <div className="wizard-header">
+              <h3>Nuevo comprobante</h3>
+              <button className="wizard-close" onClick={() => setShowModal(false)}><X size={18} /></button>
+            </div>
+
+            <div className="wizard-steps">
+              {STEPS.map((s, i) => (
+                <div key={i} className="wizard-step" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    {i > 0 && <div className={`wizard-step-line${i <= wizardStep ? ' done' : ''}`} />}
+                    <div className={`wizard-step-dot${i === wizardStep ? ' active' : i < wizardStep ? ' done' : ' pending'}`}
+                      onClick={() => i < wizardStep && setWizardStep(i)} style={{ cursor: i < wizardStep ? 'pointer' : 'default' }}>
+                      {i < wizardStep ? <Check size={14} /> : i + 1}
+                    </div>
+                  </div>
+                  <div className={`wizard-step-label${i === wizardStep ? ' active' : i < wizardStep ? ' done' : ''}`}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="wizard-body">
+              {/* Step 0: Contrato + Tipo */}
+              {wizardStep === 0 && (<>
+                <div className="wizard-field">
+                  <label className="form-label">Contrato (propiedad) *</label>
+                  <CustomSelect
+                    value={selContrato}
+                    onChange={v => onSelectContrato(v)}
+                    placeholder="Seleccionar contrato..."
+                    options={contratos.map(c => ({
+                      value: c.id,
+                      label: (c.propiedad as any)?.direccion || '—',
+                      sub: (c.inquilino as any)?.razon_social || '',
+                    }))}
+                  />
+                  {selCt && (
+                    <div style={{ marginTop: 8, padding: '10px 14px', borderRadius: 10, background: 'var(--color-bg-surface-2)', border: '1px solid var(--color-border-subtle)', fontSize: '0.8125rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--color-text-muted)' }}>Inquilino</span>
+                        <span style={{ fontWeight: 600 }}>{(selCt.inquilino as any)?.razon_social || '—'}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                        <span style={{ color: 'var(--color-text-muted)' }}>Monto mensual</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>${selCt.monto_mensual.toLocaleString('es-AR')}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="wizard-field">
+                  <div className="wizard-section-title">Tipo de comprobante</div>
+                  <div className="wizard-pills" style={{ marginTop: 8 }}>
+                    {TIPOS_COMP.map(t => (
+                      <button key={t} className={`wizard-pill${tipoComp === t ? ' selected' : ''}`}
+                        onClick={() => setTipoComp(t)}>{t}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="wizard-field">
+                  <label className="form-label">Fecha</label>
+                  <input type="date" className="form-input" value={fecha} onChange={e => setFecha(e.target.value)} />
+                </div>
+              </>)}
+
+              {/* Step 1: Líneas de detalle */}
+              {wizardStep === 1 && (<>
+                <div className="wizard-field">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div className="wizard-section-title" style={{ border: 'none' }}>Líneas</div>
+                    <button onClick={addLinea} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 12px', borderRadius: 99, border: '1.5px solid var(--color-cta, #2563EB)', background: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-cta, #2563EB)', fontFamily: 'var(--font-sans)' }}>
+                      <Plus size={14} /> Agregar
+                    </button>
+                  </div>
+                  {lineas.map((l, i) => (
+                    <div key={i} style={{ padding: 12, borderRadius: 10, background: 'var(--color-bg-surface-2)', border: '1px solid var(--color-border-subtle)', marginBottom: 8 }}>
+                      <div className="wizard-field" style={{ marginBottom: 8 }}>
+                        <input className="form-input" placeholder="Descripción" value={l.descripcion} onChange={e => updateLinea(i, 'descripcion', e.target.value)} />
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <div className="wizard-field" style={{ flex: 1 }}>
+                          <label className="form-label" style={{ fontSize: '0.6875rem' }}>Cant.</label>
+                          <input type="number" className="form-input" value={l.cantidad} onChange={e => updateLinea(i, 'cantidad', Number(e.target.value))} />
+                        </div>
+                        <div className="wizard-field" style={{ flex: 2 }}>
+                          <label className="form-label" style={{ fontSize: '0.6875rem' }}>Precio unit.</label>
+                          <input type="number" className="form-input" value={l.precio_unitario || ''} onChange={e => updateLinea(i, 'precio_unitario', Number(e.target.value))} />
+                        </div>
+                        <div className="wizard-field" style={{ flex: 1 }}>
+                          <label className="form-label" style={{ fontSize: '0.6875rem' }}>IVA %</label>
+                          <div className="wizard-pills" style={{ gap: 4 }}>
+                            {[21, 10.5, 0].map(v => (
+                              <button key={v} className={`wizard-pill${l.iva_porcentaje === v ? ' selected' : ''}`}
+                                onClick={() => updateLinea(i, 'iva_porcentaje', v)}
+                                style={{ padding: '4px 8px', fontSize: '0.6875rem' }}>{v}%</button>
+                            ))}
+                          </div>
+                        </div>
+                        <button onClick={() => removeLinea(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', padding: 4, alignSelf: 'center' }}><Trash2 size={14} /></button>
+                      </div>
+                      <div style={{ textAlign: 'right', marginTop: 6, fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', fontWeight: 600 }}>
+                        Subtotal: ${(l.cantidad * l.precio_unitario * (1 + l.iva_porcentaje / 100)).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="wizard-field">
+                  <label className="form-label">Observaciones</label>
+                  <textarea className="form-input" rows={2} value={observaciones} onChange={e => setObs(e.target.value)} placeholder="Notas internas..." />
+                </div>
+              </>)}
+
+              {/* Step 2: Resumen */}
+              {wizardStep === 2 && (<>
+                <div style={{ padding: '1rem', borderRadius: 12, background: 'var(--color-bg-surface-2)', border: '1px solid var(--color-border-subtle)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: '0.8125rem' }}>
+                    <span style={{ color: 'var(--color-text-muted)' }}>Tipo</span>
+                    <span style={{ fontWeight: 600 }}>{tipoComp}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: '0.8125rem' }}>
+                    <span style={{ color: 'var(--color-text-muted)' }}>Propiedad</span>
+                    <span style={{ fontWeight: 600 }}>{selCt ? (selCt.propiedad as any)?.direccion : '—'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: '0.8125rem' }}>
+                    <span style={{ color: 'var(--color-text-muted)' }}>Inquilino</span>
+                    <span style={{ fontWeight: 600 }}>{selCt ? (selCt.inquilino as any)?.razon_social : '—'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: '0.8125rem' }}>
+                    <span style={{ color: 'var(--color-text-muted)' }}>Fecha</span>
+                    <span style={{ fontWeight: 600 }}>{fecha}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: '0.8125rem' }}>
+                    <span style={{ color: 'var(--color-text-muted)' }}>N° Comprobante</span>
+                    <span style={{ fontWeight: 600, color: '#F59E0B' }}>Se genera al enviar a ARCA</span>
+                  </div>
+                </div>
+                <div style={{ padding: '1rem', borderRadius: 12, background: 'var(--color-bg-surface-2)', border: '1px solid var(--color-border-subtle)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: '0.8125rem' }}>
+                    <span style={{ color: 'var(--color-text-muted)' }}>Subtotal</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>${subtotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: '0.8125rem' }}>
+                    <span style={{ color: 'var(--color-text-muted)' }}>IVA</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>${totalIva.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div style={{ borderTop: '2px solid var(--color-border-subtle)', paddingTop: 8, display: 'flex', justifyContent: 'space-between', fontSize: '1.1rem', fontWeight: 700 }}>
+                    <span>Total</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: '#10B981' }}>${totalFinal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                </div>
+              </>)}
+            </div>
+
+            <div className="wizard-footer">
+              <div className="wizard-footer-left" />
+              <div className="wizard-footer-right">
+                {wizardStep > 0 && (
+                  <button className="wizard-btn-back" onClick={() => setWizardStep(s => s - 1)}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><ChevronLeft size={16} /> Anterior</span>
+                  </button>
+                )}
+                {isLast ? (
+                  <button className="wizard-btn-next" onClick={save} disabled={!selContrato || lineas.length === 0}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Receipt size={16} /> Crear comprobante</span>
+                  </button>
+                ) : (
+                  <button className="wizard-btn-next" onClick={() => setWizardStep(s => s + 1)} disabled={!canNext}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Siguiente <ChevronRight size={16} /></span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+          </div>
+        );
+      })()}
+    </div>
+  );
 }

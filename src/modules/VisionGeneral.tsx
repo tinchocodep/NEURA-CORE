@@ -126,6 +126,7 @@ export default function VisionGeneral() {
 
     // Inmobiliaria metrics for mobile home
     const [inmobData, setInmobData] = useState<{ propiedades: number; ocupacion: number; ingresoMensual: number; porVencer30: number; vencidos: number; morosidad: number; cobradosMes: number }>({ propiedades: 0, ocupacion: 0, ingresoMensual: 0, porVencer30: 0, vencidos: 0, morosidad: 0, cobradosMes: 0 });
+    const [vencimientosProximos, setVencimientosProximos] = useState<any[]>([]);
 
     const [dolarLoading, setDolarLoading] = useState(true);
     const [loading, setLoading] = useState(true);
@@ -307,6 +308,14 @@ export default function VisionGeneral() {
             morosidad: 1150000, // mock for now
             cobradosMes: 5, // mock for now
         });
+
+        const weekEnd = new Date(); weekEnd.setDate(weekEnd.getDate() + 7);
+        const { data: vencData } = await supabase.from('inmobiliaria_vencimientos')
+            .select('id, fecha, descripcion, tipo, completado')
+            .eq('tenant_id', tid).eq('completado', false)
+            .lte('fecha', weekEnd.toISOString().slice(0, 10))
+            .order('fecha').limit(10);
+        setVencimientosProximos(vencData || []);
 
         setLoading(false);
     }
@@ -569,37 +578,68 @@ export default function VisionGeneral() {
                     )}
                 </div>
             ) : (
-                /* ── DESKTOP: full dashboard ── */
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                    {isWidgetActive('resumen_financiero') && <ResumenFinancieroWidget metrics={metrics} />}
-
-                    <div className="grid-responsive-1" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '1rem' }}>
-                        {isWidgetActive('origen_registros') && metrics && (
-                            <OrigenRegistrosWidget
-                                ventasMes={metrics.ventasMes} comprasMes={metrics.comprasMes}
-                                montoVentasMes={metrics.montoVentasMes} montoComprasMes={metrics.montoComprasMes}
-                                ventasBreakdown={ventasBreakdown} comprasBreakdown={comprasBreakdown}
-                            />
-                        )}
-                        {isWidgetActive('ranking_entidades') && (
-                            <RankingEntidadesWidget topClientes={topClientes} topProveedores={topProveedores} />
-                        )}
+                /* ── DESKTOP: Home dashboard — no scroll ── */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: 'calc(100vh - 120px)', overflow: 'hidden' }}>
+                    {/* 5 KPIs inmobiliarios */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.5rem' }}>
+                        {[
+                            { label: 'Propiedades', value: inmobData.propiedades, color: '#3B82F6' },
+                            { label: 'Contratos vigentes', value: inmobData.propiedades - (inmobData.porVencer30 + inmobData.vencidos), color: '#10B981' },
+                            { label: 'Alquileres mensual', value: `$${inmobData.ingresoMensual > 0 ? (inmobData.ingresoMensual / 1000).toFixed(0) + 'K' : '0'}`, color: '#8B5CF6' },
+                            { label: 'Pendiente de cobro', value: `$${inmobData.morosidad > 0 ? (inmobData.morosidad / 1000).toFixed(0) + 'K' : '0'}`, color: '#F59E0B' },
+                            { label: 'Resultado bruto', value: `$${inmobData.ingresoMensual > 0 ? ((inmobData.ingresoMensual - inmobData.morosidad) / 1000).toFixed(0) + 'K' : '0'}`, color: inmobData.ingresoMensual - inmobData.morosidad >= 0 ? '#10B981' : '#EF4444' },
+                        ].map(kpi => (
+                            <div key={kpi.label} className="card" style={{ padding: '0.875rem 1rem', borderTop: `3px solid ${kpi.color}` }}>
+                                <div style={{ fontSize: '0.625rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>{kpi.label}</div>
+                                <div style={{ fontSize: '1.25rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>{kpi.value}</div>
+                            </div>
+                        ))}
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 240px) minmax(300px, 1fr) 260px', gap: '1rem', alignItems: 'start' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            {isWidgetActive('acciones_rapidas') && <AccionesRapidasWidget />}
+                    {/* Acciones rápidas + Actividad reciente + Agenda */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr 1fr', gap: '0.75rem', alignItems: 'start', flex: 1, minHeight: 0 }}>
+                        <div className="card" style={{ padding: '1.25rem' }}>
+                            <div style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: 12 }}>Acciones Rápidas</div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                {[
+                                    { label: 'Facturar', path: '/inmobiliaria/facturar', color: '#3B82F6' },
+                                    { label: 'Cobranzas', path: '/inmobiliaria/liquidaciones', color: '#10B981' },
+                                    { label: 'Órdenes de trabajo', path: '/inmobiliaria/ordenes', color: '#F59E0B' },
+                                    { label: 'Nuevo contrato', path: '/inmobiliaria/contratos?action=crear', color: '#8B5CF6' },
+                                    { label: 'Nueva propiedad', path: '/inmobiliaria/propiedades?action=crear', color: '#0D9488' },
+                                    { label: 'Reportar problema', path: '/inmobiliaria/ordenes?action=crear', color: '#EF4444' },
+                                ].map(a => (
+                                    <button key={a.label} onClick={() => navigate(a.path)}
+                                        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-surface)', cursor: 'pointer', width: '100%', textAlign: 'left', fontFamily: 'var(--font-sans)', transition: 'background 0.12s' }}
+                                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
+                                        onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-bg-surface)')}>
+                                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: a.color, flexShrink: 0 }} />
+                                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{a.label}</span>
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', height: '100%' }}>
-                            {isWidgetActive('actividad_reciente') && <ActividadRecienteWidget activity={activity} periodLabel={periodLabel} />}
-                        </div>
+                        <ActividadRecienteWidget activity={activity.slice(0, 3)} periodLabel={periodLabel} />
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                            {isWidgetActive('monitor_tesoreria') && metrics && <MonitorTesoreriaWidget saldoCajas={metrics.saldoCajas} />}
-                            {isWidgetActive('flujo_caja') && <FlujoCajaWidget />}
-                            {isWidgetActive('cotizacion_dolar') && <CotizacionDolarWidget dolar={dolar} dolarLoading={dolarLoading} loadDolar={loadDolar} />}
-                            {isWidgetActive('directorio_total') && metrics && <DirectorioWidget totalClientes={metrics.totalClientes} totalProveedores={metrics.totalProveedores} />}
+                        <div className="card" style={{ padding: '1.25rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                <div style={{ fontSize: '0.875rem', fontWeight: 700 }}>Agenda esta semana</div>
+                                <button onClick={() => navigate('/inmobiliaria/agenda')} style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-cta, #2563EB)', background: 'none', border: 'none', cursor: 'pointer' }}>Ver toda →</button>
+                            </div>
+                            {vencimientosProximos.length === 0 ? (
+                                <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.8125rem' }}>Sin vencimientos esta semana</div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                    {vencimientosProximos.slice(0, 5).map((v: any) => (
+                                        <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, background: 'var(--color-bg-surface-2)' }}>
+                                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: v.fecha < new Date().toISOString().slice(0, 10) ? '#EF4444' : '#F59E0B', flexShrink: 0 }} />
+                                            <span style={{ fontSize: '0.75rem', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.descripcion}</span>
+                                            <span style={{ fontSize: '0.6875rem', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)', flexShrink: 0 }}>{new Date(v.fecha + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
