@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Plus, Wrench, Upload, Phone, FileText, CheckCircle, AlertTriangle, X, Check, ChevronRight, ChevronLeft, Eye, Trash2 } from 'lucide-react';
+import { Plus, Wrench, Upload, Phone, FileText, CheckCircle, AlertTriangle, X, Check, ChevronRight, ChevronLeft, Eye, Trash2, Search } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import CustomSelect from '../../shared/components/CustomSelect';
@@ -50,6 +50,7 @@ export default function OrdenesTrabajo() {
   const [loading, setLoading] = useState(true);
   const [searchParams] = useSearchParams();
   const [filterEstado, setFilterEstado] = useState(searchParams.get('filter') || '');
+  const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<OrdenTrabajo | null>(null);
   const [form, setForm] = useState({ propiedad_id: '', proveedor_id: '', titulo: '', descripcion: '', prioridad: 'media', monto_presupuesto: '' });
@@ -217,7 +218,14 @@ export default function OrdenesTrabajo() {
     finally { setUploadingId(null); pendingOrdenRef.current = null; }
   };
 
-  const filtered = items.filter(o => !filterEstado || o.estado === filterEstado);
+  const filtered = items.filter(o => {
+    if (filterEstado && o.estado !== filterEstado) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      if (!o.titulo.toLowerCase().includes(q) && !propDir(o.propiedad_id).toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
   const reportados = items.filter(o => o.estado === 'reportado').length;
   const enCurso = items.filter(o => o.estado === 'en_curso' || o.estado === 'asignado').length;
   const completados = items.filter(o => o.estado === 'completado' || o.estado === 'facturado').length;
@@ -269,15 +277,21 @@ export default function OrdenesTrabajo() {
       <input ref={fileInputRef} type="file" accept="image/*,.pdf" style={{ display: 'none' }} onChange={handleFileSelected} />
 
       {/* Desktop header */}
-      {!isMobile && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-          <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>Órdenes de trabajo</h1>
-          <div style={{ flex: 1 }} />
-          <button onClick={openNew} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 18px', fontSize: '0.8rem', borderRadius: 10 }}>
-            <Plus size={16} /> Nueva orden
-          </button>
+      <div className="module-header-desktop">
+        <h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Órdenes de trabajo</h1>
+        <div style={{ flex: 1, minWidth: 200, maxWidth: 300, position: 'relative' }}>
+          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
+          <input type="text" placeholder="Buscar orden..." value={search} onChange={e => setSearch(e.target.value)}
+            className="form-input" style={{ paddingLeft: 30, height: 32, fontSize: '0.8rem' }} />
         </div>
-      )}
+        <select value={filterEstado} onChange={e => setFilterEstado(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
+          <option value="">Todos los estados</option>
+          {ESTADOS_LIST.map(e => <option key={e} value={e}>{ESTADO_CFG[e]?.label || e}</option>)}
+        </select>
+        <button onClick={openNew} className="btn btn-primary" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem' }}>
+          <Plus size={14} /> Nueva
+        </button>
+      </div>
 
       {/* KPIs */}
       <div style={{ display: 'flex', gap: isMobile ? 6 : 10 }}>

@@ -89,15 +89,19 @@ export default function ProveedoresInmob() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-        <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>Proveedores</h1>
-        <div style={{ flex: 1, position: 'relative', maxWidth: 260 }}>
+      <div className="module-header-desktop">
+        <h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Proveedores</h1>
+        <div style={{ flex: 1, minWidth: 200, maxWidth: 300, position: 'relative' }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
           <input type="text" placeholder="Buscar proveedor..." value={search} onChange={e => setSearch(e.target.value)}
-            className="form-input" style={{ paddingLeft: 30, height: 34, fontSize: '0.8rem' }} />
+            className="form-input" style={{ paddingLeft: 30, height: 32, fontSize: '0.8rem' }} />
         </div>
-        <button onClick={openNew} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 18px', fontSize: '0.8rem', borderRadius: 10 }}>
-          <Plus size={16} /> Nuevo
+        <select value={filterRubro} onChange={e => setFilterRubro(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
+          <option value="">Todos los rubros</option>
+          {RUBROS.map(r => <option key={r} value={r}>{RUBRO_LABEL[r]}</option>)}
+        </select>
+        <button onClick={openNew} className="btn btn-primary" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem' }}>
+          <Plus size={14} /> Nuevo
         </button>
       </div>
 

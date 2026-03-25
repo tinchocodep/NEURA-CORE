@@ -74,12 +74,12 @@ export default function CuentasCorrientes() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>Cuentas Corrientes</h1>
-        <div style={{ flex: 1, position: 'relative', maxWidth: 260 }}>
+      <div className="module-header-desktop">
+        <h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Cuentas Corrientes</h1>
+        <div style={{ flex: 1, minWidth: 200, maxWidth: 300, position: 'relative' }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
           <input type="text" placeholder="Buscar cuenta..." value={search} onChange={e => setSearch(e.target.value)}
-            className="form-input" style={{ paddingLeft: 30, height: 34, fontSize: '0.8rem' }} />
+            className="form-input" style={{ paddingLeft: 30, height: 32, fontSize: '0.8rem' }} />
         </div>
       </div>
 

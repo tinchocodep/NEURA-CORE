@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Trash2, X, Check, ChevronRight, ChevronLeft, Eye, Send, Download, Receipt } from 'lucide-react';
+import { Plus, Trash2, X, Check, ChevronRight, ChevronLeft, Eye, Send, Download, Receipt, Search } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import CustomSelect from '../../shared/components/CustomSelect';
@@ -35,6 +35,7 @@ export default function FacturarMobile() {
   const [showModal, setShowModal] = useState(false);
   const [wizardStep, setWizardStep] = useState(0);
   const [filterEstado, setFilterEstado] = useState('');
+  const [search, setSearch] = useState('');
 
   // Form
   const [selContrato, setSelContrato] = useState('');
@@ -145,7 +146,14 @@ export default function FacturarMobile() {
   const totalMes = items.filter(c => c.fecha.startsWith(new Date().toISOString().slice(0, 7))).reduce((s, c) => s + c.monto_ars, 0);
   const fmtMoney = (n: number) => n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `$${(n / 1_000).toFixed(0)}K` : `$${n.toLocaleString('es-AR')}`;
 
-  const filtered = items.filter(c => !filterEstado || c.estado === filterEstado);
+  const filtered = items.filter(c => {
+    if (filterEstado && c.estado !== filterEstado) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      if (!(c.descripcion || '').toLowerCase().includes(q) && !(c.cliente?.razon_social || '').toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
 
   if (loading) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Cargando comprobantes...</div>;
 
@@ -158,11 +166,22 @@ export default function FacturarMobile() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-        <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>Comprobantes</h1>
-        <div style={{ flex: 1 }} />
-        <button onClick={openNew} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 18px', fontSize: '0.8rem', borderRadius: 10 }}>
-          <Plus size={16} /> Nuevo
+      <div className="module-header-desktop">
+        <h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Comprobantes</h1>
+        <div style={{ flex: 1, minWidth: 200, maxWidth: 300, position: 'relative' }}>
+          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
+          <input type="text" placeholder="Buscar comprobante..." value={search} onChange={e => setSearch(e.target.value)}
+            className="form-input" style={{ paddingLeft: 30, height: 32, fontSize: '0.8rem' }} />
+        </div>
+        <select value={filterEstado} onChange={e => setFilterEstado(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
+          <option value="">Todos los estados</option>
+          <option value="pendiente">Pendiente</option>
+          <option value="aprobado">Aprobado</option>
+          <option value="inyectado">Enviado ARCA</option>
+          <option value="pagado">Pagado</option>
+        </select>
+        <button onClick={openNew} className="btn btn-primary" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem' }}>
+          <Plus size={14} /> Nuevo
         </button>
       </div>
 

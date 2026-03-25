@@ -29,15 +29,8 @@ const CAT_COLOR: Record<string, string> = {
   servicios: '#0D9488', consorcio: '#EC4899', otro: '#6B7280',
 };
 
-function useIsMobile() {
-  const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
-  useEffect(() => { const h = () => setM(window.innerWidth <= 768); window.addEventListener('resize', h); return () => window.removeEventListener('resize', h); }, []);
-  return m;
-}
-
 export default function Liquidaciones() {
   const { tenant } = useTenant();
-  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const [items, setItems] = useState<Liquidacion[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
@@ -182,19 +175,27 @@ export default function Liquidaciones() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
       {/* Desktop header */}
-      {!isMobile && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-          <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>Liquidaciones</h1>
-          <div style={{ flex: 1, position: 'relative', maxWidth: 260 }}>
-            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
-            <input type="text" placeholder="Buscar..." value={searchText} onChange={e => setSearchText(e.target.value)}
-              className="form-input" style={{ paddingLeft: 30, height: 34, fontSize: '0.8rem' }} />
-          </div>
-          <button onClick={() => openNew()} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 18px', fontSize: '0.8rem', borderRadius: 10 }}>
-            <Plus size={16} /> Nueva
-          </button>
+      <div className="module-header-desktop">
+        <h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Liquidaciones</h1>
+        <div style={{ flex: 1, minWidth: 200, maxWidth: 300, position: 'relative' }}>
+          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
+          <input type="text" placeholder="Buscar propiedad o concepto..." value={searchText} onChange={e => setSearchText(e.target.value)}
+            className="form-input" style={{ paddingLeft: 30, height: 32, fontSize: '0.8rem' }} />
         </div>
-      )}
+        <select value={filterEstado} onChange={e => setFilterEstado(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
+          <option value="">Todos los estados</option>
+          <option value="borrador">Borrador</option>
+          <option value="aprobada">Aprobada</option>
+          <option value="pagada">Pagada</option>
+        </select>
+        <select value={filterCategoria} onChange={e => setFilterCategoria(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
+          <option value="">Todas las categorías</option>
+          {CATEGORIAS.map(c => <option key={c} value={c}>{CAT_LABEL[c]}</option>)}
+        </select>
+        <button onClick={() => openNew()} className="btn btn-primary" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem' }}>
+          <Plus size={14} /> Nueva
+        </button>
+      </div>
 
       {/* KPIs */}
       <div style={{ display: 'flex', gap: 10 }}>
