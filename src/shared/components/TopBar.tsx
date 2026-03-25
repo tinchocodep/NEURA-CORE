@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Search, Bell, Settings } from 'lucide-react';
+import { Search, Bell } from 'lucide-react';
 import { DolarService } from '../../services/DolarService';
 import type { DolarResumen } from '../../services/DolarService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -16,7 +16,7 @@ export default function TopBar() {
     const { user } = useAuth() as any;
     const navigate = useNavigate();
     const isMobile = useIsMobile();
-    const [dolar, setDolar] = useState<DolarResumen | null>(null);
+    const [, setDolar] = useState<DolarResumen | null>(null);
 
     useEffect(() => {
         DolarService.getCotizaciones().then(setDolar);

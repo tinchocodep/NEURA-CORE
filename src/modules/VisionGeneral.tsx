@@ -13,15 +13,7 @@ function useIsMobile() {
 }
 
 // Import Widgets
-import ResumenFinancieroWidget from './vision_general/widgets/ResumenFinancieroWidget';
-import AccionesRapidasWidget from './vision_general/widgets/AccionesRapidasWidget';
 import ActividadRecienteWidget from './vision_general/widgets/ActividadRecienteWidget';
-import CotizacionDolarWidget from './vision_general/widgets/CotizacionDolarWidget';
-import DirectorioWidget from './vision_general/widgets/DirectorioWidget';
-import RankingEntidadesWidget from './vision_general/widgets/RankingEntidadesWidget';
-import OrigenRegistrosWidget from './vision_general/widgets/OrigenRegistrosWidget';
-import MonitorTesoreriaWidget from './vision_general/widgets/MonitorTesoreriaWidget';
-import FlujoCajaWidget from './vision_general/widgets/FlujoCajaWidget';
 
 /* ─── Types ─── */
 interface CrossMetrics {
@@ -119,16 +111,16 @@ export default function VisionGeneral() {
     const [period, setPeriod] = useState('this_month');
     const [customStart, setCustomStart] = useState('');
     const [customEnd, setCustomEnd] = useState('');
-    const [topProveedores, setTopProveedores] = useState<EntityRanking[]>([]);
-    const [topClientes, setTopClientes] = useState<EntityRanking[]>([]);
-    const [ventasBreakdown, setVentasBreakdown] = useState<TypeBreakdown>({ tradicionalMonto: 0, tradicionalCount: 0, sinFacturaMonto: 0, sinFacturaCount: 0 });
-    const [comprasBreakdown, setComprasBreakdown] = useState<TypeBreakdown>({ tradicionalMonto: 0, tradicionalCount: 0, sinFacturaMonto: 0, sinFacturaCount: 0 });
+    const [, setTopProveedores] = useState<EntityRanking[]>([]);
+    const [, setTopClientes] = useState<EntityRanking[]>([]);
+    const [, setVentasBreakdown] = useState<TypeBreakdown>({ tradicionalMonto: 0, tradicionalCount: 0, sinFacturaMonto: 0, sinFacturaCount: 0 });
+    const [, setComprasBreakdown] = useState<TypeBreakdown>({ tradicionalMonto: 0, tradicionalCount: 0, sinFacturaMonto: 0, sinFacturaCount: 0 });
 
     // Inmobiliaria metrics for mobile home
     const [inmobData, setInmobData] = useState<{ propiedades: number; ocupacion: number; ingresoMensual: number; porVencer30: number; vencidos: number; morosidad: number; cobradosMes: number }>({ propiedades: 0, ocupacion: 0, ingresoMensual: 0, porVencer30: 0, vencidos: 0, morosidad: 0, cobradosMes: 0 });
     const [vencimientosProximos, setVencimientosProximos] = useState<any[]>([]);
 
-    const [dolarLoading, setDolarLoading] = useState(true);
+    const [, setDolarLoading] = useState(true);
     const [loading, setLoading] = useState(true);
 
     // Dashboard Customization State
