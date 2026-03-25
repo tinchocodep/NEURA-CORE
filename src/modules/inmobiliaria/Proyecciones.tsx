@@ -1,18 +1,20 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
-import { Plus, X, Check, ChevronRight, ChevronLeft, Search, ArrowUpRight, ArrowDownRight, Trash2 } from 'lucide-react';
+import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
+import { Plus, X, Check, ChevronRight, ChevronLeft, Search, ArrowUpRight, ArrowDownRight, Trash2, LayoutList, CalendarDays, Calendar } from 'lucide-react';
 import CustomSelect from '../../shared/components/CustomSelect';
 
 interface Proyeccion {
   id: string; tipo: 'ingreso' | 'gasto'; concepto: string; monto: number;
   fecha_prevista: string; estado: 'pendiente' | 'cobrado' | 'pagado';
   contrato_id: string | null; categoria: string | null;
+  _propTipo?: string; // frontend-only: tipo de propiedad
 }
 interface Contrato {
   id: string; monto_mensual: number; moneda: string; fecha_fin: string;
   inquilino_id: string;
-  propiedad: { direccion: string } | null;
+  propiedad: { direccion: string; tipo: string } | null;
   inquilino: { razon_social: string } | null;
 }
 
@@ -28,6 +30,8 @@ export default function ProyeccionesInmob() {
   const [wizardStep, setWizardStep] = useState(0);
   const [filterTipo, setFilterTipo] = useState('');
   const [search, setSearch] = useState('');
+  const [viewMode, setViewMode] = useState<'table' | 'month' | 'week'>('table');
+  const [calDate, setCalDate] = useState(new Date());
 
   // Form
   const [formTipo, setFormTipo] = useState<'ingreso' | 'gasto'>('ingreso');
@@ -36,6 +40,7 @@ export default function ProyeccionesInmob() {
   const [formFecha, setFormFecha] = useState('');
   const [formContrato, setFormContrato] = useState('');
   const [formCategoria, setFormCategoria] = useState('');
+  const { requestDelete, ConfirmModal } = useConfirmDelete();
 
   useEffect(() => { if (tenant) loadData(); }, [tenant]);
 
@@ -44,7 +49,7 @@ export default function ProyeccionesInmob() {
     const [pRes, cRes, aRes] = await Promise.all([
       supabase.from('inmobiliaria_proyecciones').select('*').eq('tenant_id', tenant!.id).order('fecha_prevista'),
       supabase.from('inmobiliaria_contratos')
-        .select('id, monto_mensual, moneda, fecha_fin, inquilino_id, propiedad:inmobiliaria_propiedades(direccion), inquilino:contable_clientes!inquilino_id(razon_social)')
+        .select('id, monto_mensual, moneda, fecha_fin, inquilino_id, propiedad:inmobiliaria_propiedades(direccion, tipo), inquilino:contable_clientes!inquilino_id(razon_social)')
         .eq('tenant_id', tenant!.id).eq('estado', 'vigente'),
       supabase.from('treasury_accounts').select('id, name').eq('tenant_id', tenant!.id).order('name'),
     ]);
@@ -72,6 +77,7 @@ export default function ProyeccionesInmob() {
               estado: 'pendiente',
               contrato_id: c.id,
               categoria: 'alquiler',
+              _propTipo: c.propiedad?.tipo || '',
             });
           }
         }
@@ -137,11 +143,26 @@ export default function ProyeccionesInmob() {
     loadData();
   };
 
-  const remove = async (p: Proyeccion) => {
-    if (p.id.startsWith('auto-')) return; // can't delete auto-generated
-    if (!confirm('Eliminar esta proyección?')) return;
-    await supabase.from('inmobiliaria_proyecciones').delete().eq('id', p.id);
+  const moverFecha = async (p: Proyeccion, nuevaFecha: string) => {
+    if (p.id.startsWith('auto-')) {
+      // Create in DB with new date
+      await supabase.from('inmobiliaria_proyecciones').insert({
+        tenant_id: tenant!.id, tipo: p.tipo, concepto: p.concepto,
+        monto: p.monto, fecha_prevista: nuevaFecha,
+        contrato_id: p.contrato_id, categoria: p.categoria, estado: 'pendiente',
+      });
+    } else {
+      await supabase.from('inmobiliaria_proyecciones').update({ fecha_prevista: nuevaFecha }).eq('id', p.id);
+    }
     loadData();
+  };
+
+  const remove = (p: Proyeccion) => {
+    if (p.id.startsWith('auto-')) return; // can't delete auto-generated
+    requestDelete('Esta acción eliminará la proyección y no se puede deshacer.', async () => {
+      await supabase.from('inmobiliaria_proyecciones').delete().eq('id', p.id);
+      loadData();
+    });
   };
 
   const filtered = proyecciones.filter(p => {
@@ -183,6 +204,11 @@ export default function ProyeccionesInmob() {
           <option value="gasto">Gastos</option>
           <option value="pendiente">Solo pendientes</option>
         </select>
+        <div style={{ display: 'flex', gap: '0.25rem', background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-sm)', padding: 2 }}>
+          <button onClick={() => setViewMode('table')} title="Tabla" style={{ padding: '0.3rem 0.5rem', borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer', background: viewMode === 'table' ? 'var(--color-accent)' : 'transparent', color: viewMode === 'table' ? '#fff' : 'var(--color-text-muted)' }}><LayoutList size={14} /></button>
+          <button onClick={() => setViewMode('month')} title="Mes" style={{ padding: '0.3rem 0.5rem', borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer', background: viewMode === 'month' ? 'var(--color-accent)' : 'transparent', color: viewMode === 'month' ? '#fff' : 'var(--color-text-muted)' }}><CalendarDays size={14} /></button>
+          <button onClick={() => setViewMode('week')} title="Semana" style={{ padding: '0.3rem 0.5rem', borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer', background: viewMode === 'week' ? 'var(--color-accent)' : 'transparent', color: viewMode === 'week' ? '#fff' : 'var(--color-text-muted)' }}><Calendar size={14} /></button>
+        </div>
         <button onClick={openNew} className="btn btn-primary" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem' }}>
           <Plus size={14} /> Nuevo
         </button>
@@ -204,80 +230,169 @@ export default function ProyeccionesInmob() {
         </div>
       </div>
 
-      {/* Grid table */}
-      <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr 90px 80px 100px', padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', alignItems: 'center' }}>
-          <span>Fecha</span><span>Concepto</span><span style={{ textAlign: 'right' }}>Monto</span><span>Estado</span><span style={{ textAlign: 'right' }}>Acciones</span>
+      {/* ─── TABLE VIEW ─── */}
+      {viewMode === 'table' && (
+        <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr 90px 80px 100px', padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', alignItems: 'center' }}>
+            <span>Fecha</span><span>Concepto</span><span style={{ textAlign: 'right' }}>Monto</span><span>Estado</span><span style={{ textAlign: 'right' }}>Acciones</span>
+          </div>
+          {filtered.map(p => {
+            const isIngreso = p.tipo === 'ingreso';
+            const isPending = p.estado === 'pendiente';
+            const isAuto = p.id.startsWith('auto-');
+            return (
+              <div key={p.id}
+                style={{ display: 'grid', gridTemplateColumns: '80px 1fr 90px 80px 100px', padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', alignItems: 'center', transition: 'background 0.1s', opacity: !isPending ? 0.6 : 1 }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
+                onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                  {new Date(p.fecha_prevista + 'T12:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.concepto}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                    <span style={{ fontSize: '0.5625rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: isIngreso ? '#10B98115' : '#EF444415', color: isIngreso ? '#10B981' : '#EF4444' }}>{isIngreso ? 'Ingreso' : 'Gasto'}</span>
+                    {p._propTipo && <span style={{ fontSize: '0.5625rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: '#3B82F610', color: '#3B82F6', textTransform: 'capitalize' }}>{p._propTipo}</span>}
+                    {!p._propTipo && p.categoria && <span style={{ fontSize: '0.5625rem', color: 'var(--color-text-faint)' }}>{p.categoria}</span>}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3 }}>
+                  {isIngreso ? <ArrowUpRight size={12} color="#10B981" /> : <ArrowDownRight size={12} color="#EF4444" />}
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', fontWeight: 700, color: isIngreso ? '#10B981' : '#EF4444' }}>${p.monto.toLocaleString('es-AR')}</span>
+                </div>
+                <div>
+                  <span style={{ fontSize: '0.5625rem', fontWeight: 700, padding: '2px 6px', borderRadius: 99, background: `${ESTADO_COLOR[p.estado]}15`, color: ESTADO_COLOR[p.estado], textTransform: 'capitalize' }}>{p.estado}</span>
+                </div>
+                <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                  {isPending && (
+                    <div className="row-action-wrap">
+                      <button onClick={e => { e.stopPropagation(); marcarRealizado(p); }}
+                        style={{ ...iconBtn, color: '#10B981', borderColor: '#10B98130' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = '#10B98110'; e.currentTarget.style.borderColor = '#10B981'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; e.currentTarget.style.borderColor = '#10B98130'; }}>
+                        <Check size={14} />
+                      </button>
+                      <span className="row-action-tooltip">{isIngreso ? 'Cobrado' : 'Pagado'}</span>
+                    </div>
+                  )}
+                  {isPending && (
+                    <div className="row-action-wrap">
+                      <button onClick={e => { e.stopPropagation(); const nf = prompt('Nueva fecha (YYYY-MM-DD):', p.fecha_prevista); if (nf) moverFecha(p, nf); }}
+                        style={{ ...iconBtn, color: 'var(--color-text-muted)' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg-hover)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; }}>
+                        <CalendarDays size={13} />
+                      </button>
+                      <span className="row-action-tooltip">Mover fecha</span>
+                    </div>
+                  )}
+                  {!isAuto && (
+                    <div className="row-action-wrap">
+                      <button onClick={e => { e.stopPropagation(); remove(p); }}
+                        style={{ ...iconBtn, color: '#EF4444', borderColor: '#EF444420' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = '#EF44440a'; e.currentTarget.style.borderColor = '#EF4444'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; e.currentTarget.style.borderColor = '#EF444420'; }}>
+                        <Trash2 size={14} />
+                      </button>
+                      <span className="row-action-tooltip">Eliminar</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          {filtered.length === 0 && <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin proyecciones</div>}
         </div>
-        {filtered.map(p => {
-          const isIngreso = p.tipo === 'ingreso';
-          const isPending = p.estado === 'pendiente';
-          const isAuto = p.id.startsWith('auto-');
-          return (
-            <div key={p.id}
-              style={{ display: 'grid', gridTemplateColumns: '80px 1fr 90px 80px 100px', padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', alignItems: 'center', transition: 'background 0.1s', opacity: !isPending ? 0.6 : 1 }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
-              onMouseLeave={e => (e.currentTarget.style.background = '')}>
-              {/* Fecha */}
-              <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                {new Date(p.fecha_prevista + 'T12:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}
-              </div>
-              {/* Concepto */}
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {p.concepto}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                  <span style={{ fontSize: '0.5625rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: isIngreso ? '#10B98115' : '#EF444415', color: isIngreso ? '#10B981' : '#EF4444' }}>
-                    {isIngreso ? 'Ingreso' : 'Gasto'}
-                  </span>
-                  {isAuto && <span style={{ fontSize: '0.5625rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: 'var(--color-bg-surface-2)', color: 'var(--color-text-muted)' }}>Auto</span>}
-                  {p.categoria && <span style={{ fontSize: '0.5625rem', color: 'var(--color-text-faint)' }}>{p.categoria}</span>}
-                </div>
-              </div>
-              {/* Monto */}
-              <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3 }}>
-                {isIngreso ? <ArrowUpRight size={12} color="#10B981" /> : <ArrowDownRight size={12} color="#EF4444" />}
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', fontWeight: 700, color: isIngreso ? '#10B981' : '#EF4444' }}>
-                  ${p.monto.toLocaleString('es-AR')}
-                </span>
-              </div>
-              {/* Estado */}
-              <div>
-                <span style={{ fontSize: '0.5625rem', fontWeight: 700, padding: '2px 6px', borderRadius: 99, background: `${ESTADO_COLOR[p.estado]}15`, color: ESTADO_COLOR[p.estado], textTransform: 'capitalize' }}>
-                  {p.estado}
-                </span>
-              </div>
-              {/* Actions */}
-              <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
-                {isPending && (
-                  <div className="row-action-wrap">
-                    <button onClick={e => { e.stopPropagation(); marcarRealizado(p); }}
-                      style={{ ...iconBtn, color: '#10B981', borderColor: '#10B98130' }}
-                      onMouseEnter={e => { e.currentTarget.style.background = '#10B98110'; e.currentTarget.style.borderColor = '#10B981'; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; e.currentTarget.style.borderColor = '#10B98130'; }}>
-                      <Check size={14} />
-                    </button>
-                    <span className="row-action-tooltip">{isIngreso ? 'Cobrado' : 'Pagado'}</span>
-                  </div>
-                )}
-                {!isAuto && (
-                  <div className="row-action-wrap">
-                    <button onClick={e => { e.stopPropagation(); remove(p); }}
-                      style={{ ...iconBtn, color: '#EF4444', borderColor: '#EF444420' }}
-                      onMouseEnter={e => { e.currentTarget.style.background = '#EF44440a'; e.currentTarget.style.borderColor = '#EF4444'; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; e.currentTarget.style.borderColor = '#EF444420'; }}>
-                      <Trash2 size={14} />
-                    </button>
-                    <span className="row-action-tooltip">Eliminar</span>
-                  </div>
-                )}
-              </div>
+      )}
+
+      {/* ─── MONTH CALENDAR VIEW ─── */}
+      {viewMode === 'month' && (() => {
+        const year = calDate.getFullYear();
+        const month = calDate.getMonth();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const firstDay = new Date(year, month, 1).getDay();
+        const monthLabel = calDate.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+        const byDate: Record<string, Proyeccion[]> = {};
+        filtered.forEach(p => { const d = p.fecha_prevista; if (!byDate[d]) byDate[d] = []; byDate[d].push(p); });
+
+        return (
+          <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+              <button onClick={() => setCalDate(new Date(year, month - 1, 1))} style={{ background: 'none', border: '1px solid var(--color-border-subtle)', borderRadius: 8, padding: '0.25rem 0.5rem', cursor: 'pointer', color: 'var(--color-text-muted)' }}><ChevronLeft size={16} /></button>
+              <span style={{ fontWeight: 700, textTransform: 'capitalize', fontSize: '0.95rem' }}>{monthLabel}</span>
+              <button onClick={() => setCalDate(new Date(year, month + 1, 1))} style={{ background: 'none', border: '1px solid var(--color-border-subtle)', borderRadius: 8, padding: '0.25rem 0.5rem', cursor: 'pointer', color: 'var(--color-text-muted)' }}><ChevronRight size={16} /></button>
             </div>
-          );
-        })}
-        {filtered.length === 0 && <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin proyecciones</div>}
-      </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2, marginBottom: 4 }}>
+              {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(d => (
+                <div key={d} style={{ textAlign: 'center', fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-text-muted)', padding: '0.25rem 0' }}>{d}</div>
+              ))}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3 }}>
+              {Array.from({ length: firstDay }).map((_, i) => <div key={`e${i}`} />)}
+              {Array.from({ length: daysInMonth }).map((_, i) => {
+                const day = i + 1;
+                const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const dayItems = byDate[dateKey] || [];
+                const income = dayItems.filter(p => p.tipo === 'ingreso').reduce((s, p) => s + p.monto, 0);
+                const expense = dayItems.filter(p => p.tipo === 'gasto').reduce((s, p) => s + p.monto, 0);
+                const isToday = dateKey === new Date().toISOString().slice(0, 10);
+                return (
+                  <div key={day} style={{ minHeight: 64, borderRadius: 8, border: `1px solid ${isToday ? 'var(--color-accent)' : 'var(--color-border-subtle)'}`, padding: '0.3rem', background: isToday ? 'rgba(37,99,235,0.03)' : 'var(--color-bg-surface)' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: isToday ? 800 : 600, color: isToday ? 'var(--color-cta, #2563EB)' : 'var(--color-text-primary)', marginBottom: 2 }}>{day}</div>
+                    {income > 0 && <div style={{ fontSize: '0.55rem', fontWeight: 700, color: '#10B981', lineHeight: 1.3 }}>+${(income / 1000).toFixed(0)}K</div>}
+                    {expense > 0 && <div style={{ fontSize: '0.55rem', fontWeight: 700, color: '#EF4444', lineHeight: 1.3 }}>-${(expense / 1000).toFixed(0)}K</div>}
+                    {dayItems.length > 0 && <div style={{ display: 'flex', gap: 2, marginTop: 2 }}>
+                      {dayItems.slice(0, 3).map((p, idx) => <div key={idx} style={{ width: 5, height: 5, borderRadius: 99, background: p.tipo === 'ingreso' ? '#10B981' : '#EF4444' }} />)}
+                    </div>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ─── WEEK VIEW ─── */}
+      {viewMode === 'week' && (() => {
+        const today = calDate;
+        const dayOfWeek = today.getDay();
+        const weekStart = new Date(today); weekStart.setDate(today.getDate() - dayOfWeek);
+        const days: string[] = [];
+        for (let i = 0; i < 7; i++) { const d = new Date(weekStart); d.setDate(weekStart.getDate() + i); days.push(d.toISOString().slice(0, 10)); }
+        const byDate: Record<string, Proyeccion[]> = {};
+        filtered.forEach(p => { const d = p.fecha_prevista; if (!byDate[d]) byDate[d] = []; byDate[d].push(p); });
+        const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+        return (
+          <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+              <button onClick={() => setCalDate(d => { const n = new Date(d); n.setDate(n.getDate() - 7); return n; })} style={{ background: 'none', border: '1px solid var(--color-border-subtle)', borderRadius: 8, padding: '0.25rem 0.5rem', cursor: 'pointer', color: 'var(--color-text-muted)' }}><ChevronLeft size={16} /></button>
+              <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Semana del {new Date(days[0] + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })} al {new Date(days[6] + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}</span>
+              <button onClick={() => setCalDate(d => { const n = new Date(d); n.setDate(n.getDate() + 7); return n; })} style={{ background: 'none', border: '1px solid var(--color-border-subtle)', borderRadius: 8, padding: '0.25rem 0.5rem', cursor: 'pointer', color: 'var(--color-text-muted)' }}><ChevronRight size={16} /></button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
+              {days.map((dateKey, i) => {
+                const dayItems = byDate[dateKey] || [];
+                const isToday = dateKey === new Date().toISOString().slice(0, 10);
+                const dayNum = new Date(dateKey + 'T12:00:00').getDate();
+                return (
+                  <div key={dateKey} style={{ borderRadius: 10, border: `1.5px solid ${isToday ? 'var(--color-accent)' : 'var(--color-border-subtle)'}`, padding: '0.5rem', minHeight: 120, background: isToday ? 'rgba(37,99,235,0.03)' : 'var(--color-bg-surface)' }}>
+                    <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: isToday ? 'var(--color-cta, #2563EB)' : 'var(--color-text-muted)', marginBottom: 6, textAlign: 'center' }}>{dayNames[i]} {dayNum}</div>
+                    {dayItems.map(p => (
+                      <div key={p.id} style={{ padding: '4px 6px', borderRadius: 6, marginBottom: 4, background: p.tipo === 'ingreso' ? '#10B98110' : '#EF444410', borderLeft: `3px solid ${p.tipo === 'ingreso' ? '#10B981' : '#EF4444'}`, cursor: 'pointer' }}
+                        onClick={() => { if (p.estado === 'pendiente') { const nf = prompt('Mover a fecha (YYYY-MM-DD):', p.fecha_prevista); if (nf) moverFecha(p, nf); } }}>
+                        <div style={{ fontSize: '0.625rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-primary)' }}>{p.concepto.length > 20 ? p.concepto.slice(0, 20) + '…' : p.concepto}</div>
+                        <div style={{ fontSize: '0.5625rem', fontFamily: 'var(--font-mono)', fontWeight: 700, color: p.tipo === 'ingreso' ? '#10B981' : '#EF4444' }}>${(p.monto / 1000).toFixed(0)}K</div>
+                      </div>
+                    ))}
+                    {dayItems.length === 0 && <div style={{ fontSize: '0.625rem', color: 'var(--color-text-faint)', textAlign: 'center', padding: '1rem 0' }}>—</div>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ─── WIZARD MODAL ─── */}
       {showModal && (() => {
@@ -382,6 +497,7 @@ export default function ProyeccionesInmob() {
           </div>
         );
       })()}
+      {ConfirmModal}
     </div>
   );
 }

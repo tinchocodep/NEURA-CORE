@@ -111,8 +111,8 @@ export default function Dashboard() {
   return (
     <div style={{ padding: isMobile ? '0' : '1.5rem', display: 'flex', flexDirection: 'column', gap: isMobile ? '0.5rem' : '1.5rem' }}>
       <div>
-        <h1 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.25rem' }}>Inmobiliaria</h1>
-        {!isMobile && <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>Dashboard de gestion de propiedades y contratos.</p>}
+        <h1 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.25rem' }}>Gestor</h1>
+        {!isMobile && <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>Dashboard de gestión de propiedades y contratos.</p>}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fit, minmax(180px, 1fr))', gap: isMobile ? '0.5rem' : '1rem' }}>

@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import { useTenant } from '../../../contexts/TenantContext';
-import { Search, FileText, Trash2, X, Download, Mail, Send, Loader, User, DollarSign } from 'lucide-react';
+import { useConfirmDelete } from '../../../shared/components/ConfirmDelete';
+import { Search, Trash2, X, Download, Mail, Send, Loader, User, DollarSign, Check, Eye } from 'lucide-react';
 import { useToast } from '../../../contexts/ToastContext';
 import { DocumentViewer } from '../../../shared/components/DocumentViewer';
 import PaymentModal from './PaymentModal';
@@ -23,7 +24,7 @@ interface OrdenPago {
     treasury_transactions?: any[];
 }
 
-export default function OrdenesPagoList() {
+export default function OrdenesPagoList({ onNueva }: { onNueva?: () => void } = {}) {
     const { tenant } = useTenant();
     const { addToast } = useToast();
     const navigate = useNavigate();
@@ -45,6 +46,7 @@ export default function OrdenesPagoList() {
     // Filters
     const [busqueda, setBusqueda] = useState('');
     const [filtroEstado, setFiltroEstado] = useState('todas');
+    const { requestDelete, ConfirmModal } = useConfirmDelete();
 
     const fetchOrdenes = async () => {
         if (!tenant) return;
@@ -84,42 +86,43 @@ export default function OrdenesPagoList() {
         fetchOrdenes();
     }, [tenant, filtroEstado]);
 
-    const eliminarOP = async (id: string, numero_op: string) => {
-        if (!confirm(`¿Estás seguro que deseas eliminar la Orden de Pago ${numero_op} y liberar sus facturas?`)) return;
-        setLoading(true);
-        try {
-            // 1. Obtener los IDs de los comprobantes que estaban atados a esta OP
-            const { data: compData } = await supabase
-                .from('tesoreria_op_comprobantes')
-                .select('comprobante_id')
-                .eq('op_id', id);
+    const eliminarOP = (id: string, numero_op: string) => {
+        requestDelete(`Esta acción eliminará la Orden de Pago ${numero_op} y liberará sus facturas.`, async () => {
+            setLoading(true);
+            try {
+                // 1. Obtener los IDs de los comprobantes que estaban atados a esta OP
+                const { data: compData } = await supabase
+                    .from('tesoreria_op_comprobantes')
+                    .select('comprobante_id')
+                    .eq('op_id', id);
 
-            const comprobanteIds = compData ? compData.map(c => c.comprobante_id) : [];
+                const comprobanteIds = compData ? compData.map(c => c.comprobante_id) : [];
 
-            // 2. Liberar estado de las facturas hijas (retornar a 'aprobado' o 'pendiente')
-            if (comprobanteIds.length > 0) {
-                await supabase
-                    .from('contable_comprobantes')
-                    .update({ estado: 'aprobado' })
-                    .in('id', comprobanteIds);
+                // 2. Liberar estado de las facturas hijas (retornar a 'aprobado' o 'pendiente')
+                if (comprobanteIds.length > 0) {
+                    await supabase
+                        .from('contable_comprobantes')
+                        .update({ estado: 'aprobado' })
+                        .in('id', comprobanteIds);
+                }
+
+                // 3. Borrar detalles (cascada en Supabase lo borraría igual si está configurado, pero lo forzamos limpiamente)
+                await supabase.from('tesoreria_op_comprobantes').delete().eq('op_id', id);
+                await supabase.from('tesoreria_op_retenciones').delete().eq('op_id', id);
+
+                // 4. Borrar OP Cabecera
+                const { error: opError } = await supabase.from('tesoreria_ordenes_pago').delete().eq('id', id);
+                if (opError) throw opError;
+
+                addToast('success', `La Orden de Pago ${numero_op} fue eliminada exitosamente`);
+                fetchOrdenes(); // refrescar
+            } catch (error: any) {
+                console.error('Error al eliminar:', error);
+                addToast('error', error.message || 'Error al eliminar la Orden de Pago');
+            } finally {
+                setLoading(false);
             }
-
-            // 3. Borrar detalles (cascada en Supabase lo borraría igual si está configurado, pero lo forzamos limpiamente)
-            await supabase.from('tesoreria_op_comprobantes').delete().eq('op_id', id);
-            await supabase.from('tesoreria_op_retenciones').delete().eq('op_id', id);
-
-            // 4. Borrar OP Cabecera
-            const { error: opError } = await supabase.from('tesoreria_ordenes_pago').delete().eq('id', id);
-            if (opError) throw opError;
-
-            addToast('success', `La Orden de Pago ${numero_op} fue eliminada exitosamente`);
-            fetchOrdenes(); // refrescar
-        } catch (error: any) {
-            console.error('Error al eliminar:', error);
-            addToast('error', error.message || 'Error al eliminar la Orden de Pago');
-        } finally {
-            setLoading(false);
-        }
+        });
     };
       const handleSendEmail = async () => {
         if (!emailDestino || !selectedOp?.archivo_url) return;
@@ -176,10 +179,15 @@ export default function OrdenesPagoList() {
                 </div>
                 <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
                     <option value="todas">Todos los estados</option>
-                    <option value="aprobada">Pendiente de Pago</option>
-                    <option value="pagada">Abonadas</option>
+                    <option value="aprobada">Pendientes</option>
+                    <option value="pagada">Liquidadas</option>
                     <option value="anulada">Anuladas</option>
                 </select>
+                {onNueva && (
+                    <button onClick={onNueva} className="btn btn-primary" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem' }}>
+                        <DollarSign size={14} /> Nueva OP
+                    </button>
+                )}
             </div>
 
             {/* Grid table */}
@@ -193,7 +201,7 @@ export default function OrdenesPagoList() {
                     <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin órdenes de pago</div>
                 ) : ordenesFiltradas.map(op => {
                     const estadoColor = op.estado === 'pagada' ? '#10B981' : op.estado === 'anulada' ? '#EF4444' : '#F59E0B';
-                    const estadoLabel = op.estado === 'pagada' ? 'Abonada' : op.estado === 'anulada' ? 'Anulada' : 'Pendiente';
+                    const estadoLabel = op.estado === 'pagada' ? 'Liquidada' : op.estado === 'anulada' ? 'Anulada' : 'Pendiente';
                     return (
                         <div key={op.id}
                             style={{ display: 'grid', gridTemplateColumns: '1fr 90px 90px 90px 80px 120px', padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', alignItems: 'center', transition: 'background 0.1s' }}
@@ -235,9 +243,9 @@ export default function OrdenesPagoList() {
                                             style={{ ...iconBtn, color: '#10B981', borderColor: '#10B98130' }}
                                             onMouseEnter={e => { e.currentTarget.style.background = '#10B98110'; e.currentTarget.style.borderColor = '#10B981'; }}
                                             onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; e.currentTarget.style.borderColor = '#10B98130'; }}>
-                                            <DollarSign size={14} />
+                                            <Check size={14} />
                                         </button>
-                                        <span className="row-action-tooltip">Pagar</span>
+                                        <span className="row-action-tooltip">Liquidar</span>
                                     </div>
                                 )}
                                 <div className="row-action-wrap">
@@ -245,9 +253,9 @@ export default function OrdenesPagoList() {
                                         style={{ ...iconBtn, color: 'var(--color-text-muted)' }}
                                         onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg-hover)'; }}
                                         onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; }}>
-                                        <FileText size={14} />
+                                        <Eye size={14} />
                                     </button>
-                                    <span className="row-action-tooltip">Ver PDF</span>
+                                    <span className="row-action-tooltip">Ver detalles</span>
                                 </div>
                                 <div className="row-action-wrap">
                                     <button onClick={() => eliminarOP(op.id, op.numero_op)}
@@ -352,6 +360,8 @@ export default function OrdenesPagoList() {
                     </div>
                 </div>
             )}
+
+            {ConfirmModal}
 
             {/* PAYMENT MODAL */}
             {opToPay && (

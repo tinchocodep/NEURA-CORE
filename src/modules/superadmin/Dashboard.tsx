@@ -39,7 +39,7 @@ interface ModuleNode {
 const RUBROS = [
     { id: 'general', label: 'General', color: '#8C959F' },
     { id: 'automotriz', label: 'Automotriz', color: '#2563EB' },
-    { id: 'inmobiliaria', label: 'Inmobiliaria', color: '#16A34A' },
+    { id: 'inmobiliaria', label: 'Gestor', color: '#16A34A' },
     { id: 'constructora', label: 'Constructora', color: '#D97706' },
     { id: 'logistica', label: 'Logística', color: '#8B5CF6' },
     { id: 'contable', label: 'Estudio Contable', color: '#0284C7' },
@@ -92,7 +92,7 @@ const MODULE_TREE: ModuleNode[] = [
     },
     {
         id: 'inmobiliaria',
-        name: 'Inmobiliaria',
+        name: 'Gestor',
         rubros: ['inmobiliaria'],
         submodules: [
             { id: 'inmobiliaria.propiedades', name: 'Propiedades' },

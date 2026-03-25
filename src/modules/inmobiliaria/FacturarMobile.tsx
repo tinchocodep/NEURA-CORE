@@ -3,6 +3,7 @@ import { Plus, Trash2, X, Check, ChevronRight, ChevronLeft, Eye, Download, Recei
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import CustomSelect from '../../shared/components/CustomSelect';
+import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
 import jsPDF from 'jspdf';
 
 interface Comprobante {
@@ -43,6 +44,7 @@ export default function FacturarMobile() {
   const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
   const [lineas, setLineas] = useState<{ descripcion: string; cantidad: number; precio_unitario: number; iva_porcentaje: number }[]>([]);
   const [observaciones, setObs] = useState('');
+  const { requestDelete, ConfirmModal } = useConfirmDelete();
 
   useEffect(() => { if (tenant) loadData(); }, [tenant]);
 
@@ -120,10 +122,11 @@ export default function FacturarMobile() {
     setShowModal(false);
   };
 
-  const remove = async (comp: Comprobante) => {
-    if (!confirm('Eliminar este comprobante?')) return;
-    await supabase.from('contable_comprobantes').delete().eq('id', comp.id);
-    setItems(prev => prev.filter(c => c.id !== comp.id));
+  const remove = (comp: Comprobante) => {
+    requestDelete('Esta acción eliminará el comprobante y no se puede deshacer.', async () => {
+      await supabase.from('contable_comprobantes').delete().eq('id', comp.id);
+      setItems(prev => prev.filter(c => c.id !== comp.id));
+    });
   };
 
   const generatePdf = (comp: Comprobante) => {
@@ -470,6 +473,7 @@ export default function FacturarMobile() {
           </div>
         );
       })()}
+      {ConfirmModal}
     </div>
   );
 }

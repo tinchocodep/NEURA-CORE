@@ -4,6 +4,7 @@ import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import CustomSelect from '../../shared/components/CustomSelect';
+import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
 
 interface Documento { nombre: string; url: string; tipo: string; fecha: string; }
 interface Ajuste { fecha: string; monto_anterior: number; monto_nuevo: number; indice: string; porcentaje: number; }
@@ -52,6 +53,7 @@ export default function Contratos() {
   const [newClienteNombre, setNewClienteNombre] = useState('');
   const [newClienteCuit, setNewClienteCuit] = useState('');
   const [wizardStep, setWizardStep] = useState(0);
+  const { requestDelete, ConfirmModal } = useConfirmDelete();
 
   useEffect(() => { if (tenant) loadData(); }, [tenant]);
 
@@ -123,10 +125,12 @@ export default function Contratos() {
     setShowModal(false);
   };
 
-  const remove = async () => {
-    if (!editing || !confirm('Eliminar este contrato?')) return;
-    const { error } = await supabase.from('inmobiliaria_contratos').delete().eq('id', editing.id);
-    if (!error) { setItems(prev => prev.filter(c => c.id !== editing.id)); setShowModal(false); }
+  const remove = () => {
+    if (!editing) return;
+    requestDelete('Esta acción eliminará el contrato y no se puede deshacer.', async () => {
+      const { error } = await supabase.from('inmobiliaria_contratos').delete().eq('id', editing.id);
+      if (!error) { setItems(prev => prev.filter(c => c.id !== editing.id)); setShowModal(false); }
+    });
   };
 
   const now = new Date();
@@ -643,6 +647,7 @@ export default function Contratos() {
           </div>
         );
       })()}
+      {ConfirmModal}
     </div>
   );
 }

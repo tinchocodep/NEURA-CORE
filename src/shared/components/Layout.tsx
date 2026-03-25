@@ -5,7 +5,7 @@ import {
     Briefcase, Zap, Users, BookOpen, Tag, Building2, Settings, ClipboardList,
     Receipt, TrendingUp, HardHat,
     Funnel, Columns3, Contact, BarChart3, Car, ChevronLeft, ChevronDown,
-    Home, FileSignature, Wallet, CalendarClock, UserPlus
+    Home, FileSignature, Wallet, CalendarClock, UserPlus, MapPin
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
@@ -261,6 +261,7 @@ export default function Layout() {
     const gestionItems = [
         { name: 'Cuentas', path: '/inmobiliaria/cuentas', icon: Receipt },
         { name: 'Proveedores', path: '/inmobiliaria/proveedores', icon: Building2 },
+        { name: 'Mapa', path: '/inmobiliaria/mapa', icon: MapPin },
         ...(hasModuleAccess('crm') ? [
             { name: 'Contactos', path: '/crm/contactos', icon: UserPlus },
         ] : []),

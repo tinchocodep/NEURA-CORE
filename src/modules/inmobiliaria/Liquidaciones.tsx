@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import CustomSelect from '../../shared/components/CustomSelect';
+import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
 
 interface Liquidacion {
   id: string; contrato_id: string; propietario_id: string; periodo: string;
@@ -48,6 +49,7 @@ export default function Liquidaciones() {
   const [deducciones, setDeducciones] = useState<Deduccion[]>([]);
   const [formCategoria, setFormCategoria] = useState('alquiler');
   const [editing, setEditing] = useState<Liquidacion | null>(null);
+  const { requestDelete, ConfirmModal } = useConfirmDelete();
 
   useEffect(() => { if (tenant) loadData(); }, [tenant]);
 
@@ -121,10 +123,11 @@ export default function Liquidaciones() {
     setShowModal(false);
   };
 
-  const remove = async (l: Liquidacion) => {
-    if (!confirm('Eliminar esta liquidación?')) return;
-    await supabase.from('inmobiliaria_liquidaciones').delete().eq('id', l.id);
-    setItems(prev => prev.filter(x => x.id !== l.id));
+  const remove = (l: Liquidacion) => {
+    requestDelete('Esta acción eliminará la liquidación y no se puede deshacer.', async () => {
+      await supabase.from('inmobiliaria_liquidaciones').delete().eq('id', l.id);
+      setItems(prev => prev.filter(x => x.id !== l.id));
+    });
   };
 
   const updateEstado = async (id: string, estado: string) => {
@@ -472,6 +475,7 @@ export default function Liquidaciones() {
           </div>
         );
       })()}
+      {ConfirmModal}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { Plus, Wrench, Upload, Phone, FileText, CheckCircle, AlertTriangle, X, C
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import CustomSelect from '../../shared/components/CustomSelect';
+import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
 
 interface OrdenTrabajo {
   id: string; propiedad_id: string; contrato_id: string | null; proveedor_id: string | null;
@@ -58,6 +59,7 @@ export default function OrdenesTrabajo() {
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingOrdenRef = useRef<OrdenTrabajo | null>(null);
+  const { requestDelete, ConfirmModal } = useConfirmDelete();
 
   useEffect(() => { if (tenant) loadData(); }, [tenant]);
 
@@ -104,11 +106,12 @@ export default function OrdenesTrabajo() {
     loadData();
   };
 
-  const remove = async (ot: OrdenTrabajo) => {
-    if (!confirm('Eliminar esta orden?')) return;
-    await supabase.from('inmobiliaria_ordenes_trabajo').delete().eq('id', ot.id);
-    setItems(prev => prev.filter(o => o.id !== ot.id));
-    setShowModal(false);
+  const remove = (ot: OrdenTrabajo) => {
+    requestDelete('Esta acción eliminará la orden de trabajo y no se puede deshacer.', async () => {
+      await supabase.from('inmobiliaria_ordenes_trabajo').delete().eq('id', ot.id);
+      setItems(prev => prev.filter(o => o.id !== ot.id));
+      setShowModal(false);
+    });
   };
 
   const avanzarEstado = async (ot: OrdenTrabajo) => {
@@ -645,6 +648,7 @@ export default function OrdenesTrabajo() {
           </div>
         );
       })()}
+      {ConfirmModal}
     </div>
   );
 }

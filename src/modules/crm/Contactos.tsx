@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
+import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
 import { Plus, Search, Trash2, Building2, Mail, Phone, X, Wrench, Eye, Check, ChevronRight, ChevronLeft } from 'lucide-react';
 import CustomSelect from '../../shared/components/CustomSelect';
 
@@ -32,6 +33,7 @@ export default function CRMContactos() {
     const [editing, setEditing] = useState<Partial<Contacto> & { vinculo_tipo: VinculoTipo }>(EMPTY);
     const [wizardStep, setWizardStep] = useState(0);
     const [saving, setSaving] = useState(false);
+    const { requestDelete, ConfirmModal } = useConfirmDelete();
 
     useEffect(() => { if (tenant) loadData(); }, [tenant]);
     useEffect(() => {
@@ -84,10 +86,11 @@ export default function CRMContactos() {
         setSaving(false); setShowModal(false); loadData();
     };
 
-    const handleDelete = async (c: Contacto) => {
-        if (!confirm('¿Eliminar contacto?')) return;
-        await supabase.from('crm_contactos').update({ activo: false }).eq('id', c.id);
-        setContactos(prev => prev.filter(x => x.id !== c.id));
+    const handleDelete = (c: Contacto) => {
+        requestDelete('Esta acción eliminará el contacto y no se puede deshacer.', async () => {
+            await supabase.from('crm_contactos').update({ activo: false }).eq('id', c.id);
+            setContactos(prev => prev.filter(x => x.id !== c.id));
+        });
     };
 
     if (loading) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Cargando contactos...</div>;
@@ -315,6 +318,7 @@ export default function CRMContactos() {
                     </div>
                 );
             })()}
+            {ConfirmModal}
         </div>
     );
 }

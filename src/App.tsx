@@ -21,7 +21,7 @@ import ContableProveedores from './modules/contable/Proveedores';
 import ContableClientes from './modules/contable/Clientes';
 import ContableCatalogos from './modules/contable/Catalogos';
 import ContableConfiguracion from './modules/contable/Configuracion';
-import Conciliacion from './modules/contable/Conciliacion/index';
+// import Conciliacion from './modules/contable/Conciliacion/index'; // bloqueada
 import VisionGeneral from './modules/VisionGeneral';
 import CRMDashboard from './modules/crm/Dashboard';
 import CRMContactos from './modules/crm/Contactos';
@@ -35,6 +35,7 @@ import ComercialContactoDetalle from './modules/comercial/ContactoDetalle';
 import ComercialReportes from './modules/comercial/Reportes';
 import ComercialConfig from './modules/comercial/Config';
 import InmoDashboard from './modules/inmobiliaria/Dashboard';
+import InmoMapa from './modules/inmobiliaria/MapaPropiedades';
 import InmoPropiedades from './modules/inmobiliaria/Propiedades';
 import InmoContratos from './modules/inmobiliaria/Contratos';
 import InmoLiquidaciones from './modules/inmobiliaria/Liquidaciones';
@@ -103,7 +104,7 @@ export default function App() {
               <Route path="proveedores" element={<ContableProveedores />} />
               <Route path="clientes" element={<ContableClientes />} />
               <Route path="catalogos" element={<ContableCatalogos />} />
-              <Route path="conciliacion" element={<Conciliacion />} />
+              {/* Conciliación bloqueada por ahora */}
             </Route>
             
             {/* Modulo CRM */}
@@ -135,6 +136,7 @@ export default function App() {
               <Route path="cuentas" element={<InmoCuentas />} />
               <Route path="agenda" element={<InmoAgenda />} />
               <Route path="proveedores" element={<InmoProveedores />} />
+              <Route path="mapa" element={<InmoMapa />} />
               <Route path="ordenes" element={<InmoOrdenesTrabajo />} />
               <Route path="facturar" element={<FacturarMobile />} />
             </Route>

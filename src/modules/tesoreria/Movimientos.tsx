@@ -2,9 +2,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { Pencil, LayoutList, CalendarDays, ChevronLeft, ChevronRight, Search, Plus, ArrowUpRight, ArrowDownRight } from 'lucide-react';
-import TransactionForm from './components/TransactionForm';
+import { Pencil, LayoutList, CalendarDays, ChevronLeft, ChevronRight, Search, Plus, ArrowUpRight, ArrowDownRight, X, Check } from 'lucide-react';
 import EditTransactionModal from './components/EditTransactionModal';
+import CustomSelect from '../../shared/components/CustomSelect';
 
 const fmt = (n: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n);
 
@@ -22,6 +22,31 @@ export default function Movimientos() {
     const [calSelected, setCalSelected] = useState<string | null>(null);
     const [editingTx, setEditingTx] = useState<any | null>(null);
     const [showForm, setShowForm] = useState(false);
+    const [formStep, setFormStep] = useState(0);
+    const [formType, setFormType] = useState<'income' | 'expense'>('income');
+    const [formAccount, setFormAccount] = useState('');
+    const [formCategory, setFormCategory] = useState('');
+    const [formAmount, setFormAmount] = useState(0);
+    const [formDesc, setFormDesc] = useState('');
+    const [formDate, setFormDate] = useState(new Date().toISOString().slice(0, 10));
+    const [formContact, setFormContact] = useState('');
+    const [formMethod, setFormMethod] = useState('transferencia');
+    const [showNewAccount, setShowNewAccount] = useState(false);
+    const [newAccName, setNewAccName] = useState('');
+    const [newAccType, setNewAccType] = useState('bank');
+
+    const createAccount = async () => {
+        if (!newAccName.trim()) return;
+        const { data } = await supabase.from('treasury_accounts').insert({
+            tenant_id: tenant!.id, name: newAccName.trim(), type: newAccType, balance: 0,
+        }).select('id, name, type, balance').single();
+        if (data) {
+            setAccounts((prev: any[]) => [...prev, data]);
+            setFormAccount(data.id);
+            setShowNewAccount(false);
+            setNewAccName('');
+        }
+    };
 
     const fetchData = async () => {
         if (!tenant) return;
@@ -253,27 +278,156 @@ export default function Movimientos() {
         </div>
 
         {/* Wizard form modal */}
-        {showForm && (
-            <div className="wizard-overlay" onClick={() => setShowForm(false)}>
-                <div className="wizard-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 500 }}>
+        {showForm && (() => {
+            const STEPS = [{ label: 'Tipo' }, { label: 'Detalle' }];
+            const isLast = formStep === STEPS.length - 1;
+            const canNext = formStep === 0 ? !!formAccount : !!(formDesc.trim() && formAmount > 0);
+            const filteredCats = categories.filter((c: any) => formType === 'income' ? c.type === 'income' : c.type !== 'income');
+
+            const handleSave = async () => {
+                if (!formAccount || !formAmount || !formDesc.trim()) return;
+                await supabase.from('treasury_transactions').insert({
+                    tenant_id: tenant!.id, account_id: formAccount, category_id: formCategory || null,
+                    date: formDate, type: formType, amount: formAmount,
+                    description: formDesc.trim(), status: 'completado',
+                    payment_method: formMethod, contact_name: formContact || null,
+                });
+                setShowForm(false); fetchData();
+            };
+
+            return (
+                <div className="wizard-overlay" onClick={() => setShowForm(false)}>
+                <div className="wizard-card" onClick={e => e.stopPropagation()}>
                     <div className="wizard-header">
                         <h3>Nuevo movimiento</h3>
-                        <button className="wizard-close" onClick={() => setShowForm(false)}>
-                            <span style={{ fontSize: '1.25rem', lineHeight: 1 }}>&times;</span>
-                        </button>
+                        <button className="wizard-close" onClick={() => setShowForm(false)}><X size={18} /></button>
+                    </div>
+                    <div className="wizard-steps">
+                        {STEPS.map((s, i) => (
+                            <div key={i} className="wizard-step" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                <div style={{ display: 'flex', alignItems: 'center' }}>
+                                    {i > 0 && <div className={`wizard-step-line${i <= formStep ? ' done' : ''}`} />}
+                                    <div className={`wizard-step-dot${i === formStep ? ' active' : i < formStep ? ' done' : ' pending'}`}
+                                        onClick={() => i < formStep && setFormStep(i)} style={{ cursor: i < formStep ? 'pointer' : 'default' }}>
+                                        {i < formStep ? <Check size={14} /> : i + 1}
+                                    </div>
+                                </div>
+                                <div className={`wizard-step-label${i === formStep ? ' active' : i < formStep ? ' done' : ''}`}>{s.label}</div>
+                            </div>
+                        ))}
                     </div>
                     <div className="wizard-body">
-                        {accounts.length === 0 ? (
-                            <div style={{ padding: '1rem', borderRadius: 10, background: '#FEF3C7', color: '#92400E', fontSize: '0.8125rem' }}>
-                                No hay cuentas registradas. Creá una en Bancos primero.
+                        {formStep === 0 && (<>
+                            <div className="wizard-field">
+                                <div className="wizard-section-title">Tipo</div>
+                                <div className="wizard-pills" style={{ marginTop: 8 }}>
+                                    <button className={`wizard-pill${formType === 'income' ? ' selected' : ''}`}
+                                        onClick={() => setFormType('income')} style={formType === 'income' ? { background: '#10B981', borderColor: '#10B981' } : {}}>
+                                        Ingreso
+                                    </button>
+                                    <button className={`wizard-pill${formType === 'expense' ? ' selected' : ''}`}
+                                        onClick={() => setFormType('expense')} style={formType === 'expense' ? { background: '#EF4444', borderColor: '#EF4444' } : {}}>
+                                        Egreso
+                                    </button>
+                                </div>
                             </div>
-                        ) : (
-                            <TransactionForm accounts={accounts} categories={categories} onSuccess={() => { fetchData(); setShowForm(false); }} />
-                        )}
+                            <div className="wizard-field">
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <label className="form-label">Cuenta *</label>
+                                    <button type="button" onClick={() => setShowNewAccount(true)}
+                                        style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-cta, #2563EB)', background: 'none', border: 'none', cursor: 'pointer' }}>+ Crear cuenta</button>
+                                </div>
+                                <CustomSelect
+                                    value={formAccount}
+                                    onChange={v => setFormAccount(v)}
+                                    placeholder="Seleccionar cuenta..."
+                                    options={accounts.map((a: any) => ({ value: a.id, label: a.name, sub: a.type === 'bank' ? 'Banco' : a.type === 'cash' ? 'Efectivo' : a.type }))}
+                                />
+                                {showNewAccount && (
+                                    <div style={{ padding: 14, borderRadius: 12, background: 'var(--color-bg-surface-2)', border: '1px solid var(--color-border-subtle)', display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
+                                        <div style={{ fontSize: '0.8125rem', fontWeight: 600 }}>Nueva cuenta</div>
+                                        <div className="wizard-field">
+                                            <input className="form-input" value={newAccName} onChange={e => setNewAccName(e.target.value)} placeholder="Ej: Banco Galicia" />
+                                        </div>
+                                        <div className="wizard-pills">
+                                            {[{ key: 'bank', label: 'Banco' }, { key: 'cash', label: 'Efectivo' }, { key: 'echeq', label: 'eCheq' }].map(t => (
+                                                <button key={t.key} className={`wizard-pill${newAccType === t.key ? ' selected' : ''}`}
+                                                    onClick={() => setNewAccType(t.key)}>{t.label}</button>
+                                            ))}
+                                        </div>
+                                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                                            <button onClick={() => setShowNewAccount(false)} className="wizard-btn-back" style={{ padding: '6px 14px', fontSize: '0.8125rem' }}>Cancelar</button>
+                                            <button onClick={createAccount} className="wizard-btn-next" style={{ padding: '6px 14px', fontSize: '0.8125rem' }} disabled={!newAccName.trim()}>Crear</button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="wizard-field">
+                                <label className="form-label">Fecha</label>
+                                <input type="date" className="form-input" value={formDate} onChange={e => setFormDate(e.target.value)} />
+                            </div>
+                            <div className="wizard-field">
+                                <div className="wizard-section-title">Medio de pago</div>
+                                <div className="wizard-pills" style={{ marginTop: 8 }}>
+                                    {['transferencia', 'efectivo', 'cheque', 'echeq'].map(m => (
+                                        <button key={m} className={`wizard-pill${formMethod === m ? ' selected' : ''}`}
+                                            onClick={() => setFormMethod(m)} style={{ textTransform: 'capitalize' }}>{m}</button>
+                                    ))}
+                                </div>
+                            </div>
+                        </>)}
+                        {formStep === 1 && (<>
+                            <div className="wizard-field">
+                                <label className="form-label">Concepto *</label>
+                                <input className="form-input" value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Ej: Cobro alquiler Av. Santa Fe" />
+                            </div>
+                            <div className="wizard-row">
+                                <div className="wizard-field">
+                                    <label className="form-label">Monto *</label>
+                                    <input type="number" className="form-input" value={formAmount || ''} onChange={e => setFormAmount(Number(e.target.value))} placeholder="0" />
+                                </div>
+                                <div className="wizard-field">
+                                    <label className="form-label">Contacto</label>
+                                    <input className="form-input" value={formContact} onChange={e => setFormContact(e.target.value)} placeholder="Nombre del contacto" />
+                                </div>
+                            </div>
+                            {filteredCats.length > 0 && (
+                                <div className="wizard-field">
+                                    <label className="form-label">Categoría</label>
+                                    <CustomSelect
+                                        value={formCategory}
+                                        onChange={v => setFormCategory(v)}
+                                        placeholder="Seleccionar categoría..."
+                                        emptyLabel="Sin categoría"
+                                        options={filteredCats.map((c: any) => ({ value: c.id, label: c.name, group: c.group || '' }))}
+                                    />
+                                </div>
+                            )}
+                        </>)}
+                    </div>
+                    <div className="wizard-footer">
+                        <div className="wizard-footer-left" />
+                        <div className="wizard-footer-right">
+                            {formStep > 0 && (
+                                <button className="wizard-btn-back" onClick={() => setFormStep(s => s - 1)}>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><ChevronLeft size={16} /> Anterior</span>
+                                </button>
+                            )}
+                            {isLast ? (
+                                <button className="wizard-btn-next" onClick={handleSave} disabled={!canNext}>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Check size={16} /> Crear</span>
+                                </button>
+                            ) : (
+                                <button className="wizard-btn-next" onClick={() => setFormStep(s => s + 1)} disabled={!canNext}>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Siguiente <ChevronRight size={16} /></span>
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
-            </div>
-        )}
+                </div>
+            );
+        })()}
 
         {editingTx && (
             <EditTransactionModal tx={editingTx} accounts={accounts} categories={categories} onClose={() => setEditingTx(null)} onSaved={fetchData} />

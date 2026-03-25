@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, Plus, X, Grid3X3, List, MapPin, FileSignature, Check, ChevronRight, ChevronLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
+import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
 
 interface Propiedad {
   id: string; direccion: string; tipo: string; superficie_m2: number | null;
@@ -46,6 +47,7 @@ export default function Propiedades() {
   const [editing, setEditing] = useState<Propiedad | null>(null);
   const [form, setForm] = useState(emptyProp);
   const [wizardStep, setWizardStep] = useState(0);
+  const { requestDelete, ConfirmModal } = useConfirmDelete();
 
   useEffect(() => { if (tenant) loadData(); }, [tenant]);
 
@@ -80,10 +82,12 @@ export default function Propiedades() {
     setShowModal(false);
   };
 
-  const remove = async () => {
-    if (!editing || !confirm('Eliminar esta propiedad?')) return;
-    const { error } = await supabase.from('inmobiliaria_propiedades').delete().eq('id', editing.id);
-    if (!error) { setItems(prev => prev.filter(p => p.id !== editing.id)); setShowModal(false); }
+  const remove = () => {
+    if (!editing) return;
+    requestDelete('Esta acción eliminará la propiedad y no se puede deshacer.', async () => {
+      const { error } = await supabase.from('inmobiliaria_propiedades').delete().eq('id', editing.id);
+      if (!error) { setItems(prev => prev.filter(p => p.id !== editing.id)); setShowModal(false); }
+    });
   };
 
   const filtered = items.filter(p => {
@@ -383,6 +387,7 @@ export default function Propiedades() {
           </div>
         );
       })()}
+      {ConfirmModal}
     </div>
   );
 }

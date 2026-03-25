@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Search, Plus, X, Phone, Mail, Trash2, Eye, Check, ChevronRight, ChevronLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
+import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
 
 interface Proveedor {
   id: string; nombre: string; rubro: string; contacto_nombre: string | null;
@@ -38,6 +39,7 @@ export default function ProveedoresInmob() {
   const [editing, setEditing] = useState<Proveedor | null>(null);
   const [form, setForm] = useState(emptyProv);
   const [wizardStep, setWizardStep] = useState(0);
+  const { requestDelete, ConfirmModal } = useConfirmDelete();
 
   useEffect(() => { if (tenant) loadData(); }, [tenant]);
 
@@ -63,10 +65,11 @@ export default function ProveedoresInmob() {
     loadData();
   };
 
-  const remove = async (p: Proveedor) => {
-    if (!confirm('¿Eliminar este proveedor?')) return;
-    await supabase.from('inmobiliaria_proveedores').delete().eq('id', p.id);
-    loadData();
+  const remove = (p: Proveedor) => {
+    requestDelete('Esta acción eliminará el proveedor y no se puede deshacer.', async () => {
+      await supabase.from('inmobiliaria_proveedores').delete().eq('id', p.id);
+      loadData();
+    });
   };
 
   const filtered = items.filter(p => {
@@ -309,6 +312,7 @@ export default function ProveedoresInmob() {
           </div>
         );
       })()}
+      {ConfirmModal}
     </div>
   );
 }
