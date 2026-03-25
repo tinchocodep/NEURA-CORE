@@ -268,17 +268,10 @@ export default function Layout() {
     // Finanzas subtab items (for when navigating within Tesorería/Contable advanced)
     // Finanzas: flat list merging tesorería + contable items (excluding promoted ones)
     const finanzasItems = [
-        // Proyecciones (tesorería index)
         ...(hasModuleAccess('tesoreria') ? tesoreriaItems.filter(i => i.path === '/tesoreria') : []),
-        // Órdenes de Pago
         ...(hasModuleAccess('tesoreria') ? tesoreriaItems.filter(i => i.path === '/tesoreria/ordenes-pago') : []),
-        // Movimientos
         ...(hasModuleAccess('tesoreria') ? tesoreriaItems.filter(i => i.path === '/tesoreria/movimientos') : []),
-        // Cajas
-        ...(hasModuleAccess('tesoreria') ? tesoreriaItems.filter(i => i.path === '/tesoreria/cajas') : []),
-        // Bancos
         ...(hasModuleAccess('tesoreria') ? tesoreriaItems.filter(i => i.path === '/tesoreria/bancos') : []),
-        // Centro de Costos
         ...contableItems.filter(i => i.path === '/contable/catalogos'),
     ];
 
