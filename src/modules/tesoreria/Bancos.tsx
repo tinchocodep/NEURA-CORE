@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import { Search, Plus, Trash2, X, Check, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
+import ConciliacionBancaria from './ConciliacionBancaria';
 
 interface Cuenta {
     id: string; name: string; type: string; balance: number;
@@ -15,6 +16,8 @@ interface Movimiento {
 
 export default function Bancos() {
     const { tenant } = useTenant();
+    const hasBankImport = (tenant?.enabled_modules as string[] || []).includes('bank_import');
+    const [mainTab, setMainTab] = useState<'cuentas' | 'conciliacion'>(hasBankImport ? 'conciliacion' : 'cuentas');
     const [cuentas, setCuentas] = useState<Cuenta[]>([]);
     const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
     const [loading, setLoading] = useState(true);
@@ -74,8 +77,26 @@ export default function Bancos() {
         justifyContent: 'center', transition: 'all 0.12s', flexShrink: 0,
     };
 
+    if (mainTab === 'conciliacion' && hasBankImport) {
+        return <ConciliacionBancaria />;
+    }
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {/* Tabs */}
+            {hasBankImport && (
+                <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+                    <button className={`btn ${mainTab === 'conciliacion' ? 'btn-primary' : 'btn-ghost'}`}
+                        style={{ fontSize: '0.8rem' }} onClick={() => setMainTab('conciliacion')}>
+                        Conciliación Bancaria
+                    </button>
+                    <button className={`btn ${mainTab === 'cuentas' ? 'btn-primary' : 'btn-ghost'}`}
+                        style={{ fontSize: '0.8rem' }} onClick={() => setMainTab('cuentas')}>
+                        Cuentas
+                    </button>
+                </div>
+            )}
+
             {/* Header */}
             <div className="module-header-desktop">
                 <h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Bancos y Cuentas</h1>
