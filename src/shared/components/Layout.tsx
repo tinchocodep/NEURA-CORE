@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
     LogOut, LayoutDashboard, ArrowRightLeft, FileText, Activity, Landmark,
     Briefcase, Zap, Users, BookOpen, Tag, Building2, Settings, ClipboardList,
-    Receipt, GitMerge, TrendingUp, HardHat,
+    Receipt, TrendingUp, HardHat,
     Funnel, Columns3, Contact, BarChart3, Car, ChevronLeft, ChevronDown,
     Home, FileSignature, Wallet, CalendarClock, UserPlus
 } from 'lucide-react';
@@ -183,12 +183,9 @@ export default function Layout() {
     );
 
     const allContableItems = [
-        { name: 'Dashboard', path: '/contable', icon: LayoutDashboard },
         { name: 'Comprobantes', path: '/contable/comprobantes', icon: ClipboardList, submodule: 'contable.comprobantes' },
         { name: 'Proveedores', path: '/contable/proveedores', icon: Building2, submodule: 'contable.proveedores' },
-        { name: 'Clientes', path: '/contable/clientes', icon: Building2, submodule: 'contable.clientes' },
-        { name: 'Categorías', path: '/contable/catalogos', icon: Tag, submodule: 'contable.catalogos' },
-        { name: 'Conciliación', path: '/contable/conciliacion', icon: GitMerge, adminOnly: true, submodule: 'contable.conciliacion' },
+        { name: 'Centro de Costos', path: '/contable/catalogos', icon: Tag, submodule: 'contable.catalogos' },
     ];
 
     const contableItems = allContableItems.filter(
@@ -271,22 +268,18 @@ export default function Layout() {
     // Finanzas subtab items (for when navigating within Tesorería/Contable advanced)
     // Finanzas: flat list merging tesorería + contable items (excluding promoted ones)
     const finanzasItems = [
-        // Comprobantes tesorería first
-        ...(hasModuleAccess('tesoreria') ? tesoreriaItems.filter(i => i.path === '/tesoreria/comprobantes') : []),
+        // Proyecciones (tesorería index)
+        ...(hasModuleAccess('tesoreria') ? tesoreriaItems.filter(i => i.path === '/tesoreria') : []),
         // Órdenes de Pago
         ...(hasModuleAccess('tesoreria') ? tesoreriaItems.filter(i => i.path === '/tesoreria/ordenes-pago') : []),
-        // Bancos
-        ...(hasModuleAccess('tesoreria') ? tesoreriaItems.filter(i => i.path === '/tesoreria/bancos') : []),
         // Movimientos
         ...(hasModuleAccess('tesoreria') ? tesoreriaItems.filter(i => i.path === '/tesoreria/movimientos') : []),
         // Cajas
         ...(hasModuleAccess('tesoreria') ? tesoreriaItems.filter(i => i.path === '/tesoreria/cajas') : []),
-        // Monitor
-        ...(hasModuleAccess('tesoreria') ? tesoreriaItems.filter(i => i.path === '/tesoreria/monitor') : []),
-        // Equipo
-        ...(hasModuleAccess('tesoreria') ? tesoreriaItems.filter(i => i.path === '/tesoreria/equipo') : []),
-        // Contable items (excluding Comprobantes and Proveedores — promoted to Gestión/Operaciones)
-        ...contableItems.filter(i => i.path !== '/contable/comprobantes' && i.path !== '/contable/proveedores'),
+        // Bancos
+        ...(hasModuleAccess('tesoreria') ? tesoreriaItems.filter(i => i.path === '/tesoreria/bancos') : []),
+        // Centro de Costos
+        ...contableItems.filter(i => i.path === '/contable/catalogos'),
     ];
 
     const effectiveSectionItems = hasInmob
