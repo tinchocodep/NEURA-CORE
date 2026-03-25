@@ -348,7 +348,7 @@ export default function Layout() {
                         {[
                             { icon: LayoutDashboard, label: 'Home', path: '/', match: (p: string) => p === '/' },
                             { icon: ClipboardList, label: 'Operaciones', path: '/inmobiliaria/propiedades', match: () => isOperaciones },
-                            { icon: Briefcase, label: 'Gestión', path: '/inmobiliaria', match: () => isGestion },
+                            { icon: Briefcase, label: 'Gestión', path: '/inmobiliaria/cuentas', match: () => isGestion },
                             { icon: Landmark, label: 'Finanzas', path: '/tesoreria', match: () => isFinanzas },
                         ].map(item => {
                             const active = item.match(location.pathname);
