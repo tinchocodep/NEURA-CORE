@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Search, Plus, X, Phone, Mail, MoreVertical, Edit2, Trash2, FileText, ChevronUp, ExternalLink } from 'lucide-react';
+import { Search, Plus, X, Phone, Mail, Trash2, Eye, Check, ChevronRight, ChevronLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 
@@ -7,18 +7,6 @@ interface Proveedor {
   id: string; nombre: string; rubro: string; contacto_nombre: string | null;
   telefono: string | null; email: string | null; cuit: string | null;
   direccion: string | null; notas: string | null; activo: boolean;
-}
-
-interface Comprobante {
-  id: string;
-  fecha: string;
-  tipo_comprobante: string;
-  numero_comprobante: string;
-  monto_original: number;
-  monto_ars: number;
-  estado: string;
-  descripcion: string | null;
-  pdf_url: string | null;
 }
 
 const RUBROS = ['plomeria', 'electricidad', 'gas', 'pintura', 'limpieza', 'cerrajeria', 'fumigacion', 'albañileria', 'mudanza', 'general'];
@@ -32,25 +20,16 @@ const RUBRO_COLOR: Record<string, string> = {
   limpieza: '#10B981', cerrajeria: '#6B7280', fumigacion: '#0D9488',
   'albañileria': '#F97316', mudanza: '#EC4899', general: '#6366F1',
 };
+const RUBRO_EMOJI: Record<string, string> = {
+  plomeria: '🔧', electricidad: '⚡', gas: '🔥', pintura: '🎨',
+  limpieza: '🧹', cerrajeria: '🔑', fumigacion: '🐛',
+  'albañileria': '🧱', mudanza: '🚚', general: '📦',
+};
 
 const emptyProv = { nombre: '', rubro: 'general', contacto_nombre: '', telefono: '', email: '', cuit: '', direccion: '', notas: '', activo: true };
 
-function useIsMobile() {
-  const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
-  useEffect(() => { const h = () => setM(window.innerWidth <= 768); window.addEventListener('resize', h); return () => window.removeEventListener('resize', h); }, []);
-  return m;
-}
-
-const ESTADO_COLORS: Record<string, { bg: string; text: string }> = {
-  pendiente: { bg: '#FEF3C7', text: '#92400E' },
-  aprobado: { bg: '#D1FAE5', text: '#065F46' },
-  pagado: { bg: '#DBEAFE', text: '#1E40AF' },
-  rechazado: { bg: '#FEE2E2', text: '#991B1B' },
-};
-
 export default function ProveedoresInmob() {
   const { tenant } = useTenant();
-  const isMobile = useIsMobile();
   const [items, setItems] = useState<Proveedor[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -58,11 +37,7 @@ export default function ProveedoresInmob() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Proveedor | null>(null);
   const [form, setForm] = useState(emptyProv);
-  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [comprobantes, setComprobantes] = useState<Comprobante[]>([]);
-  const [loadingComp, setLoadingComp] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [wizardStep, setWizardStep] = useState(0);
 
   useEffect(() => { if (tenant) loadData(); }, [tenant]);
 
@@ -73,8 +48,8 @@ export default function ProveedoresInmob() {
     setLoading(false);
   };
 
-  const openNew = () => { setEditing(null); setForm(emptyProv); setShowModal(true); };
-  const openEdit = (p: Proveedor) => { setEditing(p); setForm(p as any); setShowModal(true); };
+  const openNew = () => { setEditing(null); setForm(emptyProv); setWizardStep(0); setShowModal(true); };
+  const openEdit = (p: Proveedor) => { setEditing(p); setForm(p as any); setWizardStep(0); setShowModal(true); };
 
   const save = async () => {
     if (!form.nombre.trim()) return;
@@ -88,33 +63,10 @@ export default function ProveedoresInmob() {
     loadData();
   };
 
-  const handleDelete = async (id: string) => {
+  const remove = async (p: Proveedor) => {
     if (!confirm('¿Eliminar este proveedor?')) return;
-    await supabase.from('inmobiliaria_proveedores').delete().eq('id', id);
+    await supabase.from('inmobiliaria_proveedores').delete().eq('id', p.id);
     loadData();
-  };
-
-  const toggleDetail = async (p: Proveedor) => {
-    if (expandedId === p.id) {
-      setExpandedId(null);
-      return;
-    }
-    setExpandedId(p.id);
-    setLoadingComp(true);
-    // Try to find comprobantes by CUIT match
-    if (p.cuit) {
-      const { data } = await supabase
-        .from('contable_comprobantes')
-        .select('id, fecha, tipo_comprobante, numero_comprobante, monto_original, monto_ars, estado, descripcion, pdf_url')
-        .eq('tenant_id', tenant!.id)
-        .eq('cuit_emisor', p.cuit)
-        .order('fecha', { ascending: false })
-        .limit(10);
-      setComprobantes(data || []);
-    } else {
-      setComprobantes([]);
-    }
-    setLoadingComp(false);
   };
 
   const filtered = items.filter(p => {
@@ -123,265 +75,236 @@ export default function ProveedoresInmob() {
     return true;
   });
 
+  // Count by rubro
+  const rubroCounts = RUBROS.reduce((acc, r) => { acc[r] = items.filter(p => p.rubro === r).length; return acc; }, {} as Record<string, number>);
+
   if (loading) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Cargando proveedores...</div>;
+
+  const iconBtn: React.CSSProperties = {
+    width: 28, height: 28, borderRadius: 8, border: '1px solid var(--color-border-subtle)',
+    background: 'var(--color-bg-surface)', cursor: 'pointer', display: 'flex', alignItems: 'center',
+    justifyContent: 'center', transition: 'all 0.12s', flexShrink: 0,
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
       {/* Header */}
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-        <div style={{ flex: 1, position: 'relative' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+        <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>Proveedores</h1>
+        <div style={{ flex: 1, position: 'relative', maxWidth: 260 }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
           <input type="text" placeholder="Buscar proveedor..." value={search} onChange={e => setSearch(e.target.value)}
-            className="form-input" style={{ paddingLeft: 30, height: 38, fontSize: '0.8125rem', borderRadius: 10 }} />
+            className="form-input" style={{ paddingLeft: 30, height: 34, fontSize: '0.8rem' }} />
         </div>
-        <button onClick={openNew} style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--color-cta, #2563EB)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <Plus size={18} />
+        <button onClick={openNew} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 18px', fontSize: '0.8rem', borderRadius: 10 }}>
+          <Plus size={16} /> Nuevo
         </button>
       </div>
 
-      {/* Rubro filter chips */}
-      <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 2 }}>
-        <button onClick={() => setFilterRubro('')} style={{ padding: '4px 10px', borderRadius: 99, border: '1px solid var(--color-border-subtle)', background: !filterRubro ? 'var(--color-text-primary)' : 'var(--color-bg-surface)', color: !filterRubro ? '#fff' : 'var(--color-text-muted)', fontSize: '0.6875rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--font-sans)' }}>Todos ({items.length})</button>
-        {RUBROS.filter(r => items.some(p => p.rubro === r)).map(r => (
+      {/* Rubro filter pills */}
+      <div style={{ display: 'flex', gap: 4, overflowX: 'auto', flexShrink: 0 }}>
+        <button onClick={() => setFilterRubro('')}
+          style={{ padding: '5px 12px', borderRadius: 99, border: `1px solid ${!filterRubro ? 'var(--color-text-primary)' : 'var(--color-border-subtle)'}`, background: !filterRubro ? 'var(--color-text-primary)' : 'var(--color-bg-surface)', color: !filterRubro ? '#fff' : 'var(--color-text-muted)', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--font-sans)' }}>
+          Todos ({items.length})
+        </button>
+        {RUBROS.filter(r => rubroCounts[r] > 0).map(r => (
           <button key={r} onClick={() => setFilterRubro(filterRubro === r ? '' : r)}
-            style={{ padding: '4px 10px', borderRadius: 99, border: `1px solid ${filterRubro === r ? (RUBRO_COLOR[r] || '#6B7280') : 'var(--color-border-subtle)'}`, background: filterRubro === r ? `${RUBRO_COLOR[r]}15` : 'var(--color-bg-surface)', color: filterRubro === r ? RUBRO_COLOR[r] : 'var(--color-text-muted)', fontSize: '0.6875rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--font-sans)' }}>
-            {RUBRO_LABEL[r] || r}
+            style={{ padding: '5px 12px', borderRadius: 99, border: `1px solid ${filterRubro === r ? (RUBRO_COLOR[r]) : 'var(--color-border-subtle)'}`, background: filterRubro === r ? `${RUBRO_COLOR[r]}15` : 'var(--color-bg-surface)', color: filterRubro === r ? RUBRO_COLOR[r] : 'var(--color-text-muted)', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--font-sans)' }}>
+            {RUBRO_LABEL[r]} ({rubroCounts[r]})
           </button>
         ))}
       </div>
 
-      {/* List */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {/* ─── GRID TABLE ─── */}
+      <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 120px 120px 100px', padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', alignItems: 'center' }}>
+          <span>Proveedor</span><span>Rubro</span><span>Teléfono</span><span>Email</span><span style={{ textAlign: 'right' }}>Acciones</span>
+        </div>
         {filtered.map(p => {
           const color = RUBRO_COLOR[p.rubro] || '#6B7280';
-          const isExpanded = expandedId === p.id;
           return (
-            <div key={p.id} style={{ borderRadius: 12, background: 'var(--color-bg-card)', border: `1px solid ${isExpanded ? color + '40' : 'var(--color-border-subtle)'}`, transition: 'border-color 0.2s' }}>
-              {/* Card header */}
-              <div style={{ padding: '12px 14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: '0.9375rem' }}>{p.nombre}</div>
-                    {p.contacto_nombre && <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>{p.contacto_nombre}</div>}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                    <span style={{ fontSize: '0.625rem', fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: `${color}15`, color, textTransform: 'capitalize' }}>
-                      {RUBRO_LABEL[p.rubro] || p.rubro}
-                    </span>
-                    {/* 3-dot menu */}
-                    <div style={{ position: 'relative' }}>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === p.id ? null : p.id); }}
-                        style={{ width: 30, height: 30, borderRadius: 8, border: 'none', background: menuOpenId === p.id ? 'var(--color-bg-hover, #f1f5f9)' : 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)' }}
-                      >
-                        <MoreVertical size={16} />
-                      </button>
-                      {menuOpenId === p.id && (() => {
-                        const menuItems = [
-                          { icon: FileText, label: 'Ver comprobantes', color: '#6366f1', action: () => { setMenuOpenId(null); toggleDetail(p); } },
-                          { icon: Edit2, label: 'Editar', color: '#3b82f6', action: () => { setMenuOpenId(null); openEdit(p); } },
-                          { icon: Trash2, label: 'Eliminar', color: '#ef4444', action: () => { setMenuOpenId(null); handleDelete(p.id); } },
-                        ];
-                        return (
-                          <>
-                            <div style={{ position: 'fixed', inset: 0, zIndex: 90 }} onClick={() => setMenuOpenId(null)} />
-                            <div style={{
-                              position: 'absolute', right: 0, top: '100%', zIndex: 100,
-                              background: 'var(--color-bg-card, #fff)', borderRadius: 12,
-                              border: '1px solid var(--color-border-subtle, #e2e8f0)',
-                              boxShadow: '0 8px 24px rgba(0,0,0,0.15)', minWidth: 170,
-                              padding: '0.3rem',
-                            }}>
-                              {menuItems.map((item, i) => (
-                                <div key={item.label}>
-                                  {i === menuItems.length - 1 && (
-                                    <div style={{ height: 1, background: 'var(--color-border-subtle, #e2e8f0)', margin: '0.2rem 0.5rem' }} />
-                                  )}
-                                  <button onClick={item.action}
-                                    style={{
-                                      display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                                      padding: '0.55rem 0.75rem', border: 'none', background: 'none',
-                                      cursor: 'pointer', borderRadius: 8, fontSize: '0.8rem', fontWeight: 500,
-                                      color: item.color === '#ef4444' ? '#ef4444' : 'var(--color-text-primary)',
-                                      fontFamily: 'var(--font-sans)',
-                                    }}
-                                    onMouseEnter={e => e.currentTarget.style.background = item.color === '#ef4444' ? '#fef2f2' : 'var(--color-bg-hover, #f1f5f9)'}
-                                    onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                                  >
-                                    <item.icon size={15} color={item.color} /> {item.label}
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          </>
-                        );
-                      })()}
-                    </div>
-                  </div>
+            <div key={p.id}
+              style={{ display: 'grid', gridTemplateColumns: '1fr 90px 120px 120px 100px', padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', alignItems: 'center', transition: 'background 0.1s' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
+              onMouseLeave={e => (e.currentTarget.style.background = '')}>
+              {/* Nombre + contacto + CUIT */}
+              <div style={{ cursor: 'pointer', minWidth: 0 }} onClick={() => openEdit(p)}>
+                <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nombre}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                  {p.contacto_nombre && <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>{p.contacto_nombre}</span>}
+                  {p.cuit && <span style={{ fontSize: '0.5625rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: 'var(--color-bg-surface-2)', color: 'var(--color-text-muted)' }}>CUIT {p.cuit}</span>}
                 </div>
-                <div style={{ display: 'flex', gap: 12, fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: 6 }}>
-                  {p.telefono && (
-                    <a href={`tel:${p.telefono}`} onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: 3, color: 'var(--color-cta, #2563EB)', textDecoration: 'none' }}>
-                      <Phone size={12} /> {p.telefono}
-                    </a>
-                  )}
-                  {p.email && (
-                    <a href={`mailto:${p.email}`} onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: 3, color: 'var(--color-text-muted)', textDecoration: 'none' }}>
-                      <Mail size={12} /> {p.email}
-                    </a>
-                  )}
-                </div>
-                {p.notas && <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: 4, fontStyle: 'italic' }}>{p.notas}</div>}
               </div>
-
-              {/* Expanded detail: comprobantes */}
-              {isExpanded && (
-                <div style={{ borderTop: '1px solid var(--color-border-subtle, #e2e8f0)', padding: '12px 14px', background: 'var(--color-bg-subtle, #f8fafc)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      Comprobantes
-                    </span>
-                    <button onClick={() => setExpandedId(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: 2 }}>
-                      <ChevronUp size={16} />
-                    </button>
-                  </div>
-
-                  {loadingComp ? (
-                    <div style={{ padding: '1rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Cargando...</div>
-                  ) : !p.cuit ? (
-                    <div style={{ padding: '0.75rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--color-text-muted)', background: '#FEF3C7', borderRadius: 8, border: '1px solid #FDE68A' }}>
-                      Este proveedor no tiene CUIT cargado. Editalo para vincular comprobantes.
-                    </div>
-                  ) : comprobantes.length === 0 ? (
-                    <div style={{ padding: '0.75rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
-                      Sin comprobantes para este proveedor
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {comprobantes.map(c => {
-                        const monto = c.monto_ars || c.monto_original || 0;
-                        const estado = ESTADO_COLORS[c.estado] || ESTADO_COLORS.pendiente;
-                        const isImage = c.pdf_url && /\.(jpg|jpeg|png|webp)$/i.test(c.pdf_url);
-                        return (
-                          <div key={c.id} style={{
-                            borderRadius: 8, background: 'var(--color-bg-card, #fff)',
-                            border: '1px solid var(--color-border-subtle, #e2e8f0)', overflow: 'hidden',
-                          }}>
-                            <div style={{
-                              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                              padding: '8px 10px',
-                            }}>
-                              <div style={{ minWidth: 0, flex: 1 }}>
-                                <div style={{ fontSize: '0.78rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                                  {c.tipo_comprobante} #{c.numero_comprobante}
-                                  <span style={{ fontSize: '0.6rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: estado.bg, color: estado.text, textTransform: 'uppercase' }}>
-                                    {c.estado}
-                                  </span>
-                                </div>
-                                <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginTop: 2 }}>
-                                  {new Date(c.fecha + 'T12:00:00').toLocaleDateString('es-AR')}
-                                  {c.descripcion && ` · ${c.descripcion}`}
-                                </div>
-                              </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 8 }}>
-                                <div style={{ fontSize: '0.85rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>
-                                  ${monto.toLocaleString('es-AR', { minimumFractionDigits: 0 })}
-                                </div>
-                                {c.pdf_url && (
-                                  <button
-                                    onClick={() => setPreviewUrl(c.pdf_url)}
-                                    style={{
-                                      width: 28, height: 28, borderRadius: 6, border: 'none',
-                                      background: '#6366f115', cursor: 'pointer',
-                                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    }}
-                                    title="Ver comprobante"
-                                  >
-                                    <ExternalLink size={13} color="#6366f1" />
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                            {/* Thumbnail preview for images */}
-                            {isImage && (
-                              <div
-                                onClick={() => setPreviewUrl(c.pdf_url)}
-                                style={{ padding: '0 10px 10px', cursor: 'pointer' }}
-                              >
-                                <img
-                                  src={c.pdf_url!}
-                                  alt="Comprobante"
-                                  style={{ width: '100%', maxHeight: 120, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--color-border-subtle, #e2e8f0)' }}
-                                  onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                                />
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+              {/* Rubro */}
+              <div>
+                <span style={{ fontSize: '0.5625rem', fontWeight: 700, padding: '2px 6px', borderRadius: 99, background: `${color}15`, color, textTransform: 'capitalize' }}>
+                  {RUBRO_LABEL[p.rubro] || p.rubro}
+                </span>
+              </div>
+              {/* Teléfono */}
+              <div>
+                {p.telefono ? (
+                  <a href={`tel:${p.telefono}`} onClick={e => e.stopPropagation()} style={{ fontSize: '0.75rem', color: 'var(--color-cta, #2563EB)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3 }}>
+                    <Phone size={12} /> {p.telefono}
+                  </a>
+                ) : <span style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)' }}>—</span>}
+              </div>
+              {/* Email */}
+              <div>
+                {p.email ? (
+                  <a href={`mailto:${p.email}`} onClick={e => e.stopPropagation()} style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <Mail size={12} style={{ flexShrink: 0 }} /> {p.email}
+                  </a>
+                ) : <span style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)' }}>—</span>}
+              </div>
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                <div className="row-action-wrap">
+                  <button onClick={e => { e.stopPropagation(); openEdit(p); }}
+                    style={{ ...iconBtn, color: 'var(--color-text-muted)' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg-hover)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; }}>
+                    <Eye size={14} />
+                  </button>
+                  <span className="row-action-tooltip">Editar</span>
                 </div>
-              )}
+                {p.telefono && (
+                  <div className="row-action-wrap">
+                    <a href={`tel:${p.telefono}`} onClick={e => e.stopPropagation()}
+                      style={{ ...iconBtn, color: 'var(--color-cta, #2563EB)', textDecoration: 'none' }}>
+                      <Phone size={14} />
+                    </a>
+                    <span className="row-action-tooltip">Llamar</span>
+                  </div>
+                )}
+                <div className="row-action-wrap">
+                  <button onClick={e => { e.stopPropagation(); remove(p); }}
+                    style={{ ...iconBtn, color: '#EF4444', borderColor: '#EF444420' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#EF44440a'; e.currentTarget.style.borderColor = '#EF4444'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; e.currentTarget.style.borderColor = '#EF444420'; }}>
+                    <Trash2 size={14} />
+                  </button>
+                  <span className="row-action-tooltip">Eliminar</span>
+                </div>
+              </div>
             </div>
           );
         })}
         {filtered.length === 0 && <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin proveedores</div>}
       </div>
 
-      {/* Modal */}
-      {showModal && (
-        <div onClick={() => setShowModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', zIndex: 200, display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center' }}>
-          <div onClick={e => e.stopPropagation()} className="card" style={{ width: '100%', maxWidth: 560, maxHeight: '92vh', overflowY: 'auto', padding: '1.5rem', borderRadius: isMobile ? '20px 20px 0 0' : 'var(--radius-xl)', boxShadow: '0 8px 30px rgba(0,0,0,0.12)', border: '1px solid var(--color-border-subtle)' }}>
-            {isMobile && <div style={{ width: 36, height: 4, borderRadius: 99, background: 'var(--color-border)', margin: '0 auto 12px' }} />}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>{editing ? 'Editar proveedor' : 'Nuevo proveedor'}</h3>
-              <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)' }}><X size={18} /></button>
+      {/* ─── WIZARD MODAL ─── */}
+      {showModal && (() => {
+        const STEPS = [{ label: 'Datos' }, { label: 'Contacto' }, { label: 'Detalles' }];
+        const totalSteps = STEPS.length;
+        const canNext = wizardStep === 0 ? !!form.nombre.trim() : true;
+        const isLast = wizardStep === totalSteps - 1;
+
+        return (
+          <div className="wizard-overlay" onClick={() => setShowModal(false)}>
+          <div className="wizard-card" onClick={e => e.stopPropagation()}>
+            <div className="wizard-header">
+              <h3>{editing ? 'Editar proveedor' : 'Nuevo proveedor'}</h3>
+              <button className="wizard-close" onClick={() => setShowModal(false)}><X size={18} /></button>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <div className="form-group"><label className="form-label">Nombre / Empresa *</label><input className="form-input" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} /></div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <div className="form-group" style={{ flex: 1 }}><label className="form-label">Rubro</label><select className="form-input" value={form.rubro} onChange={e => setForm(f => ({ ...f, rubro: e.target.value }))}>{RUBROS.map(r => <option key={r} value={r}>{RUBRO_LABEL[r] || r}</option>)}</select></div>
-                <div className="form-group" style={{ flex: 1 }}><label className="form-label">Contacto</label><input className="form-input" value={form.contacto_nombre || ''} onChange={e => setForm(f => ({ ...f, contacto_nombre: e.target.value }))} /></div>
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <div className="form-group" style={{ flex: 1 }}><label className="form-label">Teléfono</label><input className="form-input" value={form.telefono || ''} onChange={e => setForm(f => ({ ...f, telefono: e.target.value }))} /></div>
-                <div className="form-group" style={{ flex: 1 }}><label className="form-label">Email</label><input className="form-input" type="email" value={form.email || ''} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></div>
-              </div>
-              <div className="form-group"><label className="form-label">CUIT</label><input className="form-input" value={form.cuit || ''} onChange={e => setForm(f => ({ ...f, cuit: e.target.value }))} /></div>
-              <div className="form-group"><label className="form-label">Dirección</label><input className="form-input" value={form.direccion || ''} onChange={e => setForm(f => ({ ...f, direccion: e.target.value }))} /></div>
-              <div className="form-group"><label className="form-label">Notas</label><textarea className="form-input" rows={2} value={form.notas || ''} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} style={{ resize: 'vertical' }} /></div>
+
+            <div className="wizard-steps">
+              {STEPS.map((s, i) => (
+                <div key={i} className="wizard-step" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    {i > 0 && <div className={`wizard-step-line${i <= wizardStep ? ' done' : ''}`} />}
+                    <div className={`wizard-step-dot${i === wizardStep ? ' active' : i < wizardStep ? ' done' : ' pending'}`}
+                      onClick={() => i < wizardStep && setWizardStep(i)} style={{ cursor: i < wizardStep ? 'pointer' : 'default' }}>
+                      {i < wizardStep ? <Check size={14} /> : i + 1}
+                    </div>
+                  </div>
+                  <div className={`wizard-step-label${i === wizardStep ? ' active' : i < wizardStep ? ' done' : ''}`}>{s.label}</div>
+                </div>
+              ))}
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
-              <button onClick={() => setShowModal(false)} className="btn btn-secondary">Cancelar</button>
-              <button onClick={save} className="btn btn-primary" disabled={!form.nombre.trim()}>Guardar</button>
+
+            <div className="wizard-body">
+              {/* Step 0: Nombre + Rubro */}
+              {wizardStep === 0 && (<>
+                <div className="wizard-field">
+                  <label className="form-label">Nombre / Empresa *</label>
+                  <input className="form-input" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} placeholder="Ej: Sanitarios Rápido SRL" />
+                </div>
+                <div className="wizard-field">
+                  <div className="wizard-section-title">Rubro</div>
+                  <div className="wizard-card-options" style={{ marginTop: 8, gridTemplateColumns: 'repeat(5, 1fr)' }}>
+                    {RUBROS.map(r => (
+                      <div key={r} className={`wizard-card-option${form.rubro === r ? ' selected' : ''}`}
+                        onClick={() => setForm(f => ({ ...f, rubro: r }))}
+                        style={form.rubro === r ? { borderColor: RUBRO_COLOR[r], background: `${RUBRO_COLOR[r]}08` } : {}}>
+                        <div className="card-icon">{RUBRO_EMOJI[r] || '📦'}</div>
+                        <div className="card-label" style={{ fontSize: '0.6875rem' }}>{RUBRO_LABEL[r]}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>)}
+
+              {/* Step 1: Contacto */}
+              {wizardStep === 1 && (<>
+                <div className="wizard-field">
+                  <label className="form-label">Persona de contacto</label>
+                  <input className="form-input" value={form.contacto_nombre || ''} onChange={e => setForm(f => ({ ...f, contacto_nombre: e.target.value }))} placeholder="Ej: Juan Pérez" />
+                </div>
+                <div className="wizard-row">
+                  <div className="wizard-field">
+                    <label className="form-label">Teléfono</label>
+                    <input className="form-input" value={form.telefono || ''} onChange={e => setForm(f => ({ ...f, telefono: e.target.value }))} placeholder="Ej: 11-4567-8901" />
+                  </div>
+                  <div className="wizard-field">
+                    <label className="form-label">Email</label>
+                    <input className="form-input" type="email" value={form.email || ''} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="Ej: info@empresa.com" />
+                  </div>
+                </div>
+                <div className="wizard-field">
+                  <label className="form-label">CUIT</label>
+                  <input className="form-input" value={form.cuit || ''} onChange={e => setForm(f => ({ ...f, cuit: e.target.value }))} placeholder="Ej: 30-12345678-9" />
+                </div>
+              </>)}
+
+              {/* Step 2: Detalles */}
+              {wizardStep === 2 && (<>
+                <div className="wizard-field">
+                  <label className="form-label">Dirección</label>
+                  <input className="form-input" value={form.direccion || ''} onChange={e => setForm(f => ({ ...f, direccion: e.target.value }))} placeholder="Ej: Av. Corrientes 1234, CABA" />
+                </div>
+                <div className="wizard-field">
+                  <label className="form-label">Notas</label>
+                  <textarea className="form-input" rows={3} value={form.notas || ''} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} placeholder="Observaciones, horarios, especialidades..." />
+                </div>
+              </>)}
+            </div>
+
+            <div className="wizard-footer">
+              <div className="wizard-footer-left">
+                {editing && <button className="wizard-btn-danger" onClick={() => { remove(editing); setShowModal(false); }}>Eliminar</button>}
+              </div>
+              <div className="wizard-footer-right">
+                {wizardStep > 0 && (
+                  <button className="wizard-btn-back" onClick={() => setWizardStep(s => s - 1)}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><ChevronLeft size={16} /> Anterior</span>
+                  </button>
+                )}
+                {isLast ? (
+                  <button className="wizard-btn-next" onClick={save} disabled={!form.nombre.trim()}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Check size={16} /> {editing ? 'Guardar' : 'Crear'}</span>
+                  </button>
+                ) : (
+                  <button className="wizard-btn-next" onClick={() => setWizardStep(s => s + 1)} disabled={!canNext}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Siguiente <ChevronRight size={16} /></span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
-      {/* Preview Modal */}
-      {previewUrl && (
-        <div onClick={() => setPreviewUrl(null)} style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 300,
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          padding: 16,
-        }}>
-          <button onClick={() => setPreviewUrl(null)} style={{
-            position: 'absolute', top: 16, right: 16, width: 36, height: 36, borderRadius: '50%',
-            background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', zIndex: 301,
-          }}>
-            <X size={20} />
-          </button>
-          <div onClick={e => e.stopPropagation()} style={{ maxWidth: '95vw', maxHeight: '90vh', overflow: 'auto' }}>
-            {/\.(jpg|jpeg|png|webp)$/i.test(previewUrl) ? (
-              <img src={previewUrl} alt="Comprobante" style={{ maxWidth: '100%', maxHeight: '85vh', borderRadius: 8 }} />
-            ) : (
-              <iframe src={previewUrl} style={{ width: '90vw', height: '85vh', border: 'none', borderRadius: 8, background: '#fff' }} />
-            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

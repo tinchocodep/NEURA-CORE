@@ -219,7 +219,7 @@ export default function Layout() {
     // Mobile: map routes to display names matching the new tab bar
     // In mobile, Contable/Tesorería/CRM routes are absorbed into Gestión (no "Administración" in mobile)
     const hasInmob = tenantModules.includes('inmobiliaria');
-    const isOperaciones = (isInmobiliaria && (location.pathname.startsWith('/inmobiliaria/propiedades') || location.pathname.startsWith('/inmobiliaria/contratos') || location.pathname.startsWith('/inmobiliaria/ordenes') || location.pathname.startsWith('/inmobiliaria/liquidaciones') || location.pathname.startsWith('/inmobiliaria/facturar') || location.pathname.startsWith('/inmobiliaria/proveedores')))
+    const isOperaciones = (isInmobiliaria && (location.pathname.startsWith('/inmobiliaria/propiedades') || location.pathname.startsWith('/inmobiliaria/contratos') || location.pathname.startsWith('/inmobiliaria/ordenes') || location.pathname.startsWith('/inmobiliaria/liquidaciones') || location.pathname.startsWith('/inmobiliaria/facturar')))
         || (hasInmob && location.pathname.startsWith('/contable/proveedores'));
     const isGestion = (isInmobiliaria && !isOperaciones) ||
         (hasInmob && isTesoreria && location.pathname === '/tesoreria') ||
