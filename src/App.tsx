@@ -43,7 +43,9 @@ import InmoAgenda from './modules/inmobiliaria/Agenda';
 import InmoProveedores from './modules/inmobiliaria/Proveedores';
 import InmoOrdenesTrabajo from './modules/inmobiliaria/OrdenesTrabajoMobile';
 import FacturarMobile from './modules/inmobiliaria/FacturarMobile';
+import ProyeccionesInmob from './modules/inmobiliaria/Proyecciones';
 import { useAuth } from './contexts/AuthContext';
+import { useTenant } from './contexts/TenantContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -57,9 +59,10 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 
 function TesoreriaIndexRoute() {
   const { role } = useAuth() as any;
-  if (role === 'admin' || role === 'superadmin') {
-    return <TesoreriaDashboard />;
-  }
+  const { tenant } = useTenant();
+  const hasInmob = tenant?.enabled_modules?.includes('inmobiliaria');
+  if (hasInmob) return <ProyeccionesInmob />;
+  if (role === 'admin' || role === 'superadmin') return <TesoreriaDashboard />;
   return <Navigate to="/tesoreria/movimientos" replace />;
 }
 export default function App() {
