@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Trash2, X, Check, ChevronRight, ChevronLeft, Eye, Send, Download, Receipt, Search } from 'lucide-react';
+import { Plus, Trash2, X, Check, ChevronRight, ChevronLeft, Eye, Download, Receipt, Search } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import CustomSelect from '../../shared/components/CustomSelect';
@@ -23,7 +23,7 @@ interface LineaDetalle { descripcion: string; cantidad: number; precio_unitario:
 
 const ESTADO_COLOR: Record<string, string> = {
   pendiente: '#F59E0B', clasificado: '#3B82F6', aprobado: '#8B5CF6',
-  inyectado: '#10B981', pagado: '#10B981', error: '#EF4444', rechazado: '#6B7280',
+  pagado: '#10B981', error: '#EF4444', rechazado: '#6B7280',
 };
 const TIPOS_COMP = ['Factura A', 'Factura B', 'Factura C', 'Nota de Crédito A', 'Nota de Crédito B', 'Recibo X'];
 
@@ -142,7 +142,7 @@ export default function FacturarMobile() {
 
   // KPIs
   const pendientes = items.filter(c => c.estado === 'pendiente').length;
-  const aprobados = items.filter(c => c.estado === 'aprobado' || c.estado === 'inyectado').length;
+  const aprobados = items.filter(c => c.estado === 'aprobado').length;
   const totalMes = items.filter(c => c.fecha.startsWith(new Date().toISOString().slice(0, 7))).reduce((s, c) => s + c.monto_ars, 0);
   const fmtMoney = (n: number) => n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `$${(n / 1_000).toFixed(0)}K` : `$${n.toLocaleString('es-AR')}`;
 
@@ -177,7 +177,6 @@ export default function FacturarMobile() {
           <option value="">Todos los estados</option>
           <option value="pendiente">Pendiente</option>
           <option value="aprobado">Aprobado</option>
-          <option value="inyectado">Enviado ARCA</option>
           <option value="pagado">Pagado</option>
         </select>
         <button onClick={openNew} className="btn btn-primary" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem' }}>
@@ -202,7 +201,7 @@ export default function FacturarMobile() {
 
       {/* Filter pills */}
       <div style={{ display: 'flex', gap: 4, overflowX: 'auto' }}>
-        {[{ key: '', label: 'Todos' }, { key: 'pendiente', label: 'Pendiente' }, { key: 'aprobado', label: 'Aprobado' }, { key: 'inyectado', label: 'Enviado ARCA' }, { key: 'pagado', label: 'Pagado' }].map(f => (
+        {[{ key: '', label: 'Todos' }, { key: 'pendiente', label: 'Pendiente' }, { key: 'aprobado', label: 'Aprobado' }, { key: 'pagado', label: 'Pagado' }].map(f => (
           <button key={f.key} onClick={() => setFilterEstado(filterEstado === f.key ? '' : f.key)}
             style={{ padding: '5px 12px', borderRadius: 99, border: `1px solid ${filterEstado === f.key ? 'var(--color-text-primary)' : 'var(--color-border-subtle)'}`, background: filterEstado === f.key ? 'var(--color-text-primary)' : 'var(--color-bg-surface)', color: filterEstado === f.key ? '#fff' : 'var(--color-text-muted)', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--font-sans)' }}>
             {f.label}
@@ -245,23 +244,11 @@ export default function FacturarMobile() {
             {/* Estado */}
             <div>
               <span style={{ fontSize: '0.5625rem', fontWeight: 700, padding: '2px 6px', borderRadius: 99, background: `${ESTADO_COLOR[comp.estado] || '#6B7280'}15`, color: ESTADO_COLOR[comp.estado] || '#6B7280', textTransform: 'capitalize' }}>
-                {comp.estado === 'inyectado' ? 'ARCA' : comp.estado}
+                {comp.estado}
               </span>
             </div>
             {/* Actions */}
             <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
-              {/* Enviar a ARCA (solo pendiente/aprobado sin número) */}
-              {(!comp.numero_comprobante || comp.numero_comprobante.startsWith('PENDIENTE')) && (comp.estado === 'pendiente' || comp.estado === 'aprobado') && (
-                <div className="row-action-wrap">
-                  <button onClick={e => { e.stopPropagation(); alert('Integración ARCA: se enviará a la API para generar el número de comprobante.'); }}
-                    style={{ ...iconBtn, color: '#8B5CF6', borderColor: '#8B5CF630' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = '#8B5CF610'; e.currentTarget.style.borderColor = '#8B5CF6'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; e.currentTarget.style.borderColor = '#8B5CF630'; }}>
-                    <Send size={14} />
-                  </button>
-                  <span className="row-action-tooltip">Enviar a ARCA</span>
-                </div>
-              )}
               {/* Download PDF */}
               <div className="row-action-wrap">
                 <button onClick={e => { e.stopPropagation(); if (comp.pdf_url) window.open(comp.pdf_url, '_blank'); else generatePdf(comp); }}
