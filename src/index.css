@@ -2317,15 +2317,25 @@ body:has([style*="position: fixed"][style*="inset: 0"]) {
 @media (max-width: 768px) {
   /* ── App Shell: single column ── */
   .app-shell,
+  .app-shell,
   .app-shell.agent-collapsed,
   .app-shell.sidebar-collapsed,
-  .app-shell.sidebar-collapsed.agent-collapsed {
+  .app-shell.sidebar-collapsed.agent-collapsed,
+  .app-shell.inmob-layout {
     grid-template-columns: 1fr !important;
+    grid-template-rows: auto 1fr !important;
+    height: auto !important;
+    overflow: visible !important;
   }
 
   .sidebar,
   .agent-panel {
     display: none !important;
+  }
+
+  .app-shell.inmob-layout .main-content {
+    height: auto !important;
+    min-height: 0 !important;
   }
 
   .main-content {

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home, Building2, Menu, Plus, X,
-  Upload, FileSignature, CalendarPlus, UserPlus,
+  FileSignature, CalendarPlus, UserPlus,
   Settings, LogOut,
   Users, BarChart3, Receipt, Wallet, HelpCircle, Shield,
   CheckCircle
@@ -46,11 +46,9 @@ export default function MobileNav() {
       actions: [
         ...(hasModule('inmobiliaria') ? [
           { name: 'Nuevo\nvencimiento', icon: CalendarPlus, path: '/inmobiliaria/agenda?action=crear' },
-          { name: 'Cargar\ncomprobante', icon: Upload, path: '/contable/comprobantes?tab=upload' },
         ] : []),
         ...(hasModule('crm') ? [
           { name: 'Nuevo\ncontacto', icon: UserPlus, path: '/crm/contactos?action=crear' },
-          { name: 'Nuevo\nprospecto', icon: Users, path: '/crm/prospectos?action=crear' },
         ] : []),
       ]
     });
@@ -193,14 +191,11 @@ export default function MobileNav() {
                   <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>Gestión</span>
                 </div>
                 {([
-                  { name: 'Dashboard', path: '/inmobiliaria' },
                   { name: 'Cuentas corrientes', path: '/inmobiliaria/cuentas' },
-                  { name: 'Agenda / Vencimientos', path: '/inmobiliaria/agenda' },
-                  { name: 'Comprobantes', path: '/contable/comprobantes' },
-                  { name: 'Proyecciones', path: '/tesoreria' },
+                  { name: 'Proveedores', path: '/inmobiliaria/proveedores' },
+                  { name: 'Mapa', path: '/inmobiliaria/mapa' },
                   ...(hasModule('crm') ? [
                     { name: 'Contactos', path: '/crm/contactos' },
-                    { name: 'Prospectos', path: '/crm/prospectos' },
                   ] : []),
                 ] as { name: string; path: string; badge?: string; badgeColor?: string }[]).map(item => (
                   <Link key={item.path} to={item.path} onClick={() => setShowMenu(false)}

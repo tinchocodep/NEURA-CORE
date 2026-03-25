@@ -9,12 +9,49 @@ interface Message {
     timestamp: Date;
 }
 
+const getWelcomeMessage = (tenant: any) => {
+    const modules = tenant?.enabled_modules || [];
+    const hasInmob = modules.includes('inmobiliaria');
+    const hasTesoreria = modules.includes('tesoreria');
+    const hasCRM = modules.includes('crm');
+    const hasContable = modules.includes('contable');
+
+    const capabilities: string[] = [];
+    if (hasInmob) {
+        capabilities.push('• Consultar propiedades, contratos y vencimientos');
+        capabilities.push('• Ver liquidaciones y cuentas corrientes');
+        capabilities.push('• Buscar proveedores y órdenes de trabajo');
+    }
+    if (hasTesoreria) {
+        capabilities.push('• Revisar movimientos y proyecciones');
+        capabilities.push('• Consultar órdenes de pago y bancos');
+    }
+    if (hasContable) {
+        capabilities.push('• Ver comprobantes y centros de costos');
+    }
+    if (hasCRM) {
+        capabilities.push('• Buscar contactos y prospectos');
+    }
+    if (capabilities.length === 0) {
+        capabilities.push('• Consultar datos de tu empresa');
+        capabilities.push('• Responder dudas sobre la plataforma');
+    }
+    capabilities.push('• Cualquier otra consulta sobre la gestión');
+
+    return `¡Hola! Soy tu asistente Neura. Puedo ayudarte con:\n\n${capabilities.join('\n')}\n\n¿En qué te puedo ayudar?`;
+};
+
 export const ChatbotAsistente: React.FC = () => {
     const { tenant } = useTenant();
     const [isOpen, setIsOpen] = useState(false);
-    const [messages, setMessages] = useState<Message[]>([
-        { id: '1', role: 'bot', text: `¡Hola! Soy tu asistente de ${tenant?.name || 'NeuraCore'}. ¿En qué te puedo ayudar hoy?`, timestamp: new Date() }
-    ]);
+    const [messages, setMessages] = useState<Message[]>([]);
+
+    // Set welcome message when tenant loads
+    useEffect(() => {
+        if (tenant && messages.length === 0) {
+            setMessages([{ id: '1', role: 'bot', text: getWelcomeMessage(tenant), timestamp: new Date() }]);
+        }
+    }, [tenant]);
     const [input, setInput] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -118,7 +155,7 @@ export const ChatbotAsistente: React.FC = () => {
                             </div>
                             <div>
                                 <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>Asistente Neura</h3>
-                                <p style={{ margin: 0, fontSize: '0.75rem', opacity: 0.8 }}>Conectado al ERP</p>
+                                <p style={{ margin: 0, fontSize: '0.75rem', opacity: 0.8 }}>En línea</p>
                             </div>
                         </div>
                         <button 
@@ -134,7 +171,7 @@ export const ChatbotAsistente: React.FC = () => {
                         flex: 1,
                         padding: '1rem',
                         overflowY: 'auto',
-                        background: 'var(--color-bg)',
+                        background: 'var(--color-bg-base, #f8fafc)',
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '1rem'
@@ -143,12 +180,12 @@ export const ChatbotAsistente: React.FC = () => {
                             <div key={msg.id} style={{
                                 display: 'flex',
                                 flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
-                                gap: '0.75rem',
+                                gap: '0.5rem',
                                 alignItems: 'flex-end'
                             }}>
                                 <div style={{
-                                    width: '28px',
-                                    height: '28px',
+                                    width: '26px',
+                                    height: '26px',
                                     borderRadius: '50%',
                                     background: msg.role === 'user' ? 'var(--color-text-primary)' : 'var(--color-accent)',
                                     display: 'flex',
@@ -156,19 +193,19 @@ export const ChatbotAsistente: React.FC = () => {
                                     justifyContent: 'center',
                                     flexShrink: 0
                                 }}>
-                                    {msg.role === 'user' ? <User size={14} color="var(--color-bg)" /> : <Bot size={14} color="black" />}
+                                    {msg.role === 'user' ? <User size={12} color="#fff" /> : <Bot size={12} color="#000" />}
                                 </div>
                                 <div style={{
-                                    background: msg.role === 'user' ? 'var(--color-bg-elevated)' : 'var(--color-bg-secondary)',
-                                    color: 'var(--color-text)',
-                                    padding: '0.75rem 1rem',
-                                    borderRadius: '1rem',
-                                    borderBottomRightRadius: msg.role === 'user' ? '4px' : '1rem',
-                                    borderBottomLeftRadius: msg.role === 'bot' ? '4px' : '1rem',
-                                    maxWidth: '80%',
-                                    fontSize: '0.9rem',
-                                    lineHeight: 1.4,
-                                    border: msg.role === 'user' ? '1px solid var(--color-border)' : 'none'
+                                    background: msg.role === 'user' ? 'var(--color-cta, #2563EB)' : 'var(--color-bg-surface-2, #f1f5f9)',
+                                    color: msg.role === 'user' ? '#fff' : 'var(--color-text-primary)',
+                                    padding: '0.625rem 0.875rem',
+                                    borderRadius: '14px',
+                                    borderBottomRightRadius: msg.role === 'user' ? '4px' : '14px',
+                                    borderBottomLeftRadius: msg.role === 'bot' ? '4px' : '14px',
+                                    maxWidth: '82%',
+                                    fontSize: '0.8125rem',
+                                    lineHeight: 1.5,
+                                    whiteSpace: 'pre-line',
                                 }}>
                                     {msg.text}
                                 </div>
@@ -188,13 +225,13 @@ export const ChatbotAsistente: React.FC = () => {
                     </div>
 
                     {/* Input Area */}
-                    <div style={{ padding: '1rem', background: 'var(--color-bg-elevated)', borderTop: '1px solid var(--color-border-subtle)' }}>
+                    <div style={{ padding: '0.75rem', background: 'var(--color-bg-surface, #fff)', borderTop: '1px solid var(--color-border-subtle)' }}>
                         <form onSubmit={handleSend} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                             <input
                                 type="text"
                                 value={input}
                                 onChange={e => setInput(e.target.value)}
-                                placeholder="Consultá facturas, pagos..."
+                                placeholder="Escribí tu consulta..."
                                 className="form-input"
                                 style={{ flex: 1, borderRadius: '2rem', paddingLeft: '1.25rem' }}
                                 disabled={isTyping}

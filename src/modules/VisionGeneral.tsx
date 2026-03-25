@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { DolarService, type DolarResumen } from '../services/DolarService';
-import { Calendar, Settings, AlertTriangle, Clock, ArrowRight, X, GripVertical, Bell, HelpCircle, FileSignature, DollarSign, Receipt, Upload, Wallet, CalendarClock, Home, Users, TrendingUp, ChevronRight } from 'lucide-react';
+import { Calendar, Settings, AlertTriangle, Clock, ArrowRight, X, GripVertical, Receipt, Wallet, CalendarClock, ChevronRight } from 'lucide-react';
 
 function useIsMobile() {
     const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
@@ -97,17 +97,12 @@ export default function VisionGeneral() {
     const navigate = useNavigate();
     const isMobile = useIsMobile();
     // Use first name from email if displayName looks like a company name
-    const userName = (() => {
-        const email = user?.email || '';
-        const emailName = email.split('@')[0]?.split('.')[0] || '';
-        const capitalized = emailName.charAt(0).toUpperCase() + emailName.slice(1);
-        return capitalized || displayName || 'usuario';
-    })();
+    // userName moved to TopBar for mobile
 
     // Data State
     const [metrics, setMetrics] = useState<CrossMetrics | null>(null);
     const [activity, setActivity] = useState<RecentActivity[]>([]);
-    const [dolar, setDolar] = useState<DolarResumen | null>(null);
+    const [, setDolar] = useState<DolarResumen | null>(null);
     const [period, setPeriod] = useState('this_month');
     const [customStart, setCustomStart] = useState('');
     const [customEnd, setCustomEnd] = useState('');
@@ -423,149 +418,109 @@ export default function VisionGeneral() {
 
             {/* MAIN DASHBOARD GRID */}
             {isMobile ? (
-                /* ── MOBILE HOME: Action-oriented design ── */
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', paddingBottom: '0.5rem' }}>
+                /* ── MOBILE HOME ── */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', paddingBottom: '0.5rem' }}>
 
-                    {/* ── 1. HEADER ── */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--color-cta, #2563EB)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', fontWeight: 700, flexShrink: 0 }}>
-                                {userName.charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                                <div style={{ fontSize: '1.0625rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>Hola, {userName}</div>
-                                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
-                                    {(inmobData.porVencer30 + inmobData.vencidos + (metrics?.pendientes || 0))} pendientes hoy
-                                </div>
-                            </div>
+                    {/* ── STATUS LINE ── */}
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>
+                        {inmobData.porVencer30 > 0 ? `${inmobData.porVencer30} contrato${inmobData.porVencer30 > 1 ? 's' : ''} por vencer` : vencimientosProximos.length > 0 ? `${vencimientosProximos.length} vencimientos próximos` : 'Todo al día'}
+                    </div>
+
+                    {/* ── KPIs (5 datos) ── */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                        <div style={{ padding: '10px 8px', borderRadius: 10, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', textAlign: 'center' }}>
+                            <div style={{ fontSize: '1.125rem', fontWeight: 800, color: '#3B82F6' }}>{inmobData.propiedades}</div>
+                            <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Propiedades</div>
                         </div>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                            <button style={{ width: 40, height: 40, borderRadius: '50%', border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-text-muted)', position: 'relative' }}>
-                                <Bell size={18} />
-                                <span style={{ position: 'absolute', top: 8, right: 8, width: 8, height: 8, borderRadius: '50%', background: '#EF4444' }} />
-                            </button>
-                            <button style={{ width: 40, height: 40, borderRadius: '50%', border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-text-muted)' }}>
-                                <HelpCircle size={18} />
-                            </button>
+                        <div style={{ padding: '10px 8px', borderRadius: 10, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', textAlign: 'center' }}>
+                            <div style={{ fontSize: '1.125rem', fontWeight: 800, color: '#10B981' }}>{inmobData.propiedades - (inmobData.porVencer30 + inmobData.vencidos)}</div>
+                            <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Vigentes</div>
+                        </div>
+                        <div style={{ padding: '10px 8px', borderRadius: 10, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', textAlign: 'center' }}>
+                            <div style={{ fontSize: '1.125rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#8B5CF6' }}>
+                                {inmobData.ingresoMensual >= 1_000_000 ? `$${(inmobData.ingresoMensual / 1_000_000).toFixed(1)}M` : `$${(inmobData.ingresoMensual / 1_000).toFixed(0)}K`}
+                            </div>
+                            <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Alquileres/mes</div>
+                        </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                        <div style={{ padding: '10px 8px', borderRadius: 10, background: inmobData.morosidad > 0 ? '#FEF2F208' : 'var(--color-bg-card)', border: `1px solid ${inmobData.morosidad > 0 ? '#FECACA' : 'var(--color-border-subtle)'}`, textAlign: 'center' }}>
+                            <div style={{ fontSize: '1.125rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#F59E0B' }}>
+                                ${inmobData.morosidad >= 1_000_000 ? `${(inmobData.morosidad / 1_000_000).toFixed(1)}M` : `${(inmobData.morosidad / 1_000).toFixed(0)}K`}
+                            </div>
+                            <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Pendiente cobro</div>
+                        </div>
+                        <div style={{ padding: '10px 8px', borderRadius: 10, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', textAlign: 'center' }}>
+                            <div style={{ fontSize: '1.125rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: (inmobData.ingresoMensual - inmobData.morosidad) >= 0 ? '#10B981' : '#EF4444' }}>
+                                ${Math.abs(inmobData.ingresoMensual - inmobData.morosidad) >= 1_000_000 ? `${((inmobData.ingresoMensual - inmobData.morosidad) / 1_000_000).toFixed(1)}M` : `${((inmobData.ingresoMensual - inmobData.morosidad) / 1_000).toFixed(0)}K`}
+                            </div>
+                            <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Resultado bruto</div>
                         </div>
                     </div>
 
-                    {/* ── 2. ACCIONES RÁPIDAS PRINCIPALES ── */}
-                    <div style={{ display: 'flex', justifyContent: 'space-around', padding: '4px 0', marginTop: 8 }}>
+                    {/* ── ACCIONES RÁPIDAS ── */}
+                    <div style={{ display: 'flex', justifyContent: 'space-around', padding: '4px 0' }}>
                         {[
-                            { icon: FileSignature, label: 'Nuevo contrato', color: '#185FA5', path: '/inmobiliaria/contratos?action=crear' },
-                            { icon: DollarSign, label: 'Registrar cobro', color: '#1D9E75', path: '/inmobiliaria/liquidaciones' },
-                            { icon: Receipt, label: 'Facturar', color: '#BA7517', path: '/inmobiliaria/facturar' },
-                            { icon: Upload, label: 'Subir comprobante', color: '#534AB7', path: '/inmobiliaria/ordenes?filter=completado' },
+                            { icon: Receipt, label: 'Facturar', color: '#3B82F6', path: '/inmobiliaria/facturar' },
+                            { icon: Wallet, label: 'Cobranzas', color: '#10B981', path: '/inmobiliaria/liquidaciones' },
+                            { icon: CalendarClock, label: 'Órdenes', color: '#F59E0B', path: '/inmobiliaria/ordenes' },
                         ].map(action => (
                             <button key={action.label} onClick={() => navigate(action.path)}
-                                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', width: 72 }}>
-                                <div style={{ width: 52, height: 52, borderRadius: '50%', background: action.color, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 4px 12px ${action.color}30` }}>
-                                    <action.icon size={22} color="#fff" />
+                                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', width: 80 }}>
+                                <div style={{ width: 48, height: 48, borderRadius: '50%', background: action.color, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 3px 10px ${action.color}30` }}>
+                                    <action.icon size={20} color="#fff" />
                                 </div>
-                                <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', fontWeight: 500, textAlign: 'center', lineHeight: 1.2 }}>{action.label}</span>
+                                <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', fontWeight: 600, textAlign: 'center' }}>{action.label}</span>
                             </button>
                         ))}
                     </div>
 
-                    {/* ── 3. ACCESOS SECUNDARIOS (scroll horizontal) ── */}
-                    <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', marginLeft: -16, marginRight: -16, paddingLeft: 16, paddingRight: 16 }}>
-                        <div style={{ display: 'flex', gap: 10, width: 'max-content' }}>
-                            {[
-                                { icon: Wallet, label: 'Liquidaciones', color: '#EC4899', path: '/inmobiliaria/liquidaciones' },
-                                { icon: CalendarClock, label: 'Vencimientos', color: '#F59E0B', path: '/inmobiliaria/agenda' },
-                                { icon: Home, label: 'Disponibles', color: '#10B981', path: '/inmobiliaria/propiedades' },
-                                { icon: TrendingUp, label: 'Proyecciones', color: '#3B82F6', path: '/tesoreria' },
-                                { icon: Users, label: 'Contactos', color: '#8B5CF6', path: '/crm/contactos' },
-                            ].map(item => (
-                                <button key={item.label} onClick={() => navigate(item.path)}
-                                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-card)', cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--font-sans)' }}>
-                                    <div style={{ width: 28, height: 28, borderRadius: 8, background: `${item.color}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                        <item.icon size={14} color={item.color} />
-                                    </div>
-                                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{item.label}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* ── 4. REQUIEREN ATENCIÓN ── */}
+                    {/* ── AGENDA / VENCIMIENTOS ── */}
                     <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Requieren atención</span>
-                            <button onClick={() => navigate('/inmobiliaria')} style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-cta, #2563EB)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Ver todo</button>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>Agenda</span>
+                            <button onClick={() => navigate('/inmobiliaria/agenda')} style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--color-cta, #2563EB)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Ver todo</button>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                            {inmobData.morosidad > 0 && (
-                                <button onClick={() => navigate('/inmobiliaria/contratos')}
-                                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 10, background: '#FEF2F2', border: '1px solid #FECACA', cursor: 'pointer', width: '100%', textAlign: 'left', fontFamily: 'var(--font-sans)' }}>
-                                    <AlertTriangle size={16} color="#DC2626" style={{ flexShrink: 0 }} />
-                                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#991B1B', flex: 1 }}>
-                                        ${(inmobData.morosidad).toLocaleString('es-AR')} en morosidad
-                                    </span>
-                                    <ChevronRight size={16} color="#DC2626" />
-                                </button>
-                            )}
-                            {inmobData.porVencer30 > 0 && (
-                                <button onClick={() => navigate('/inmobiliaria/contratos')}
-                                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 10, background: '#FFFBEB', border: '1px solid #FDE68A', cursor: 'pointer', width: '100%', textAlign: 'left', fontFamily: 'var(--font-sans)' }}>
-                                    <Clock size={16} color="#D97706" style={{ flexShrink: 0 }} />
-                                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#92400E', flex: 1 }}>
-                                        {inmobData.porVencer30} contrato{inmobData.porVencer30 > 1 ? 's' : ''} vence{inmobData.porVencer30 > 1 ? 'n' : ''} en 30 días
-                                    </span>
-                                    <ChevronRight size={16} color="#D97706" />
-                                </button>
-                            )}
-                            {inmobData.cobradosMes > 0 && (
-                                <button onClick={() => navigate('/tesoreria/movimientos')}
-                                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 10, background: '#EFF6FF', border: '1px solid #BFDBFE', cursor: 'pointer', width: '100%', textAlign: 'left', fontFamily: 'var(--font-sans)' }}>
-                                    <DollarSign size={16} color="#2563EB" style={{ flexShrink: 0 }} />
-                                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#1E40AF', flex: 1 }}>
-                                        {inmobData.cobradosMes} cobros confirmados este mes
-                                    </span>
-                                    <ChevronRight size={16} color="#2563EB" />
-                                </button>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* ── 5. KPIs COMPACTOS ── */}
-                    <div style={{ display: 'flex', gap: 8 }}>
-                        <div style={{ flex: 1, padding: '12px 10px', borderRadius: 10, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', textAlign: 'center' }}>
-                            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text-primary)' }}>{inmobData.propiedades}</div>
-                            <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', fontWeight: 500, marginTop: 2 }}>Propiedades</div>
-                        </div>
-                        <div style={{ flex: 1, padding: '12px 10px', borderRadius: 10, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', textAlign: 'center' }}>
-                            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: inmobData.ocupacion >= 70 ? '#10B981' : '#F59E0B' }}>{inmobData.ocupacion}%</div>
-                            <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', fontWeight: 500, marginTop: 2 }}>Ocupación</div>
-                        </div>
-                        <div style={{ flex: 1, padding: '12px 10px', borderRadius: 10, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', textAlign: 'center' }}>
-                            <div style={{ fontSize: '1.25rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>
-                                {inmobData.ingresoMensual >= 1_000_000 ? `$${(inmobData.ingresoMensual / 1_000_000).toFixed(1)}M` : inmobData.ingresoMensual >= 1_000 ? `$${(inmobData.ingresoMensual / 1_000).toFixed(0)}K` : `$${inmobData.ingresoMensual}`}
+                        {vencimientosProximos.length === 0 ? (
+                            <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.8125rem', background: 'var(--color-bg-card)', borderRadius: 10, border: '1px solid var(--color-border-subtle)' }}>
+                                Sin vencimientos próximos
                             </div>
-                            <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', fontWeight: 500, marginTop: 2 }}>Ingreso/mes</div>
-                        </div>
-                    </div>
-
-                    {/* ── 6. COTIZACIONES DÓLAR ── */}
-                    {dolar && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderRadius: 10, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)' }}>
-                            {([
-                                { label: 'Oficial', value: dolar.oficial?.venta },
-                                { label: 'Blue', value: dolar.blue?.venta },
-                                { label: 'MEP', value: dolar.mep?.venta },
-                                { label: 'CCL', value: dolar.ccl?.venta },
-                            ]).map((item, i, arr) => (
-                                <div key={item.label} style={{ display: 'flex', alignItems: 'center' }}>
-                                    <div style={{ textAlign: 'center' }}>
-                                        <div style={{ fontSize: '0.5625rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{item.label}</div>
-                                        <div style={{ fontSize: '0.8125rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>
-                                            ${item.value ? Math.round(item.value).toLocaleString('es-AR') : '—'}
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                {vencimientosProximos.slice(0, 5).map((v: any) => (
+                                    <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)' }}>
+                                        <div style={{ width: 36, height: 36, borderRadius: 8, background: v.tipo === 'cobro' ? '#10B98112' : '#F59E0B12', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                            <CalendarClock size={16} color={v.tipo === 'cobro' ? '#10B981' : '#F59E0B'} />
+                                        </div>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{ fontSize: '0.8125rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.descripcion}</div>
+                                            <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>{new Date(v.fecha + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}</div>
                                         </div>
                                     </div>
-                                    {i < arr.length - 1 && <div style={{ width: 1, height: 20, background: 'var(--color-border-subtle)', margin: '0 10px' }} />}
-                                </div>
-                            ))}
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* ── REQUIEREN ATENCIÓN ── */}
+                    {(inmobData.porVencer30 > 0 || inmobData.vencidos > 0) && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {inmobData.porVencer30 > 0 && (
+                                <button onClick={() => navigate('/inmobiliaria/contratos')}
+                                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, background: '#FFFBEB', border: '1px solid #FDE68A', cursor: 'pointer', width: '100%', textAlign: 'left', fontFamily: 'var(--font-sans)' }}>
+                                    <Clock size={14} color="#D97706" style={{ flexShrink: 0 }} />
+                                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#92400E', flex: 1 }}>{inmobData.porVencer30} contrato{inmobData.porVencer30 > 1 ? 's' : ''} vence{inmobData.porVencer30 > 1 ? 'n' : ''} en 30 días</span>
+                                    <ChevronRight size={14} color="#D97706" />
+                                </button>
+                            )}
+                            {inmobData.vencidos > 0 && (
+                                <button onClick={() => navigate('/inmobiliaria/contratos')}
+                                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, background: '#FEF2F2', border: '1px solid #FECACA', cursor: 'pointer', width: '100%', textAlign: 'left', fontFamily: 'var(--font-sans)' }}>
+                                    <AlertTriangle size={14} color="#DC2626" style={{ flexShrink: 0 }} />
+                                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#991B1B', flex: 1 }}>{inmobData.vencidos} contrato{inmobData.vencidos > 1 ? 's' : ''} vencido{inmobData.vencidos > 1 ? 's' : ''}</span>
+                                    <ChevronRight size={14} color="#DC2626" />
+                                </button>
+                            )}
                         </div>
                     )}
                 </div>

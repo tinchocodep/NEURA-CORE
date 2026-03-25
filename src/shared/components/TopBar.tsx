@@ -34,17 +34,26 @@ export default function TopBar() {
 
     /* ── MOBILE ── */
     if (isMobile) {
-        return (
-            <>
-                {/* Floating notification bubble — only on Inicio */}
-                {isHome && (
-                    <button className="mobile-notif-bubble" title="Notificaciones">
-                        <Bell size={18} />
-                        <span className="mobile-notif-dot" />
+        if (isHome) {
+            const dn = (user as any)?.user_metadata?.display_name || (user as any)?.email?.split('@')[0] || '';
+            const firstName = dn.charAt(0).toUpperCase() + dn.slice(1);
+            return (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 16px 2px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--color-cta, #2563EB)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 700, flexShrink: 0 }}>
+                            {firstName.charAt(0).toUpperCase()}
+                        </div>
+                        <span style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--color-text-primary)' }}>Hola, {firstName}</span>
+                    </div>
+                    <button onClick={() => navigate('/configuracion')} style={{ width: 34, height: 34, borderRadius: '50%', border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-text-muted)', position: 'relative' }}>
+                        <Bell size={16} />
+                        <span style={{ position: 'absolute', top: 7, right: 7, width: 6, height: 6, borderRadius: '50%', background: '#EF4444' }} />
                     </button>
-                )}
-            </>
-        );
+                </div>
+            );
+        }
+        // Submodules: no TopBar, handled by subtabs in Layout
+        return null;
     }
 
     /* ── DESKTOP ── */

@@ -3,7 +3,7 @@ import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
 import {
     Users, Plus, Settings, RefreshCw, Building2, Save, Trash2, CheckCircle, XCircle, Eye, EyeOff, FolderTree,
-    Zap, Mail, Download, Upload, Image, Palette, Landmark, MessageCircle
+    Zap, Download, Upload, Landmark, MessageCircle
 } from 'lucide-react';
 import { SkeletonCard } from '../../shared/components/SkeletonKit';
 import MessagingTab from './components/MessagingTab';
@@ -46,11 +46,11 @@ interface BankCredential {
 
 type TabKey = 'empresa' | 'integraciones' | 'usuarios' | 'mensajeria';
 
-const TABS: { key: TabKey; label: string; icon: any }[] = [
+const ALL_TABS: { key: TabKey; label: string; icon: any; superadminOnly?: boolean }[] = [
     { key: 'empresa', label: 'Empresa', icon: Building2 },
-    { key: 'integraciones', label: 'Integraciones', icon: Zap },
-    { key: 'mensajeria', label: 'Mensajería', icon: MessageCircle },
     { key: 'usuarios', label: 'Usuarios', icon: Users },
+    { key: 'integraciones', label: 'Integraciones', icon: Zap, superadminOnly: true },
+    { key: 'mensajeria', label: 'Mensajería', icon: MessageCircle, superadminOnly: true },
 ];
 
 /* ─── Component ─────────────── */
@@ -479,161 +479,66 @@ export default function Configuracion() {
 
     /* ─── Tab Content Renderers ─── */
     const renderEmpresa = () => (
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? '1rem' : '1.5rem', alignItems: 'start' }}>
-            {/* Logo + Color */}
-            <div className="card" style={{ padding: '1.5rem' }}>
-                <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Image size={16} color="var(--brand)" /> Identidad Visual
-                </h3>
-                <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start' }}>
-                    {/* Logo preview */}
-                    <div
-                        onClick={() => logoInputRef.current?.click()}
-                        style={{
-                            width: 96, height: 96, borderRadius: 16, flexShrink: 0,
-                            border: '2px dashed var(--border-strong)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            cursor: 'pointer', overflow: 'hidden',
-                            background: logoUrl ? 'transparent' : 'var(--bg-subtle)',
-                            transition: 'border-color 0.2s',
-                        }}
-                    >
-                        {uploadingLogo ? (
-                            <RefreshCw size={20} className="spinning" style={{ color: 'var(--text-muted)' }} />
-                        ) : logoUrl ? (
-                            <img src={logoUrl} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                        ) : (
-                            <div style={{ textAlign: 'center' }}>
-                                <Upload size={18} style={{ color: 'var(--text-muted)', marginBottom: 4 }} />
-                                <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>Subir logo</div>
-                            </div>
-                        )}
-                    </div>
-                    <input ref={logoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleLogoUpload} />
-                    <div style={{ flex: 1 }}>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-                            Este logo aparecerá en la pantalla de login, sidebar y documentos generados (remitos, recibos).
-                        </p>
-                        <div className="form-group" style={{ marginBottom: 0 }}>
-                            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <Palette size={13} /> Color primario
-                            </label>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <input
-                                    type="color"
-                                    value={primaryColor}
-                                    onChange={e => setPrimaryColor(e.target.value)}
-                                    style={{ width: 36, height: 32, border: 'none', cursor: 'pointer', borderRadius: 6, padding: 0, background: 'transparent' }}
-                                />
-                                <input
-                                    className="form-input"
-                                    value={primaryColor}
-                                    onChange={e => setPrimaryColor(e.target.value)}
-                                    style={{ flex: 1, fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}
-                                />
-                            </div>
-                        </div>
-                    </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {/* Logo + Datos fiscales */}
+            <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', display: 'flex', gap: '1.5rem', alignItems: 'flex-start' }}>
+                {/* Logo */}
+                <div onClick={() => logoInputRef.current?.click()}
+                    style={{ width: 72, height: 72, borderRadius: 14, flexShrink: 0, border: '2px dashed var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', background: logoUrl ? 'transparent' : 'var(--color-bg-surface-2)' }}>
+                    {uploadingLogo ? <RefreshCw size={18} className="spinning" style={{ color: 'var(--color-text-muted)' }} />
+                        : logoUrl ? <img src={logoUrl} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                        : <Upload size={16} style={{ color: 'var(--color-text-muted)' }} />}
                 </div>
-                {/* Font size + Density + Theme */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginTop: '1.25rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem' }}>
-                    <div>
-                        <label className="form-label" style={{ fontSize: '0.7rem' }}>Tamaño de texto</label>
-                        <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
-                            {([['small', 'Chico'], ['medium', 'Medio'], ['large', 'Grande']] as const).map(([val, lbl]) => (
-                                <button key={val} onClick={() => setUiFontSize(val)} style={{
-                                    flex: 1, padding: '6px 0', fontSize: val === 'small' ? '0.65rem' : val === 'large' ? '0.8rem' : '0.72rem',
-                                    fontWeight: uiFontSize === val ? 700 : 500, border: 'none', cursor: 'pointer',
-                                    background: uiFontSize === val ? 'var(--brand)' : 'var(--bg-subtle)',
-                                    color: uiFontSize === val ? '#fff' : 'var(--text-muted)', transition: 'all 0.15s',
-                                }}>{lbl}</button>
-                            ))}
+                <input ref={logoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleLogoUpload} />
+                {/* Fields */}
+                <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                    <div className="wizard-field"><label className="form-label">Razón Social</label><input className="form-input" value={tenantRazonSocial} onChange={e => setTenantRazonSocial(e.target.value)} placeholder="Mi Empresa S.R.L." /></div>
+                    <div className="wizard-field"><label className="form-label">CUIT</label><input className="form-input" value={tenantCuit} onChange={e => setTenantCuit(e.target.value)} placeholder="30-12345678-9" style={{ fontFamily: 'var(--font-mono)' }} /></div>
+                    <div className="wizard-field"><label className="form-label">Dirección</label><input className="form-input" value={tenantDireccion} onChange={e => setTenantDireccion(e.target.value)} placeholder="Av. Corrientes 1234, CABA" /></div>
+                    <div className="wizard-field"><label className="form-label">Email</label><input className="form-input" type="email" value={tenantEmail} onChange={e => setTenantEmail(e.target.value)} placeholder="admin@empresa.com" /></div>
+                </div>
+            </div>
+
+            {/* Apariencia */}
+            <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' }}>
+                <div style={{ fontSize: '0.8125rem', fontWeight: 700, marginBottom: '1rem', color: 'var(--color-text-primary)' }}>Apariencia</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '1rem', alignItems: 'start' }}>
+                    {/* Color */}
+                    <div className="wizard-field">
+                        <label className="form-label">Color primario</label>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <input type="color" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)}
+                                style={{ width: 32, height: 32, border: 'none', cursor: 'pointer', borderRadius: 8, padding: 0, background: 'transparent' }} />
+                            <input className="form-input" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)}
+                                style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }} />
                         </div>
                     </div>
-                    <div>
-                        <label className="form-label" style={{ fontSize: '0.7rem' }}>Densidad</label>
-                        <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
-                            {([['compact', 'Compacto'], ['normal', 'Normal'], ['comfortable', 'Cómodo']] as const).map(([val, lbl]) => (
-                                <button key={val} onClick={() => setUiDensity(val)} style={{
-                                    flex: 1, padding: '6px 0', fontSize: '0.72rem',
-                                    fontWeight: uiDensity === val ? 700 : 500, border: 'none', cursor: 'pointer',
-                                    background: uiDensity === val ? 'var(--brand)' : 'var(--bg-subtle)',
-                                    color: uiDensity === val ? '#fff' : 'var(--text-muted)', transition: 'all 0.15s',
-                                }}>{lbl}</button>
-                            ))}
-                        </div>
-                    </div>
-                    <div>
-                        <label className="form-label" style={{ fontSize: '0.7rem' }}>Tema</label>
-                        <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
+                    {/* Tema */}
+                    <div className="wizard-field">
+                        <label className="form-label">Tema</label>
+                        <div className="wizard-pills" style={{ gap: 4 }}>
                             {([['light', 'Claro'], ['dark', 'Oscuro'], ['system', 'Auto']] as const).map(([val, lbl]) => (
-                                <button key={val} onClick={() => setTheme(val)} style={{
-                                    flex: 1, padding: '6px 0', fontSize: '0.72rem',
-                                    fontWeight: theme === val ? 700 : 500, border: 'none', cursor: 'pointer',
-                                    background: theme === val ? 'var(--brand)' : 'var(--bg-subtle)',
-                                    color: theme === val ? '#fff' : 'var(--text-muted)', transition: 'all 0.15s',
-                                }}>{lbl}</button>
+                                <button key={val} className={`wizard-pill${theme === val ? ' selected' : ''}`} onClick={() => setTheme(val)} style={{ padding: '5px 10px', fontSize: '0.6875rem' }}>{lbl}</button>
                             ))}
                         </div>
                     </div>
-                </div>
-            </div>
-
-            {/* Company data */}
-            <div className="card" style={{ padding: '1.5rem' }}>
-                <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Building2 size={16} color="#3b82f6" /> Datos Fiscales
-                </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '0.75rem' }}>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label className="form-label">Razón Social</label>
-                        <input className="form-input" value={tenantRazonSocial} onChange={e => setTenantRazonSocial(e.target.value)} placeholder="Mi Empresa S.R.L." />
-                    </div>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label className="form-label">CUIT</label>
-                        <input className="form-input" value={tenantCuit} onChange={e => setTenantCuit(e.target.value)} placeholder="30-12345678-9" style={{ fontFamily: 'var(--font-mono)' }} />
-                    </div>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label className="form-label">Dirección</label>
-                        <input className="form-input" value={tenantDireccion} onChange={e => setTenantDireccion(e.target.value)} placeholder="Av. Corrientes 1234, CABA" />
-                    </div>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <Mail size={12} /> Email
-                        </label>
-                        <input className="form-input" type="email" value={tenantEmail} onChange={e => setTenantEmail(e.target.value)} placeholder="contabilidad@empresa.com" />
-                    </div>
-                </div>
-            </div>
-
-            {/* General settings — full width */}
-            <div className="card" style={{ padding: '1.5rem', gridColumn: '1/-1' }}>
-                <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Settings size={16} color="var(--text-muted)" /> Parámetros Generales
-                </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? '1rem' : '2rem' }}>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label className="form-label">Umbral de Auto-Aprobación</label>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                            <input type="range" min={0} max={100} value={config?.auto_approve_threshold || 95}
-                                onChange={e => updateConfig('auto_approve_threshold', parseInt(e.target.value))}
-                                style={{ flex: 1, accentColor: 'var(--brand)' }} />
-                            <span style={{ fontWeight: 700, fontSize: '1.125rem', minWidth: 40, textAlign: 'right' as const }}>{config?.auto_approve_threshold || 95}%</span>
+                    {/* Tamaño */}
+                    <div className="wizard-field">
+                        <label className="form-label">Tamaño texto</label>
+                        <div className="wizard-pills" style={{ gap: 4 }}>
+                            {([['small', 'S'], ['medium', 'M'], ['large', 'L']] as const).map(([val, lbl]) => (
+                                <button key={val} className={`wizard-pill${uiFontSize === val ? ' selected' : ''}`} onClick={() => setUiFontSize(val)} style={{ padding: '5px 10px', fontSize: '0.6875rem' }}>{lbl}</button>
+                            ))}
                         </div>
-                        <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>Comprobantes con score ≥ este valor se aprueban automáticamente</p>
                     </div>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label className="form-label">Sincronización Automática</label>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.25rem' }}>
-                            <button onClick={() => updateConfig('sync_enabled', !config?.sync_enabled)} style={{
-                                width: 48, height: 26, borderRadius: 9999, border: 'none', cursor: 'pointer',
-                                background: config?.sync_enabled ? 'var(--brand)' : 'var(--border-strong)', transition: 'background 0.2s ease', position: 'relative',
-                            }}>
-                                <span style={{ position: 'absolute', top: 3, left: config?.sync_enabled ? 25 : 3, width: 20, height: 20, borderRadius: '50%', background: '#fff', boxShadow: 'var(--shadow-sm)', transition: 'left 0.2s ease' }} />
-                            </button>
-                            <span style={{ fontSize: '0.875rem', fontWeight: 500, color: config?.sync_enabled ? 'var(--success)' : 'var(--text-muted)' }}>{config?.sync_enabled ? 'Activa' : 'Inactiva'}</span>
+                    {/* Densidad */}
+                    <div className="wizard-field">
+                        <label className="form-label">Densidad</label>
+                        <div className="wizard-pills" style={{ gap: 4 }}>
+                            {([['compact', 'Compacto'], ['normal', 'Normal'], ['comfortable', 'Cómodo']] as const).map(([val, lbl]) => (
+                                <button key={val} className={`wizard-pill${uiDensity === val ? ' selected' : ''}`} onClick={() => setUiDensity(val)} style={{ padding: '5px 10px', fontSize: '0.6875rem' }}>{lbl}</button>
+                            ))}
                         </div>
-                        <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>Fetch diario de ARCA e inyección automática a Xubio vía n8n</p>
                     </div>
                 </div>
             </div>
@@ -1023,42 +928,41 @@ export default function Configuracion() {
         </div>
     );
 
+    const { role: userRole } = useAuth() as any;
+    const isSuperadmin = userRole === 'superadmin';
+    const TABS = ALL_TABS.filter(t => !t.superadminOnly || isSuperadmin);
+
     /* ─── Main Render ─── */
     return (
-        <div style={{ padding: isMobile ? 0 : undefined }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {/* Header */}
-            <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'center' : 'flex-start', flexWrap: isMobile ? 'wrap' : undefined, gap: isMobile ? 8 : undefined }}>
-                <div>
-                    <h1 style={isMobile ? { fontSize: '1.125rem', marginBottom: 2 } : undefined}>Configuración</h1>
-                    {!isMobile && <p>Parámetros, integraciones y usuarios del módulo contable</p>}
-                </div>
+            <div className="module-header-desktop">
+                <h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Configuración</h1>
+                <div style={{ flex: 1 }} />
                 <button className="btn btn-primary" onClick={activeTab === 'integraciones' ? handleSave : handleSaveTenant} disabled={saving || savingTenant}
-                    style={isMobile ? { fontSize: '0.8rem', padding: '6px 14px' } : undefined}>
-                    {tenantSaved ? <><CheckCircle size={16} /> Guardado</> : <><Save size={16} /> {saving || savingTenant ? 'Guardando...' : 'Guardar'}</>}
+                    style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem' }}>
+                    {tenantSaved ? <><CheckCircle size={14} /> Guardado</> : <><Save size={14} /> {saving || savingTenant ? 'Guardando...' : 'Guardar'}</>}
                 </button>
             </div>
 
-            {/* Tabs — scrollable on mobile */}
-            <div style={{ display: 'flex', gap: 4, marginBottom: isMobile ? '1rem' : '1.5rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 0, overflowX: isMobile ? 'auto' : undefined, WebkitOverflowScrolling: 'touch' }}>
+            {/* Tabs as pills */}
+            <div style={{ display: 'flex', gap: 4, overflowX: 'auto', flexShrink: 0 }}>
                 {TABS.map(tab => {
                     const Icon = tab.icon;
                     const isActive = activeTab === tab.key;
                     return (
-                        <button
-                            key={tab.key}
-                            onClick={() => setActiveTab(tab.key)}
+                        <button key={tab.key} onClick={() => setActiveTab(tab.key)}
                             style={{
                                 display: 'flex', alignItems: 'center', gap: 6,
-                                padding: isMobile ? '0.5rem 1rem' : '0.6rem 1.25rem',
-                                fontSize: isMobile ? '0.75rem' : '0.8rem', fontWeight: isActive ? 700 : 500,
-                                color: isActive ? 'var(--brand)' : 'var(--text-muted)',
-                                background: 'transparent', border: 'none', cursor: 'pointer',
-                                borderBottom: isActive ? '2px solid var(--brand)' : '2px solid transparent',
-                                marginBottom: -1, transition: 'all 0.15s ease',
-                                whiteSpace: 'nowrap', flexShrink: 0,
-                            }}
-                        >
-                            <Icon size={14} />
+                                padding: '6px 14px', borderRadius: 99,
+                                fontSize: '0.75rem', fontWeight: 600,
+                                color: isActive ? '#fff' : 'var(--color-text-muted)',
+                                background: isActive ? 'var(--color-text-primary)' : 'var(--color-bg-surface)',
+                                border: `1px solid ${isActive ? 'var(--color-text-primary)' : 'var(--color-border-subtle)'}`,
+                                cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--font-sans)',
+                                transition: 'all 0.12s',
+                            }}>
+                            <Icon size={13} />
                             {tab.label}
                         </button>
                     );
@@ -1067,9 +971,9 @@ export default function Configuracion() {
 
             {/* Tab content */}
             {activeTab === 'empresa' && renderEmpresa()}
-            {activeTab === 'integraciones' && renderIntegraciones()}
+            {activeTab === 'integraciones' && isSuperadmin && renderIntegraciones()}
             {activeTab === 'usuarios' && renderUsuarios()}
-            {activeTab === 'mensajeria' && <MessagingTab />}
+            {activeTab === 'mensajeria' && isSuperadmin && <MessagingTab />}
         </div>
     );
 }
