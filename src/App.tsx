@@ -15,7 +15,7 @@ import Monitor from './modules/tesoreria/Monitor';
 import Equipo from './modules/tesoreria/Equipo';
 import SuperAdminDashboard from './modules/superadmin/Dashboard';
 import ContableDashboard from './modules/contable/Dashboard';
-import ContableComprobantes from './modules/contable/Comprobantes/index';
+
 
 import ContableProveedores from './modules/contable/Proveedores';
 import ContableClientes from './modules/contable/Clientes';
@@ -96,7 +96,7 @@ export default function App() {
             {/* Modulo Contable */}
             <Route path="contable">
               <Route index element={<ContableDashboard />} />
-              <Route path="comprobantes" element={<ContableComprobantes />} />
+              <Route path="comprobantes" element={<FacturarMobile />} />
               <Route path="proveedores" element={<ContableProveedores />} />
               <Route path="clientes" element={<ContableClientes />} />
               <Route path="catalogos" element={<ContableCatalogos />} />
