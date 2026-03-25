@@ -176,9 +176,8 @@ export default function ConciliacionBancaria() {
         return { rule: null, estado: 'pendiente' };
     };
 
-    // ── Score against comprobantes ──
-    // Will be used when linking movimientos to comprobantes
-    const _scoreComprobante = async (mov: { fecha: string; debito: number; credito: number; detalle: string }) => {
+    // ── Score against comprobantes (used during import to suggest matches) ──
+    const scoreComprobante = async (mov: { fecha: string; debito: number; credito: number; detalle: string }): Promise<{ comprobante: any; score: number } | null> => {
         const monto = mov.debito || mov.credito;
         if (!monto || monto < 100) return null;
 
@@ -199,24 +198,19 @@ export default function ConciliacionBancaria() {
             let score = 0;
             const compMonto = comp.monto_original || comp.monto_ars || 0;
 
-            // Exact amount match
             if (Math.abs(compMonto - monto) < 1) score += 40;
-            else score += 20; // within 5%
+            else score += 20;
 
-            // CUIT match in detail
             if (comp.cuit_emisor && detailUpper.includes(comp.cuit_emisor.replace(/[-\s]/g, ''))) score += 30;
-            // Name match
             const provName = (comp.proveedor as any)?.razon_social?.toUpperCase();
             if (provName && detailUpper.includes(provName.substring(0, Math.min(10, provName.length)))) score += 15;
 
-            // Date proximity (±7 days)
             const movDate = new Date(mov.fecha);
             const compDate = new Date(comp.fecha);
             const daysDiff = Math.abs((movDate.getTime() - compDate.getTime()) / 86400000);
             if (daysDiff <= 7) score += 10;
 
-            // Type match
-            if (mov.debito > 0 && comp.monto_original > 0) score += 5; // debito = compra
+            if (mov.debito > 0 && comp.monto_original > 0) score += 5;
 
             if (score > bestScore) { bestScore = score; bestComp = comp; }
         }
@@ -279,6 +273,19 @@ export default function ConciliacionBancaria() {
                     : null;
                 if (destinoNombre) record.destino_nombre = destinoNombre;
                 if (estado === 'auto') autoClassified++;
+            }
+
+            // Try scoring against comprobantes for transfers/payments
+            if (record.estado !== 'auto' && (row.debito > 0 || row.credito > 0)) {
+                const match = await scoreComprobante(row);
+                if (match && match.score >= 80) {
+                    record.comprobante_id = match.comprobante.id;
+                    record.match_score = match.score;
+                    if (record.estado === 'pendiente') record.estado = 'parcial';
+                } else if (match && match.score >= 50) {
+                    record.match_score = match.score;
+                    if (record.estado === 'pendiente') record.estado = 'parcial';
+                }
             }
 
             toInsert.push(record);
