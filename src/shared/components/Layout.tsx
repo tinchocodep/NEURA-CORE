@@ -222,13 +222,11 @@ export default function Layout() {
     const isOperaciones = (isInmobiliaria && (location.pathname.startsWith('/inmobiliaria/propiedades') || location.pathname.startsWith('/inmobiliaria/contratos') || location.pathname.startsWith('/inmobiliaria/ordenes') || location.pathname.startsWith('/inmobiliaria/liquidaciones') || location.pathname.startsWith('/inmobiliaria/facturar')))
         || (hasInmob && location.pathname.startsWith('/contable/proveedores'));
     const isGestion = (isInmobiliaria && !isOperaciones) ||
-        (hasInmob && isTesoreria && location.pathname === '/tesoreria') ||
-        (hasInmob && location.pathname === '/contable/comprobantes') ||
         (hasInmob && isCRM && location.pathname.startsWith('/crm/contactos'));
-    const isFinanzas = hasInmob && !isOperaciones && (
-        (isTesoreria && location.pathname !== '/tesoreria') ||
-        ((isContable && !isConfiguracion) && location.pathname !== '/contable/comprobantes' && !location.pathname.startsWith('/contable/proveedores')) ||
-        (isCRM && !location.pathname.startsWith('/crm/contactos') && !location.pathname.startsWith('/crm/prospectos'))
+    const isFinanzas = hasInmob && !isOperaciones && !isGestion && (
+        isTesoreria ||
+        ((isContable && !isConfiguracion) && !location.pathname.startsWith('/contable/proveedores')) ||
+        (isCRM && !location.pathname.startsWith('/crm/contactos'))
     );
     const isMobileGestion = isMobile && isGestion;
 
@@ -266,8 +264,6 @@ export default function Layout() {
     const gestionItems = [
         { name: 'Cuentas', path: '/inmobiliaria/cuentas', icon: Receipt },
         { name: 'Proveedores', path: '/inmobiliaria/proveedores', icon: Building2 },
-        { name: 'Comprobantes', path: '/contable/comprobantes', icon: ClipboardList },
-        { name: 'Proyecciones', path: '/tesoreria', icon: TrendingUp },
         ...(hasModuleAccess('crm') ? [
             { name: 'Contactos', path: '/crm/contactos', icon: UserPlus },
         ] : []),
