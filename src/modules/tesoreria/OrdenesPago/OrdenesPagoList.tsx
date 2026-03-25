@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import { useTenant } from '../../../contexts/TenantContext';
-import { Calendar, Search, FileText, CheckCircle, Clock, XCircle, Trash2, X, Download, Mail, Send, Loader, User, DollarSign, Building2 } from 'lucide-react';
+import { Search, FileText, Trash2, X, Download, Mail, Send, Loader, User, DollarSign } from 'lucide-react';
 import { useToast } from '../../../contexts/ToastContext';
 import { DocumentViewer } from '../../../shared/components/DocumentViewer';
 import PaymentModal from './PaymentModal';
@@ -153,152 +153,115 @@ export default function OrdenesPagoList() {
         }
     };
 
-    const getEstadoBadge = (estado: string) => {
-        switch(estado) {
-            case 'aprobada': return <span className="badge badge-warning"><Clock size={12} /> Pendiente de Pago</span>;
-            case 'pagada': return <span className="badge badge-success"><CheckCircle size={12} /> Abonada</span>;
-            case 'anulada': return <span className="badge badge-danger"><XCircle size={12} /> Anulada</span>;
-            default: return <span className="badge badge-neutral">{estado}</span>;
-        }
-    };
-
     const ordenesFiltradas = ordenes.filter(op => 
         (op.numero_op || '').toLowerCase().includes(busqueda.toLowerCase()) || 
         (op.proveedor?.razon_social || '').toLowerCase().includes(busqueda.toLowerCase())
     );
 
+    const iconBtn: React.CSSProperties = {
+        width: 28, height: 28, borderRadius: 8, border: '1px solid var(--color-border-subtle)',
+        background: 'var(--color-bg-surface)', cursor: 'pointer', display: 'flex', alignItems: 'center',
+        justifyContent: 'center', transition: 'all 0.12s', flexShrink: 0,
+    };
+
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', animation: 'fadeIn 0.3s ease-out' }}>
-            <div className="card" style={{ padding: '0.875rem 1rem', display: 'flex', gap: '0.625rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
-                    <Search size={14} color="var(--color-text-muted)" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-                    <input
-                        className="form-input"
-                        placeholder="Buscar por OP o Proveedor..."
-                        value={busqueda}
-                        onChange={e => setBusqueda(e.target.value)}
-                        style={{ paddingLeft: 32, height: 36 }}
-                    />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {/* Header */}
+            <div className="module-header-desktop">
+                <h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Órdenes de Pago</h1>
+                <div style={{ flex: 1, minWidth: 200, maxWidth: 300, position: 'relative' }}>
+                    <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
+                    <input type="text" placeholder="Buscar OP o proveedor..." value={busqueda} onChange={e => setBusqueda(e.target.value)}
+                        className="form-input" style={{ paddingLeft: 30, height: 32, fontSize: '0.8rem' }} />
                 </div>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                    <select
-                        className="form-input"
-                        value={filtroEstado}
-                        onChange={e => setFiltroEstado(e.target.value)}
-                        style={{ height: 36, maxWidth: 180 }}
-                    >
-                        <option value="todas">Todos los estados</option>
-                        <option value="aprobada">Pendiente de Pago</option>
-                        <option value="pagada">Abonadas</option>
-                        <option value="anulada">Anuladas</option>
-                    </select>
-                </div>
+                <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
+                    <option value="todas">Todos los estados</option>
+                    <option value="aprobada">Pendiente de Pago</option>
+                    <option value="pagada">Abonadas</option>
+                    <option value="anulada">Anuladas</option>
+                </select>
             </div>
 
-            <div className="card">
-                <div className="table-responsive">
-                    <table className="table">
-                        <thead>
-                            <tr>
-                                <th>Fecha</th>
-                                <th>N° OP</th>
-                                <th>Proveedor</th>
-                                <th style={{ textAlign: 'right' }}>Bruto</th>
-                                <th style={{ textAlign: 'right' }}>Retenciones</th>
-                                <th style={{ textAlign: 'right' }}>Neto Pagado</th>
-                                <th>Estado</th>
-                                <th style={{ textAlign: 'right', width: 100 }}>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {loading ? (
-                                <tr><td colSpan={8} style={{ textAlign: 'center', padding: '2rem' }}>Cargando Órdenes...</td></tr>
-                            ) : ordenesFiltradas.length === 0 ? (
-                                <tr><td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)' }}>No hay coincidencias</td></tr>
-                            ) : (
-                                ordenesFiltradas.map(op => (
-                                    <tr key={op.id}>
-                                        <td>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap', color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
-                                                <Calendar size={14} />
-                                                {op.fecha}
-                                            </div>
-                                        </td>
-                                        <td style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{op.numero_op}</td>
-                                        <td>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                <div style={{ width: 26, height: 26, borderRadius: '6px', background: 'var(--color-bg-surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)', flexShrink: 0 }}>
-                                                    <Building2 size={13} />
-                                                </div>
-                                                <span style={{ fontWeight: 500, color: 'var(--color-text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>{op.proveedor?.razon_social}</span>
-                                            </div>
-                                        </td>
-                                        <td style={{ textAlign: 'right', color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>
-                                            ${op.monto_bruto?.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                                        </td>
-                                        <td style={{ textAlign: 'right', color: 'var(--color-danger)', fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>
-                                            {op.monto_retenciones > 0 ? `-$${op.monto_retenciones.toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : '-'}
-                                        </td>
-                                        <td style={{ textAlign: 'right', fontWeight: 800, color: 'var(--color-text-primary)', fontFamily: 'var(--font-mono)', fontSize: '0.95rem' }}>
-                                            ${op.monto_neto?.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                                        </td>
-                                        <td>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '150px' }}>
-                                                <div style={{ display: 'flex' }}>{getEstadoBadge(op.estado)}</div>
-                                                {op.estado === 'pagada' && op.treasury_transactions && op.treasury_transactions.length > 0 && (
-                                                    <div style={{ 
-                                                        display: 'inline-flex', alignItems: 'center', gap: '4px', 
-                                                        color: 'var(--color-text-muted)', fontSize: '0.65rem', lineHeight: 1,
-                                                        background: 'var(--color-bg-surface-2)', padding: '3px 6px', borderRadius: '4px', width: 'fit-content'
-                                                    }}>
-                                                        <span style={{ textTransform: 'capitalize', fontWeight: 600 }}>{op.treasury_transactions[0]?.payment_method}</span>
-                                                        <span>•</span>
-                                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '90px' }} title={op.treasury_transactions[0]?.treasury_accounts?.name || 'Caja'}>
-                                                            {op.treasury_transactions[0]?.treasury_accounts?.name || 'Caja'}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td style={{ textAlign: 'right', display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
-                                            {op.estado === 'aprobada' && (
-                                                <button 
-                                                    className="btn btn-primary btn-sm btn-icon" 
-                                                    title="Efectivizar Pago"
-                                                    onClick={() => setOpToPay(op)}
-                                                >
-                                                    <DollarSign size={16} />
-                                                </button>
-                                            )}
-                                            <button 
-                                                className="btn btn-ghost btn-sm btn-icon" 
-                                                title="Ver Detalles / PDF"
-                                                onClick={() => {
-                                                    if (op.archivo_url) {
-                                                        setSelectedOp(op);
-                                                    } else {
-                                                        addToast('warning', 'Esta Orden de Pago antigua no tiene un PDF oficial enlazado en la base de datos.');
-                                                    }
-                                                }}
-                                            >
-                                                <FileText size={16} />
-                                            </button>
-                                            <button 
-                                                className="btn btn-ghost btn-sm btn-icon" 
-                                                title="Eliminar OP y Liberar Facturas"
-                                                onClick={() => eliminarOP(op.id, op.numero_op)}
-                                                style={{ color: 'var(--color-danger)' }}
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </td>
-
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+            {/* Grid table */}
+            <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 90px 90px 80px 120px', padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', alignItems: 'center' }}>
+                    <span>OP / Proveedor</span><span style={{ textAlign: 'right' }}>Bruto</span><span style={{ textAlign: 'right' }}>Retenc.</span><span style={{ textAlign: 'right' }}>Neto</span><span>Estado</span><span style={{ textAlign: 'right' }}>Acciones</span>
                 </div>
+                {loading ? (
+                    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Cargando...</div>
+                ) : ordenesFiltradas.length === 0 ? (
+                    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin órdenes de pago</div>
+                ) : ordenesFiltradas.map(op => {
+                    const estadoColor = op.estado === 'pagada' ? '#10B981' : op.estado === 'anulada' ? '#EF4444' : '#F59E0B';
+                    const estadoLabel = op.estado === 'pagada' ? 'Abonada' : op.estado === 'anulada' ? 'Anulada' : 'Pendiente';
+                    return (
+                        <div key={op.id}
+                            style={{ display: 'grid', gridTemplateColumns: '1fr 90px 90px 90px 80px 120px', padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', alignItems: 'center', transition: 'background 0.1s' }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                            {/* OP + Proveedor + fecha */}
+                            <div style={{ minWidth: 0 }}>
+                                <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {op.proveedor?.razon_social || '—'}
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                                    <span style={{ fontSize: '0.5625rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: 'var(--color-bg-surface-2)', color: 'var(--color-text-muted)' }}>{op.numero_op}</span>
+                                    <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-faint)' }}>{op.fecha}</span>
+                                </div>
+                            </div>
+                            {/* Bruto */}
+                            <div style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                                ${op.monto_bruto?.toLocaleString('es-AR')}
+                            </div>
+                            {/* Retenciones */}
+                            <div style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: op.monto_retenciones > 0 ? '#EF4444' : 'var(--color-text-faint)' }}>
+                                {op.monto_retenciones > 0 ? `-$${op.monto_retenciones.toLocaleString('es-AR')}` : '—'}
+                            </div>
+                            {/* Neto */}
+                            <div style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                                ${op.monto_neto?.toLocaleString('es-AR')}
+                            </div>
+                            {/* Estado */}
+                            <div>
+                                <span style={{ fontSize: '0.5625rem', fontWeight: 700, padding: '2px 6px', borderRadius: 99, background: `${estadoColor}15`, color: estadoColor, textTransform: 'capitalize' }}>
+                                    {estadoLabel}
+                                </span>
+                            </div>
+                            {/* Actions */}
+                            <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                                {op.estado === 'aprobada' && (
+                                    <div className="row-action-wrap">
+                                        <button onClick={() => setOpToPay(op)}
+                                            style={{ ...iconBtn, color: '#10B981', borderColor: '#10B98130' }}
+                                            onMouseEnter={e => { e.currentTarget.style.background = '#10B98110'; e.currentTarget.style.borderColor = '#10B981'; }}
+                                            onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; e.currentTarget.style.borderColor = '#10B98130'; }}>
+                                            <DollarSign size={14} />
+                                        </button>
+                                        <span className="row-action-tooltip">Pagar</span>
+                                    </div>
+                                )}
+                                <div className="row-action-wrap">
+                                    <button onClick={() => { if (op.archivo_url) setSelectedOp(op); else addToast('warning', 'Sin PDF enlazado'); }}
+                                        style={{ ...iconBtn, color: 'var(--color-text-muted)' }}
+                                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg-hover)'; }}
+                                        onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; }}>
+                                        <FileText size={14} />
+                                    </button>
+                                    <span className="row-action-tooltip">Ver PDF</span>
+                                </div>
+                                <div className="row-action-wrap">
+                                    <button onClick={() => eliminarOP(op.id, op.numero_op)}
+                                        style={{ ...iconBtn, color: '#EF4444', borderColor: '#EF444420' }}
+                                        onMouseEnter={e => { e.currentTarget.style.background = '#EF44440a'; e.currentTarget.style.borderColor = '#EF4444'; }}
+                                        onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; e.currentTarget.style.borderColor = '#EF444420'; }}>
+                                        <Trash2 size={14} />
+                                    </button>
+                                    <span className="row-action-tooltip">Eliminar</span>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
 
             {/* PREVIEW MODAL HISTORICO DE ORDEN DE PAGO */}
