@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import { useToast } from '../../contexts/ToastContext';
-import { Upload, Search, Filter, CheckCircle, AlertTriangle, XCircle, ChevronDown, ChevronUp, X, Check, ArrowUpRight, ArrowDownRight, FileText, Users, Building2, Landmark, Receipt, Wallet, Briefcase, HelpCircle } from 'lucide-react';
+import { Upload, Search, CheckCircle, AlertTriangle, XCircle, X, Check, FileText, Users, Building2, Landmark, Receipt, Wallet, Briefcase, HelpCircle } from 'lucide-react';
 
 // ── Types ──
 interface MovBancario {
@@ -177,7 +177,8 @@ export default function ConciliacionBancaria() {
     };
 
     // ── Score against comprobantes ──
-    const scoreComprobante = async (mov: { fecha: string; debito: number; credito: number; detalle: string }) => {
+    // Will be used when linking movimientos to comprobantes
+    const _scoreComprobante = async (mov: { fecha: string; debito: number; credito: number; detalle: string }) => {
         const monto = mov.debito || mov.credito;
         if (!monto || monto < 100) return null;
 
@@ -390,7 +391,7 @@ export default function ConciliacionBancaria() {
 
     const destinoIcon = (tipo: string | null) => {
         if (!tipo) return <HelpCircle size={14} />;
-        const map: Record<string, JSX.Element> = {
+        const map: Record<string, React.ReactNode> = {
             cliente: <Users size={14} />, proveedor: <Building2 size={14} />,
             impuesto: <Landmark size={14} />, gasto_bancario: <Receipt size={14} />,
             caja: <Wallet size={14} />, fci: <Briefcase size={14} />,
