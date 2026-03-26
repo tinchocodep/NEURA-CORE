@@ -31,8 +31,8 @@ export interface Comprobante {
     percepciones_iibb?: number | null;
     percepciones_iva?: number | null;
     colpy_synced_at?: string | null;
-    proveedor: { razon_social: string; producto_servicio_default_id: string | null } | null;
-    cliente: { razon_social: string } | null;
+    proveedor: { razon_social: string; producto_servicio_default_id: string | null; colpy_id?: string | null; xubio_id?: string | null; cuit?: string | null } | null;
+    cliente: { razon_social: string; xubio_id?: string | null } | null;
     producto_servicio: { nombre: string; grupo: string } | null;
     categoria: { nombre: string; color: string } | null;
     centro_costo: { nombre: string } | null;
