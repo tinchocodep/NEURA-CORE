@@ -4,6 +4,12 @@ import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
 
+function useIsMobile() {
+  const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
+  useEffect(() => { const h = () => setM(window.innerWidth <= 768); window.addEventListener('resize', h); return () => window.removeEventListener('resize', h); }, []);
+  return m;
+}
+
 interface Proveedor {
   id: string; nombre: string; rubro: string; contacto_nombre: string | null;
   telefono: string | null; email: string | null; cuit: string | null;
@@ -31,6 +37,7 @@ const emptyProv = { nombre: '', rubro: 'general', contacto_nombre: '', telefono:
 
 export default function ProveedoresInmob() {
   const { tenant } = useTenant();
+  const isMobile = useIsMobile();
   const [items, setItems] = useState<Proveedor[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -107,6 +114,18 @@ export default function ProveedoresInmob() {
           <Plus size={14} /> Nuevo
         </button>
       </div>
+      {isMobile && (
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <div style={{ flex: 1, position: 'relative' }}>
+            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
+            <input type="text" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)}
+              className="form-input" style={{ paddingLeft: 30, height: 38, fontSize: '0.8125rem', borderRadius: 10 }} />
+          </div>
+          <button onClick={openNew} style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--color-cta, #2563EB)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Plus size={18} />
+          </button>
+        </div>
+      )}
 
       {/* Rubro filter pills */}
       <div style={{ display: 'flex', gap: 4, overflowX: 'auto', flexShrink: 0 }}>
@@ -122,83 +141,120 @@ export default function ProveedoresInmob() {
         ))}
       </div>
 
-      {/* ─── GRID TABLE ─── */}
-      <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 120px 120px 100px', padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', alignItems: 'center' }}>
-          <span>Proveedor</span><span>Rubro</span><span>Teléfono</span><span>Email</span><span style={{ textAlign: 'right' }}>Acciones</span>
-        </div>
-        {filtered.map(p => {
-          const color = RUBRO_COLOR[p.rubro] || '#6B7280';
-          return (
-            <div key={p.id}
-              style={{ display: 'grid', gridTemplateColumns: '1fr 90px 120px 120px 100px', padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', alignItems: 'center', transition: 'background 0.1s' }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
-              onMouseLeave={e => (e.currentTarget.style.background = '')}>
-              {/* Nombre + contacto + CUIT */}
-              <div style={{ cursor: 'pointer', minWidth: 0 }} onClick={() => openEdit(p)}>
-                <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nombre}</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                  {p.contacto_nombre && <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>{p.contacto_nombre}</span>}
-                  {p.cuit && <span style={{ fontSize: '0.5625rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: 'var(--color-bg-surface-2)', color: 'var(--color-text-muted)' }}>CUIT {p.cuit}</span>}
-                </div>
-              </div>
-              {/* Rubro */}
-              <div>
-                <span style={{ fontSize: '0.5625rem', fontWeight: 700, padding: '2px 6px', borderRadius: 99, background: `${color}15`, color, textTransform: 'capitalize' }}>
-                  {RUBRO_LABEL[p.rubro] || p.rubro}
-                </span>
-              </div>
-              {/* Teléfono */}
-              <div>
-                {p.telefono ? (
-                  <a href={`tel:${p.telefono}`} onClick={e => e.stopPropagation()} style={{ fontSize: '0.75rem', color: 'var(--color-cta, #2563EB)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3 }}>
-                    <Phone size={12} /> {p.telefono}
-                  </a>
-                ) : <span style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)' }}>—</span>}
-              </div>
-              {/* Email */}
-              <div>
-                {p.email ? (
-                  <a href={`mailto:${p.email}`} onClick={e => e.stopPropagation()} style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <Mail size={12} style={{ flexShrink: 0 }} /> {p.email}
-                  </a>
-                ) : <span style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)' }}>—</span>}
-              </div>
-              {/* Actions */}
-              <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
-                <div className="row-action-wrap">
-                  <button onClick={e => { e.stopPropagation(); openEdit(p); }}
-                    style={{ ...iconBtn, color: 'var(--color-text-muted)' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg-hover)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; }}>
-                    <Eye size={14} />
-                  </button>
-                  <span className="row-action-tooltip">Editar</span>
-                </div>
-                {p.telefono && (
-                  <div className="row-action-wrap">
-                    <a href={`tel:${p.telefono}`} onClick={e => e.stopPropagation()}
-                      style={{ ...iconBtn, color: 'var(--color-cta, #2563EB)', textDecoration: 'none' }}>
-                      <Phone size={14} />
-                    </a>
-                    <span className="row-action-tooltip">Llamar</span>
+      {/* ─── GRID TABLE (desktop) ─── */}
+      {!isMobile && (
+        <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 120px 120px 100px', padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', alignItems: 'center' }}>
+            <span>Proveedor</span><span>Rubro</span><span>Teléfono</span><span>Email</span><span style={{ textAlign: 'right' }}>Acciones</span>
+          </div>
+          {filtered.map(p => {
+            const color = RUBRO_COLOR[p.rubro] || '#6B7280';
+            return (
+              <div key={p.id}
+                style={{ display: 'grid', gridTemplateColumns: '1fr 90px 120px 120px 100px', padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', alignItems: 'center', transition: 'background 0.1s' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
+                onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                {/* Nombre + contacto + CUIT */}
+                <div style={{ cursor: 'pointer', minWidth: 0 }} onClick={() => openEdit(p)}>
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nombre}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                    {p.contacto_nombre && <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>{p.contacto_nombre}</span>}
+                    {p.cuit && <span style={{ fontSize: '0.5625rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: 'var(--color-bg-surface-2)', color: 'var(--color-text-muted)' }}>CUIT {p.cuit}</span>}
                   </div>
-                )}
-                <div className="row-action-wrap">
-                  <button onClick={e => { e.stopPropagation(); remove(p); }}
-                    style={{ ...iconBtn, color: '#EF4444', borderColor: '#EF444420' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = '#EF44440a'; e.currentTarget.style.borderColor = '#EF4444'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; e.currentTarget.style.borderColor = '#EF444420'; }}>
-                    <Trash2 size={14} />
-                  </button>
-                  <span className="row-action-tooltip">Eliminar</span>
+                </div>
+                {/* Rubro */}
+                <div>
+                  <span style={{ fontSize: '0.5625rem', fontWeight: 700, padding: '2px 6px', borderRadius: 99, background: `${color}15`, color, textTransform: 'capitalize' }}>
+                    {RUBRO_LABEL[p.rubro] || p.rubro}
+                  </span>
+                </div>
+                {/* Teléfono */}
+                <div>
+                  {p.telefono ? (
+                    <a href={`tel:${p.telefono}`} onClick={e => e.stopPropagation()} style={{ fontSize: '0.75rem', color: 'var(--color-cta, #2563EB)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3 }}>
+                      <Phone size={12} /> {p.telefono}
+                    </a>
+                  ) : <span style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)' }}>—</span>}
+                </div>
+                {/* Email */}
+                <div>
+                  {p.email ? (
+                    <a href={`mailto:${p.email}`} onClick={e => e.stopPropagation()} style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <Mail size={12} style={{ flexShrink: 0 }} /> {p.email}
+                    </a>
+                  ) : <span style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)' }}>—</span>}
+                </div>
+                {/* Actions */}
+                <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                  <div className="row-action-wrap">
+                    <button onClick={e => { e.stopPropagation(); openEdit(p); }}
+                      style={{ ...iconBtn, color: 'var(--color-text-muted)' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg-hover)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; }}>
+                      <Eye size={14} />
+                    </button>
+                    <span className="row-action-tooltip">Editar</span>
+                  </div>
+                  {p.telefono && (
+                    <div className="row-action-wrap">
+                      <a href={`tel:${p.telefono}`} onClick={e => e.stopPropagation()}
+                        style={{ ...iconBtn, color: 'var(--color-cta, #2563EB)', textDecoration: 'none' }}>
+                        <Phone size={14} />
+                      </a>
+                      <span className="row-action-tooltip">Llamar</span>
+                    </div>
+                  )}
+                  <div className="row-action-wrap">
+                    <button onClick={e => { e.stopPropagation(); remove(p); }}
+                      style={{ ...iconBtn, color: '#EF4444', borderColor: '#EF444420' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = '#EF44440a'; e.currentTarget.style.borderColor = '#EF4444'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; e.currentTarget.style.borderColor = '#EF444420'; }}>
+                      <Trash2 size={14} />
+                    </button>
+                    <span className="row-action-tooltip">Eliminar</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
-        {filtered.length === 0 && <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin proveedores</div>}
-      </div>
+            );
+          })}
+          {filtered.length === 0 && <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin proveedores</div>}
+        </div>
+      )}
+
+      {/* ─── MOBILE CARDS ─── */}
+      {isMobile && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {filtered.map(p => {
+            const color = RUBRO_COLOR[p.rubro] || '#6B7280';
+            return (
+              <div key={p.id} onClick={() => openEdit(p)} style={{ padding: '12px 14px', borderRadius: 12, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', cursor: 'pointer' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                  <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{p.nombre}</div>
+                  <span style={{ fontSize: '0.5625rem', fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: `${color}15`, color, textTransform: 'capitalize', flexShrink: 0, marginLeft: 8 }}>
+                    {RUBRO_LABEL[p.rubro] || p.rubro}
+                  </span>
+                </div>
+                {p.contacto_nombre && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginBottom: 2 }}>{p.contacto_nombre}</div>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6 }}>
+                  {p.telefono && (
+                    <a href={`tel:${p.telefono}`} onClick={e => e.stopPropagation()} style={{ fontSize: '0.75rem', color: 'var(--color-cta, #2563EB)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3 }}>
+                      <Phone size={12} /> {p.telefono}
+                    </a>
+                  )}
+                  {p.email && (
+                    <a href={`mailto:${p.email}`} onClick={e => e.stopPropagation()} style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <Mail size={12} style={{ flexShrink: 0 }} /> {p.email}
+                    </a>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          {filtered.length === 0 && <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin proveedores</div>}
+        </div>
+      )}
 
       {/* ─── WIZARD MODAL ─── */}
       {showModal && (() => {

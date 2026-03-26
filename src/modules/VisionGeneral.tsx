@@ -15,6 +15,13 @@ function useIsMobile() {
 // Import Widgets
 import ActividadRecienteWidget from './vision_general/widgets/ActividadRecienteWidget';
 
+// Import wizard-capable modules
+import FacturarMobile from './inmobiliaria/FacturarMobile';
+import Liquidaciones from './inmobiliaria/Liquidaciones';
+import OrdenesTrabajo from './inmobiliaria/OrdenesTrabajoMobile';
+import Contratos from './inmobiliaria/Contratos';
+import Propiedades from './inmobiliaria/Propiedades';
+
 /* ─── Types ─── */
 interface CrossMetrics {
     comprasMes: number;
@@ -104,6 +111,7 @@ export default function VisionGeneral() {
     const [activity, setActivity] = useState<RecentActivity[]>([]);
     const [, setDolar] = useState<DolarResumen | null>(null);
     const [period, setPeriod] = useState('this_month');
+    const [activeWizard, setActiveWizard] = useState<string | null>(null);
     const [customStart, setCustomStart] = useState('');
     const [customEnd, setCustomEnd] = useState('');
     const [, setTopProveedores] = useState<EntityRanking[]>([]);
@@ -350,44 +358,9 @@ export default function VisionGeneral() {
                         <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em', marginBottom: 4 }}>
                             {getGreeting()}, {displayName || 'usuario'} 👋
                         </h1>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem' }}>
-                            <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Mostrando resumen para:</span>
-                            <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--brand)', background: 'color-mix(in srgb, var(--brand) 10%, transparent)', padding: '0.15rem 0.6rem', borderRadius: '0.5rem' }}>{periodLabel}</span>
-                        </div>
                     </div>
                 )}
 
-                {!isMobile && <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', background: 'var(--bg-card)', padding: '0.5rem', borderRadius: 12, border: '1px solid var(--border-subtle)' }}>
-                        <Calendar size={16} color="var(--text-muted)" style={{ marginLeft: 6 }} />
-                        <select
-                            className="form-input" value={period} onChange={e => setPeriod(e.target.value)}
-                            style={{ border: 'none', background: 'transparent', height: 32, padding: '0 8px', width: 150, fontWeight: 600 }}
-                        >
-                            <option value="this_month">Este mes</option>
-                            <option value="last_month">Mes pasado</option>
-                            <option value="this_quarter">Trimestre actual</option>
-                            <option value="this_year">Año actual</option>
-                            <option value="historical">Histórico total</option>
-                            <option value="custom">Personalizado...</option>
-                        </select>
-                        {period === 'custom' && (
-                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', borderLeft: '1px solid var(--border-subtle)', paddingLeft: '0.5rem' }}>
-                                <input type="date" className="form-input" style={{ height: 32, padding: '0 8px', fontSize: '0.8rem' }} value={customStart} onChange={e => setCustomStart(e.target.value)} />
-                                <span style={{ color: 'var(--text-faint)' }}>-</span>
-                                <input type="date" className="form-input" style={{ height: 32, padding: '0 8px', fontSize: '0.8rem' }} value={customEnd} onChange={e => setCustomEnd(e.target.value)} />
-                            </div>
-                        )}
-                    </div>
-                    {/* Botón Personalizar */}
-                    <button
-                        onClick={() => setIsCustomizing(true)}
-                        className="btn btn-secondary"
-                        style={{ display: 'flex', alignItems: 'center', gap: '6px', height: 48, borderRadius: 12 }}
-                    >
-                        <Settings size={16} /> <span style={{ fontWeight: 600 }}>Personalizar Panel</span>
-                    </button>
-                </div>}
             </div>
 
             {/* Alert bar — desktop only (mobile has its own "Requieren atención" section) */}
@@ -395,7 +368,7 @@ export default function VisionGeneral() {
                 <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
                     {metrics.pendientes > 0 && (
                         <div
-                            onClick={() => navigate('/contable/comprobantes')}
+                            onClick={() => navigate('/inmobiliaria/facturar')}
                             style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0.65rem 1rem', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, cursor: 'pointer', flex: 1, minWidth: 200 }}
                         >
                             <Clock size={16} color="#f59e0b" />
@@ -405,7 +378,7 @@ export default function VisionGeneral() {
                     )}
                     {metrics.errores > 0 && (
                         <div
-                            onClick={() => navigate('/contable/comprobantes')}
+                            onClick={() => navigate('/inmobiliaria/facturar')}
                             style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0.65rem 1rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, cursor: 'pointer', flex: 1, minWidth: 200 }}
                         >
                             <AlertTriangle size={16} color="#dc2626" />
@@ -461,11 +434,11 @@ export default function VisionGeneral() {
                     {/* ── ACCIONES RÁPIDAS ── */}
                     <div style={{ display: 'flex', justifyContent: 'space-around', padding: '4px 0' }}>
                         {[
-                            { icon: Receipt, label: 'Facturar', color: '#3B82F6', path: '/inmobiliaria/facturar' },
-                            { icon: Wallet, label: 'Cobranzas', color: '#10B981', path: '/inmobiliaria/liquidaciones' },
-                            { icon: CalendarClock, label: 'Órdenes', color: '#F59E0B', path: '/inmobiliaria/ordenes' },
+                            { icon: Receipt, label: 'Facturar', color: '#3B82F6', wizard: 'facturar' },
+                            { icon: Wallet, label: 'Cobranzas', color: '#10B981', wizard: 'liquidaciones' },
+                            { icon: CalendarClock, label: 'Órdenes', color: '#F59E0B', wizard: 'ordenes' },
                         ].map(action => (
-                            <button key={action.label} onClick={() => navigate(action.path)}
+                            <button key={action.label} onClick={() => setActiveWizard(action.wizard)}
                                 style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', width: 80 }}>
                                 <div style={{ width: 48, height: 48, borderRadius: '50%', background: action.color, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 3px 10px ${action.color}30` }}>
                                     <action.icon size={20} color="#fff" />
@@ -549,14 +522,14 @@ export default function VisionGeneral() {
                             <div style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: 12 }}>Acciones Rápidas</div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                 {[
-                                    { label: 'Facturar', path: '/inmobiliaria/facturar', color: '#3B82F6' },
-                                    { label: 'Cobranzas', path: '/inmobiliaria/liquidaciones', color: '#10B981' },
-                                    { label: 'Órdenes de trabajo', path: '/inmobiliaria/ordenes', color: '#F59E0B' },
-                                    { label: 'Nuevo contrato', path: '/inmobiliaria/contratos?action=crear', color: '#8B5CF6' },
-                                    { label: 'Nueva propiedad', path: '/inmobiliaria/propiedades?action=crear', color: '#0D9488' },
-                                    { label: 'Reportar problema', path: '/inmobiliaria/ordenes?action=crear', color: '#EF4444' },
+                                    { label: 'Facturar', wizard: 'facturar', color: '#3B82F6' },
+                                    { label: 'Cobranzas', wizard: 'liquidaciones', color: '#10B981' },
+                                    { label: 'Órdenes de trabajo', wizard: 'ordenes', color: '#F59E0B' },
+                                    { label: 'Nuevo contrato', wizard: 'contratos', color: '#8B5CF6' },
+                                    { label: 'Nueva propiedad', wizard: 'propiedades', color: '#0D9488' },
+                                    { label: 'Reportar problema', wizard: 'ordenes', color: '#EF4444' },
                                 ].map(a => (
-                                    <button key={a.label} onClick={() => navigate(a.path)}
+                                    <button key={a.label} onClick={() => setActiveWizard(a.wizard)}
                                         style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-surface)', cursor: 'pointer', width: '100%', textAlign: 'left', fontFamily: 'var(--font-sans)', transition: 'background 0.12s' }}
                                         onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
                                         onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-bg-surface)')}>
@@ -663,6 +636,13 @@ export default function VisionGeneral() {
                     </div>
                 </div>
             )}
+
+            {/* ── Inline Wizards from Acciones Rápidas ── */}
+            {activeWizard === 'facturar' && <FacturarMobile wizardOnly onClose={() => setActiveWizard(null)} />}
+            {activeWizard === 'liquidaciones' && <Liquidaciones wizardOnly onClose={() => setActiveWizard(null)} />}
+            {activeWizard === 'ordenes' && <OrdenesTrabajo wizardOnly onClose={() => setActiveWizard(null)} />}
+            {activeWizard === 'contratos' && <Contratos wizardOnly onClose={() => setActiveWizard(null)} />}
+            {activeWizard === 'propiedades' && <Propiedades wizardOnly onClose={() => setActiveWizard(null)} />}
         </div>
     );
 }

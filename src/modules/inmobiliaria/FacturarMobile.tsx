@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Plus, Trash2, X, Check, ChevronRight, ChevronLeft, Eye, Download, Receipt, Search } from 'lucide-react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import CustomSelect from '../../shared/components/CustomSelect';
@@ -26,10 +27,25 @@ const ESTADO_COLOR: Record<string, string> = {
   pendiente: '#F59E0B', clasificado: '#3B82F6', aprobado: '#8B5CF6',
   pagado: '#10B981', error: '#EF4444', rechazado: '#6B7280',
 };
-const TIPOS_COMP = ['Factura A', 'Factura B', 'Factura C', 'Nota de Crédito A', 'Nota de Crédito B', 'Recibo X'];
+const TIPOS_COMP = ['Factura A', 'Factura B', 'Factura C', 'Nota de Crédito A', 'Nota de Crédito B', 'Recibo X', 'Remito'];
 
-export default function FacturarMobile() {
+function useIsMobile() {
+  const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
+  useEffect(() => { const h = () => setM(window.innerWidth <= 768); window.addEventListener('resize', h); return () => window.removeEventListener('resize', h); }, []);
+  return m;
+}
+
+interface FacturarMobileProps {
+  wizardOnly?: boolean;
+  onClose?: () => void;
+}
+
+export default function FacturarMobile({ wizardOnly, onClose }: FacturarMobileProps = {}) {
   const { tenant } = useTenant();
+  const navigate = useNavigate();
+  const isMobile = useIsMobile();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const fromHome = searchParams.get('from') === 'home';
   const [items, setItems] = useState<Comprobante[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,6 +77,29 @@ export default function FacturarMobile() {
     if (ctRes.data) setContratos(ctRes.data as any);
     setLoading(false);
   };
+
+  // Auto-open wizard if navigated with ?action=crear
+  useEffect(() => {
+    if (searchParams.get('action') === 'crear' && !loading) {
+      openNew();
+      searchParams.delete('action');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, loading]);
+
+  const closeWizard = () => {
+    if (wizardOnly && onClose) {
+      onClose();
+      return;
+    }
+    setShowModal(false);
+    if (fromHome) navigate('/', { replace: true });
+  };
+
+  // Auto-open wizard when used in wizardOnly mode
+  useEffect(() => {
+    if (wizardOnly && !loading) openNew();
+  }, [wizardOnly, loading]);
 
   const openNew = () => {
     setSelContrato(''); setTipoComp('Factura A'); setFecha(new Date().toISOString().slice(0, 10));
@@ -119,7 +158,7 @@ export default function FacturarMobile() {
       // Re-fetch to get client join
       await loadData();
     }
-    setShowModal(false);
+    closeWizard();
   };
 
   const remove = (comp: Comprobante) => {
@@ -158,7 +197,7 @@ export default function FacturarMobile() {
     return true;
   });
 
-  if (loading) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Cargando comprobantes...</div>;
+  if (loading && !wizardOnly) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Cargando comprobantes...</div>;
 
   const iconBtn: React.CSSProperties = {
     width: 28, height: 28, borderRadius: 8, border: '1px solid var(--color-border-subtle)',
@@ -168,6 +207,7 @@ export default function FacturarMobile() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      {!wizardOnly && (<>
       {/* Header */}
       <div className="module-header-desktop">
         <h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Comprobantes</h1>
@@ -187,8 +227,22 @@ export default function FacturarMobile() {
         </button>
       </div>
 
+      {/* Mobile header */}
+      {isMobile && (
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <div style={{ flex: 1, position: 'relative' }}>
+            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
+            <input type="text" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)}
+              className="form-input" style={{ paddingLeft: 30, height: 38, fontSize: '0.8125rem', borderRadius: 10 }} />
+          </div>
+          <button onClick={openNew} style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--color-cta, #2563EB)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Plus size={18} />
+          </button>
+        </div>
+      )}
+
       {/* KPIs */}
-      <div style={{ display: 'flex', gap: 10 }}>
+      <div style={{ display: 'flex', gap: isMobile ? 6 : 10 }}>
         {[
           { label: 'Pendientes', value: String(pendientes), color: pendientes > 0 ? '#F59E0B' : 'var(--color-text-primary)', filter: 'pendiente' },
           { label: 'Aprobados', value: String(aprobados), color: '#8B5CF6', filter: 'aprobado' },
@@ -212,7 +266,8 @@ export default function FacturarMobile() {
         ))}
       </div>
 
-      {/* ─── GRID TABLE ─── */}
+      {/* ─── GRID TABLE (desktop) ─── */}
+      {!isMobile && (
       <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 100px 70px 130px', padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', alignItems: 'center' }}>
           <span>Comprobante</span><span>Tipo</span><span>Monto</span><span>Estado</span><span style={{ textAlign: 'right' }}>Acciones</span>
@@ -287,6 +342,38 @@ export default function FacturarMobile() {
         ))}
         {filtered.length === 0 && <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin comprobantes</div>}
       </div>
+      )}
+
+      {/* Mobile cards */}
+      {isMobile && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {filtered.map(comp => (
+            <div key={comp.id} style={{ padding: '12px 14px', borderRadius: 12, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ fontWeight: 600, fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
+                  {comp.descripcion || comp.tipo_comprobante || 'Comprobante'}
+                </div>
+                <span style={{ fontSize: '0.5625rem', fontWeight: 700, padding: '2px 6px', borderRadius: 99, background: `${ESTADO_COLOR[comp.estado] || '#6B7280'}15`, color: ESTADO_COLOR[comp.estado] || '#6B7280', textTransform: 'capitalize', whiteSpace: 'nowrap', flexShrink: 0, marginLeft: 8 }}>
+                  {comp.estado}
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                <span>{comp.cliente?.razon_social || '—'}</span>
+                <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-faint)' }}>{comp.tipo_comprobante || '—'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.875rem' }}>
+                  ${comp.monto_ars.toLocaleString('es-AR')}
+                </span>
+                <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>{comp.fecha}</span>
+              </div>
+            </div>
+          ))}
+          {filtered.length === 0 && <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin comprobantes</div>}
+        </div>
+      )}
+
+      </>)}
 
       {/* ─── WIZARD MODAL ─── */}
       {showModal && (() => {
@@ -297,11 +384,11 @@ export default function FacturarMobile() {
         const selCt = contratos.find(ct => ct.id === selContrato);
 
         return (
-          <div className="wizard-overlay" onClick={() => setShowModal(false)}>
+          <div className="wizard-overlay" onClick={() => closeWizard()}>
           <div className="wizard-card" onClick={e => e.stopPropagation()}>
             <div className="wizard-header">
               <h3>Nuevo comprobante</h3>
-              <button className="wizard-close" onClick={() => setShowModal(false)}><X size={18} /></button>
+              <button className="wizard-close" onClick={() => closeWizard()}><X size={18} /></button>
             </div>
 
             <div className="wizard-steps">

@@ -18,13 +18,19 @@ const ESTADOS = ['disponible', 'alquilada', 'en_venta', 'reservada', 'en_refacci
 const MONEDAS = ['ARS', 'USD'];
 
 const ESTADO_COLOR: Record<string, string> = {
-  disponible: '#10B981', alquilada: '#3B82F6', en_venta: '#F59E0B',
+  disponible: '#EF4444', alquilada: '#10B981', en_venta: '#F59E0B',
   reservada: '#8B5CF6', en_refaccion: '#6B7280',
 };
 const TIPO_COLOR: Record<string, string> = {
   departamento: '#3B82F6', casa: '#10B981', local: '#F97316',
   oficina: '#8B5CF6', terreno: '#F59E0B', cochera: '#6B7280', deposito: '#0D9488',
 };
+
+function useIsMobile() {
+  const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
+  useEffect(() => { const h = () => setM(window.innerWidth <= 768); window.addEventListener('resize', h); return () => window.removeEventListener('resize', h); }, []);
+  return m;
+}
 
 const emptyProp: Omit<Propiedad, 'id'> = {
   direccion: '', tipo: 'departamento', superficie_m2: null, ambientes: null,
@@ -33,10 +39,12 @@ const emptyProp: Omit<Propiedad, 'id'> = {
   propietario_id: null, descripcion: null, imagen_url: null,
 };
 
-export default function Propiedades() {
+export default function Propiedades({ wizardOnly, onClose }: { wizardOnly?: boolean; onClose?: () => void } = {}) {
   const { tenant } = useTenant();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [searchParams, setSearchParams] = useSearchParams();
+  const fromHome = searchParams.get('from') === 'home';
   const [items, setItems] = useState<Propiedad[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -60,6 +68,10 @@ export default function Propiedades() {
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    if (wizardOnly && !loading) openNew();
+  }, [wizardOnly, loading]);
+
   const loadData = async () => {
     setLoading(true);
     const { data } = await supabase.from('inmobiliaria_propiedades').select('*').eq('tenant_id', tenant!.id).order('direccion');
@@ -79,14 +91,23 @@ export default function Propiedades() {
       const { data, error } = await supabase.from('inmobiliaria_propiedades').insert({ ...form, tenant_id: tenant!.id }).select().single();
       if (!error && data) setItems(prev => [...prev, data]);
     }
+    closeWizard();
+  };
+
+  const closeWizard = () => {
     setShowModal(false);
+    if (wizardOnly && onClose) {
+      onClose();
+    } else if (fromHome) {
+      navigate('/', { replace: true });
+    }
   };
 
   const remove = () => {
     if (!editing) return;
     requestDelete('Esta acción eliminará la propiedad y no se puede deshacer.', async () => {
       const { error } = await supabase.from('inmobiliaria_propiedades').delete().eq('id', editing.id);
-      if (!error) { setItems(prev => prev.filter(p => p.id !== editing.id)); setShowModal(false); }
+      if (!error) { setItems(prev => prev.filter(p => p.id !== editing.id)); closeWizard(); }
     });
   };
 
@@ -99,10 +120,11 @@ export default function Propiedades() {
 
   const fmtPrice = (n: number | null, mon: string) => n ? `${mon === 'USD' ? 'US$' : '$'}${n.toLocaleString('es-AR')}` : '—';
 
-  if (loading) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Cargando propiedades...</div>;
+  if (!wizardOnly && loading) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Cargando propiedades...</div>;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      {!wizardOnly && (<>
       {/* Desktop header */}
       <div className="module-header-desktop">
         <h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Propiedades</h1>
@@ -146,8 +168,8 @@ export default function Propiedades() {
         </div>
       </div>
 
-      {/* Grid */}
-      {viewMode === 'grid' ? (
+      {/* Grid / List (desktop) */}
+      {!isMobile && (viewMode === 'grid' ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
           {filtered.map(p => (
             <div key={p.id} onClick={() => openEdit(p)} style={{
@@ -227,7 +249,39 @@ export default function Propiedades() {
           ))}
           {filtered.length === 0 && <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin propiedades</div>}
         </div>
+      ))}
+
+      {/* Mobile cards */}
+      {isMobile && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {filtered.map(p => (
+            <div key={p.id} onClick={() => openEdit(p)} style={{ padding: '12px 14px', borderRadius: 12, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', display: 'flex', flexDirection: 'column', gap: 6, cursor: 'pointer' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{p.direccion}</div>
+                <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: `${ESTADO_COLOR[p.estado] || '#6B7280'}15`, color: ESTADO_COLOR[p.estado] || '#6B7280', textTransform: 'capitalize', whiteSpace: 'nowrap', flexShrink: 0, marginLeft: 8 }}>
+                  {p.estado.replace(/_/g, ' ')}
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: '0.625rem', fontWeight: 600, padding: '1px 7px', borderRadius: 99, background: `${TIPO_COLOR[p.tipo] || '#6B7280'}12`, color: TIPO_COLOR[p.tipo] || '#6B7280', textTransform: 'capitalize' }}>{p.tipo}</span>
+                {p.localidad && <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{p.localidad}{p.provincia ? `, ${p.provincia}` : ''}</span>}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: 12, fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.875rem' }}>
+                  {p.precio_alquiler ? <span>Alq: {fmtPrice(p.precio_alquiler, p.moneda)}</span> : null}
+                  {p.precio_venta ? <span>Vta: {fmtPrice(p.precio_venta, p.moneda)}</span> : null}
+                  {!p.precio_alquiler && !p.precio_venta && <span style={{ color: 'var(--color-text-muted)' }}>—</span>}
+                </div>
+                <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>
+                  {p.superficie_m2 ? `${p.superficie_m2} m2` : ''}{p.superficie_m2 && p.ambientes ? ' · ' : ''}{p.ambientes ? `${p.ambientes} amb.` : ''}
+                </span>
+              </div>
+            </div>
+          ))}
+          {filtered.length === 0 && <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin propiedades</div>}
+        </div>
       )}
+      </>)}
 
       {/* ─── WIZARD MODAL ─── */}
       {showModal && (() => {
@@ -241,12 +295,12 @@ export default function Propiedades() {
         };
 
         return (
-          <div className="wizard-overlay" onClick={() => setShowModal(false)}>
+          <div className="wizard-overlay" onClick={() => closeWizard()}>
           <div className="wizard-card" onClick={e => e.stopPropagation()}>
             {/* Header */}
             <div className="wizard-header">
               <h3>{editing ? 'Editar propiedad' : 'Nueva propiedad'}</h3>
-              <button className="wizard-close" onClick={() => setShowModal(false)}><X size={18} /></button>
+              <button className="wizard-close" onClick={() => closeWizard()}><X size={18} /></button>
             </div>
 
             {/* Step indicator */}

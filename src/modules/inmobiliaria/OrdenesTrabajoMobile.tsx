@@ -41,7 +41,7 @@ function useIsMobile() {
   return m;
 }
 
-export default function OrdenesTrabajo() {
+export default function OrdenesTrabajo({ wizardOnly, onClose }: { wizardOnly?: boolean; onClose?: () => void } = {}) {
   const { tenant } = useTenant();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -49,7 +49,8 @@ export default function OrdenesTrabajo() {
   const [propiedades, setPropiedades] = useState<Propiedad[]>([]);
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const fromHome = searchParams.get('from') === 'home';
   const [filterEstado, setFilterEstado] = useState(searchParams.get('filter') || '');
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -80,6 +81,28 @@ export default function OrdenesTrabajo() {
   const provName = (id: string | null) => id ? proveedores.find(p => p.id === id)?.nombre || '—' : 'Sin asignar';
   const provTel = (id: string | null) => id ? proveedores.find(p => p.id === id)?.telefono || null : null;
 
+  // Auto-open wizard if navigated with ?action=crear
+  useEffect(() => {
+    if (searchParams.get('action') === 'crear' && !loading) {
+      openNew();
+      searchParams.delete('action');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, loading]);
+
+  useEffect(() => {
+    if (wizardOnly && !loading) openNew();
+  }, [wizardOnly, loading]);
+
+  const closeWizard = () => {
+    if (wizardOnly && onClose) {
+      onClose();
+      return;
+    }
+    setShowModal(false);
+    if (fromHome) navigate('/', { replace: true });
+  };
+
   const openNew = () => { setEditing(null); setForm({ propiedad_id: '', proveedor_id: '', titulo: '', descripcion: '', prioridad: 'media', monto_presupuesto: '' }); setWizardStep(0); setShowModal(true); };
   const openEdit = (ot: OrdenTrabajo) => {
     setEditing(ot);
@@ -102,7 +125,7 @@ export default function OrdenesTrabajo() {
     } else {
       await supabase.from('inmobiliaria_ordenes_trabajo').insert(payload);
     }
-    setShowModal(false);
+    closeWizard();
     loadData();
   };
 
@@ -110,7 +133,7 @@ export default function OrdenesTrabajo() {
     requestDelete('Esta acción eliminará la orden de trabajo y no se puede deshacer.', async () => {
       await supabase.from('inmobiliaria_ordenes_trabajo').delete().eq('id', ot.id);
       setItems(prev => prev.filter(o => o.id !== ot.id));
-      setShowModal(false);
+      closeWizard();
     });
   };
 
@@ -233,7 +256,7 @@ export default function OrdenesTrabajo() {
   const enCurso = items.filter(o => o.estado === 'en_curso' || o.estado === 'asignado').length;
   const completados = items.filter(o => o.estado === 'completado' || o.estado === 'facturado').length;
 
-  if (loading) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Cargando órdenes...</div>;
+  if (loading && !wizardOnly) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Cargando órdenes...</div>;
 
   /* ── Status stepper mini (inline in table row) ── */
   const StatusStepper = ({ estado }: { estado: string }) => {
@@ -277,6 +300,7 @@ export default function OrdenesTrabajo() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      {!wizardOnly && (<>
       <input ref={fileInputRef} type="file" accept="image/*,.pdf" style={{ display: 'none' }} onChange={handleFileSelected} />
 
       {/* Desktop header */}
@@ -512,6 +536,7 @@ export default function OrdenesTrabajo() {
           {filtered.length === 0 && <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin órdenes de trabajo</div>}
         </div>
       )}
+      </>)}
 
       {/* ─── WIZARD MODAL ─── */}
       {showModal && (() => {
@@ -521,11 +546,11 @@ export default function OrdenesTrabajo() {
         const isLast = wizardStep === totalSteps - 1;
 
         return (
-          <div className="wizard-overlay" onClick={() => setShowModal(false)}>
+          <div className="wizard-overlay" onClick={() => closeWizard()}>
           <div className="wizard-card" onClick={e => e.stopPropagation()}>
             <div className="wizard-header">
               <h3>{editing ? 'Editar orden' : 'Nueva orden de trabajo'}</h3>
-              <button className="wizard-close" onClick={() => setShowModal(false)}><X size={18} /></button>
+              <button className="wizard-close" onClick={() => closeWizard()}><X size={18} /></button>
             </div>
 
             <div className="wizard-steps">

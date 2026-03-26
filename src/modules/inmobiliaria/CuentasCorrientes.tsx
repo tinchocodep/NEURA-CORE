@@ -3,6 +3,12 @@ import { Search, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 
+function useIsMobile() {
+  const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
+  useEffect(() => { const h = () => setM(window.innerWidth <= 768); window.addEventListener('resize', h); return () => window.removeEventListener('resize', h); }, []);
+  return m;
+}
+
 interface Movimiento {
   id: string; cliente_id: string; tipo: string; concepto: string;
   monto: number; saldo_acumulado: number; fecha: string;
@@ -11,6 +17,7 @@ interface Movimiento {
 interface Cliente { id: string; razon_social: string; }
 export default function CuentasCorrientes() {
   const { tenant } = useTenant();
+  const isMobile = useIsMobile();
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [saldos, setSaldos] = useState<Record<string, number>>({});
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
@@ -82,6 +89,15 @@ export default function CuentasCorrientes() {
             className="form-input" style={{ paddingLeft: 30, height: 32, fontSize: '0.8rem' }} />
         </div>
       </div>
+      {isMobile && (
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <div style={{ flex: 1, position: 'relative' }}>
+            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
+            <input type="text" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)}
+              className="form-input" style={{ paddingLeft: 30, height: 38, fontSize: '0.8125rem', borderRadius: 10 }} />
+          </div>
+        </div>
+      )}
 
       {/* KPI cards */}
       <div style={{ display: 'flex', gap: 10 }}>
@@ -159,31 +175,66 @@ export default function CuentasCorrientes() {
             ))}
           </div>
 
-          {/* Grid rows */}
-          <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr 100px 100px', padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            <span>Fecha</span><span>Concepto</span><span style={{ textAlign: 'right' }}>Monto</span><span style={{ textAlign: 'right' }}>Saldo</span>
-          </div>
-          {filteredMovimientos.map(m => (
-            <div key={m.id}
-              style={{ display: 'grid', gridTemplateColumns: '90px 1fr 100px 100px', padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', alignItems: 'center', transition: 'background 0.1s' }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
-              onMouseLeave={e => (e.currentTarget.style.background = '')}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                {new Date(m.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}
+          {/* Grid rows (desktop) */}
+          {!isMobile && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr 100px 100px', padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                <span>Fecha</span><span>Concepto</span><span style={{ textAlign: 'right' }}>Monto</span><span style={{ textAlign: 'right' }}>Saldo</span>
               </div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: '0.8125rem', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.concepto}</div>
-                {m.tipo && <span style={{ fontSize: '0.5625rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: 'var(--color-bg-surface-2)', color: 'var(--color-text-muted)', textTransform: 'capitalize' }}>{m.tipo}</span>}
-              </div>
-              <div style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3 }}>
-                {m.monto >= 0 ? <ArrowUpRight size={12} color="#10B981" /> : <ArrowDownRight size={12} color="#EF4444" />}
-                <span style={{ color: m.monto >= 0 ? '#10B981' : '#EF4444' }}>{fmtMoney(m.monto)}</span>
-              </div>
-              <div style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 600 }}>
-                {fmtMoney(m.saldo_acumulado)}
-              </div>
+              {filteredMovimientos.map(m => (
+                <div key={m.id}
+                  style={{ display: 'grid', gridTemplateColumns: '90px 1fr 100px 100px', padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', alignItems: 'center', transition: 'background 0.1s' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                    {new Date(m.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: '0.8125rem', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.concepto}</div>
+                    {m.tipo && <span style={{ fontSize: '0.5625rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: 'var(--color-bg-surface-2)', color: 'var(--color-text-muted)', textTransform: 'capitalize' }}>{m.tipo}</span>}
+                  </div>
+                  <div style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3 }}>
+                    {m.monto >= 0 ? <ArrowUpRight size={12} color="#10B981" /> : <ArrowDownRight size={12} color="#EF4444" />}
+                    <span style={{ color: m.monto >= 0 ? '#10B981' : '#EF4444' }}>{fmtMoney(m.monto)}</span>
+                  </div>
+                  <div style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 600 }}>
+                    {fmtMoney(m.saldo_acumulado)}
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+
+          {/* Mobile movement cards */}
+          {isMobile && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              {filteredMovimientos.map(m => (
+                <div key={m.id} style={{ padding: '12px 14px', borderBottom: '1px solid var(--color-border-subtle)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.concepto}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                        <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>
+                          {new Date(m.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}
+                        </span>
+                        {m.tipo && <span style={{ fontSize: '0.5625rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: 'var(--color-bg-surface-2)', color: 'var(--color-text-muted)', textTransform: 'capitalize' }}>{m.tipo}</span>}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 8 }}>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.875rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3 }}>
+                        {m.monto >= 0 ? <ArrowUpRight size={12} color="#10B981" /> : <ArrowDownRight size={12} color="#EF4444" />}
+                        <span style={{ color: m.monto >= 0 ? '#10B981' : '#EF4444' }}>{fmtMoney(m.monto)}</span>
+                      </div>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-text-muted)', marginTop: 2 }}>
+                        Saldo: {fmtMoney(m.saldo_acumulado)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
+
           {filteredMovimientos.length === 0 && (
             <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin movimientos</div>
           )}

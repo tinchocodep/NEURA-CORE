@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Plus, X, Check, Trash2, Search, ChevronRight, ChevronLeft, Eye, FileText } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import CustomSelect from '../../shared/components/CustomSelect';
@@ -30,9 +30,23 @@ const CAT_COLOR: Record<string, string> = {
   servicios: '#0D9488', consorcio: '#EC4899', otro: '#6B7280',
 };
 
-export default function Liquidaciones() {
+function useIsMobile() {
+  const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
+  useEffect(() => { const h = () => setM(window.innerWidth <= 768); window.addEventListener('resize', h); return () => window.removeEventListener('resize', h); }, []);
+  return m;
+}
+
+interface LiquidacionesProps {
+  wizardOnly?: boolean;
+  onClose?: () => void;
+}
+
+export default function Liquidaciones({ wizardOnly, onClose }: LiquidacionesProps = {}) {
   const { tenant } = useTenant();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const fromHome = searchParams.get('from') === 'home';
+  const isMobile = useIsMobile();
   const [items, setItems] = useState<Liquidacion[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,6 +87,28 @@ export default function Liquidaciones() {
   const contratoPropietario = (id: string) => {
     const c = contratos.find(ct => ct.id === id);
     return (c?.propietario as any)?.razon_social || '—';
+  };
+
+  // Auto-open wizard if navigated with ?action=crear
+  useEffect(() => {
+    if (searchParams.get('action') === 'crear' && !loading) {
+      openNew();
+      searchParams.delete('action');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, loading]);
+
+  useEffect(() => {
+    if (wizardOnly && !loading) openNew();
+  }, [wizardOnly, loading]);
+
+  const closeWizard = () => {
+    setShowModal(false);
+    if (wizardOnly && onClose) {
+      onClose();
+    } else if (fromHome) {
+      navigate('/', { replace: true });
+    }
   };
 
   const openNew = (categoria?: string) => {
@@ -120,7 +156,7 @@ export default function Liquidaciones() {
       const { data, error } = await supabase.from('inmobiliaria_liquidaciones').insert({ ...payload, tenant_id: tenant!.id }).select().single();
       if (!error && data) setItems(prev => [data as any, ...prev]);
     }
-    setShowModal(false);
+    closeWizard();
   };
 
   const remove = (l: Liquidacion) => {
@@ -167,7 +203,7 @@ export default function Liquidaciones() {
     return true;
   });
 
-  if (loading) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Cargando liquidaciones...</div>;
+  if (loading && !wizardOnly) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Cargando liquidaciones...</div>;
 
   const iconBtn: React.CSSProperties = {
     width: 28, height: 28, borderRadius: 8, border: '1px solid var(--color-border-subtle)',
@@ -177,6 +213,7 @@ export default function Liquidaciones() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      {!wizardOnly && (<>
       {/* Desktop header */}
       <div className="module-header-desktop">
         <h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Liquidaciones</h1>
@@ -200,8 +237,22 @@ export default function Liquidaciones() {
         </button>
       </div>
 
+      {/* Mobile header */}
+      {isMobile && (
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <div style={{ flex: 1, position: 'relative' }}>
+            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
+            <input type="text" placeholder="Buscar..." value={searchText} onChange={e => setSearchText(e.target.value)}
+              className="form-input" style={{ paddingLeft: 30, height: 38, fontSize: '0.8125rem', borderRadius: 10 }} />
+          </div>
+          <button onClick={() => openNew()} style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--color-cta, #2563EB)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Plus size={18} />
+          </button>
+        </div>
+      )}
+
       {/* KPIs */}
-      <div style={{ display: 'flex', gap: 10 }}>
+      <div style={{ display: 'flex', gap: isMobile ? 6 : 10 }}>
         {[
           { label: 'Pendientes', value: String(pendientes), color: pendientes > 0 ? '#F59E0B' : 'var(--color-text-primary)', filter: 'borrador' },
           { label: 'Por pagar', value: fmtMoney(porPagar), color: porPagar > 0 ? '#3B82F6' : 'var(--color-text-primary)', filter: 'aprobada', mono: true },
@@ -232,7 +283,8 @@ export default function Liquidaciones() {
         ))}
       </div>
 
-      {/* ─── GRID TABLE ─── */}
+      {/* ─── GRID TABLE (desktop) ─── */}
+      {!isMobile && (
       <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
         {/* Header */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 90px 90px 80px 130px', padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', alignItems: 'center' }}>
@@ -328,6 +380,40 @@ export default function Liquidaciones() {
         })}
         {filtered.length === 0 && <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin liquidaciones</div>}
       </div>
+      )}
+
+      {/* Mobile cards */}
+      {isMobile && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {filtered.map(l => {
+            const cat = l.categoria || 'alquiler';
+            const monto = getMonto(l);
+            return (
+              <div key={l.id} onClick={() => openEdit(l)} style={{ padding: '12px 14px', borderRadius: 12, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', display: 'flex', flexDirection: 'column', gap: 6, cursor: 'pointer' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div style={{ fontWeight: 600, fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{contratoLabel(l.contrato_id)}</div>
+                  <span style={{ fontSize: '0.5625rem', fontWeight: 700, padding: '2px 6px', borderRadius: 99, background: `${ESTADO_COLOR[l.estado]}15`, color: ESTADO_COLOR[l.estado], textTransform: 'capitalize', whiteSpace: 'nowrap', flexShrink: 0, marginLeft: 8 }}>
+                    {l.estado}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: '0.5625rem', fontWeight: 700, padding: '2px 6px', borderRadius: 99, background: `${CAT_COLOR[cat]}15`, color: CAT_COLOR[cat], textTransform: 'uppercase' }}>{CAT_LABEL[cat]}</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{getConcepto(l)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.875rem', color: l.neto_propietario >= 0 ? '#10B981' : 'var(--color-text-primary)' }}>
+                    ${Math.abs(monto).toLocaleString('es-AR')}
+                  </span>
+                  <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>{l.periodo}</span>
+                </div>
+              </div>
+            );
+          })}
+          {filtered.length === 0 && <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin liquidaciones</div>}
+        </div>
+      )}
+
+      </>)}
 
       {/* ─── WIZARD MODAL ─── */}
       {showModal && (() => {
@@ -339,11 +425,11 @@ export default function Liquidaciones() {
         const isLast = wizardStep === totalSteps - 1;
 
         return (
-          <div className="wizard-overlay" onClick={() => setShowModal(false)}>
+          <div className="wizard-overlay" onClick={() => closeWizard()}>
           <div className="wizard-card" onClick={e => e.stopPropagation()}>
             <div className="wizard-header">
               <h3>{editing ? 'Editar liquidación' : 'Nueva liquidación'}</h3>
-              <button className="wizard-close" onClick={() => setShowModal(false)}><X size={18} /></button>
+              <button className="wizard-close" onClick={() => closeWizard()}><X size={18} /></button>
             </div>
 
             <div className="wizard-steps">
@@ -452,7 +538,7 @@ export default function Liquidaciones() {
 
             <div className="wizard-footer">
               <div className="wizard-footer-left">
-                {editing && <button className="wizard-btn-danger" onClick={() => { remove(editing); setShowModal(false); }}>Eliminar</button>}
+                {editing && <button className="wizard-btn-danger" onClick={() => { remove(editing); closeWizard(); }}>Eliminar</button>}
               </div>
               <div className="wizard-footer-right">
                 {wizardStep > 0 && (

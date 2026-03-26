@@ -45,7 +45,7 @@ interface CuentaCorriente {
 }
 
 const ESTADO_COLOR: Record<string, string> = {
-  disponible: '#10B981', alquilada: '#3B82F6', en_venta: '#F59E0B',
+  disponible: '#EF4444', alquilada: '#10B981', en_venta: '#F59E0B',
   reservada: '#8B5CF6', en_refaccion: '#6B7280',
 };
 const VENC_COLOR: Record<string, string> = {

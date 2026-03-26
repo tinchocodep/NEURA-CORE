@@ -13,6 +13,7 @@ interface Contrato {
   tipo: string; fecha_inicio: string; fecha_fin: string; monto_mensual: number;
   moneda: string; indice_ajuste: string; periodo_ajuste_meses: number | null;
   deposito: number | null; comision_porcentaje: number | null; estado: string; notas: string | null;
+  fecha_firma: string | null; escribania: string | null;
   documentos: Documento[]; monto_original: number | null; ultimo_ajuste: string | null; historial_ajustes: Ajuste[];
 }
 interface Propiedad { id: string; direccion: string; }
@@ -27,17 +28,26 @@ const ESTADO_COLOR: Record<string, string> = {
   vigente: '#10B981', vencido: '#EF4444', rescindido: '#6B7280', borrador: '#F59E0B',
 };
 
+function useIsMobile() {
+  const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
+  useEffect(() => { const h = () => setM(window.innerWidth <= 768); window.addEventListener('resize', h); return () => window.removeEventListener('resize', h); }, []);
+  return m;
+}
+
 const emptyContrato = {
   propiedad_id: '', inquilino_id: '', propietario_id: '', tipo: 'alquiler',
   fecha_inicio: '', fecha_fin: '', monto_mensual: 0, moneda: 'ARS',
   indice_ajuste: 'ICL', periodo_ajuste_meses: 12 as number | null, deposito: null as number | null,
   comision_porcentaje: null as number | null, estado: 'borrador', notas: null as string | null,
+  fecha_firma: null as string | null, escribania: null as string | null,
 };
 
-export default function Contratos() {
+export default function Contratos({ wizardOnly, onClose }: { wizardOnly?: boolean; onClose?: () => void } = {}) {
   const { tenant } = useTenant();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [searchParams, setSearchParams] = useSearchParams();
+  const fromHome = searchParams.get('from') === 'home';
   const loc = useLocation();
   const [items, setItems] = useState<Contrato[]>([]);
   const [propiedades, setPropiedades] = useState<Propiedad[]>([]);
@@ -78,6 +88,15 @@ export default function Contratos() {
       setSearchParams({});
     }
   }, [searchParams, propiedades]);
+
+  // Auto-open wizard when used in wizardOnly mode
+  useEffect(() => {
+    if (wizardOnly && !loading) {
+      setEditing(null);
+      setForm(emptyContrato);
+      setShowModal(true);
+    }
+  }, [wizardOnly, loading]);
 
   const loadData = async () => {
     setLoading(true);
@@ -122,14 +141,24 @@ export default function Contratos() {
       const { data, error } = await supabase.from('inmobiliaria_contratos').insert({ ...form, tenant_id: tenant!.id }).select().single();
       if (!error && data) setItems(prev => [data, ...prev]);
     }
+    closeWizard();
+  };
+
+  const closeWizard = () => {
     setShowModal(false);
+    setWizardStep(0);
+    if (wizardOnly && onClose) {
+      onClose();
+    } else if (fromHome) {
+      navigate('/', { replace: true });
+    }
   };
 
   const remove = () => {
     if (!editing) return;
     requestDelete('Esta acción eliminará el contrato y no se puede deshacer.', async () => {
       const { error } = await supabase.from('inmobiliaria_contratos').delete().eq('id', editing.id);
-      if (!error) { setItems(prev => prev.filter(c => c.id !== editing.id)); setShowModal(false); }
+      if (!error) { setItems(prev => prev.filter(c => c.id !== editing.id)); closeWizard(); }
     });
   };
 
@@ -165,10 +194,11 @@ export default function Contratos() {
     return true;
   });
 
-  if (loading) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Cargando contratos...</div>;
+  if (loading && !wizardOnly) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Cargando contratos...</div>;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      {!wizardOnly && (<>
       {/* Desktop header */}
       <div className="module-header-desktop">
         <h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Contratos</h1>
@@ -238,12 +268,12 @@ export default function Contratos() {
         </div>
       </div>
 
-      {/* ─── LIST VIEW ─── */}
-      {viewMode === 'list' ? (
+      {/* ─── LIST VIEW (desktop) ─── */}
+      {!isMobile && (viewMode === 'list' ? (
         <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
           {/* Header */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 95px 90px 160px', padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', alignItems: 'center' }}>
-            <span>Propiedad</span><span>Estado</span><span>Monto</span><span>Vence</span><span style={{ textAlign: 'right' }}>Acciones</span>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 95px 90px 90px 120px 160px', padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', alignItems: 'center' }}>
+            <span>Propiedad</span><span>Estado</span><span>Monto</span><span>Vence</span><span>Firma</span><span>Escribanía</span><span style={{ textAlign: 'right' }}>Acciones</span>
           </div>
           {/* Rows */}
           {filtered.map(c => {
@@ -259,7 +289,7 @@ export default function Contratos() {
             };
             return (
               <div key={c.id}
-                style={{ display: 'grid', gridTemplateColumns: '1fr 80px 95px 90px 160px', padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', alignItems: 'center', transition: 'background 0.1s' }}
+                style={{ display: 'grid', gridTemplateColumns: '1fr 80px 95px 90px 90px 120px 160px', padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', alignItems: 'center', transition: 'background 0.1s' }}
                 onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
                 onMouseLeave={e => (e.currentTarget.style.background = '')}>
                 {/* Propiedad + inquilino + tipo badge */}
@@ -283,6 +313,21 @@ export default function Contratos() {
                 {/* Fecha fin */}
                 <div style={{ fontSize: '0.6875rem', color: isOverdue ? '#EF4444' : 'var(--color-text-muted)' }}>
                   {new Date(c.fecha_fin + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: '2-digit' })}
+                </div>
+                {/* Fecha firma */}
+                <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>
+                  {c.fecha_firma ? new Date(c.fecha_firma + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: '2-digit' }) : '—'}
+                </div>
+                {/* Escribanía */}
+                <div style={{ fontSize: '0.6875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {c.escribania ? (
+                    <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.escribania)}`} target="_blank" rel="noopener noreferrer"
+                      style={{ color: 'var(--color-cta, #2563EB)', textDecoration: 'none', fontWeight: 500 }}
+                      title="Ver en Google Maps"
+                      onClick={e => e.stopPropagation()}>
+                      {c.escribania}
+                    </a>
+                  ) : '—'}
                 </div>
                 {/* Action icon buttons */}
                 <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
@@ -348,7 +393,46 @@ export default function Contratos() {
         })}
         {filtered.length === 0 && <div style={{ gridColumn: '1/-1', padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin contratos</div>}
       </div>
+      ))}
+
+      {/* Mobile cards */}
+      {isMobile && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {filtered.map(c => {
+            const dias = daysUntil(c.fecha_fin);
+            const isUrgent = c.estado === 'vigente' && dias <= 30 && dias > 0;
+            const isOverdue = c.estado === 'vigente' && dias <= 0;
+            const estadoLabel = isOverdue ? 'Moroso' : isUrgent ? `${dias}d` : c.estado;
+            const estadoColor = isOverdue ? '#EF4444' : isUrgent ? '#F59E0B' : (ESTADO_COLOR[c.estado] || '#6B7280');
+            return (
+              <div key={c.id} onClick={() => openEdit(c)} style={{ padding: '12px 14px', borderRadius: 12, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', display: 'flex', flexDirection: 'column', gap: 6, cursor: 'pointer' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div style={{ fontWeight: 600, fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{propDir(c.propiedad_id)}</div>
+                  <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: `${estadoColor}15`, color: estadoColor, textTransform: 'capitalize', whiteSpace: 'nowrap', flexShrink: 0, marginLeft: 8 }}>
+                    {estadoLabel}
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{cliName(c.inquilino_id)}</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.875rem' }}>
+                    {c.moneda === 'USD' ? 'US$' : '$'}{c.monto_mensual.toLocaleString('es-AR')}
+                  </span>
+                  <span style={{ fontSize: '0.6875rem', color: isOverdue ? '#EF4444' : 'var(--color-text-muted)' }}>
+                    {new Date(c.fecha_fin + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: '2-digit' })}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
+                  <button onClick={e => { e.stopPropagation(); navigate('/inmobiliaria/facturar'); }} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #3B82F6', background: 'transparent', color: '#3B82F6', fontSize: '0.6875rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Facturar</button>
+                  <button onClick={e => { e.stopPropagation(); navigate('/inmobiliaria/liquidaciones'); }} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #10B981', background: 'transparent', color: '#10B981', fontSize: '0.6875rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Liquidar</button>
+                  <button onClick={e => { e.stopPropagation(); navigate(`/inmobiliaria/ordenes?propiedad=${c.propiedad_id}`); }} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #8B5CF6', background: 'transparent', color: '#8B5CF6', fontSize: '0.6875rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Problema</button>
+                </div>
+              </div>
+            );
+          })}
+          {filtered.length === 0 && <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin contratos</div>}
+        </div>
       )}
+      </>)}
 
       {/* ─── WIZARD MODAL ─── */}
       {showModal && (() => {
@@ -362,12 +446,12 @@ export default function Contratos() {
         const isLast = wizardStep === totalSteps - 1;
 
         return (
-          <div className="wizard-overlay" onClick={() => setShowModal(false)}>
+          <div className="wizard-overlay" onClick={() => closeWizard()}>
           <div className="wizard-card" onClick={e => e.stopPropagation()}>
             {/* Header */}
             <div className="wizard-header">
               <h3>{editing ? 'Editar contrato' : 'Nuevo contrato'}</h3>
-              <button className="wizard-close" onClick={() => setShowModal(false)}><X size={18} /></button>
+              <button className="wizard-close" onClick={() => closeWizard()}><X size={18} /></button>
             </div>
 
             {/* Step indicator */}
@@ -521,6 +605,16 @@ export default function Contratos() {
                   <div className="wizard-field">
                     <label className="form-label">Comisión %</label>
                     <input type="number" className="form-input" value={form.comision_porcentaje || ''} onChange={e => setForm(f => ({ ...f, comision_porcentaje: e.target.value ? Number(e.target.value) : null }))} placeholder="0" />
+                  </div>
+                </div>
+                <div className="wizard-row">
+                  <div className="wizard-field">
+                    <label className="form-label">Fecha de firma</label>
+                    <input type="date" className="form-input" value={form.fecha_firma || ''} onChange={e => setForm(f => ({ ...f, fecha_firma: e.target.value || null }))} />
+                  </div>
+                  <div className="wizard-field">
+                    <label className="form-label">Escribanía</label>
+                    <input type="text" className="form-input" value={form.escribania || ''} onChange={e => setForm(f => ({ ...f, escribania: e.target.value || null }))} placeholder="Nombre de la escribanía" />
                   </div>
                 </div>
                 <div className="wizard-field">

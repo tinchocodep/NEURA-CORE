@@ -5,7 +5,7 @@ import {
     Briefcase, Zap, Users, BookOpen, Tag, Building2, Settings, ClipboardList,
     Receipt, TrendingUp, HardHat,
     Funnel, Columns3, Contact, BarChart3, Car, ChevronLeft, ChevronDown,
-    Home, FileSignature, Wallet, CalendarClock, UserPlus, MapPin
+    Home, FileSignature, Wallet, CalendarClock, UserPlus
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
@@ -216,9 +216,10 @@ export default function Layout() {
     // Mobile: map routes to display names matching the new tab bar
     // In mobile, Contable/Tesorería/CRM routes are absorbed into Gestión (no "Administración" in mobile)
     const hasInmob = tenantModules.includes('inmobiliaria');
-    const isOperaciones = (isInmobiliaria && (location.pathname.startsWith('/inmobiliaria/propiedades') || location.pathname.startsWith('/inmobiliaria/contratos') || location.pathname.startsWith('/inmobiliaria/ordenes') || location.pathname.startsWith('/inmobiliaria/liquidaciones') || location.pathname.startsWith('/inmobiliaria/facturar')))
+    const isOperaciones = (isInmobiliaria && (location.pathname.startsWith('/inmobiliaria/propiedades') || location.pathname.startsWith('/inmobiliaria/contratos') || location.pathname.startsWith('/inmobiliaria/ordenes') || location.pathname.startsWith('/inmobiliaria/liquidaciones') || location.pathname.startsWith('/inmobiliaria/proveedores')))
         || (hasInmob && location.pathname.startsWith('/contable/proveedores'));
-    const isGestion = (isInmobiliaria && !isOperaciones) ||
+    const isMapa = location.pathname === '/inmobiliaria/mapa';
+    const isGestion = (!isMapa && isInmobiliaria && !isOperaciones) ||
         (hasInmob && isCRM && location.pathname.startsWith('/crm/contactos'));
     const isFinanzas = hasInmob && !isOperaciones && !isGestion && (
         isTesoreria ||
@@ -241,13 +242,15 @@ export default function Layout() {
         { name: 'Contratos', path: '/inmobiliaria/contratos', icon: FileSignature },
         { name: 'Órdenes', path: '/inmobiliaria/ordenes', icon: ClipboardList },
         { name: 'Liquidaciones', path: '/inmobiliaria/liquidaciones', icon: Wallet },
-        { name: 'Comprobantes', path: '/inmobiliaria/facturar', icon: Receipt },
+        { name: 'Proveedores', path: '/inmobiliaria/proveedores', icon: Building2 },
     ];
     const mobileGestionItems = [
+        { name: 'Comprobantes', path: '/inmobiliaria/facturar', icon: Receipt },
         { name: 'Cuentas', path: '/inmobiliaria/cuentas', icon: Receipt },
-        { name: 'Proveedores', path: '/inmobiliaria/proveedores', icon: Building2 },
-        { name: 'Comprobantes', path: '/contable/comprobantes', icon: ClipboardList },
-        { name: 'Proyecciones', path: '/tesoreria', icon: TrendingUp },
+        { name: 'Agenda', path: '/inmobiliaria/agenda', icon: CalendarClock },
+        ...(hasModuleAccess('crm') ? [
+            { name: 'Contactos', path: '/crm/contactos', icon: UserPlus },
+        ] : []),
     ];
 
     // Desktop items
@@ -256,12 +259,12 @@ export default function Layout() {
         { name: 'Contratos', path: '/inmobiliaria/contratos', icon: FileSignature },
         { name: 'Órdenes', path: '/inmobiliaria/ordenes', icon: ClipboardList },
         { name: 'Liquidaciones', path: '/inmobiliaria/liquidaciones', icon: Wallet },
-        { name: 'Comprobantes', path: '/inmobiliaria/facturar', icon: Receipt },
+        { name: 'Proveedores', path: '/inmobiliaria/proveedores', icon: Building2 },
     ];
     const gestionItems = [
+        { name: 'Comprobantes', path: '/inmobiliaria/facturar', icon: Receipt },
         { name: 'Cuentas', path: '/inmobiliaria/cuentas', icon: Receipt },
-        { name: 'Proveedores', path: '/inmobiliaria/proveedores', icon: Building2 },
-        { name: 'Mapa', path: '/inmobiliaria/mapa', icon: MapPin },
+        { name: 'Agenda', path: '/inmobiliaria/agenda', icon: CalendarClock },
         ...(hasModuleAccess('crm') ? [
             { name: 'Contactos', path: '/crm/contactos', icon: UserPlus },
         ] : []),
@@ -277,7 +280,7 @@ export default function Layout() {
     ];
 
     const effectiveSectionItems = hasInmob
-        ? (isOperaciones ? operacionesItems : isGestion ? gestionItems : isFinanzas ? finanzasItems : sectionItems)
+        ? (isMapa ? [] : isOperaciones ? operacionesItems : isGestion ? gestionItems : isFinanzas ? finanzasItems : sectionItems)
         : sectionItems;
     const mobileSectionItems = isMobile ? (isOperaciones ? mobileOperacionesItems : isMobileGestion ? mobileGestionItems : sectionItems) : effectiveSectionItems;
 
@@ -350,6 +353,13 @@ export default function Layout() {
 
                         {/* Spacer */}
                         <div style={{ flex: 1 }} />
+
+                        {/* Herramientas — bottom */}
+                        <Link to="/inmobiliaria/mapa" className="sidebar-icon-btn"
+                            style={{ width: 44, height: 44, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', background: location.pathname === '/inmobiliaria/mapa' ? 'var(--color-accent)' : 'var(--color-bg-surface)', color: location.pathname === '/inmobiliaria/mapa' ? '#fff' : 'var(--color-text-muted)', textDecoration: 'none', boxShadow: 'var(--shadow-sm)', transition: 'all 0.15s', border: location.pathname === '/inmobiliaria/mapa' ? 'none' : '1px solid var(--color-border-subtle)', marginBottom: 8 }}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                            <span className="sidebar-icon-tooltip">Mapa</span>
+                        </Link>
                     </aside>
                 )}
 

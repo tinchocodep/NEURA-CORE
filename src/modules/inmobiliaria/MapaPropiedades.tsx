@@ -13,7 +13,7 @@ interface Propiedad {
 }
 
 const ESTADO_COLOR: Record<string, string> = {
-  disponible: '#10B981', alquilada: '#3B82F6', en_venta: '#F59E0B', reservada: '#8B5CF6', en_refaccion: '#6B7280',
+  disponible: '#EF4444', alquilada: '#10B981', en_venta: '#F59E0B', reservada: '#8B5CF6', en_refaccion: '#6B7280',
 };
 const TIPO_EMOJI: Record<string, string> = {
   departamento: '🏢', casa: '🏠', local: '🏪', oficina: '💼', terreno: '🌳', cochera: '🚗', deposito: '📦',
@@ -192,6 +192,55 @@ export default function MapaPropiedades() {
       {/* Map view */}
       {viewMode === 'map' && (
         <div style={{ position: 'relative', borderRadius: 'var(--radius-lg)', overflow: 'hidden', border: '1px solid var(--color-border-subtle)' }}>
+          {/* Search overlay on map */}
+          {GOOGLE_MAPS_KEY && (
+            <div style={{ position: 'absolute', top: 12, left: 12, right: 12, zIndex: 5, display: 'flex', gap: 8 }}>
+              {/* Property search */}
+              <div style={{ flex: 1, position: 'relative' }}>
+                <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)', zIndex: 1 }} />
+                <input
+                  type="text"
+                  placeholder="Buscar propiedad..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  style={{
+                    width: '100%', padding: '10px 12px 10px 36px', borderRadius: 12,
+                    border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.85)',
+                    backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                    fontSize: '0.8125rem', fontFamily: 'var(--font-sans)', outline: 'none',
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+                    color: 'var(--color-text-primary)',
+                  }}
+                />
+                {/* Autocomplete results */}
+                {search && filtered.length > 0 && filtered.length < propiedades.length && (
+                  <div style={{
+                    position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
+                    background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(12px)',
+                    borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                    overflow: 'hidden', maxHeight: 200, overflowY: 'auto',
+                  }}>
+                    {filtered.slice(0, 5).map(p => (
+                      <button key={p.id} onClick={() => { setSelectedProp(p); setSearch(''); }}
+                        style={{
+                          width: '100%', padding: '10px 14px', textAlign: 'left', background: 'none',
+                          border: 'none', cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'var(--font-sans)',
+                          borderBottom: '1px solid rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', gap: 8,
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(37,99,235,0.06)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                        <span style={{ fontSize: '0.875rem' }}>{TIPO_EMOJI[p.tipo] || '🏠'}</span>
+                        <div>
+                          <div style={{ fontWeight: 600, color: '#1a1a1a' }}>{p.direccion}</div>
+                          <div style={{ fontSize: '0.6875rem', color: '#888' }}>{p.localidad || ''} · {p.estado.replace(/_/g, ' ')}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           {!GOOGLE_MAPS_KEY ? (
             /* Fallback sin API key */
             <div style={{ height: 500, background: 'var(--color-bg-surface-2)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: '2rem' }}>

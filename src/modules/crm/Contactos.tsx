@@ -6,6 +6,12 @@ import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
 import { Plus, Search, Trash2, Building2, Mail, Phone, X, Wrench, Eye, Check, ChevronRight, ChevronLeft } from 'lucide-react';
 import CustomSelect from '../../shared/components/CustomSelect';
 
+function useIsMobile() {
+  const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
+  useEffect(() => { const h = () => setM(window.innerWidth <= 768); window.addEventListener('resize', h); return () => window.removeEventListener('resize', h); }, []);
+  return m;
+}
+
 interface Entidad { id: string; razon_social: string; }
 interface Contacto {
     id: string; nombre: string; apellido: string | null; email: string | null;
@@ -22,6 +28,7 @@ const EMPTY: Partial<Contacto> & { vinculo_tipo: VinculoTipo } = {
 
 export default function CRMContactos() {
     const { tenant } = useTenant();
+    const isMobile = useIsMobile();
     const loc = useLocation();
     const [contactos, setContactos] = useState<Contacto[]>([]);
     const [clientes, setClientes] = useState<Entidad[]>([]);
@@ -121,71 +128,129 @@ export default function CRMContactos() {
                     <Plus size={14} /> Nuevo
                 </button>
             </div>
-
-            {/* Grid table */}
-            <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 130px 120px 100px', padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', alignItems: 'center' }}>
-                    <span>Contacto</span><span>Empresa</span><span>Email</span><span>Teléfono</span><span style={{ textAlign: 'right' }}>Acciones</span>
+            {isMobile && (
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <div style={{ flex: 1, position: 'relative' }}>
+                        <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
+                        <input type="text" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)}
+                            className="form-input" style={{ paddingLeft: 30, height: 38, fontSize: '0.8125rem', borderRadius: 10 }} />
+                    </div>
+                    <button onClick={openCreate} style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--color-cta, #2563EB)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Plus size={18} />
+                    </button>
                 </div>
-                {filtered.map(c => {
-                    const isCliente = !!c.cliente_id;
-                    const isProveedor = !!c.proveedor_id;
-                    const entidadName = isCliente ? (c.cliente as any)?.razon_social : isProveedor ? (c.proveedor as any)?.razon_social : null;
-                    return (
-                        <div key={c.id}
-                            style={{ display: 'grid', gridTemplateColumns: '1fr 120px 130px 120px 100px', padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', alignItems: 'center', transition: 'background 0.1s' }}
-                            onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
-                            onMouseLeave={e => (e.currentTarget.style.background = '')}>
-                            {/* Nombre + cargo + vínculo */}
-                            <div style={{ cursor: 'pointer', minWidth: 0 }} onClick={() => openEdit(c)}>
-                                <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                    {c.nombre} {c.apellido || ''}
+            )}
+
+            {/* Grid table (desktop) */}
+            {!isMobile && (
+                <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 130px 120px 100px', padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', alignItems: 'center' }}>
+                        <span>Contacto</span><span>Empresa</span><span>Email</span><span>Teléfono</span><span style={{ textAlign: 'right' }}>Acciones</span>
+                    </div>
+                    {filtered.map(c => {
+                        const isCliente = !!c.cliente_id;
+                        const isProveedor = !!c.proveedor_id;
+                        const entidadName = isCliente ? (c.cliente as any)?.razon_social : isProveedor ? (c.proveedor as any)?.razon_social : null;
+                        return (
+                            <div key={c.id}
+                                style={{ display: 'grid', gridTemplateColumns: '1fr 120px 130px 120px 100px', padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', alignItems: 'center', transition: 'background 0.1s' }}
+                                onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
+                                onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                                {/* Nombre + cargo + vinculo */}
+                                <div style={{ cursor: 'pointer', minWidth: 0 }} onClick={() => openEdit(c)}>
+                                    <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {c.nombre} {c.apellido || ''}
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                                        {c.cargo && <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>{c.cargo}</span>}
+                                        {entidadName && (
+                                            <span style={{ fontSize: '0.5625rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: isProveedor ? '#0d948815' : 'var(--color-accent-dim)', color: isProveedor ? '#0d9488' : 'var(--color-accent)', display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+                                                {isProveedor ? <Wrench size={8} /> : <Building2 size={8} />}{entidadName}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                                    {c.cargo && <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>{c.cargo}</span>}
-                                    {entidadName && (
-                                        <span style={{ fontSize: '0.5625rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: isProveedor ? '#0d948815' : 'var(--color-accent-dim)', color: isProveedor ? '#0d9488' : 'var(--color-accent)', display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
-                                            {isProveedor ? <Wrench size={8} /> : <Building2 size={8} />}{entidadName}
+                                {/* Empresa */}
+                                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.empresa || '\u2014'}</div>
+                                {/* Email */}
+                                <div>{c.email ? <a href={`mailto:${c.email}`} onClick={e => e.stopPropagation()} style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}><Mail size={12} style={{ flexShrink: 0 }} />{c.email}</a> : <span style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)' }}>\u2014</span>}</div>
+                                {/* Telefono */}
+                                <div>{c.telefono ? <a href={`tel:${c.telefono}`} onClick={e => e.stopPropagation()} style={{ fontSize: '0.75rem', color: 'var(--color-cta, #2563EB)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3 }}><Phone size={12} />{c.telefono}</a> : <span style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)' }}>\u2014</span>}</div>
+                                {/* Actions */}
+                                <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                                    <div className="row-action-wrap">
+                                        <button onClick={e => { e.stopPropagation(); openEdit(c); }} style={{ ...iconBtn, color: 'var(--color-text-muted)' }}
+                                            onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg-hover)'; }} onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; }}>
+                                            <Eye size={14} />
+                                        </button>
+                                        <span className="row-action-tooltip">Editar</span>
+                                    </div>
+                                    {c.telefono && (
+                                        <div className="row-action-wrap">
+                                            <a href={`tel:${c.telefono}`} onClick={e => e.stopPropagation()} style={{ ...iconBtn, color: 'var(--color-cta, #2563EB)', textDecoration: 'none' }}><Phone size={14} /></a>
+                                            <span className="row-action-tooltip">Llamar</span>
+                                        </div>
+                                    )}
+                                    <div className="row-action-wrap">
+                                        <button onClick={e => { e.stopPropagation(); handleDelete(c); }}
+                                            style={{ ...iconBtn, color: '#EF4444', borderColor: '#EF444420' }}
+                                            onMouseEnter={e => { e.currentTarget.style.background = '#EF44440a'; e.currentTarget.style.borderColor = '#EF4444'; }}
+                                            onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; e.currentTarget.style.borderColor = '#EF444420'; }}>
+                                            <Trash2 size={14} />
+                                        </button>
+                                        <span className="row-action-tooltip">Eliminar</span>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                    {filtered.length === 0 && <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin contactos</div>}
+                </div>
+            )}
+
+            {/* ─── MOBILE CARDS ─── */}
+            {isMobile && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {filtered.map(c => {
+                        const isCliente = !!c.cliente_id;
+                        const isProveedor = !!c.proveedor_id;
+                        const entidadName = isCliente ? (c.cliente as any)?.razon_social : isProveedor ? (c.proveedor as any)?.razon_social : null;
+                        const vinculoLabel = isCliente ? 'Cliente' : isProveedor ? 'Proveedor' : null;
+                        const vinculoColor = isProveedor ? '#0d9488' : 'var(--color-accent)';
+                        const vinculoBg = isProveedor ? '#0d948815' : 'var(--color-accent-dim)';
+                        return (
+                            <div key={c.id} onClick={() => openEdit(c)} style={{ padding: '12px 14px', borderRadius: 12, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', cursor: 'pointer' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                                    <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{c.nombre} {c.apellido || ''}</div>
+                                    {vinculoLabel && (
+                                        <span style={{ fontSize: '0.5625rem', fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: vinculoBg, color: vinculoColor, flexShrink: 0, marginLeft: 8, display: 'flex', alignItems: 'center', gap: 2 }}>
+                                            {isProveedor ? <Wrench size={8} /> : <Building2 size={8} />}{vinculoLabel}
                                         </span>
                                     )}
                                 </div>
-                            </div>
-                            {/* Empresa */}
-                            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.empresa || '—'}</div>
-                            {/* Email */}
-                            <div>{c.email ? <a href={`mailto:${c.email}`} onClick={e => e.stopPropagation()} style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}><Mail size={12} style={{ flexShrink: 0 }} />{c.email}</a> : <span style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)' }}>—</span>}</div>
-                            {/* Teléfono */}
-                            <div>{c.telefono ? <a href={`tel:${c.telefono}`} onClick={e => e.stopPropagation()} style={{ fontSize: '0.75rem', color: 'var(--color-cta, #2563EB)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3 }}><Phone size={12} />{c.telefono}</a> : <span style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)' }}>—</span>}</div>
-                            {/* Actions */}
-                            <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
-                                <div className="row-action-wrap">
-                                    <button onClick={e => { e.stopPropagation(); openEdit(c); }} style={{ ...iconBtn, color: 'var(--color-text-muted)' }}
-                                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg-hover)'; }} onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; }}>
-                                        <Eye size={14} />
-                                    </button>
-                                    <span className="row-action-tooltip">Editar</span>
-                                </div>
-                                {c.telefono && (
-                                    <div className="row-action-wrap">
-                                        <a href={`tel:${c.telefono}`} onClick={e => e.stopPropagation()} style={{ ...iconBtn, color: 'var(--color-cta, #2563EB)', textDecoration: 'none' }}><Phone size={14} /></a>
-                                        <span className="row-action-tooltip">Llamar</span>
+                                {(c.empresa || entidadName) && (
+                                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginBottom: 2 }}>
+                                        {c.empresa || entidadName}
                                     </div>
                                 )}
-                                <div className="row-action-wrap">
-                                    <button onClick={e => { e.stopPropagation(); handleDelete(c); }}
-                                        style={{ ...iconBtn, color: '#EF4444', borderColor: '#EF444420' }}
-                                        onMouseEnter={e => { e.currentTarget.style.background = '#EF44440a'; e.currentTarget.style.borderColor = '#EF4444'; }}
-                                        onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; e.currentTarget.style.borderColor = '#EF444420'; }}>
-                                        <Trash2 size={14} />
-                                    </button>
-                                    <span className="row-action-tooltip">Eliminar</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6 }}>
+                                    {c.email && (
+                                        <a href={`mailto:${c.email}`} onClick={e => e.stopPropagation()} style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            <Mail size={12} style={{ flexShrink: 0 }} /> {c.email}
+                                        </a>
+                                    )}
+                                    {c.telefono && (
+                                        <a href={`tel:${c.telefono}`} onClick={e => e.stopPropagation()} style={{ fontSize: '0.75rem', color: 'var(--color-cta, #2563EB)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3 }}>
+                                            <Phone size={12} /> {c.telefono}
+                                        </a>
+                                    )}
                                 </div>
                             </div>
-                        </div>
-                    );
-                })}
-                {filtered.length === 0 && <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin contactos</div>}
-            </div>
+                        );
+                    })}
+                    {filtered.length === 0 && <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin contactos</div>}
+                </div>
+            )}
 
             {/* ─── WIZARD MODAL ─── */}
             {showModal && (() => {
