@@ -31,10 +31,11 @@ interface Comprobante {
 const estadoBadge: Record<string, { cls: string; label: string }> = {
     pendiente: { cls: 'badge-warning', label: 'Pendiente' },
     clasificado: { cls: 'badge-info', label: 'Clasificado' },
-    aprobado: { cls: 'badge-success', label: 'Aprobado' },
-    inyectado: { cls: 'badge-success', label: 'Inyectado' },
+    aprobado: { cls: 'badge-info', label: 'Aprobado' },
     error: { cls: 'badge-danger', label: 'Error' },
     rechazado: { cls: 'badge-danger', label: 'Rechazado' },
+    vencido: { cls: 'badge-danger', label: 'Vencido' },
+    pagado: { cls: 'badge-success', label: 'Pagado' },
 };
 
 export default function ContableDashboard() {
