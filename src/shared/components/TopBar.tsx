@@ -84,7 +84,7 @@ export default function TopBar() {
                     ].map(d => (
                         <div key={d.label} style={{ textAlign: 'center', lineHeight: 1.2 }}>
                             <div style={{ fontSize: '0.55rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{d.label}</div>
-                            <div style={{ fontSize: '0.75rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>${d.value?.toLocaleString('es-AR') || '—'}</div>
+                            <div style={{ fontSize: '0.75rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>${d.value ? Number(d.value).toLocaleString('es-AR') : '—'}</div>
                         </div>
                     ))}
                 </div>
