@@ -200,9 +200,9 @@ export default function Comprobantes() {
                     fecha: comp.fecha,
                     numero_comprobante: comp.numero_comprobante,
                     moneda: comp.moneda || 'ARS',
-                    tipo_cambio: comp.tipo_cambio,
+                    tipo_cambio: comp.tipo_cambio || undefined,
                     proveedor_xubio_id: comp.proveedor?.xubio_id ? Number(comp.proveedor.xubio_id) : undefined,
-                    cliente_xubio_id: comp.cliente?.xubio_id ? Number(comp.cliente.xubio_id) : undefined,
+                    cliente_xubio_id: (comp.cliente as any)?.xubio_id ? Number((comp.cliente as any).xubio_id) : undefined,
                     lineas: [{
                         descripcion: `Comprobante ${comp.numero_comprobante || ''}`.trim(),
                         cantidad: 1,
