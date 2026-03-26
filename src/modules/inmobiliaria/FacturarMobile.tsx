@@ -48,6 +48,10 @@ export default function FacturarMobile({ wizardOnly, onClose }: FacturarMobilePr
   const fromHome = searchParams.get('from') === 'home';
   const [items, setItems] = useState<Comprobante[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
+  const [clientes, setClientes] = useState<{ id: string; razon_social: string; cuit: string | null }[]>([]);
+  const [selCliente, setSelCliente] = useState('');
+  const tenantModules = (tenant?.enabled_modules as string[]) || [];
+  const isInmob = tenantModules.includes('inmobiliaria');
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [wizardStep, setWizardStep] = useState(0);
@@ -75,6 +79,12 @@ export default function FacturarMobile({ wizardOnly, onClose }: FacturarMobilePr
     ]);
     if (cRes.data) setItems(cRes.data as any);
     if (ctRes.data) setContratos(ctRes.data as any);
+    // Load clientes for non-inmob tenants
+    if (!isInmob) {
+      const { data: cliData } = await supabase.from('contable_clientes')
+        .select('id, razon_social, cuit').eq('tenant_id', tenant!.id).order('razon_social');
+      if (cliData) setClientes(cliData);
+    }
     setLoading(false);
   };
 
@@ -102,7 +112,7 @@ export default function FacturarMobile({ wizardOnly, onClose }: FacturarMobilePr
   }, [wizardOnly, loading]);
 
   const openNew = () => {
-    setSelContrato(''); setTipoComp('Factura A'); setFecha(new Date().toISOString().slice(0, 10));
+    setSelContrato(''); setSelCliente(''); setTipoComp('Factura A'); setFecha(new Date().toISOString().slice(0, 10));
     setLineas([{ descripcion: '', cantidad: 1, precio_unitario: 0, iva_porcentaje: 21 }]);
     setObs(''); setWizardStep(0); setShowModal(true);
   };
@@ -127,8 +137,10 @@ export default function FacturarMobile({ wizardOnly, onClose }: FacturarMobilePr
   const totalFinal = subtotal + totalIva;
 
   const save = async () => {
-    if (!selContrato || lineas.length === 0) return;
-    const c = contratos.find(ct => ct.id === selContrato);
+    if (isInmob && !selContrato) return;
+    if (!isInmob && !selCliente) return;
+    if (lineas.length === 0) return;
+    const c = isInmob ? contratos.find(ct => ct.id === selContrato) : null;
     const lineasPayload = lineas.map(l => ({
       descripcion: l.descripcion, cantidad: l.cantidad, precio_unitario: l.precio_unitario,
       iva_porcentaje: l.iva_porcentaje, subtotal: l.cantidad * l.precio_unitario,
@@ -141,7 +153,7 @@ export default function FacturarMobile({ wizardOnly, onClose }: FacturarMobilePr
       fecha,
       tipo_comprobante: tipoComp,
       numero_comprobante: 'PENDIENTE-ARCA',
-      cliente_id: c?.inquilino_id || null,
+      cliente_id: isInmob ? (c?.inquilino_id || null) : selCliente,
       moneda: c?.moneda || 'ARS',
       monto_original: totalFinal,
       monto_ars: totalFinal,
@@ -377,9 +389,11 @@ export default function FacturarMobile({ wizardOnly, onClose }: FacturarMobilePr
 
       {/* ─── WIZARD MODAL ─── */}
       {showModal && (() => {
-        const STEPS = [{ label: 'Contrato' }, { label: 'Detalle' }, { label: 'Resumen' }];
+        const STEPS = isInmob
+          ? [{ label: 'Contrato' }, { label: 'Detalle' }, { label: 'Resumen' }]
+          : [{ label: 'Cliente' }, { label: 'Detalle' }, { label: 'Resumen' }];
         const totalSteps = STEPS.length;
-        const canNext = wizardStep === 0 ? !!selContrato : true;
+        const canNext = wizardStep === 0 ? (isInmob ? !!selContrato : !!selCliente) : true;
         const isLast = wizardStep === totalSteps - 1;
         const selCt = contratos.find(ct => ct.id === selContrato);
 
@@ -407,8 +421,9 @@ export default function FacturarMobile({ wizardOnly, onClose }: FacturarMobilePr
             </div>
 
             <div className="wizard-body">
-              {/* Step 0: Contrato + Tipo */}
+              {/* Step 0: Contrato (inmob) or Cliente (other) + Tipo */}
               {wizardStep === 0 && (<>
+                {isInmob ? (
                 <div className="wizard-field">
                   <label className="form-label">Contrato (propiedad) *</label>
                   <CustomSelect
@@ -434,6 +449,36 @@ export default function FacturarMobile({ wizardOnly, onClose }: FacturarMobilePr
                     </div>
                   )}
                 </div>
+                ) : (
+                <div className="wizard-field">
+                  <label className="form-label">Cliente *</label>
+                  <CustomSelect
+                    value={selCliente}
+                    onChange={v => setSelCliente(v)}
+                    placeholder="Seleccionar cliente..."
+                    options={clientes.map(c => ({
+                      value: c.id,
+                      label: c.razon_social,
+                      sub: c.cuit || '',
+                    }))}
+                  />
+                  {selCliente && (() => {
+                    const cli = clientes.find(c => c.id === selCliente);
+                    return cli ? (
+                      <div style={{ marginTop: 8, padding: '10px 14px', borderRadius: 10, background: 'var(--color-bg-surface-2)', border: '1px solid var(--color-border-subtle)', fontSize: '0.8125rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: 'var(--color-text-muted)' }}>Razón Social</span>
+                          <span style={{ fontWeight: 600 }}>{cli.razon_social}</span>
+                        </div>
+                        {cli.cuit && <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                          <span style={{ color: 'var(--color-text-muted)' }}>CUIT</span>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{cli.cuit}</span>
+                        </div>}
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+                )}
                 <div className="wizard-field">
                   <div className="wizard-section-title">Tipo de comprobante</div>
                   <div className="wizard-pills" style={{ marginTop: 8 }}>

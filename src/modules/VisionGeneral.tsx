@@ -193,7 +193,7 @@ export default function VisionGeneral() {
             supabase.from('contable_clientes').select('id', { count: 'exact', head: true }).eq('tenant_id', tid).eq('activo', true),
             supabase.from('treasury_accounts').select('balance').eq('tenant_id', tid),
             supabase.from('treasury_transactions').select('id', { count: 'exact', head: true }).eq('tenant_id', tid).gte('date', start).lte('date', end),
-            supabase.from('contable_comprobantes').select('id, tipo, fecha, numero_comprobante, tipo_comprobante, monto_ars, estado, proveedor:contable_proveedores(razon_social), cliente:contable_clientes(razon_social)').eq('tenant_id', tid).order('created_at', { ascending: false }).limit(6),
+            supabase.from('contable_comprobantes').select('id, tipo, fecha, numero_comprobante, tipo_comprobante, monto_ars, monto_original, estado, created_at, proveedor:contable_proveedores(razon_social), cliente:contable_clientes(razon_social)').eq('tenant_id', tid).order('created_at', { ascending: false }).limit(6),
         ]);
 
         const { data: periodComprobantes } = await supabase.from('contable_comprobantes')
@@ -252,7 +252,7 @@ export default function VisionGeneral() {
             id: c.id, type: 'comprobante' as const,
             title: `${c.tipo_comprobante || c.tipo} ${c.numero_comprobante || ''}`.trim(),
             subtitle: c.tipo === 'compra' ? ((c.proveedor as any)?.razon_social || '—') : ((c.cliente as any)?.razon_social || '—'),
-            amount: Number(c.monto_ars || 0), date: c.fecha,
+            amount: Number(c.monto_ars || c.monto_original || 0), date: c.fecha,
             direction: c.tipo === 'venta' ? 'in' as const : 'out' as const,
         }));
 

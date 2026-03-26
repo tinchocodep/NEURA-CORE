@@ -27,7 +27,7 @@ export default function ActividadRecienteWidget({ activity, periodLabel }: Activ
                 <h3 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <ActivityIcon size={13} /> Actividad reciente en {periodLabel}
                 </h3>
-                <button onClick={() => navigate('/tesoreria/movimientos')} className="btn btn-ghost" style={{ fontSize: '0.7rem', padding: '4px 8px' }}>
+                <button onClick={() => navigate('/tesoreria/comprobantes')} className="btn btn-ghost" style={{ fontSize: '0.7rem', padding: '4px 8px' }}>
                     Ver todo <ArrowRight size={12} />
                 </button>
             </div>
@@ -48,7 +48,7 @@ export default function ActividadRecienteWidget({ activity, periodLabel }: Activ
                             }}
                             onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
                             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                            onClick={() => navigate('/tesoreria/movimientos')}
+                            onClick={() => navigate(a.type === 'comprobante' ? '/tesoreria/comprobantes' : a.type === 'banco' ? '/tesoreria/bancos' : '/tesoreria/movimientos')}
                         >
                             <div style={{
                                 width: 28, height: 28, borderRadius: 8, flexShrink: 0,

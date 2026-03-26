@@ -4,6 +4,7 @@ import { Search, Bell } from 'lucide-react';
 import { DolarService } from '../../services/DolarService';
 import type { DolarResumen } from '../../services/DolarService';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTenant } from '../../contexts/TenantContext';
 import GlobalSearch from './GlobalSearch';
 
 function useIsMobile() {
@@ -15,9 +16,10 @@ function useIsMobile() {
 
 export default function TopBar() {
     const { user } = useAuth() as any;
+    const { tenant } = useTenant();
     const navigate = useNavigate();
     const isMobile = useIsMobile();
-    const [, setDolar] = useState<DolarResumen | null>(null);
+    const [dolar, setDolar] = useState<DolarResumen | null>(null);
 
     useEffect(() => {
         DolarService.getCotizaciones().then(setDolar);
@@ -71,6 +73,22 @@ export default function TopBar() {
                     </span>
                 )}
             </div>
+
+            {/* Dollar quotes — only for tenants with rubro 'general' (SAILO) */}
+            {dolar && tenant?.rubro === 'general' && (
+                <div style={{ display: 'flex', gap: 12, flexShrink: 0 }}>
+                    {[
+                        { label: 'OFICIAL', value: dolar.oficial },
+                        { label: 'BLUE', value: dolar.blue },
+                        { label: 'MEP', value: dolar.mep },
+                    ].map(d => (
+                        <div key={d.label} style={{ textAlign: 'center', lineHeight: 1.2 }}>
+                            <div style={{ fontSize: '0.55rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{d.label}</div>
+                            <div style={{ fontSize: '0.75rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>${d.value?.toLocaleString('es-AR') || '—'}</div>
+                        </div>
+                    ))}
+                </div>
+            )}
 
             {/* Center: Search bar (inline) */}
             <div style={{ flex: 1, position: 'relative', margin: '0 24px' }}>
