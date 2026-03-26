@@ -166,7 +166,6 @@ export default function ProveedoresInmob() {
             <span>Proveedor</span><span>Rubro</span><span>Teléfono</span><span>Email</span><span style={{ textAlign: 'right' }}>Acciones</span>
           </div>
           {filtered.map(p => {
-            const color = RUBRO_COLOR[p.rubro] || '#6B7280';
             return (
               <div key={p.id}
                 style={{ display: 'grid', gridTemplateColumns: '1fr 100px 120px 150px 130px', padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', alignItems: 'center', transition: 'background 0.1s' }}
@@ -259,7 +258,6 @@ export default function ProveedoresInmob() {
       {isMobile && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {filtered.map(p => {
-            const color = RUBRO_COLOR[p.rubro] || '#6B7280';
             return (
               <div key={p.id} onClick={() => openEdit(p)} style={{ padding: '12px 14px', borderRadius: 12, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', cursor: 'pointer' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>

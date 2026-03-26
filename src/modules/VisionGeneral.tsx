@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { DolarService, type DolarResumen } from '../services/DolarService';
-import { Calendar, Settings, AlertTriangle, Clock, ArrowRight, X, GripVertical, Receipt, Wallet, CalendarClock, ChevronRight } from 'lucide-react';
+import { Settings, AlertTriangle, Clock, ArrowRight, X, GripVertical, Receipt, Wallet, CalendarClock, ChevronRight } from 'lucide-react';
 
 function useIsMobile() {
     const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
@@ -110,10 +110,10 @@ export default function VisionGeneral() {
     const [metrics, setMetrics] = useState<CrossMetrics | null>(null);
     const [activity, setActivity] = useState<RecentActivity[]>([]);
     const [, setDolar] = useState<DolarResumen | null>(null);
-    const [period, setPeriod] = useState('this_month');
+    const [period] = useState('this_month');
     const [activeWizard, setActiveWizard] = useState<string | null>(null);
-    const [customStart, setCustomStart] = useState('');
-    const [customEnd, setCustomEnd] = useState('');
+    const [customStart] = useState('');
+    const [customEnd] = useState('');
     const [, setTopProveedores] = useState<EntityRanking[]>([]);
     const [, setTopClientes] = useState<EntityRanking[]>([]);
     const [, setVentasBreakdown] = useState<TypeBreakdown>({ tradicionalMonto: 0, tradicionalCount: 0, sinFacturaMonto: 0, sinFacturaCount: 0 });
