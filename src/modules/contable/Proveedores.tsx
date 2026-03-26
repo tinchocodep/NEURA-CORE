@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
-import { Search, Plus, Edit2, AlertTriangle, X, Save, Trash2, Loader, Globe, ChevronDown, ChevronRight, Download, Clock, FileText, Filter, Eye, Send, Star, MoreVertical } from 'lucide-react';
+import { Search, Plus, Edit2, AlertTriangle, X, Save, Trash2, Loader, Globe, ChevronDown, ChevronRight, Download, Clock, FileText, Filter, Eye, Send, Star, MoreVertical, RefreshCw } from 'lucide-react';
 import { SkeletonTable } from '../../shared/components/SkeletonKit';
 import { DocumentViewer } from '../../shared/components/DocumentViewer';
 
@@ -156,6 +156,9 @@ export default function Proveedores() {
     const [detailComprobantes, setDetailComprobantes] = useState<ComprobanteResumen[]>([]);
     const [detailLoading, setDetailLoading] = useState(false);
     const [detailContactos, setDetailContactos] = useState<{ id: string; nombre: string; apellido: string | null; email: string | null; telefono: string | null; cargo: string | null }[]>([]);
+    const [syncingProveedores, setSyncingProveedores] = useState(false);
+    const tenantModules = (tenant?.enabled_modules as string[]) || [];
+    const hasErpModule = tenantModules.includes('erp_colppy') || tenantModules.includes('erp_xubio');
     const [expandedComprobante, setExpandedComprobante] = useState<string | null>(null);
     const [docPreview, setDocPreview] = useState<string | null>(null);
     const [activityFilter, setActivityFilter] = useState<'all' | 'recent' | 'month' | 'dormant' | 'none'>('all');
@@ -605,6 +608,50 @@ export default function Proveedores() {
         });
     }
 
+    // --- Sync proveedores ---
+    const [showSyncMenu, setShowSyncMenu] = useState(false);
+    const hasColppy = tenantModules.includes('erp_colppy');
+    const hasXubio = tenantModules.includes('erp_xubio');
+    const hasBothErps = hasColppy && hasXubio;
+
+    const handleSyncProveedores = async (source?: 'colppy' | 'xubio') => {
+        if (!tenant) return;
+
+        // If both ERPs and no source selected, show menu
+        if (hasBothErps && !source) {
+            setShowSyncMenu(!showSyncMenu);
+            return;
+        }
+
+        // If only one ERP, auto-select
+        const selectedSource = source || (hasColppy ? 'colppy' : 'xubio');
+        setShowSyncMenu(false);
+        setSyncingProveedores(true);
+
+        try {
+            if (selectedSource === 'colppy') {
+                const { getColpyService } = await import('../../services/ColpyService');
+                const colpy = getColpyService(tenant.id);
+                await colpy.loadConfig();
+                if (!colpy.isConfigured) { alert('Colppy no está configurado.'); setSyncingProveedores(false); return; }
+                const result = await colpy.syncProveedoresFromColpy();
+                alert(`Colppy: ${result.imported} importados, ${result.updated} actualizados${result.errors.length > 0 ? `, ${result.errors.length} errores` : ''}`);
+            } else {
+                const { getXubioService } = await import('../../services/XubioService');
+                const xubio = getXubioService(tenant.id);
+                await xubio.loadConfig();
+                if (!xubio.isConfigured) { alert('Xubio no está configurado.'); setSyncingProveedores(false); return; }
+                const result = await xubio.syncProveedoresFromXubio();
+                alert(`Xubio: ${result.imported} importados, ${result.updated} actualizados${result.errors.length > 0 ? `, ${result.errors.length} errores` : ''}`);
+            }
+            load();
+        } catch (err: any) {
+            console.error('Sync error:', err);
+            alert('Error al sincronizar: ' + (err.message || 'Error desconocido'));
+        }
+        setSyncingProveedores(false);
+    };
+
     // --- Render ---
 
     return (
@@ -615,6 +662,27 @@ export default function Proveedores() {
                     <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>Proveedores</h1>
                     <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{proveedores.length} activos</span>
                     <div style={{ flex: 1 }} />
+                    {hasErpModule && (
+                        <div style={{ position: 'relative' }}>
+                            <button className="btn btn-ghost" onClick={() => handleSyncProveedores()} disabled={syncingProveedores}
+                                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', fontSize: '0.8rem', borderRadius: 10 }}>
+                                <RefreshCw size={14} className={syncingProveedores ? 'spin' : ''} />
+                                {syncingProveedores ? 'Sincronizando...' : 'Sincronizar'}
+                            </button>
+                            {showSyncMenu && hasBothErps && (
+                                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 100, minWidth: 160, overflow: 'hidden' }}>
+                                    <button onClick={() => handleSyncProveedores('colppy')} style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 8 }}
+                                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                                        Desde Colppy
+                                    </button>
+                                    <button onClick={() => handleSyncProveedores('xubio')} style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 8 }}
+                                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                                        Desde Xubio
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
                     <button className="btn btn-secondary" onClick={exportCSV} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', fontSize: '0.8rem', borderRadius: 10 }}>
                         <Download size={14} /> CSV
                     </button>

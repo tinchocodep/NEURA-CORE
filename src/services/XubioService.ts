@@ -105,6 +105,7 @@ export interface XubioFacturaCompra {
 
 const XUBIO_BASE = 'https://xubio.com/API/1.1';
 const TOKEN_ENDPOINT = `${XUBIO_BASE}/TokenEndpoint`;
+const XUBIO_PROXY = 'https://n8n.neuracall.net/webhook/xubio-proxy';
 
 /** Xubio IVA alicuota IDs (standard Argentina) */
 export const XUBIO_IVA = {
@@ -191,18 +192,23 @@ export class XubioService {
         }
 
         try {
-            const response = await fetch(TOKEN_ENDPOINT, {
+            const response = await fetch(XUBIO_PROXY, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    client_id: this.config.xubio_client_id,
-                    client_secret: this.config.xubio_client_secret,
+                    method: 'POST',
+                    url: TOKEN_ENDPOINT,
+                    data: {
+                        grant_type: 'client_credentials',
+                        client_id: this.config.xubio_client_id,
+                        client_secret: this.config.xubio_client_secret,
+                    },
                 }),
             });
 
             if (!response.ok) {
                 const errorText = await response.text();
-                return { success: false, error: `Xubio respondió ${response.status}: ${errorText}` };
+                return { success: false, error: `Proxy/Xubio respondió ${response.status}: ${errorText}` };
             }
 
             const tokenData: XubioTokenResponse = await response.json();
@@ -242,15 +248,16 @@ export class XubioService {
         await this.ensureAuth();
 
         const url = `${XUBIO_BASE}/${endpoint}`;
-        const headers: Record<string, string> = {
-            'Authorization': `Bearer ${this.accessToken}`,
-            'Content-Type': 'application/json',
-        };
 
-        const response = await fetch(url, {
-            method,
-            headers,
-            body: body ? JSON.stringify(body) : undefined,
+        const response = await fetch(XUBIO_PROXY, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                method,
+                url,
+                token: this.accessToken,
+                data: body || undefined,
+            }),
         });
 
         if (!response.ok) {
@@ -335,7 +342,16 @@ export class XubioService {
 
     /** Sync proveedores from Xubio → Supabase contable_proveedores */
     async syncProveedoresFromXubio(): Promise<{ imported: number; updated: number; errors: string[] }> {
-        const xubioProvs = await this.getProveedores();
+        let xubioProvs: XubioProveedor[];
+        try {
+            const result = await this.getProveedores();
+            xubioProvs = Array.isArray(result) ? result : [];
+            if (xubioProvs.length === 0) {
+                return { imported: 0, updated: 0, errors: ['Xubio no devolvió proveedores. Verificá que tu plan incluya acceso a la API de proveedores.'] };
+            }
+        } catch (err: any) {
+            return { imported: 0, updated: 0, errors: [`Error obteniendo proveedores de Xubio: ${err.message}`] };
+        }
         let imported = 0;
         let updated = 0;
         const errors: string[] = [];

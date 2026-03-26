@@ -45,7 +45,7 @@ const SELECT_FIELDS = `
   pdf_url, source, cuit_emisor, cuit_receptor, created_at,
   fecha_vencimiento, neto_gravado, neto_no_gravado, total_iva,
   percepciones_iibb, percepciones_iva, colpy_synced_at,
-  proveedor:contable_proveedores(razon_social, producto_servicio_default_id),
+  proveedor:contable_proveedores(razon_social, producto_servicio_default_id, colpy_id, xubio_id, cuit),
   cliente:contable_clientes(razon_social),
   producto_servicio:contable_productos_servicio(nombre, grupo),
   categoria:contable_categorias(nombre, color),

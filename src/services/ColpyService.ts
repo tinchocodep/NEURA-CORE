@@ -450,16 +450,30 @@ export class ColpyService {
                     if (error) throw new Error(error.message);
                     updated++;
                 } else {
+                    // Try insert, if duplicate key then find and update
                     const { data: inserted, error } = await supabase.from('contable_proveedores').insert(provData).select('id').single();
-                    if (error) throw new Error(error.message);
-                    
-                    if (inserted) {
+                    if (error) {
+                        if (error.code === '23505') {
+                            // Duplicate — find by razon_social and update with colpy_id
+                            const { data: dup } = await supabase.from('contable_proveedores')
+                                .select('id').eq('tenant_id', this.tenantId).eq('razon_social', razonSocial).single();
+                            if (dup) {
+                                await supabase.from('contable_proveedores').update({ colpy_id: provData.colpy_id, cuit: provData.cuit }).eq('id', dup.id);
+                                existingByColpyId.set(provData.colpy_id, { ...dup, colpy_id: provData.colpy_id, razon_social: razonSocial, cuit });
+                                updated++;
+                            } else {
+                                throw new Error(error.message);
+                            }
+                        } else {
+                            throw new Error(error.message);
+                        }
+                    } else if (inserted) {
                         const newEntry = { id: inserted.id, colpy_id: provData.colpy_id, razon_social: razonSocial, cuit };
                         existingByColpyId.set(provData.colpy_id, newEntry);
                         existingByRazonSocial.set(razonSocial.toLowerCase(), newEntry);
                         if (cuit) existingByCuit.set(cuit, newEntry);
+                        imported++;
                     }
-                    imported++;
                 }
             } catch (err) {
                 console.error("Error importando proveedor colppy: ", cp, err);
@@ -682,13 +696,17 @@ export class ColpyService {
                 // Convert fecha from yyyy-mm-dd to dd-mm-yyyy
                 const fechaColppy = comprobante.fecha ? comprobante.fecha.split('-').reverse().join('-') : '';
 
-                // Use DB values if available, fallback to calculated
-                const finalNetoGravado = comprobante.neto_gravado ?? netoGravado;
-                const finalNetoNoGravado = comprobante.neto_no_gravado ?? 0;
-                const finalTotalIVA = comprobante.total_iva ?? totalIVA;
-                const finalPercIIBB = comprobante.percepciones_iibb ?? 0;
-                const finalPercIVA = comprobante.percepciones_iva ?? 0;
-                const finalTotal = comprobante.monto ?? importeTotal;
+                // Use DB values if available, fallback to calculated from total
+                const total = comprobante.monto || importeTotal;
+                const calcNeto = esFacturaB ? total : Number((total / 1.21).toFixed(2));
+                const calcIVA = esFacturaB ? 0 : Number((total - calcNeto).toFixed(2));
+
+                const finalNetoGravado = (comprobante.neto_gravado && comprobante.neto_gravado > 0) ? comprobante.neto_gravado : (netoGravado > 0 ? netoGravado : calcNeto);
+                const finalNetoNoGravado = comprobante.neto_no_gravado || 0;
+                const finalTotalIVA = (comprobante.total_iva && comprobante.total_iva > 0) ? comprobante.total_iva : (totalIVA > 0 ? totalIVA : calcIVA);
+                const finalPercIIBB = comprobante.percepciones_iibb || 0;
+                const finalPercIVA = comprobante.percepciones_iva || 0;
+                const finalTotal = total;
 
                 const payload = {
                     idEmpresa: this.config!.colpy_empresa_id,

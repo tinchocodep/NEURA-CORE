@@ -930,7 +930,15 @@ export default function Configuracion() {
 
     const { role: userRole } = useAuth() as any;
     const isSuperadmin = userRole === 'superadmin';
-    const TABS = ALL_TABS.filter(t => !t.superadminOnly || isSuperadmin);
+    const tenantModules = (tenant?.enabled_modules as string[]) || [];
+    const hasErpModule = tenantModules.includes('erp_colppy') || tenantModules.includes('erp_xubio');
+    const TABS = ALL_TABS.filter(t => {
+        if (!t.superadminOnly) return true;
+        if (isSuperadmin) return true;
+        if (t.key === 'integraciones' && hasErpModule) return true;
+        if (t.key === 'mensajeria') return true; // Mensajería visible para todos
+        return false;
+    });
 
     /* ─── Main Render ─── */
     return (
@@ -971,9 +979,9 @@ export default function Configuracion() {
 
             {/* Tab content */}
             {activeTab === 'empresa' && renderEmpresa()}
-            {activeTab === 'integraciones' && isSuperadmin && renderIntegraciones()}
+            {activeTab === 'integraciones' && (isSuperadmin || hasErpModule) && renderIntegraciones()}
             {activeTab === 'usuarios' && renderUsuarios()}
-            {activeTab === 'mensajeria' && isSuperadmin && <MessagingTab />}
+            {activeTab === 'mensajeria' && <MessagingTab />}
         </div>
     );
 }

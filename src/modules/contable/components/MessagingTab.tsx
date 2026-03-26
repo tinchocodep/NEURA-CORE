@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { MessageCircle, Plus, Trash2, Copy, RefreshCw, CheckCircle, Clock, XCircle, ToggleLeft, ToggleRight, Send } from 'lucide-react';
 import { useMessagingConnections } from '../hooks/useMessagingConnections';
 import type { MessagingConnection, MessagingProvider } from '../hooks/useMessagingConnections';
@@ -81,11 +82,15 @@ function NewConnectionModal({ provider, onClose, onCreate, creating, connections
 
     const providerLabel = provider === 'telegram' ? 'Telegram' : provider === 'whatsapp' ? 'WhatsApp' : provider;
 
-    return (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div className="card" style={{ padding: '1.75rem', width: 440, maxWidth: '92vw' }}>
-                <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem' }}>Nueva conexión de {providerLabel}</h3>
-                <p style={{ margin: '0 0 1.25rem', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+    return createPortal(
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={onClose}>
+            <div className="wizard-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 480, width: '100%', maxHeight: '90vh', overflow: 'auto' }}>
+                <div className="wizard-header">
+                    <h3>Nueva conexión de {providerLabel}</h3>
+                    <button className="wizard-close" onClick={onClose}>✕</button>
+                </div>
+                <div className="wizard-body">
+                <p style={{ margin: '0 0 1.25rem', fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>
                     Vinculá una cuenta de {providerLabel} para recibir facturas desde esa conversación.
                 </p>
 
@@ -104,17 +109,6 @@ function NewConnectionModal({ provider, onClose, onCreate, creating, connections
                             <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4, display: 'block' }}>
                                 Solo para identificar la conexión internamente.
                             </span>
-                        </div>
-                        <div style={{ display: 'flex', gap: '0.75rem' }}>
-                            <button
-                                className="btn btn-primary"
-                                style={{ flex: 1, justifyContent: 'center' }}
-                                disabled={!name.trim() || creating}
-                                onClick={handleCreate}
-                            >
-                                {creating ? 'Generando...' : 'Generar código'}
-                            </button>
-                            <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
                         </div>
                     </>
                 ) : (
@@ -154,13 +148,28 @@ function NewConnectionModal({ provider, onClose, onCreate, creating, connections
                             </span>
                         </div>
 
-                        <button className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center' }} onClick={onClose}>
-                            Cerrar (la conexión queda pendiente)
-                        </button>
                     </>
                 )}
+                </div>
+                <div className="wizard-footer">
+                    <div className="wizard-footer-left" />
+                    <div className="wizard-footer-right">
+                        {!connection ? (
+                            <>
+                                <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+                                <button className="wizard-btn-next" disabled={!name.trim() || creating} onClick={handleCreate}>
+                                    {creating ? 'Generando...' : 'Generar código'}
+                                </button>
+                            </>
+                        ) : (
+                            <button className="btn btn-secondary" onClick={onClose}>
+                                Cerrar
+                            </button>
+                        )}
+                    </div>
+                </div>
             </div>
-        </div>
+        </div>, document.body
     );
 }
 
