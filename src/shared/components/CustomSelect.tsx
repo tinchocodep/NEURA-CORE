@@ -24,6 +24,7 @@ export default function CustomSelect({ options, value, onChange, placeholder = '
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [activeGroup, setActiveGroup] = useState('');
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 });
   const ref = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -37,9 +38,15 @@ export default function CustomSelect({ options, value, onChange, placeholder = '
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  // Focus search on open
+  // Calculate position & focus search on open
   useEffect(() => {
-    if (open && searchable) setTimeout(() => searchRef.current?.focus(), 50);
+    if (open) {
+      if (ref.current) {
+        const rect = ref.current.getBoundingClientRect();
+        setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+      }
+      if (searchable) setTimeout(() => searchRef.current?.focus(), 50);
+    }
   }, [open]);
 
   const selected = options.find(o => o.value === value);
@@ -90,7 +97,7 @@ export default function CustomSelect({ options, value, onChange, placeholder = '
       {/* Dropdown */}
       {open && (
         <div style={{
-          position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 100,
+          position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, zIndex: 9999,
           background: 'var(--color-bg-surface)', border: '1px solid var(--color-border-subtle)',
           borderRadius: 14, boxShadow: '0 10px 30px rgba(0,0,0,0.12)',
           overflow: 'hidden', maxHeight: 320, display: 'flex', flexDirection: 'column',

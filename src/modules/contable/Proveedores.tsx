@@ -1560,8 +1560,8 @@ export default function Proveedores() {
                                                         const isOp = !!c.is_op;
                                                         
                                                         // Styles based on type
-                                                        const iconContainerBg = isOp ? '#fdf4ff' : (c.estado === 'inyectado' ? '#f0fdf4' : c.estado === 'aprobado' ? '#eff6ff' : '#f8f9fc');
-                                                        const iconColor = isOp ? '#d946ef' : (c.estado === 'inyectado' ? '#10b981' : c.estado === 'aprobado' ? '#1958E0' : '#94a3b8');
+                                                        const iconContainerBg = isOp ? '#fdf4ff' : (c.estado === 'pagado' ? '#f0fdf4' : c.estado === 'aprobado' ? '#eff6ff' : c.estado === 'pendiente' ? '#fffbeb' : '#f8f9fc');
+                                                        const iconColor = isOp ? '#d946ef' : (c.estado === 'pagado' ? '#10b981' : c.estado === 'aprobado' ? '#3B82F6' : c.estado === 'pendiente' ? '#F59E0B' : '#94a3b8');
                                                         const itemBg = isOp ? (expanded ? '#faf5ff' : '#fdfbff') : (expanded ? '#f0f4ff' : '#fafbfd');
                                                         
                                                         return (

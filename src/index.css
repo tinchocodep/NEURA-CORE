@@ -2771,8 +2771,9 @@ body:has([style*="position: fixed"][style*="inset: 0"]) {
 }
 .module-header-mobile {
   display: none;
-  flex-direction: column;
-  gap: 0.375rem;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
 }
 @media (max-width: 768px) {
   .module-header-desktop { display: none !important; }

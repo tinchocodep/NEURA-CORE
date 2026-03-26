@@ -5,7 +5,7 @@ import {
     Briefcase, Zap, Users, BookOpen, Tag, Building2, Settings, ClipboardList,
     Receipt, TrendingUp, HardHat,
     Funnel, Columns3, Contact, BarChart3, Car, ChevronLeft, ChevronDown,
-    Home, FileSignature, Wallet, CalendarClock, UserPlus
+    Home, FileSignature, Wallet, CalendarClock, UserPlus, Banknote, Plug
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
@@ -245,12 +245,13 @@ export default function Layout() {
         { name: 'Proveedores', path: '/inmobiliaria/proveedores', icon: Building2 },
     ];
     const mobileGestionItems = [
-        { name: 'Comprobantes', path: '/inmobiliaria/facturar', icon: Receipt },
         { name: 'Cuentas', path: '/inmobiliaria/cuentas', icon: Receipt },
-        { name: 'Agenda', path: '/inmobiliaria/agenda', icon: CalendarClock },
+        { name: 'Expensas', path: '/inmobiliaria/expensas', icon: Banknote },
+        { name: 'Servicios', path: '/inmobiliaria/servicios', icon: Plug },
         ...(hasModuleAccess('crm') ? [
             { name: 'Contactos', path: '/crm/contactos', icon: UserPlus },
         ] : []),
+        { name: 'Comprobantes', path: '/inmobiliaria/facturar', icon: Receipt },
     ];
 
     // Desktop items
@@ -262,12 +263,13 @@ export default function Layout() {
         { name: 'Proveedores', path: '/inmobiliaria/proveedores', icon: Building2 },
     ];
     const gestionItems = [
-        { name: 'Comprobantes', path: '/inmobiliaria/facturar', icon: Receipt },
         { name: 'Cuentas', path: '/inmobiliaria/cuentas', icon: Receipt },
-        { name: 'Agenda', path: '/inmobiliaria/agenda', icon: CalendarClock },
+        { name: 'Expensas', path: '/inmobiliaria/expensas', icon: Banknote },
+        { name: 'Servicios', path: '/inmobiliaria/servicios', icon: Plug },
         ...(hasModuleAccess('crm') ? [
             { name: 'Contactos', path: '/crm/contactos', icon: UserPlus },
         ] : []),
+        { name: 'Comprobantes', path: '/inmobiliaria/facturar', icon: Receipt },
     ];
     // Finanzas subtab items (for when navigating within Tesorería/Contable advanced)
     // Finanzas: flat list merging tesorería + contable items (excluding promoted ones)
@@ -282,7 +284,7 @@ export default function Layout() {
     const effectiveSectionItems = hasInmob
         ? (isMapa ? [] : isOperaciones ? operacionesItems : isGestion ? gestionItems : isFinanzas ? finanzasItems : sectionItems)
         : sectionItems;
-    const mobileSectionItems = isMobile ? (isOperaciones ? mobileOperacionesItems : isMobileGestion ? mobileGestionItems : sectionItems) : effectiveSectionItems;
+    const mobileSectionItems = isMobile ? (isMapa ? [] : isOperaciones ? mobileOperacionesItems : isMobileGestion ? mobileGestionItems : sectionItems) : effectiveSectionItems;
 
     // Ref callback for auto-scrolling to active subnav item — must be declared at top level (Rules of Hooks)
     const subnavScrollRef = useCallback((node: HTMLDivElement | null) => {

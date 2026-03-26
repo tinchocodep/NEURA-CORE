@@ -64,9 +64,10 @@ const estadoBadge = (estado: string) => {
     const map: Record<string, { bg: string; color: string }> = {
         pendiente: { bg: 'var(--color-warning-dim)', color: 'var(--color-warning)' },
         clasificado: { bg: 'var(--color-info-dim)', color: 'var(--color-info)' },
-        aprobado: { bg: 'var(--color-success-dim)', color: 'var(--color-success)' },
+        aprobado: { bg: 'var(--color-info-dim)', color: 'var(--color-info)' },
         rechazado: { bg: 'var(--color-danger-dim)', color: 'var(--color-danger)' },
-        inyectado: { bg: 'var(--color-accent-dim)', color: 'var(--color-accent)' },
+        vencido: { bg: 'var(--color-danger-dim)', color: 'var(--color-danger)' },
+        pagado: { bg: 'var(--color-success-dim)', color: 'var(--color-success)' },
     };
     const st = map[estado] || { bg: 'var(--color-bg-surface-2)', color: 'var(--color-text-muted)' };
     return (
@@ -397,10 +398,10 @@ export default function Entity360Panel({ entity, entityType, onClose, onDocPrevi
                                 const IconComp = isOp ? DollarSign : FileText;
                                 const iconBg = isOp 
                                     ? (item.estado === 'pagada' ? 'var(--color-success-dim)' : 'var(--color-warning-dim)')
-                                    : (item.estado === 'inyectado' ? 'var(--color-success-dim)' : item.estado === 'aprobado' ? 'var(--color-info-dim)' : 'var(--color-bg-surface-2)');
+                                    : (item.estado === 'pagado' ? 'var(--color-success-dim)' : item.estado === 'aprobado' ? 'var(--color-info-dim)' : item.estado === 'pendiente' ? 'var(--color-warning-dim)' : 'var(--color-bg-surface-2)');
                                 const iconColor = isOp
                                     ? (item.estado === 'pagada' ? 'var(--color-success)' : 'var(--color-warning)')
-                                    : (item.estado === 'inyectado' ? 'var(--color-success)' : item.estado === 'aprobado' ? 'var(--color-info)' : 'var(--color-text-muted)');
+                                    : (item.estado === 'pagado' ? 'var(--color-success)' : item.estado === 'aprobado' ? 'var(--color-info)' : item.estado === 'pendiente' ? 'var(--color-warning)' : 'var(--color-text-muted)');
 
                                 return (
                                     <div key={`${item.itemType}-${item.id}`} style={{

@@ -24,8 +24,8 @@ interface Contrato {
 interface LineaDetalle { descripcion: string; cantidad: number; precio_unitario: number; iva_porcentaje: number; subtotal: number; iva: number; total: number; }
 
 const ESTADO_COLOR: Record<string, string> = {
-  pendiente: '#F59E0B', clasificado: '#3B82F6', aprobado: '#8B5CF6',
-  pagado: '#10B981', error: '#EF4444', rechazado: '#6B7280',
+  pendiente: '#F59E0B', clasificado: '#3B82F6', aprobado: '#3B82F6',
+  pagado: '#10B981', error: '#EF4444', rechazado: '#EF4444', vencido: '#EF4444',
 };
 const TIPOS_COMP = ['Factura A', 'Factura B', 'Factura C', 'Nota de Crédito A', 'Nota de Crédito B', 'Recibo X', 'Remito'];
 
@@ -245,7 +245,7 @@ export default function FacturarMobile({ wizardOnly, onClose }: FacturarMobilePr
       <div style={{ display: 'flex', gap: isMobile ? 6 : 10 }}>
         {[
           { label: 'Pendientes', value: String(pendientes), color: pendientes > 0 ? '#F59E0B' : 'var(--color-text-primary)', filter: 'pendiente' },
-          { label: 'Aprobados', value: String(aprobados), color: '#8B5CF6', filter: 'aprobado' },
+          { label: 'Aprobados', value: String(aprobados), color: '#3B82F6', filter: 'aprobado' },
           { label: 'Facturado mes', value: fmtMoney(totalMes), color: '#10B981', filter: '', mono: true },
         ].map(kpi => (
           <div key={kpi.label} onClick={() => setFilterEstado(filterEstado === kpi.filter ? '' : kpi.filter)}

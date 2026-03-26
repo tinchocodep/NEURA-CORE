@@ -12,8 +12,8 @@ interface ComprobanteMin {
 }
 
 const ESTADO_COLOR: Record<string, string> = {
-  pendiente: '#F59E0B', clasificado: '#3B82F6', aprobado: '#10B981',
-  inyectado: '#8B5CF6', error: '#EF4444', rechazado: '#6B7280', pagado: '#0D9488',
+  pendiente: '#F59E0B', clasificado: '#3B82F6', aprobado: '#3B82F6',
+  pagado: '#10B981', error: '#EF4444', rechazado: '#EF4444', vencido: '#EF4444',
 };
 
 export default function ComprobantesMobile() {

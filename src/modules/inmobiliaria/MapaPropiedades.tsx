@@ -138,6 +138,10 @@ export default function MapaPropiedades() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      {/* Mobile title */}
+      <div className="module-header-mobile">
+        <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>Mapa de Propiedades</div>
+      </div>
       {/* Header */}
       <div className="module-header-desktop">
         <h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Mapa de Propiedades</h1>

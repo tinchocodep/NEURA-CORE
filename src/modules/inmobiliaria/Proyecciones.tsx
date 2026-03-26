@@ -18,7 +18,7 @@ interface Contrato {
   inquilino: { razon_social: string } | null;
 }
 
-const ESTADO_COLOR: Record<string, string> = { pendiente: '#F59E0B', cobrado: '#10B981', pagado: '#10B981' };
+const ESTADO_COLOR: Record<string, string> = { pendiente: '#F59E0B', aprobado: '#3B82F6', cobrado: '#10B981', pagado: '#10B981', vencido: '#EF4444', rechazado: '#EF4444' };
 
 export default function ProyeccionesInmob() {
   const { tenant } = useTenant();

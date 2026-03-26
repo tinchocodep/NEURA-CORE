@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Search, Plus, X, Phone, Mail, Trash2, Eye, Check, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Search, Plus, X, Phone, Mail, Trash2, Eye, Check, ChevronRight, ChevronLeft, ClipboardList } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
@@ -11,7 +12,7 @@ function useIsMobile() {
 }
 
 interface Proveedor {
-  id: string; nombre: string; rubro: string; contacto_nombre: string | null;
+  id: string; nombre: string; rubro: string; rubros: string[]; contacto_nombre: string | null;
   telefono: string | null; email: string | null; cuit: string | null;
   direccion: string | null; notas: string | null; activo: boolean;
 }
@@ -33,10 +34,11 @@ const RUBRO_EMOJI: Record<string, string> = {
   'albañileria': '🧱', mudanza: '🚚', general: '📦',
 };
 
-const emptyProv = { nombre: '', rubro: 'general', contacto_nombre: '', telefono: '', email: '', cuit: '', direccion: '', notas: '', activo: true };
+const emptyProv = { nombre: '', rubro: 'general', rubros: ['general'] as string[], contacto_nombre: '', telefono: '', email: '', cuit: '', direccion: '', notas: '', activo: true };
 
 export default function ProveedoresInmob() {
   const { tenant } = useTenant();
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [items, setItems] = useState<Proveedor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +48,9 @@ export default function ProveedoresInmob() {
   const [editing, setEditing] = useState<Proveedor | null>(null);
   const [form, setForm] = useState(emptyProv);
   const [wizardStep, setWizardStep] = useState(0);
+  const [historialProv, setHistorialProv] = useState<Proveedor | null>(null);
+  const [historialOrdenes, setHistorialOrdenes] = useState<any[]>([]);
+  const [historialLoading, setHistorialLoading] = useState(false);
   const { requestDelete, ConfirmModal } = useConfirmDelete();
 
   useEffect(() => { if (tenant) loadData(); }, [tenant]);
@@ -57,8 +62,21 @@ export default function ProveedoresInmob() {
     setLoading(false);
   };
 
+  const openHistorial = async (p: Proveedor) => {
+    setHistorialProv(p);
+    setHistorialLoading(true);
+    setHistorialOrdenes([]);
+    const { data } = await supabase.from('inmobiliaria_ordenes_trabajo')
+      .select('id, titulo, estado, prioridad, fecha_reporte, monto_presupuesto, monto_final, propiedad:inmobiliaria_propiedades!propiedad_id(direccion)')
+      .eq('tenant_id', tenant!.id)
+      .eq('proveedor_id', p.id)
+      .order('fecha_reporte', { ascending: false });
+    setHistorialOrdenes(data || []);
+    setHistorialLoading(false);
+  };
+
   const openNew = () => { setEditing(null); setForm(emptyProv); setWizardStep(0); setShowModal(true); };
-  const openEdit = (p: Proveedor) => { setEditing(p); setForm(p as any); setWizardStep(0); setShowModal(true); };
+  const openEdit = (p: Proveedor) => { setEditing(p); setForm({ ...p as any, rubros: p.rubros?.length ? p.rubros : [p.rubro] }); setWizardStep(0); setShowModal(true); };
 
   const save = async () => {
     if (!form.nombre.trim()) return;
@@ -80,13 +98,13 @@ export default function ProveedoresInmob() {
   };
 
   const filtered = items.filter(p => {
-    if (filterRubro && p.rubro !== filterRubro) return false;
+    if (filterRubro && !(p.rubros?.length ? p.rubros : [p.rubro]).includes(filterRubro)) return false;
     if (search && !p.nombre.toLowerCase().includes(search.toLowerCase()) && !(p.contacto_nombre || '').toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
   // Count by rubro
-  const rubroCounts = RUBROS.reduce((acc, r) => { acc[r] = items.filter(p => p.rubro === r).length; return acc; }, {} as Record<string, number>);
+  const rubroCounts = RUBROS.reduce((acc, r) => { acc[r] = items.filter(p => (p.rubros?.length ? p.rubros : [p.rubro]).includes(r)).length; return acc; }, {} as Record<string, number>);
 
   if (loading) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Cargando proveedores...</div>;
 
@@ -144,14 +162,14 @@ export default function ProveedoresInmob() {
       {/* ─── GRID TABLE (desktop) ─── */}
       {!isMobile && (
         <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 120px 120px 100px', padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', alignItems: 'center' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 120px 150px 130px', padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', alignItems: 'center' }}>
             <span>Proveedor</span><span>Rubro</span><span>Teléfono</span><span>Email</span><span style={{ textAlign: 'right' }}>Acciones</span>
           </div>
           {filtered.map(p => {
             const color = RUBRO_COLOR[p.rubro] || '#6B7280';
             return (
               <div key={p.id}
-                style={{ display: 'grid', gridTemplateColumns: '1fr 90px 120px 120px 100px', padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', alignItems: 'center', transition: 'background 0.1s' }}
+                style={{ display: 'grid', gridTemplateColumns: '1fr 100px 120px 150px 130px', padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', alignItems: 'center', transition: 'background 0.1s' }}
                 onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
                 onMouseLeave={e => (e.currentTarget.style.background = '')}>
                 {/* Nombre + contacto + CUIT */}
@@ -162,11 +180,18 @@ export default function ProveedoresInmob() {
                     {p.cuit && <span style={{ fontSize: '0.5625rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: 'var(--color-bg-surface-2)', color: 'var(--color-text-muted)' }}>CUIT {p.cuit}</span>}
                   </div>
                 </div>
-                {/* Rubro */}
-                <div>
-                  <span style={{ fontSize: '0.5625rem', fontWeight: 700, padding: '2px 6px', borderRadius: 99, background: `${color}15`, color, textTransform: 'capitalize' }}>
-                    {RUBRO_LABEL[p.rubro] || p.rubro}
-                  </span>
+                {/* Rubros */}
+                <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                  {(p.rubros?.length ? p.rubros : [p.rubro]).map(r => {
+                    const rc = RUBRO_COLOR[r] || '#6B7280';
+                    return (
+                      <span key={r} onClick={e => { e.stopPropagation(); navigate(`/inmobiliaria/ordenes?proveedor=${p.id}`); }}
+                        style={{ fontSize: '0.5625rem', fontWeight: 700, padding: '2px 6px', borderRadius: 99, background: `${rc}15`, color: rc, textTransform: 'capitalize', cursor: 'pointer' }}
+                        title="Ver órdenes de este proveedor">
+                        {RUBRO_LABEL[r] || r}
+                      </span>
+                    );
+                  })}
                 </div>
                 {/* Teléfono */}
                 <div>
@@ -194,6 +219,15 @@ export default function ProveedoresInmob() {
                       <Eye size={14} />
                     </button>
                     <span className="row-action-tooltip">Editar</span>
+                  </div>
+                  <div className="row-action-wrap">
+                    <button onClick={e => { e.stopPropagation(); openHistorial(p); }}
+                      style={{ ...iconBtn, color: '#F59E0B' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg-hover)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-surface)'; }}>
+                      <ClipboardList size={14} />
+                    </button>
+                    <span className="row-action-tooltip">Ver órdenes</span>
                   </div>
                   {p.telefono && (
                     <div className="row-action-wrap">
@@ -230,9 +264,17 @@ export default function ProveedoresInmob() {
               <div key={p.id} onClick={() => openEdit(p)} style={{ padding: '12px 14px', borderRadius: 12, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', cursor: 'pointer' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
                   <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{p.nombre}</div>
-                  <span style={{ fontSize: '0.5625rem', fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: `${color}15`, color, textTransform: 'capitalize', flexShrink: 0, marginLeft: 8 }}>
-                    {RUBRO_LABEL[p.rubro] || p.rubro}
-                  </span>
+                  <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', flexShrink: 0, marginLeft: 8 }}>
+                    {(p.rubros?.length ? p.rubros : [p.rubro]).map(r => {
+                      const rc = RUBRO_COLOR[r] || '#6B7280';
+                      return (
+                        <span key={r} onClick={e => { e.stopPropagation(); navigate(`/inmobiliaria/ordenes?proveedor=${p.id}`); }}
+                          style={{ fontSize: '0.5625rem', fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: `${rc}15`, color: rc, textTransform: 'capitalize', cursor: 'pointer' }}>
+                          {RUBRO_LABEL[r] || r}
+                        </span>
+                      );
+                    })}
+                  </div>
                 </div>
                 {p.contacto_nombre && (
                   <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginBottom: 2 }}>{p.contacto_nombre}</div>
@@ -294,16 +336,23 @@ export default function ProveedoresInmob() {
                   <input className="form-input" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} placeholder="Ej: Sanitarios Rápido SRL" />
                 </div>
                 <div className="wizard-field">
-                  <div className="wizard-section-title">Rubro</div>
+                  <div className="wizard-section-title">Rubros <span style={{ fontSize: '0.6875rem', fontWeight: 400, color: 'var(--color-text-muted)' }}>(podés elegir varios)</span></div>
                   <div className="wizard-card-options" style={{ marginTop: 8, gridTemplateColumns: 'repeat(5, 1fr)' }}>
-                    {RUBROS.map(r => (
-                      <div key={r} className={`wizard-card-option${form.rubro === r ? ' selected' : ''}`}
-                        onClick={() => setForm(f => ({ ...f, rubro: r }))}
-                        style={form.rubro === r ? { borderColor: RUBRO_COLOR[r], background: `${RUBRO_COLOR[r]}08` } : {}}>
-                        <div className="card-icon">{RUBRO_EMOJI[r] || '📦'}</div>
-                        <div className="card-label" style={{ fontSize: '0.6875rem' }}>{RUBRO_LABEL[r]}</div>
-                      </div>
-                    ))}
+                    {RUBROS.map(r => {
+                      const selected = (form.rubros || []).includes(r);
+                      return (
+                        <div key={r} className={`wizard-card-option${selected ? ' selected' : ''}`}
+                          onClick={() => setForm(f => {
+                            const cur = f.rubros || [];
+                            const next = selected ? cur.filter(x => x !== r) : [...cur, r];
+                            return { ...f, rubros: next.length ? next : [r], rubro: next.length ? next[0] : r };
+                          })}
+                          style={selected ? { borderColor: RUBRO_COLOR[r], background: `${RUBRO_COLOR[r]}08` } : {}}>
+                          <div className="card-icon">{RUBRO_EMOJI[r] || '📦'}</div>
+                          <div className="card-label" style={{ fontSize: '0.6875rem' }}>{RUBRO_LABEL[r]}</div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </>)}
@@ -369,6 +418,63 @@ export default function ProveedoresInmob() {
         );
       })()}
       {ConfirmModal}
+
+      {/* ─── HISTORIAL ÓRDENES MODAL ─── */}
+      {historialProv && (
+        <div className="wizard-overlay" onClick={() => setHistorialProv(null)}>
+          <div className="wizard-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 600 }}>
+            <div className="wizard-header">
+              <h3>Órdenes — {historialProv.nombre}</h3>
+              <button className="wizard-close" onClick={() => setHistorialProv(null)}><X size={18} /></button>
+            </div>
+            <div style={{ padding: '1rem 1.25rem', maxHeight: '60vh', overflowY: 'auto' }}>
+              {historialLoading ? (
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Cargando...</div>
+              ) : historialOrdenes.length === 0 ? (
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin órdenes para este proveedor</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {historialOrdenes.map(o => {
+                    const estadoColor: Record<string, string> = { reportado: '#EF4444', asignado: '#F59E0B', en_curso: '#3B82F6', completado: '#10B981', facturado: '#8B5CF6', cancelado: '#6B7280' };
+                    const prioColor: Record<string, string> = { alta: '#EF4444', media: '#F59E0B', baja: '#10B981' };
+                    const monto = o.monto_final || o.monto_presupuesto;
+                    return (
+                      <div key={o.id} style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--color-bg-surface)', border: '1px solid var(--color-border-subtle)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: '0.8125rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.titulo}</div>
+                            <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', marginTop: 2 }}>
+                              {(o.propiedad as any)?.direccion || '—'}
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
+                            <span style={{ fontSize: '0.5625rem', fontWeight: 700, padding: '2px 6px', borderRadius: 99, background: `${prioColor[o.prioridad] || '#6B7280'}15`, color: prioColor[o.prioridad] || '#6B7280', textTransform: 'capitalize' }}>
+                              {o.prioridad}
+                            </span>
+                            <span style={{ fontSize: '0.5625rem', fontWeight: 700, padding: '2px 6px', borderRadius: 99, background: `${estadoColor[o.estado] || '#6B7280'}15`, color: estadoColor[o.estado] || '#6B7280', textTransform: 'capitalize' }}>
+                              {o.estado.replace(/_/g, ' ')}
+                            </span>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+                          <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>
+                            {new Date(o.fecha_reporte + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: '2-digit' })}
+                          </span>
+                          {monto ? (
+                            <span style={{ fontSize: '0.75rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>
+                              ${Number(monto).toLocaleString('es-AR')}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

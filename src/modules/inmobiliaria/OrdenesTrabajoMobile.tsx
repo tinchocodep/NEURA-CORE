@@ -52,6 +52,7 @@ export default function OrdenesTrabajo({ wizardOnly, onClose }: { wizardOnly?: b
   const [searchParams, setSearchParams] = useSearchParams();
   const fromHome = searchParams.get('from') === 'home';
   const [filterEstado, setFilterEstado] = useState(searchParams.get('filter') || '');
+  const [filterProveedor, setFilterProveedor] = useState(searchParams.get('proveedor') || '');
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<OrdenTrabajo | null>(null);
@@ -246,6 +247,7 @@ export default function OrdenesTrabajo({ wizardOnly, onClose }: { wizardOnly?: b
 
   const filtered = items.filter(o => {
     if (filterEstado && o.estado !== filterEstado) return false;
+    if (filterProveedor && o.proveedor_id !== filterProveedor) return false;
     if (search) {
       const q = search.toLowerCase();
       if (!o.titulo.toLowerCase().includes(q) && !propDir(o.propiedad_id).toLowerCase().includes(q)) return false;
@@ -315,6 +317,10 @@ export default function OrdenesTrabajo({ wizardOnly, onClose }: { wizardOnly?: b
           <option value="">Todos los estados</option>
           {ESTADOS_LIST.map(e => <option key={e} value={e}>{ESTADO_CFG[e]?.label || e}</option>)}
         </select>
+        <select value={filterProveedor} onChange={e => setFilterProveedor(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
+          <option value="">Todos los proveedores</option>
+          {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+        </select>
         <button onClick={openNew} className="btn btn-primary" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem' }}>
           <Plus size={14} /> Nueva
         </button>
@@ -358,9 +364,9 @@ export default function OrdenesTrabajo({ wizardOnly, onClose }: { wizardOnly?: b
 
       {/* ─── DESKTOP TABLE ─── */}
       {!isMobile ? (
-        <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+        <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-lg)', overflowX: 'auto' }}>
           {/* Header */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 150px 70px 80px 200px', padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', alignItems: 'center' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 1fr) 150px 70px 90px 200px', minWidth: 750, padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', alignItems: 'center' }}>
             <span>Orden</span><span>Progreso</span><span>Prioridad</span><span>Presup.</span><span style={{ textAlign: 'right' }}>Acciones</span>
           </div>
           {/* Rows */}
@@ -377,7 +383,7 @@ export default function OrdenesTrabajo({ wizardOnly, onClose }: { wizardOnly?: b
             };
             return (
               <div key={ot.id}
-                style={{ display: 'grid', gridTemplateColumns: '1fr 150px 70px 80px 200px', padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', alignItems: 'center', transition: 'background 0.1s' }}
+                style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 1fr) 150px 70px 90px 200px', minWidth: 750, padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', alignItems: 'center', transition: 'background 0.1s' }}
                 onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
                 onMouseLeave={e => (e.currentTarget.style.background = '')}>
                 {/* Titulo + propiedad + proveedor */}
@@ -404,7 +410,6 @@ export default function OrdenesTrabajo({ wizardOnly, onClose }: { wizardOnly?: b
                 </div>
                 {/* Actions */}
                 <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
-                  {/* Next step action (not for 'completado' which uses upload, and not for liquidado/cancelado) */}
                   {nextAction && ot.estado !== 'completado' && ot.estado !== 'liquidado' && ot.estado !== 'cancelado' && (
                     <div className="row-action-wrap">
                       <button onClick={e => { e.stopPropagation(); avanzarEstado(ot); }}
@@ -417,7 +422,6 @@ export default function OrdenesTrabajo({ wizardOnly, onClose }: { wizardOnly?: b
                       <span className="row-action-tooltip">{nextAction}</span>
                     </div>
                   )}
-                  {/* View OP link (when facturado) */}
                   {ot.estado === 'facturado' && (
                     <div className="row-action-wrap">
                       <button onClick={e => { e.stopPropagation(); navigate('/tesoreria/ordenes-pago'); }}
@@ -430,7 +434,6 @@ export default function OrdenesTrabajo({ wizardOnly, onClose }: { wizardOnly?: b
                       <span className="row-action-tooltip">Ver orden de pago</span>
                     </div>
                   )}
-                  {/* Upload invoice */}
                   {ot.estado === 'completado' && (
                     <div className="row-action-wrap">
                       <button onClick={e => { e.stopPropagation(); handleSubirFactura(ot); }} disabled={isUploading}
@@ -443,7 +446,6 @@ export default function OrdenesTrabajo({ wizardOnly, onClose }: { wizardOnly?: b
                       <span className="row-action-tooltip">{isUploading ? 'Procesando...' : 'Subir factura'}</span>
                     </div>
                   )}
-                  {/* Call */}
                   {tel && (
                     <div className="row-action-wrap">
                       <a href={`tel:${tel}`} onClick={e => e.stopPropagation()}
@@ -453,7 +455,6 @@ export default function OrdenesTrabajo({ wizardOnly, onClose }: { wizardOnly?: b
                       <span className="row-action-tooltip">Llamar</span>
                     </div>
                   )}
-                  {/* View */}
                   <div className="row-action-wrap">
                     <button onClick={e => { e.stopPropagation(); openEdit(ot); }}
                       className="row-action-btn" style={{ ...iconBtn, color: 'var(--color-text-muted)' }}
@@ -463,7 +464,6 @@ export default function OrdenesTrabajo({ wizardOnly, onClose }: { wizardOnly?: b
                     </button>
                     <span className="row-action-tooltip">Ver detalles</span>
                   </div>
-                  {/* Delete */}
                   <div className="row-action-wrap">
                     <button onClick={e => { e.stopPropagation(); remove(ot); }}
                       className="row-action-btn"

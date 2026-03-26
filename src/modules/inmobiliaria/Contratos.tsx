@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Search, Plus, X, FileText, Grid3X3, List, Upload, Paperclip, TrendingUp, Trash2, Check, ChevronRight, ChevronLeft, Receipt, Wrench, Wallet, Eye } from 'lucide-react';
+import { Search, Plus, X, FileText, Grid3X3, List, Upload, Paperclip, TrendingUp, Trash2, Check, ChevronRight, ChevronLeft, Receipt, Wrench, Wallet, Eye, MoreVertical } from 'lucide-react';
 import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
@@ -57,6 +57,7 @@ export default function Contratos({ wizardOnly, onClose }: { wizardOnly?: boolea
   const [filterEstado, setFilterEstado] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Contrato | null>(null);
+  const [mobileMenuId, setMobileMenuId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyContrato);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [showNewCliente, setShowNewCliente] = useState<'inquilino' | 'propietario' | null>(null);
@@ -421,10 +422,31 @@ export default function Contratos({ wizardOnly, onClose }: { wizardOnly?: boolea
                     {new Date(c.fecha_fin + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: '2-digit' })}
                   </span>
                 </div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 2 }}>
                   <button onClick={e => { e.stopPropagation(); navigate('/inmobiliaria/facturar'); }} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #3B82F6', background: 'transparent', color: '#3B82F6', fontSize: '0.6875rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Facturar</button>
-                  <button onClick={e => { e.stopPropagation(); navigate('/inmobiliaria/liquidaciones'); }} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #10B981', background: 'transparent', color: '#10B981', fontSize: '0.6875rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Liquidar</button>
-                  <button onClick={e => { e.stopPropagation(); navigate(`/inmobiliaria/ordenes?propiedad=${c.propiedad_id}`); }} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #8B5CF6', background: 'transparent', color: '#8B5CF6', fontSize: '0.6875rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Problema</button>
+                  <div style={{ position: 'relative', marginLeft: 'auto' }}>
+                    <button onClick={e => { e.stopPropagation(); setMobileMenuId(mobileMenuId === c.id ? null : c.id); }}
+                      style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-surface)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <MoreVertical size={14} color="var(--color-text-muted)" />
+                    </button>
+                    {mobileMenuId === c.id && (
+                      <>
+                        <div style={{ position: 'fixed', inset: 0, zIndex: 998 }} onClick={e => { e.stopPropagation(); setMobileMenuId(null); }} />
+                        <div style={{ position: 'absolute', right: 0, bottom: '100%', marginBottom: 4, zIndex: 999, background: 'var(--color-bg-surface)', border: '1px solid var(--color-border-subtle)', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', overflow: 'hidden', minWidth: 140 }}>
+                          {[
+                            { label: 'Liquidar', color: '#10B981', onClick: () => navigate('/inmobiliaria/liquidaciones') },
+                            { label: 'Problema', color: '#8B5CF6', onClick: () => navigate(`/inmobiliaria/ordenes?propiedad=${c.propiedad_id}`) },
+                            { label: 'Ver detalles', color: 'var(--color-text-primary)', onClick: () => openEdit(c) },
+                          ].map(a => (
+                            <button key={a.label} onClick={e => { e.stopPropagation(); setMobileMenuId(null); a.onClick(); }}
+                              style={{ display: 'block', width: '100%', padding: '8px 14px', fontSize: '0.75rem', fontWeight: 600, color: a.color, background: 'none', border: 'none', borderBottom: '1px solid var(--color-border-subtle)', cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font-sans)' }}>
+                              {a.label}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             );

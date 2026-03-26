@@ -44,6 +44,8 @@ import InmoAgenda from './modules/inmobiliaria/Agenda';
 import InmoProveedores from './modules/inmobiliaria/Proveedores';
 import InmoOrdenesTrabajo from './modules/inmobiliaria/OrdenesTrabajoMobile';
 import FacturarMobile from './modules/inmobiliaria/FacturarMobile';
+import InmoExpensas from './modules/inmobiliaria/Expensas';
+import InmoServicios from './modules/inmobiliaria/Servicios';
 import ProyeccionesInmob from './modules/inmobiliaria/Proyecciones';
 import { useAuth } from './contexts/AuthContext';
 import { useTenant } from './contexts/TenantContext';
@@ -139,6 +141,8 @@ export default function App() {
               <Route path="mapa" element={<InmoMapa />} />
               <Route path="ordenes" element={<InmoOrdenesTrabajo />} />
               <Route path="facturar" element={<FacturarMobile />} />
+              <Route path="expensas" element={<InmoExpensas />} />
+              <Route path="servicios" element={<InmoServicios />} />
             </Route>
 
             {/* Global Configuracion */}

@@ -24,8 +24,8 @@ export default function TopBar() {
         return () => clearInterval(interval);
     }, []);
 
-    const { signOut } = useAuth() as any;
-    const displayName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuario';
+    const { signOut, displayName: authDisplayName } = useAuth() as any;
+    const displayName = authDisplayName || user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuario';
     const initials = user?.email ? user.email.substring(0, 2).toUpperCase() : 'NC';
     const role = user?.user_metadata?.role || 'user';
     const location = useLocation();
@@ -35,7 +35,7 @@ export default function TopBar() {
     /* ── MOBILE ── */
     if (isMobile) {
         if (isHome) {
-            const dn = (user as any)?.user_metadata?.display_name || (user as any)?.email?.split('@')[0] || '';
+            const dn = authDisplayName || (user as any)?.user_metadata?.display_name || (user as any)?.email?.split('@')[0] || '';
             const firstName = dn.charAt(0).toUpperCase() + dn.slice(1);
             return (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 16px 2px' }}>

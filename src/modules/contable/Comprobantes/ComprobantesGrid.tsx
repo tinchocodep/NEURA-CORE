@@ -14,10 +14,10 @@ const fmt = (n: number) =>
 const ESTADO_BADGE: Record<string, { bg: string; color: string; label: string }> = {
     pendiente: { bg: 'var(--color-warning-dim)', color: 'var(--color-warning)', label: 'Pendiente' },
     clasificado: { bg: 'var(--color-info-dim)', color: 'var(--color-info)', label: 'Clasificado' },
-    aprobado: { bg: 'var(--color-success-dim)', color: 'var(--color-success)', label: 'Aprobado' },
-    inyectado: { bg: 'var(--color-success-dim)', color: 'var(--color-success)', label: 'Inyectado' },
+    aprobado: { bg: 'var(--color-info-dim)', color: 'var(--color-info)', label: 'Aprobado' },
     error: { bg: 'var(--color-danger-dim)', color: 'var(--color-danger)', label: 'Error' },
     rechazado: { bg: 'var(--color-danger-dim)', color: 'var(--color-danger)', label: 'Rechazado' },
+    vencido: { bg: 'var(--color-danger-dim)', color: 'var(--color-danger)', label: 'Vencido' },
     pagado: { bg: 'var(--color-success-dim)', color: 'var(--color-success)', label: 'Pagado' },
 };
 
