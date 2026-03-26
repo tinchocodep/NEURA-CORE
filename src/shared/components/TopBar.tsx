@@ -4,6 +4,7 @@ import { Search, Bell } from 'lucide-react';
 import { DolarService } from '../../services/DolarService';
 import type { DolarResumen } from '../../services/DolarService';
 import { useAuth } from '../../contexts/AuthContext';
+import GlobalSearch from './GlobalSearch';
 
 function useIsMobile() {
     const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
@@ -31,6 +32,8 @@ export default function TopBar() {
     const location = useLocation();
     const isHome = location.pathname === '/';
     const [showProfileMenu, setShowProfileMenu] = useState(false);
+    const [showSearch, setShowSearch] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
 
     /* ── MOBILE ── */
     if (isMobile) {
@@ -69,11 +72,19 @@ export default function TopBar() {
                 )}
             </div>
 
-            {/* Center: Search bar */}
-            <div onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
-                style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: '8px 20px', borderRadius: 99, border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-surface)', cursor: 'pointer', margin: '0 24px' }}>
-                <Search size={15} style={{ color: 'var(--color-text-muted)', flexShrink: 0 }} />
-                <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-faint)' }}>Buscar...</span>
+            {/* Center: Search bar (inline) */}
+            <div style={{ flex: 1, position: 'relative', margin: '0 24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 20px', borderRadius: showSearch ? '16px 16px 0 0' : 99, border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-surface)' }}>
+                    <Search size={15} style={{ color: 'var(--color-text-muted)', flexShrink: 0 }} />
+                    <input
+                        value={searchQuery}
+                        onChange={e => { setSearchQuery(e.target.value); if (!showSearch) setShowSearch(true); }}
+                        onFocus={() => setShowSearch(true)}
+                        placeholder="Buscar..."
+                        style={{ flex: 1, border: 'none', background: 'none', outline: 'none', fontSize: '0.8125rem', fontFamily: 'var(--font-sans)', color: 'var(--color-text-primary)' }}
+                    />
+                </div>
+                {showSearch && <GlobalSearch query={searchQuery} onClose={() => { setShowSearch(false); setSearchQuery(''); }} />}
             </div>
 
             {/* Right: Notification + Avatar dropdown */}
