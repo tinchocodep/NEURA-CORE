@@ -107,9 +107,6 @@ export default function Expensas() {
   });
 
   const fmtMoney = (n: number) => `$${n.toLocaleString('es-AR')}`;
-  const totalPendiente = items.filter(e => e.estado === 'pendiente').reduce((s, e) => s + e.monto + e.monto_extraordinaria, 0);
-  const totalPagadas = items.filter(e => e.estado === 'pagada').reduce((s, e) => s + e.monto + e.monto_extraordinaria, 0);
-  const totalVencidas = items.filter(e => e.estado === 'vencida').reduce((s, e) => s + e.monto + e.monto_extraordinaria, 0);
 
   if (loading) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Cargando expensas...</div>;
 
@@ -140,29 +137,16 @@ export default function Expensas() {
 
       {/* Mobile header */}
       <div className="module-header-mobile">
-        <div style={{ position: 'relative', flex: 1 }}>
-          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
-          <input type="text" placeholder="Buscar propiedad..." value={search} onChange={e => setSearch(e.target.value)}
-            className="form-input" style={{ paddingLeft: 30, height: 38, fontSize: '0.8125rem', borderRadius: 10 }} />
-        </div>
-        <button onClick={openNew} style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--color-cta, #2563EB)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <Plus size={18} />
-        </button>
-      </div>
-
-      {/* KPIs */}
-      <div style={{ display: 'flex', gap: isMobile ? 6 : 10 }}>
-        {[
-          { label: 'Pendientes', value: fmtMoney(totalPendiente), color: '#F59E0B', filter: 'pendiente' },
-          { label: 'Pagadas', value: fmtMoney(totalPagadas), color: '#10B981', filter: 'pagada' },
-          { label: 'Vencidas', value: fmtMoney(totalVencidas), color: '#EF4444', filter: 'vencida' },
-        ].map(kpi => (
-          <div key={kpi.label} onClick={() => setFilterEstado(filterEstado === kpi.filter ? '' : kpi.filter)}
-            style={{ flex: 1, padding: isMobile ? '8px 6px' : '12px 10px', borderRadius: isMobile ? 8 : 10, background: 'var(--color-bg-card)', border: `1px solid ${filterEstado === kpi.filter ? kpi.color + '40' : 'var(--color-border-subtle)'}`, textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.15s' }}>
-            <div style={{ fontSize: isMobile ? '1rem' : '1.125rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: kpi.color }}>{kpi.value}</div>
-            <div style={{ fontSize: '0.625rem', color: 'var(--color-text-muted)', fontWeight: 500, marginTop: 2 }}>{kpi.label}</div>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <div style={{ position: 'relative', flex: 1 }}>
+            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
+            <input type="text" placeholder="Buscar propiedad..." value={search} onChange={e => setSearch(e.target.value)}
+              className="form-input" style={{ paddingLeft: 30, height: 38, fontSize: '0.8125rem', borderRadius: 10 }} />
           </div>
-        ))}
+          <button onClick={openNew} style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--color-cta, #2563EB)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Plus size={18} />
+          </button>
+        </div>
       </div>
 
       {/* Desktop table */}

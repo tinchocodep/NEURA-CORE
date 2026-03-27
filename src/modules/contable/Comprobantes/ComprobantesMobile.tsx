@@ -52,17 +52,7 @@ export default function ComprobantesMobile() {
     setLoading(false);
   };
 
-  // KPIs
-  const pendientes = items.filter(c => c.estado === 'pendiente').length;
-  const aprobados = items.filter(c => c.estado === 'aprobado').length;
   const getMonto = (c: ComprobanteMin) => Math.abs(c.monto_ars) || Math.abs(c.monto_original) || 0;
-  const totalMes = items.filter(c => c.tipo === 'compra').reduce((s, c) => s + getMonto(c), 0);
-
-  const fmtMoney = (n: number) => {
-    if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-    if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
-    return `$${n.toLocaleString('es-AR')}`;
-  };
 
   const filtered = items.filter(c => {
     if (filterEstado && c.estado !== filterEstado) return false;
@@ -133,25 +123,6 @@ export default function ComprobantesMobile() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-      {/* KPIs */}
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button onClick={() => { setFilterEstado('pendiente'); setShowFilters(true); }}
-          style={{ flex: 1, padding: '10px 8px', borderRadius: 10, border: '1px solid var(--color-border-subtle)', background: pendientes > 0 ? '#F59E0B10' : 'var(--color-bg-card)', cursor: 'pointer', textAlign: 'center' }}>
-          <div style={{ fontSize: '1.1rem', fontWeight: 800, color: pendientes > 0 ? '#F59E0B' : 'var(--color-text-primary)' }}>{pendientes}</div>
-          <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', fontWeight: 500, marginTop: 2 }}>Pendientes</div>
-        </button>
-        <button onClick={() => { setFilterEstado('aprobado'); setShowFilters(true); }}
-          style={{ flex: 1, padding: '10px 8px', borderRadius: 10, border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-card)', cursor: 'pointer', textAlign: 'center' }}>
-          <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#10B981' }}>{aprobados}</div>
-          <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', fontWeight: 500, marginTop: 2 }}>Aprobados</div>
-        </button>
-        <button onClick={() => { setFilterEstado(''); setFilterTipo('compra'); setShowFilters(true); }}
-          style={{ flex: 1, padding: '10px 8px', borderRadius: 10, border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-card)', cursor: 'pointer', textAlign: 'center' }}>
-          <div style={{ fontSize: '1.1rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>{fmtMoney(totalMes)}</div>
-          <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', fontWeight: 500, marginTop: 2 }}>Compras</div>
-        </button>
-      </div>
-
       {/* Toolbar */}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <div style={{ flex: 1, position: 'relative' }}>

@@ -61,7 +61,6 @@ export default function CuentasCorrientes() {
     if (data) setMovimientos(data);
   };
 
-  const cliName = (id: string) => clientes.find(c => c.id === id)?.razon_social || '—';
   const fmtMoney = (n: number) => `$${Math.abs(n).toLocaleString('es-AR')}`;
 
   // Only show clients that have movements (saldo entry)
@@ -70,7 +69,6 @@ export default function CuentasCorrientes() {
     !search || c.razon_social.toLowerCase().includes(search.toLowerCase())
   );
   const filteredMovimientos = movimientos.filter(m => !filterTipo || m.tipo === filterTipo);
-  const saldo = saldos[selCliente] || 0;
 
   // KPIs
   const totalAFavor = Object.values(saldos).filter(s => s > 0).reduce((a, b) => a + b, 0);
@@ -99,147 +97,146 @@ export default function CuentasCorrientes() {
         </div>
       )}
 
-      {/* KPI cards */}
-      <div style={{ display: 'flex', gap: 10 }}>
-        <div style={{ flex: 1, padding: '12px 10px', borderRadius: 10, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', textAlign: 'center' }}>
-          <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#10B981', fontFamily: 'var(--font-mono)' }}>{fmtMoney(totalAFavor)}</div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>A favor</div>
-        </div>
-        <div style={{ flex: 1, padding: '12px 10px', borderRadius: 10, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', textAlign: 'center' }}>
-          <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#EF4444', fontFamily: 'var(--font-mono)' }}>{fmtMoney(totalDeuda)}</div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Deuda</div>
-        </div>
-        <div style={{ flex: 1, padding: '12px 10px', borderRadius: 10, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', textAlign: 'center' }}>
-          <div style={{ fontSize: '1.25rem', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{clientesConCuenta.length}</div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Cuentas</div>
-        </div>
-      </div>
+      {/* KPI - Saldo neto */}
+      {(() => {
+        const saldoNeto = totalAFavor - totalDeuda;
+        const color = saldoNeto >= 0 ? '#10B981' : '#EF4444';
+        return (
+          <div style={{ padding: '14px 20px', borderRadius: 10, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-muted)' }}>Saldo neto</span>
+            <span style={{ fontSize: '1.5rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color }}>
+              {saldoNeto >= 0 ? '+' : '-'}{fmtMoney(saldoNeto)}
+            </span>
+          </div>
+        );
+      })()}
 
-      {/* ─── ACCOUNT BADGES ─── */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      {/* ─── ACCOUNTS LIST ─── */}
+      <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+        {/* Table header */}
+        {!isMobile && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 120px', padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <span>Cuenta</span><span style={{ textAlign: 'right' }}>Saldo</span><span style={{ textAlign: 'right' }}>Estado</span>
+          </div>
+        )}
+
         {filteredClientes.map(c => {
           const s = saldos[c.id] || 0;
           const isActive = selCliente === c.id;
+          const estadoLabel = s > 0 ? 'A favor' : s < 0 ? 'Deudor' : 'Sin saldo';
+          const estadoColor = s > 0 ? '#10B981' : s < 0 ? '#EF4444' : 'var(--color-text-muted)';
           return (
-            <button key={c.id} onClick={() => setSelCliente(selCliente === c.id ? '' : c.id)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '8px 14px', borderRadius: 12,
-                border: `1.5px solid ${isActive ? (s >= 0 ? '#10B981' : '#EF4444') : 'var(--color-border-subtle)'}`,
-                background: isActive ? (s >= 0 ? '#10B98108' : '#EF444408') : 'var(--color-bg-card)',
-                cursor: 'pointer', transition: 'all 0.12s', fontFamily: 'var(--font-sans)',
-              }}
-              onMouseEnter={e => { if (!isActive) e.currentTarget.style.borderColor = 'var(--color-text-muted)'; }}
-              onMouseLeave={e => { if (!isActive) e.currentTarget.style.borderColor = 'var(--color-border-subtle)'; }}>
-              <span style={{ fontSize: '0.8125rem', fontWeight: isActive ? 700 : 500, color: 'var(--color-text-primary)' }}>{c.razon_social}</span>
-              <span style={{
-                fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 700,
-                color: s >= 0 ? '#10B981' : '#EF4444',
-                padding: '2px 8px', borderRadius: 99,
-                background: s >= 0 ? '#10B98115' : '#EF444415',
-              }}>
-                {s >= 0 ? '+' : '-'}{fmtMoney(s)}
-              </span>
-            </button>
+            <div key={c.id}>
+              {/* Account row */}
+              <div
+                onClick={() => setSelCliente(isActive ? '' : c.id)}
+                style={{
+                  display: isMobile ? 'flex' : 'grid',
+                  gridTemplateColumns: isMobile ? undefined : '1fr 120px 120px',
+                  justifyContent: isMobile ? 'space-between' : undefined,
+                  alignItems: 'center', padding: isMobile ? '12px 14px' : '10px 16px',
+                  borderBottom: '1px solid var(--color-border-subtle)',
+                  cursor: 'pointer', transition: 'background 0.1s',
+                  background: isActive ? 'var(--color-bg-surface-2)' : undefined,
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = isActive ? 'var(--color-bg-surface-2)' : 'var(--color-bg-hover)')}
+                onMouseLeave={e => (e.currentTarget.style.background = isActive ? 'var(--color-bg-surface-2)' : '')}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                  <span style={{ fontSize: isActive ? '0.875rem' : '0.8125rem', fontWeight: isActive ? 700 : 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.razon_social}</span>
+                </div>
+                <div style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', fontWeight: 700, color: estadoColor }}>
+                  {s >= 0 ? '+' : '-'}{fmtMoney(s)}
+                </div>
+                {!isMobile && (
+                  <div style={{ textAlign: 'right' }}>
+                    <span style={{ fontSize: '0.6875rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: s > 0 ? '#10B98115' : s < 0 ? '#EF444415' : 'var(--color-bg-surface-2)', color: estadoColor }}>
+                      {estadoLabel}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Expanded movements */}
+              {isActive && (
+                <div style={{ background: 'var(--color-bg-surface-2)', borderBottom: '1px solid var(--color-border-subtle)' }}>
+                  {/* Filter */}
+                  <div style={{ display: 'flex', gap: 4, padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)' }}>
+                    {[{ key: '', label: 'Todos' }, { key: 'cargo', label: 'Cargos' }, { key: 'pago', label: 'Pagos' }].map(f => (
+                      <button key={f.key} onClick={(e) => { e.stopPropagation(); setFilterTipo(filterTipo === f.key ? '' : f.key); }}
+                        style={{ padding: '4px 10px', borderRadius: 99, border: `1px solid ${filterTipo === f.key ? 'var(--color-text-primary)' : 'var(--color-border-subtle)'}`, background: filterTipo === f.key ? 'var(--color-text-primary)' : 'transparent', color: filterTipo === f.key ? '#fff' : 'var(--color-text-muted)', fontSize: '0.6875rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Movement rows */}
+                  {!isMobile && (
+                    <>
+                      <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr 100px 100px', padding: '6px 24px', fontSize: '0.5625rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid var(--color-border-subtle)' }}>
+                        <span>Fecha</span><span>Concepto</span><span style={{ textAlign: 'right' }}>Monto</span><span style={{ textAlign: 'right' }}>Saldo</span>
+                      </div>
+                      {filteredMovimientos.map(m => (
+                        <div key={m.id}
+                          style={{ display: 'grid', gridTemplateColumns: '90px 1fr 100px 100px', padding: '8px 24px', borderBottom: '1px solid var(--color-border-subtle)', alignItems: 'center', transition: 'background 0.1s' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                            {new Date(m.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: '0.8125rem', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.concepto}</div>
+                            {m.tipo && <span style={{ fontSize: '0.5625rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: 'var(--color-bg-card)', color: 'var(--color-text-muted)', textTransform: 'capitalize' }}>{m.tipo}</span>}
+                          </div>
+                          <div style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3 }}>
+                            {m.monto >= 0 ? <ArrowUpRight size={12} color="#10B981" /> : <ArrowDownRight size={12} color="#EF4444" />}
+                            <span style={{ color: m.monto >= 0 ? '#10B981' : '#EF4444' }}>{fmtMoney(m.monto)}</span>
+                          </div>
+                          <div style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 600 }}>
+                            {fmtMoney(m.saldo_acumulado)}
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+
+                  {/* Mobile movement rows */}
+                  {isMobile && filteredMovimientos.map(m => (
+                    <div key={m.id} style={{ padding: '10px 14px', borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.8125rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.concepto}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                          <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>
+                            {new Date(m.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}
+                          </span>
+                          {m.tipo && <span style={{ fontSize: '0.5625rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: 'var(--color-bg-card)', color: 'var(--color-text-muted)', textTransform: 'capitalize' }}>{m.tipo}</span>}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 8 }}>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3 }}>
+                          {m.monto >= 0 ? <ArrowUpRight size={12} color="#10B981" /> : <ArrowDownRight size={12} color="#EF4444" />}
+                          <span style={{ color: m.monto >= 0 ? '#10B981' : '#EF4444' }}>{fmtMoney(m.monto)}</span>
+                        </div>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-text-muted)', marginTop: 2 }}>
+                          Saldo: {fmtMoney(m.saldo_acumulado)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {filteredMovimientos.length === 0 && (
+                    <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.8125rem' }}>Sin movimientos</div>
+                  )}
+                </div>
+              )}
+            </div>
           );
         })}
+
         {filteredClientes.length === 0 && (
-          <div style={{ padding: '1rem', color: 'var(--color-text-muted)', fontSize: '0.8125rem' }}>Sin cuentas con movimientos</div>
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.8125rem' }}>Sin cuentas con movimientos</div>
         )}
       </div>
-
-      {/* ─── MOVEMENTS TABLE (when account selected) ─── */}
-      {selCliente && (
-        <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-          {/* Account header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-surface-2)' }}>
-            <div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 700 }}>{cliName(selCliente)}</div>
-              <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>Cuenta corriente</div>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>Saldo</div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.1rem', fontWeight: 800, color: saldo >= 0 ? '#10B981' : '#EF4444' }}>
-                {saldo >= 0 ? '+' : '-'}{fmtMoney(saldo)}
-              </div>
-            </div>
-          </div>
-
-          {/* Filter */}
-          <div style={{ display: 'flex', gap: 4, padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)' }}>
-            {[{ key: '', label: 'Todos' }, { key: 'cargo', label: 'Cargos' }, { key: 'pago', label: 'Pagos' }].map(f => (
-              <button key={f.key} onClick={() => setFilterTipo(filterTipo === f.key ? '' : f.key)}
-                style={{ padding: '4px 10px', borderRadius: 99, border: `1px solid ${filterTipo === f.key ? 'var(--color-text-primary)' : 'var(--color-border-subtle)'}`, background: filterTipo === f.key ? 'var(--color-text-primary)' : 'transparent', color: filterTipo === f.key ? '#fff' : 'var(--color-text-muted)', fontSize: '0.6875rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
-                {f.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Grid rows (desktop) */}
-          {!isMobile && (
-            <>
-              <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr 100px 100px', padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                <span>Fecha</span><span>Concepto</span><span style={{ textAlign: 'right' }}>Monto</span><span style={{ textAlign: 'right' }}>Saldo</span>
-              </div>
-              {filteredMovimientos.map(m => (
-                <div key={m.id}
-                  style={{ display: 'grid', gridTemplateColumns: '90px 1fr 100px 100px', padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', alignItems: 'center', transition: 'background 0.1s' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = '')}>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                    {new Date(m.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}
-                  </div>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: '0.8125rem', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.concepto}</div>
-                    {m.tipo && <span style={{ fontSize: '0.5625rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: 'var(--color-bg-surface-2)', color: 'var(--color-text-muted)', textTransform: 'capitalize' }}>{m.tipo}</span>}
-                  </div>
-                  <div style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3 }}>
-                    {m.monto >= 0 ? <ArrowUpRight size={12} color="#10B981" /> : <ArrowDownRight size={12} color="#EF4444" />}
-                    <span style={{ color: m.monto >= 0 ? '#10B981' : '#EF4444' }}>{fmtMoney(m.monto)}</span>
-                  </div>
-                  <div style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 600 }}>
-                    {fmtMoney(m.saldo_acumulado)}
-                  </div>
-                </div>
-              ))}
-            </>
-          )}
-
-          {/* Mobile movement cards */}
-          {isMobile && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-              {filteredMovimientos.map(m => (
-                <div key={m.id} style={{ padding: '12px 14px', borderBottom: '1px solid var(--color-border-subtle)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ fontWeight: 600, fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.concepto}</div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                        <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>
-                          {new Date(m.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}
-                        </span>
-                        {m.tipo && <span style={{ fontSize: '0.5625rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: 'var(--color-bg-surface-2)', color: 'var(--color-text-muted)', textTransform: 'capitalize' }}>{m.tipo}</span>}
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 8 }}>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.875rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3 }}>
-                        {m.monto >= 0 ? <ArrowUpRight size={12} color="#10B981" /> : <ArrowDownRight size={12} color="#EF4444" />}
-                        <span style={{ color: m.monto >= 0 ? '#10B981' : '#EF4444' }}>{fmtMoney(m.monto)}</span>
-                      </div>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-text-muted)', marginTop: 2 }}>
-                        Saldo: {fmtMoney(m.saldo_acumulado)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {filteredMovimientos.length === 0 && (
-            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sin movimientos</div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

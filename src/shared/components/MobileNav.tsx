@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Home, Building2, Menu, Plus, X,
+  Home, Building2, Menu, Plus,
   FileSignature, CalendarPlus, UserPlus,
   Settings, LogOut,
   Users, BarChart3, Receipt, Wallet, HelpCircle, Shield,
@@ -76,10 +76,8 @@ export default function MobileNav() {
           <span>Operac.</span>
         </Link>
 
-        {/* 3. + (FAB) */}
-        <button className="mobile-nav-item-center" onClick={() => { setShowCreate(a => !a); setShowMenu(false); }}>
-          {showCreate ? <X size={22} /> : <Plus size={22} />}
-        </button>
+        {/* 3. Spacer for FAB */}
+        <div style={{ width: 60 }} />
 
         {/* 4. Gestión */}
         <Link to="/inmobiliaria/cuentas" className={`mobile-nav-item${isActive('/inmobiliaria/cuentas') || isActive('/inmobiliaria/proveedores') || isActive('/inmobiliaria/mapa') || isActive('/crm/contactos') ? ' active' : ''}`} onClick={closeAll}>
@@ -94,9 +92,15 @@ export default function MobileNav() {
         </button>
       </nav>
 
+      {/* FAB button - outside nav to avoid mask clipping */}
+      <button className="mobile-nav-item-center" onClick={() => { setShowCreate(a => !a); setShowMenu(false); }}
+        style={{ transform: showCreate ? 'translateX(-50%) rotate(45deg)' : 'translateX(-50%) rotate(0deg)' }}>
+        <Plus size={24} />
+      </button>
+
       {/* ── Create Menu (bottom sheet) ── */}
       {showCreate && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 'calc(var(--z-panel) + 1)', display: 'flex', flexDirection: 'column' }} onClick={() => setShowCreate(false)}>
+        <div className="mobile-create-overlay" style={{ position: 'fixed', inset: 0, zIndex: 'calc(var(--z-panel) + 1)', display: 'flex', flexDirection: 'column' }} onClick={() => setShowCreate(false)}>
           <div style={{ flex: 1, background: 'rgba(0,0,0,0.3)' }} />
           <div className="mobile-create-sheet" onClick={e => e.stopPropagation()}>
             <div style={{ width: 36, height: 4, borderRadius: 99, background: 'var(--color-border)', margin: '0 auto 16px' }} />

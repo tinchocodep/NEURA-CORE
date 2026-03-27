@@ -184,6 +184,7 @@ export default function VisionGeneral() {
         if (!tenant) return;
         setLoading(true);
         const tid = tenant.id;
+        const hasInmobModule = (tenant.enabled_modules || []).some((m: string) => m === 'inmobiliaria' || m.startsWith('inmobiliaria.'));
         const { start, end } = getDatesForPeriod(period, customStart, customEnd);
 
         const [pendientes, errores, proveedoresCount, clientesCount, cuentas, movMes, recentComp] = await Promise.all([
@@ -256,61 +257,66 @@ export default function VisionGeneral() {
             direction: c.tipo === 'venta' ? 'in' as const : 'out' as const,
         }));
 
-        // Recent liquidaciones
-        const { data: recentLiq } = await supabase.from('inmobiliaria_liquidaciones')
-            .select('id, periodo, estado, ingreso_alquiler, neto_propietario, categoria, contrato_id')
-            .eq('tenant_id', tid).order('created_at', { ascending: false }).limit(4);
-        const actLiq: RecentActivity[] = (recentLiq || []).map((l: any) => ({
-            id: l.id, type: 'movimiento' as const,
-            title: `Liquidación ${l.periodo}`,
-            subtitle: l.estado === 'pagada' ? 'Pagada' : l.estado === 'aprobada' ? 'Aprobada' : 'Borrador',
-            amount: l.neto_propietario || l.ingreso_alquiler || 0, date: l.periodo + '-01',
-            direction: 'out' as const,
-        }));
+        let actLiq: RecentActivity[] = [];
+        let actOT: RecentActivity[] = [];
 
-        // Recent ordenes de trabajo
-        const { data: recentOT } = await supabase.from('inmobiliaria_ordenes_trabajo')
-            .select('id, titulo, estado, monto_final, created_at')
-            .eq('tenant_id', tid).order('created_at', { ascending: false }).limit(4);
-        const actOT: RecentActivity[] = (recentOT || []).map((o: any) => ({
-            id: o.id, type: 'movimiento' as const,
-            title: o.titulo,
-            subtitle: o.estado,
-            amount: Number(o.monto_final || 0), date: o.created_at?.split('T')[0] || '',
-            direction: 'neutral' as const,
-        }));
+        if (hasInmobModule) {
+            const { data: recentLiq } = await supabase.from('inmobiliaria_liquidaciones')
+                .select('id, periodo, estado, ingreso_alquiler, neto_propietario, categoria, contrato_id')
+                .eq('tenant_id', tid).order('created_at', { ascending: false }).limit(4);
+            actLiq = (recentLiq || []).map((l: any) => ({
+                id: l.id, type: 'movimiento' as const,
+                title: `Liquidación ${l.periodo}`,
+                subtitle: l.estado === 'pagada' ? 'Pagada' : l.estado === 'aprobada' ? 'Aprobada' : 'Borrador',
+                amount: l.neto_propietario || l.ingreso_alquiler || 0, date: l.periodo + '-01',
+                direction: 'out' as const,
+            }));
+
+            const { data: recentOT } = await supabase.from('inmobiliaria_ordenes_trabajo')
+                .select('id, titulo, estado, monto_final, created_at')
+                .eq('tenant_id', tid).order('created_at', { ascending: false }).limit(4);
+            actOT = (recentOT || []).map((o: any) => ({
+                id: o.id, type: 'movimiento' as const,
+                title: o.titulo,
+                subtitle: o.estado,
+                amount: Number(o.monto_final || 0), date: o.created_at?.split('T')[0] || '',
+                direction: 'neutral' as const,
+            }));
+        }
 
         // Merge and sort by date desc, take top 8
         const allAct = [...actComp, ...actLiq, ...actOT].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
         setActivity(allAct);
 
-        // Load inmobiliaria metrics for mobile home
-        const [propsRes, contratosRes] = await Promise.all([
-            supabase.from('inmobiliaria_propiedades').select('id, estado').eq('tenant_id', tid),
-            supabase.from('inmobiliaria_contratos').select('id, estado, fecha_fin, monto_mensual, moneda').eq('tenant_id', tid),
-        ]);
-        const props = propsRes.data || [];
-        const contrats = contratosRes.data || [];
-        const vigentes = contrats.filter((c: any) => c.estado === 'vigente');
-        const now = new Date();
-        const daysUntil = (d: string) => Math.ceil((new Date(d).getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
-        setInmobData({
-            propiedades: props.length,
-            ocupacion: props.length > 0 ? Math.round((props.filter((p: any) => p.estado === 'alquilada').length / props.length) * 100) : 0,
-            ingresoMensual: vigentes.reduce((s: number, c: any) => s + (c.moneda === 'ARS' ? Number(c.monto_mensual) : 0), 0),
-            porVencer30: vigentes.filter((c: any) => daysUntil(c.fecha_fin) <= 30 && daysUntil(c.fecha_fin) > 0).length,
-            vencidos: contrats.filter((c: any) => c.estado === 'vencido' || (c.estado === 'vigente' && daysUntil(c.fecha_fin) <= 0)).length,
-            morosidad: 1150000, // mock for now
-            cobradosMes: 5, // mock for now
-        });
+        // Load inmobiliaria metrics only if tenant has inmobiliaria module
+        if (hasInmobModule) {
+            const [propsRes, contratosRes] = await Promise.all([
+                supabase.from('inmobiliaria_propiedades').select('id, estado').eq('tenant_id', tid),
+                supabase.from('inmobiliaria_contratos').select('id, estado, fecha_fin, monto_mensual, moneda').eq('tenant_id', tid),
+            ]);
+            const props = propsRes.data || [];
+            const contrats = contratosRes.data || [];
+            const vigentes = contrats.filter((c: any) => c.estado === 'vigente');
+            const now = new Date();
+            const daysUntil = (d: string) => Math.ceil((new Date(d).getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+            setInmobData({
+                propiedades: props.length,
+                ocupacion: props.length > 0 ? Math.round((props.filter((p: any) => p.estado === 'alquilada').length / props.length) * 100) : 0,
+                ingresoMensual: vigentes.reduce((s: number, c: any) => s + (c.moneda === 'ARS' ? Number(c.monto_mensual) : 0), 0),
+                porVencer30: vigentes.filter((c: any) => daysUntil(c.fecha_fin) <= 30 && daysUntil(c.fecha_fin) > 0).length,
+                vencidos: contrats.filter((c: any) => c.estado === 'vencido' || (c.estado === 'vigente' && daysUntil(c.fecha_fin) <= 0)).length,
+                morosidad: 1150000,
+                cobradosMes: 5,
+            });
 
-        const weekEnd = new Date(); weekEnd.setDate(weekEnd.getDate() + 7);
-        const { data: vencData } = await supabase.from('inmobiliaria_vencimientos')
-            .select('id, fecha, descripcion, tipo, completado')
-            .eq('tenant_id', tid).eq('completado', false)
-            .lte('fecha', weekEnd.toISOString().slice(0, 10))
-            .order('fecha').limit(10);
-        setVencimientosProximos(vencData || []);
+            const weekEnd = new Date(); weekEnd.setDate(weekEnd.getDate() + 7);
+            const { data: vencData } = await supabase.from('inmobiliaria_vencimientos')
+                .select('id, fecha, descripcion, tipo, completado')
+                .eq('tenant_id', tid).eq('completado', false)
+                .lte('fecha', weekEnd.toISOString().slice(0, 10))
+                .order('fecha').limit(10);
+            setVencimientosProximos(vencData || []);
+        }
 
         setLoading(false);
     }
@@ -368,7 +374,7 @@ export default function VisionGeneral() {
                 <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
                     {metrics.pendientes > 0 && (
                         <div
-                            onClick={() => navigate('/inmobiliaria/facturar')}
+                            onClick={() => navigate((tenant?.enabled_modules || []).includes('inmobiliaria') ? '/inmobiliaria/comprobantes' : '/contable/comprobantes')}
                             style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0.65rem 1rem', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, cursor: 'pointer', flex: 1, minWidth: 200 }}
                         >
                             <Clock size={16} color="#f59e0b" />
@@ -378,7 +384,7 @@ export default function VisionGeneral() {
                     )}
                     {metrics.errores > 0 && (
                         <div
-                            onClick={() => navigate('/inmobiliaria/facturar')}
+                            onClick={() => navigate((tenant?.enabled_modules || []).includes('inmobiliaria') ? '/inmobiliaria/comprobantes' : '/contable/comprobantes')}
                             style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0.65rem 1rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, cursor: 'pointer', flex: 1, minWidth: 200 }}
                         >
                             <AlertTriangle size={16} color="#dc2626" />
@@ -394,58 +400,99 @@ export default function VisionGeneral() {
                 /* ── MOBILE HOME ── */
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', paddingBottom: '0.5rem' }}>
 
-                    {/* ── STATUS LINE ── */}
-                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>
-                        {inmobData.porVencer30 > 0 ? `${inmobData.porVencer30} contrato${inmobData.porVencer30 > 1 ? 's' : ''} por vencer` : vencimientosProximos.length > 0 ? `${vencimientosProximos.length} vencimientos próximos` : 'Todo al día'}
-                    </div>
+                    {/* ── HERO ZONE: KPIs + Acciones ── */}
+                    <div style={{
+                        display: 'flex', flexDirection: 'column', gap: '0.75rem',
+                    }}>
+                        {/* Status line */}
+                        {(() => {
+                            const mods = tenant?.enabled_modules || [];
+                            const has = (m: string) => mods.some((mod: string) => mod === m || mod.startsWith(m + '.'));
+                            const status = has('inmobiliaria') && inmobData.porVencer30 > 0
+                                ? `${inmobData.porVencer30} contrato${inmobData.porVencer30 > 1 ? 's' : ''} por vencer`
+                                : (metrics?.pendientes || 0) > 0
+                                    ? `${metrics!.pendientes} comprobante${metrics!.pendientes > 1 ? 's' : ''} pendiente${metrics!.pendientes > 1 ? 's' : ''}`
+                                    : 'Todo al día';
+                            return <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>{status}</div>;
+                        })()}
 
-                    {/* ── KPIs (5 datos) ── */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-                        <div style={{ padding: '10px 8px', borderRadius: 10, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', textAlign: 'center' }}>
-                            <div style={{ fontSize: '1.125rem', fontWeight: 800, color: '#3B82F6' }}>{inmobData.propiedades}</div>
-                            <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Propiedades</div>
-                        </div>
-                        <div style={{ padding: '10px 8px', borderRadius: 10, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', textAlign: 'center' }}>
-                            <div style={{ fontSize: '1.125rem', fontWeight: 800, color: '#10B981' }}>{inmobData.propiedades - (inmobData.porVencer30 + inmobData.vencidos)}</div>
-                            <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Vigentes</div>
-                        </div>
-                        <div style={{ padding: '10px 8px', borderRadius: 10, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', textAlign: 'center' }}>
-                            <div style={{ fontSize: '1.125rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#8B5CF6' }}>
-                                {inmobData.ingresoMensual >= 1_000_000 ? `$${(inmobData.ingresoMensual / 1_000_000).toFixed(1)}M` : `$${(inmobData.ingresoMensual / 1_000).toFixed(0)}K`}
-                            </div>
-                            <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Alquileres/mes</div>
-                        </div>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                        <div style={{ padding: '10px 8px', borderRadius: 10, background: inmobData.morosidad > 0 ? '#FEF2F208' : 'var(--color-bg-card)', border: `1px solid ${inmobData.morosidad > 0 ? '#FECACA' : 'var(--color-border-subtle)'}`, textAlign: 'center' }}>
-                            <div style={{ fontSize: '1.125rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#F59E0B' }}>
-                                ${inmobData.morosidad >= 1_000_000 ? `${(inmobData.morosidad / 1_000_000).toFixed(1)}M` : `${(inmobData.morosidad / 1_000).toFixed(0)}K`}
-                            </div>
-                            <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Pendiente cobro</div>
-                        </div>
-                        <div style={{ padding: '10px 8px', borderRadius: 10, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', textAlign: 'center' }}>
-                            <div style={{ fontSize: '1.125rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: (inmobData.ingresoMensual - inmobData.morosidad) >= 0 ? '#10B981' : '#EF4444' }}>
-                                ${Math.abs(inmobData.ingresoMensual - inmobData.morosidad) >= 1_000_000 ? `${((inmobData.ingresoMensual - inmobData.morosidad) / 1_000_000).toFixed(1)}M` : `${((inmobData.ingresoMensual - inmobData.morosidad) / 1_000).toFixed(0)}K`}
-                            </div>
-                            <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Resultado bruto</div>
-                        </div>
-                    </div>
+                        {/* KPIs — modular */}
+                        {(() => {
+                            const mods = tenant?.enabled_modules || [];
+                            const has = (m: string) => mods.some((mod: string) => mod === m || mod.startsWith(m + '.'));
+                            const fmtK = (n: number) => n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(1)}M` : `$${(n / 1_000).toFixed(0)}K`;
+                            const allKpis: { label: string; value: any; color: string; requires: string }[] = [
+                                { label: 'Propiedades', value: inmobData.propiedades, color: '#3B82F6', requires: 'inmobiliaria' },
+                                { label: 'Vigentes', value: inmobData.propiedades - (inmobData.porVencer30 + inmobData.vencidos), color: '#10B981', requires: 'inmobiliaria' },
+                                { label: 'Alquileres/mes', value: fmtK(inmobData.ingresoMensual), color: '#8B5CF6', requires: 'inmobiliaria' },
+                                { label: 'Ventas mes', value: metrics?.ventasMes || 0, color: '#3B82F6', requires: 'ventas' },
+                                { label: 'Compras mes', value: metrics?.comprasMes || 0, color: '#8B5CF6', requires: 'compras' },
+                                { label: 'Proveedores', value: metrics?.totalProveedores || 0, color: '#10B981', requires: 'contable' },
+                                { label: 'Clientes', value: metrics?.totalClientes || 0, color: '#F59E0B', requires: 'contable' },
+                            ];
+                            const visible = allKpis.filter(k => has(k.requires)).slice(0, 4);
+                            const topRow = visible.slice(0, 3);
+                            const bottomRow = visible.slice(3);
+                            return (
+                                <>
+                                    {topRow.length > 0 && (
+                                        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${topRow.length}, 1fr)`, gap: 6 }}>
+                                            {topRow.map(kpi => (
+                                                <div key={kpi.label} style={{ padding: '10px 8px', borderRadius: 10, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', textAlign: 'center' }}>
+                                                    <div style={{ fontSize: '1.125rem', fontWeight: 800, color: kpi.color, fontFamily: typeof kpi.value === 'string' ? 'var(--font-mono)' : undefined }}>{kpi.value}</div>
+                                                    <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>{kpi.label}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {bottomRow.length > 0 && (
+                                        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${bottomRow.length}, 1fr)`, gap: 6 }}>
+                                            {bottomRow.map(kpi => (
+                                                <div key={kpi.label} style={{ padding: '10px 8px', borderRadius: 10, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', textAlign: 'center' }}>
+                                                    <div style={{ fontSize: '1.125rem', fontWeight: 800, color: kpi.color, fontFamily: typeof kpi.value === 'string' ? 'var(--font-mono)' : undefined }}>{kpi.value}</div>
+                                                    <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>{kpi.label}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </>
+                            );
+                        })()}
 
-                    {/* ── ACCIONES RÁPIDAS ── */}
-                    <div style={{ display: 'flex', justifyContent: 'space-around', padding: '4px 0' }}>
-                        {[
-                            { icon: Receipt, label: 'Facturar', color: '#3B82F6', wizard: 'facturar' },
-                            { icon: Wallet, label: 'Cobranzas', color: '#10B981', wizard: 'liquidaciones' },
-                            { icon: CalendarClock, label: 'Órdenes', color: '#F59E0B', wizard: 'ordenes' },
-                        ].map(action => (
-                            <button key={action.label} onClick={() => setActiveWizard(action.wizard)}
-                                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', width: 80 }}>
-                                <div style={{ width: 48, height: 48, borderRadius: '50%', background: action.color, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 3px 10px ${action.color}30` }}>
-                                    <action.icon size={20} color="#fff" />
-                                </div>
-                                <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', fontWeight: 600, textAlign: 'center' }}>{action.label}</span>
-                            </button>
-                        ))}
+                        {/* Acciones rápidas — modular */}
+                        <div style={{ display: 'flex', justifyContent: 'space-around', padding: '4px 0' }}>
+                            {(() => {
+                                const mods = tenant?.enabled_modules || [];
+                                const has = (m: string) => mods.some((mod: string) => mod === m || mod.startsWith(m + '.'));
+                                const colors = ['#3B82F6', '#10B981', '#F59E0B'];
+                                if (has('inmobiliaria')) {
+                                    return [
+                                        { icon: Receipt, label: 'Facturar', color: '#3B82F6', wizard: 'facturar' },
+                                        { icon: Wallet, label: 'Cobranzas', color: '#10B981', wizard: 'liquidaciones' },
+                                        { icon: CalendarClock, label: 'Órdenes', color: '#F59E0B', wizard: 'ordenes' },
+                                    ].map(action => (
+                                        <button key={action.label} onClick={() => setActiveWizard(action.wizard)}
+                                            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', width: 80 }}>
+                                            <div style={{ width: 48, height: 48, borderRadius: '50%', background: action.color, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 3px 10px ${action.color}30` }}>
+                                                <action.icon size={20} color="#fff" />
+                                            </div>
+                                            <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', fontWeight: 600, textAlign: 'center' }}>{action.label}</span>
+                                        </button>
+                                    ));
+                                }
+                                // Dynamic from sidebar_config
+                                const sections = (tenant?.sidebar_config?.sections || []).filter((s: any) => s.children?.length);
+                                return sections.slice(0, 3).map((s: any, i: number) => (
+                                    <button key={s.id} onClick={() => navigate(s.children[0].path)}
+                                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', width: 80 }}>
+                                        <div style={{ width: 48, height: 48, borderRadius: '50%', background: colors[i % 3], display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 3px 10px ${colors[i % 3]}30` }}>
+                                            <Receipt size={20} color="#fff" />
+                                        </div>
+                                        <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', fontWeight: 600, textAlign: 'center' }}>{s.label}</span>
+                                    </button>
+                                ));
+                            })()}
+                        </div>
                     </div>
 
                     {/* ── AGENDA / VENCIMIENTOS ── */}
@@ -500,43 +547,75 @@ export default function VisionGeneral() {
             ) : (
                 /* ── DESKTOP: Home dashboard — no scroll ── */
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: 'calc(100vh - 120px)', overflow: 'hidden' }}>
-                    {/* 5 KPIs inmobiliarios */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.5rem' }}>
-                        {[
+                    {/* KPIs — modular by enabled_modules */}
+                    {(() => {
+                        const mods = tenant?.enabled_modules || [];
+                        const has = (m: string) => mods.some((mod: string) => mod === m || mod.startsWith(m + '.'));
+                        const hasInmob = has('inmobiliaria');
+                        const fmtK = (n: number) => n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(1)}M` : `$${(n / 1_000).toFixed(0)}K`;
+                        // Inmobiliaria has its own exclusive KPIs
+                        const visibleKpis: { label: string; value: any; color: string }[] = hasInmob ? [
                             { label: 'Propiedades', value: inmobData.propiedades, color: '#3B82F6' },
                             { label: 'Contratos vigentes', value: inmobData.propiedades - (inmobData.porVencer30 + inmobData.vencidos), color: '#10B981' },
-                            { label: 'Alquileres mensual', value: `$${inmobData.ingresoMensual > 0 ? (inmobData.ingresoMensual / 1000).toFixed(0) + 'K' : '0'}`, color: '#8B5CF6' },
-                            { label: 'Pendiente de cobro', value: `$${inmobData.morosidad > 0 ? (inmobData.morosidad / 1000).toFixed(0) + 'K' : '0'}`, color: '#F59E0B' },
-                            { label: 'Resultado bruto', value: `$${inmobData.ingresoMensual > 0 ? ((inmobData.ingresoMensual - inmobData.morosidad) / 1000).toFixed(0) + 'K' : '0'}`, color: inmobData.ingresoMensual - inmobData.morosidad >= 0 ? '#10B981' : '#EF4444' },
-                        ].map(kpi => (
-                            <div key={kpi.label} className="card" style={{ padding: '0.875rem 1rem', borderTop: `3px solid ${kpi.color}` }}>
-                                <div style={{ fontSize: '0.625rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>{kpi.label}</div>
-                                <div style={{ fontSize: '1.25rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>{kpi.value}</div>
+                            { label: 'Alquileres/mes', value: fmtK(inmobData.ingresoMensual), color: '#8B5CF6' },
+                            { label: 'Pendiente cobro', value: fmtK(inmobData.morosidad), color: '#F59E0B' },
+                        ] : [
+                            ...(has('ventas') ? [{ label: 'Ventas mes', value: metrics?.ventasMes || 0, color: '#3B82F6' }] : []),
+                            ...(has('compras') ? [{ label: 'Compras mes', value: metrics?.comprasMes || 0, color: '#8B5CF6' }] : []),
+                            ...(has('contable') ? [
+                                { label: 'Proveedores', value: metrics?.totalProveedores || 0, color: '#10B981' },
+                                { label: 'Clientes', value: metrics?.totalClientes || 0, color: '#F59E0B' },
+                            ] : []),
+                            ...(has('tesoreria') ? [{ label: 'Saldo cajas', value: fmtK(metrics?.saldoCajas || 0), color: '#10B981' }] : []),
+                        ];
+                        return (
+                            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(visibleKpis.length, 5)}, 1fr)`, gap: '0.5rem' }}>
+                                {visibleKpis.map(kpi => (
+                                    <div key={kpi.label} className="card" style={{ padding: '0.875rem 1rem', borderTop: `3px solid ${kpi.color}` }}>
+                                        <div style={{ fontSize: '0.625rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>{kpi.label}</div>
+                                        <div style={{ fontSize: '1.25rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>{kpi.value}</div>
+                                    </div>
+                                ))}
                             </div>
-                        ))}
-                    </div>
+                        );
+                    })()}
 
                     {/* Acciones rápidas + Actividad reciente + Agenda */}
                     <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr 1fr', gap: '0.75rem', alignItems: 'start', flex: 1, minHeight: 0 }}>
                         <div className="card" style={{ padding: '1.25rem' }}>
                             <div style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: 12 }}>Acciones Rápidas</div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                {[
-                                    { label: 'Facturar', wizard: 'facturar', color: '#3B82F6' },
-                                    { label: 'Cobranzas', wizard: 'liquidaciones', color: '#10B981' },
-                                    { label: 'Órdenes de trabajo', wizard: 'ordenes', color: '#F59E0B' },
-                                    { label: 'Nuevo contrato', wizard: 'contratos', color: '#8B5CF6' },
-                                    { label: 'Nueva propiedad', wizard: 'propiedades', color: '#0D9488' },
-                                    { label: 'Reportar problema', wizard: 'ordenes', color: '#EF4444' },
-                                ].map(a => (
-                                    <button key={a.label} onClick={() => setActiveWizard(a.wizard)}
-                                        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-surface)', cursor: 'pointer', width: '100%', textAlign: 'left', fontFamily: 'var(--font-sans)', transition: 'background 0.12s' }}
-                                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
-                                        onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-bg-surface)')}>
-                                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: a.color, flexShrink: 0 }} />
-                                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{a.label}</span>
-                                    </button>
-                                ))}
+                                {(() => {
+                                    const mods = tenant?.enabled_modules || [];
+                                    const has = (m: string) => mods.some((mod: string) => mod === m || mod.startsWith(m + '.'));
+                                    const colors = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#0D9488', '#EF4444'];
+                                    // Generate from sidebar_config children if available
+                                    const sections = tenant?.sidebar_config?.sections || [];
+                                    const actions: { label: string; path: string; color: string; wizard?: string }[] = [];
+                                    if (has('inmobiliaria')) {
+                                        // Inmobiliaria wizards
+                                        [{ label: 'Facturar', wizard: 'facturar' }, { label: 'Cobranzas', wizard: 'liquidaciones' }, { label: 'Órdenes de trabajo', wizard: 'ordenes' }, { label: 'Nuevo contrato', wizard: 'contratos' }, { label: 'Nueva propiedad', wizard: 'propiedades' }, { label: 'Reportar problema', wizard: 'ordenes' }]
+                                            .forEach((a, i) => actions.push({ ...a, path: '', color: colors[i % colors.length] }));
+                                    } else {
+                                        // Dynamic from sidebar_config
+                                        let ci = 0;
+                                        sections.forEach((s: any) => {
+                                            (s.children || []).slice(0, 1).forEach((c: any) => {
+                                                actions.push({ label: c.label, path: c.path, color: colors[ci % colors.length] });
+                                                ci++;
+                                            });
+                                        });
+                                    }
+                                    return actions.map(a => (
+                                        <button key={a.label} onClick={() => a.wizard ? setActiveWizard(a.wizard) : navigate(a.path)}
+                                            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-surface)', cursor: 'pointer', width: '100%', textAlign: 'left', fontFamily: 'var(--font-sans)', transition: 'background 0.12s' }}
+                                            onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
+                                            onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-bg-surface)')}>
+                                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: a.color, flexShrink: 0 }} />
+                                            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{a.label}</span>
+                                        </button>
+                                    ));
+                                })()}
                             </div>
                         </div>
 

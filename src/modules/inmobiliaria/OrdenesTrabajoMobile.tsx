@@ -254,10 +254,6 @@ export default function OrdenesTrabajo({ wizardOnly, onClose }: { wizardOnly?: b
     }
     return true;
   });
-  const reportados = items.filter(o => o.estado === 'reportado').length;
-  const enCurso = items.filter(o => o.estado === 'en_curso' || o.estado === 'asignado').length;
-  const completados = items.filter(o => o.estado === 'completado' || o.estado === 'facturado').length;
-
   if (loading && !wizardOnly) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Cargando órdenes...</div>;
 
   /* ── Status stepper mini (inline in table row) ── */
@@ -326,21 +322,6 @@ export default function OrdenesTrabajo({ wizardOnly, onClose }: { wizardOnly?: b
         </button>
       </div>
 
-      {/* KPIs */}
-      <div style={{ display: 'flex', gap: isMobile ? 6 : 10 }}>
-        {[
-          { label: 'Reportados', count: reportados, color: reportados > 0 ? '#EF4444' : 'var(--color-text-primary)', filter: 'reportado' },
-          { label: 'En curso', count: enCurso, color: '#3B82F6', filter: 'en_curso' },
-          { label: 'Resueltos', count: completados, color: '#10B981', filter: 'completado' },
-        ].map(kpi => (
-          <div key={kpi.label} onClick={() => setFilterEstado(kpi.filter)}
-            style={{ flex: 1, padding: isMobile ? '8px 6px' : '12px 10px', borderRadius: isMobile ? 8 : 10, background: kpi.count > 0 && kpi.label === 'Reportados' ? '#EF444408' : 'var(--color-bg-card)', border: `1px solid ${filterEstado === kpi.filter ? kpi.color + '40' : 'var(--color-border-subtle)'}`, textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.15s' }}>
-            <div style={{ fontSize: isMobile ? '1rem' : '1.25rem', fontWeight: 800, color: kpi.color }}>{kpi.count}</div>
-            <div style={{ fontSize: isMobile ? '0.6rem' : '0.7rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>{kpi.label}</div>
-          </div>
-        ))}
-      </div>
-
       {/* Filter pills */}
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
         <div style={{ flex: 1, display: 'flex', gap: 4, overflowX: 'auto' }}>
@@ -361,6 +342,16 @@ export default function OrdenesTrabajo({ wizardOnly, onClose }: { wizardOnly?: b
           </button>
         )}
       </div>
+
+      {/* Inline KPI counter */}
+      {(() => {
+        const abiertas = filtered.filter(o => !['completado', 'liquidado'].includes(o.estado)).length;
+        return (
+          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', padding: '2px 0' }}>
+            {abiertas} orden{abiertas !== 1 ? 'es' : ''} abierta{abiertas !== 1 ? 's' : ''}
+          </div>
+        );
+      })()}
 
       {/* ─── DESKTOP TABLE ─── */}
       {!isMobile ? (

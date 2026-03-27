@@ -15,6 +15,7 @@ import AgentMonitorPanel from '../../design-system/components/AgentMonitor/Agent
 import ChatbotAsistente from './ChatbotAsistente';
 import TopBar from './TopBar';
 import MobileNav from './MobileNav';
+import DynamicSidebar from './DynamicSidebar';
 
 export default function Layout() {
     const { user, role, userModules } = useAuth() as any;
@@ -98,6 +99,7 @@ export default function Layout() {
 
     if (!user) return <Navigate to="/login" replace />;
 
+    const hasDynamicSidebar = !!tenant?.sidebar_config?.sections?.length;
     const tenantModules = tenant?.enabled_modules || [];
 
     // Checks access to a module or submodule (e.g. 'tesoreria' or 'tesoreria.bancos').
@@ -203,8 +205,23 @@ export default function Layout() {
     const isCRM = location.pathname.startsWith('/crm');
     const isInmobiliaria = location.pathname.startsWith('/inmobiliaria');
 
-    // Determine current section nav items (Ocultamos sub-opciones en configuración)
-    const sectionItems = (isContable && !isConfiguracion) ? contableItems : isTesoreria ? tesoreriaItems : isCRM ? crmItems : isComercial ? comercialItems : isInmobiliaria ? inmobiliariaItems : [];
+    // Determine current section nav items
+    let sectionItems: { name: string; path: string; icon?: any }[] = [];
+    if (hasDynamicSidebar) {
+        // Derive subtabs from sidebar_config children for the active section
+        const sections = tenant?.sidebar_config?.sections || [];
+        const activeSection = sections.find((s: any) =>
+            s.children?.some((c: any) => location.pathname.startsWith(c.path))
+        );
+        if (activeSection?.children) {
+            sectionItems = activeSection.children.map((c: any) => ({
+                name: c.label,
+                path: c.path,
+            }));
+        }
+    } else {
+        sectionItems = (isContable && !isConfiguracion) ? contableItems : isTesoreria ? tesoreriaItems : isCRM ? crmItems : isComercial ? comercialItems : isInmobiliaria ? inmobiliariaItems : [];
+    }
 
     // Mobile: map routes to display names matching the new tab bar
     // In mobile, Contable/Tesorería/CRM routes are absorbed into Gestión (no "Administración" in mobile)
@@ -294,8 +311,11 @@ export default function Layout() {
             <div
                 className={`app-shell${agentCollapsed ? ' agent-collapsed' : ''} inmob-layout`}
             >
-                {/* ──────────────── SIDEBAR (icon-only for all tenants) ──────────────── */}
-                {!isMobile && (
+                {/* ──────────────── SIDEBAR ──────────────── */}
+                {!isMobile && hasDynamicSidebar && (
+                    <aside className="sidebar"><DynamicSidebar /></aside>
+                )}
+                {!isMobile && !hasDynamicSidebar && (
                     <aside className="sidebar">
                         {/* + Button */}
                         <div style={{ position: 'relative', marginBottom: 8 }}>
@@ -331,7 +351,7 @@ export default function Layout() {
 
                         {/* Nav icons — centered */}
                         {[
-                            { icon: LayoutDashboard, label: 'Home', path: '/', match: (p: string) => p === '/' },
+                            { icon: Home, label: 'Home', path: '/', match: (p: string) => p === '/' },
                             ...(hasInmob ? [
                                 { icon: ClipboardList, label: 'Operaciones', path: '/inmobiliaria/propiedades', match: () => isOperaciones },
                                 { icon: Briefcase, label: 'Gestión', path: '/inmobiliaria/cuentas', match: () => isGestion },

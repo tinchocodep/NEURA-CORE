@@ -166,17 +166,10 @@ export default function Contratos({ wizardOnly, onClose }: { wizardOnly?: boolea
   const now = new Date();
   const daysUntil = (d: string) => Math.ceil((new Date(d).getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
 
-  // KPI metrics
+  // Filter metrics (used in filter tabs)
   const vigentes = items.filter(c => c.estado === 'vigente');
-  const ingresoMensual = vigentes.reduce((sum, c) => sum + (c.moneda === 'ARS' ? c.monto_mensual : 0), 0);
   const porVencer30 = vigentes.filter(c => daysUntil(c.fecha_fin) <= 30 && daysUntil(c.fecha_fin) > 0).length;
   const vencidos = items.filter(c => c.estado === 'vencido' || (c.estado === 'vigente' && daysUntil(c.fecha_fin) <= 0)).length;
-
-  const fmtMoney = (n: number) => {
-    if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-    if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
-    return `$${n.toLocaleString('es-AR')}`;
-  };
 
   const filtered = items.filter(c => {
     if (filterEstado === 'vence_pronto') {
@@ -220,24 +213,15 @@ export default function Contratos({ wizardOnly, onClose }: { wizardOnly?: boolea
           <Plus size={14} /> Nuevo
         </button>
       </div>
+      {/* Inline KPI counter (desktop) */}
+      <div className="module-header-desktop" style={{ border: 'none', padding: 0, minHeight: 0 }}>
+        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+          {filtered.length} contrato{filtered.length !== 1 ? 's' : ''} · {vencidos} vencido{vencidos !== 1 ? 's' : ''}
+        </span>
+      </div>
 
       {/* Mobile header */}
-      <div className="module-header-mobile" style={{ gap: '0.375rem' }}>
-        {/* KPI strip */}
-        <div style={{ display: 'flex', gap: 6 }}>
-          <div style={{ flex: 1, padding: '8px 6px', borderRadius: 8, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', textAlign: 'center' }}>
-            <div style={{ fontSize: '1rem', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{fmtMoney(ingresoMensual)}</div>
-            <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)' }}>Ingreso mensual</div>
-          </div>
-          <div style={{ flex: 1, padding: '8px 6px', borderRadius: 8, background: porVencer30 > 0 ? '#F59E0B08' : 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', textAlign: 'center' }}>
-            <div style={{ fontSize: '1rem', fontWeight: 800, color: porVencer30 > 0 ? '#F59E0B' : 'var(--color-text-primary)' }}>{porVencer30}</div>
-            <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)' }}>Vencen 30d</div>
-          </div>
-          <div style={{ flex: 1, padding: '8px 6px', borderRadius: 8, background: vencidos > 0 ? '#EF444408' : 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', textAlign: 'center' }}>
-            <div style={{ fontSize: '1rem', fontWeight: 800, color: vencidos > 0 ? '#EF4444' : 'var(--color-text-primary)' }}>{vencidos}</div>
-            <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)' }}>Vencidos</div>
-          </div>
-        </div>
+      <div className="module-header-mobile">
         {/* Search + new */}
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <div style={{ flex: 1, position: 'relative' }}>
@@ -265,7 +249,7 @@ export default function Contratos({ wizardOnly, onClose }: { wizardOnly?: boolea
         </div>
         {/* Result count */}
         <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', padding: '2px 0' }}>
-          {filtered.length} contrato{filtered.length !== 1 ? 's' : ''}
+          {filtered.length} contrato{filtered.length !== 1 ? 's' : ''} · {vencidos} vencido{vencidos !== 1 ? 's' : ''}
         </div>
       </div>
 

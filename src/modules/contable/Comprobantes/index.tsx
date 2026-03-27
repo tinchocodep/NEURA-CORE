@@ -22,7 +22,11 @@ function useIsMobile() {
 
 type TabKey = 'listado' | 'crear' | 'upload' | 'gasto' | 'ingreso';
 
-export default function ComprobantesIndex() {
+interface ComprobantesIndexProps {
+    defaultTipo?: 'venta' | 'compra';
+}
+
+export default function ComprobantesIndex({ defaultTipo }: ComprobantesIndexProps) {
     const isMobile = useIsMobile();
     const { tenant } = useTenant();
     const { addToast } = useToast();
@@ -34,7 +38,7 @@ export default function ComprobantesIndex() {
     if (isMobile) return <ComprobantesMobile />;
 
     const [activeTab, setActiveTab] = useState<TabKey>(tabParam);
-    const [filtroTipo, setFiltroTipo] = useState('todos');
+    const [filtroTipo, setFiltroTipo] = useState(defaultTipo || 'todos');
     const [filtroEstado, setFiltroEstado] = useState('todos');
     const [busqueda, setBusqueda] = useState('');
     const [fechaDesde, setFechaDesde] = useState('');
@@ -854,6 +858,7 @@ export default function ComprobantesIndex() {
                         </div>
                         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                             <Filter size={13} color="var(--color-text-muted)" />
+                            {!defaultTipo && (
                             <select
                                 className="form-input"
                                 value={filtroTipo}
@@ -864,6 +869,7 @@ export default function ComprobantesIndex() {
                                 <option value="compra">Compras</option>
                                 <option value="venta">Ventas</option>
                             </select>
+                            )}
                             <select
                                 className="form-input"
                                 value={filtroEstado}

@@ -21,6 +21,8 @@ import ContableProveedores from './modules/contable/Proveedores';
 import ContableClientes from './modules/contable/Clientes';
 import ContableCatalogos from './modules/contable/Catalogos';
 import ContableConfiguracion from './modules/contable/Configuracion';
+import ContableComprobantesIndex from './modules/contable/Comprobantes/index';
+import ImpuestoPlaceholder from './modules/impuestos/Placeholder';
 // import Conciliacion from './modules/contable/Conciliacion/index'; // bloqueada
 import VisionGeneral from './modules/VisionGeneral';
 import CRMDashboard from './modules/crm/Dashboard';
@@ -145,9 +147,29 @@ export default function App() {
               <Route path="servicios" element={<InmoServicios />} />
             </Route>
 
+            {/* Gestora: Ventas */}
+            <Route path="ventas">
+              <Route path="comprobantes" element={<ContableComprobantesIndex defaultTipo="venta" />} />
+              <Route path="clientes" element={<ContableClientes />} />
+            </Route>
+
+            {/* Gestora: Compras */}
+            <Route path="compras">
+              <Route path="comprobantes" element={<ContableComprobantesIndex defaultTipo="compra" />} />
+              <Route path="proveedores" element={<ContableProveedores />} />
+              <Route path="ordenes-pago" element={<OrdenesPago />} />
+            </Route>
+
+            {/* Gestora: Impuestos */}
+            <Route path="impuestos">
+              <Route path="iva" element={<ImpuestoPlaceholder tipo="IVA" />} />
+              <Route path="iibb" element={<ImpuestoPlaceholder tipo="Ingresos Brutos" />} />
+              <Route path="retenciones" element={<ImpuestoPlaceholder tipo="Retenciones" />} />
+            </Route>
+
             {/* Global Configuracion */}
             <Route path="configuracion" element={<ContableConfiguracion />} />
-            
+
             {/* Modulo Super Admin */}
             <Route path="superadmin" element={<SuperAdminDashboard />} />
           </Route>

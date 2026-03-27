@@ -1,0 +1,56 @@
+import type { LucideIcon } from 'lucide-react';
+import {
+  Home,
+  TrendingUp,
+  ShoppingCart,
+  BookOpen,
+  Percent,
+  Wallet,
+  FileText,
+  Users,
+  BarChart2,
+  Truck,
+  CreditCard,
+  List,
+  CheckSquare,
+  GitMerge,
+  Eye,
+  DollarSign,
+  Map,
+  Scissors,
+  Archive,
+  Building,
+  ArrowLeftRight,
+  Activity,
+  LayoutDashboard,
+} from 'lucide-react';
+
+const iconMap: Record<string, LucideIcon> = {
+  Home,
+  TrendingUp,
+  ShoppingCart,
+  BookOpen,
+  Percent,
+  Wallet,
+  FileText,
+  Users,
+  BarChart2,
+  Truck,
+  CreditCard,
+  List,
+  CheckSquare,
+  GitMerge,
+  Eye,
+  DollarSign,
+  Map,
+  Scissors,
+  Archive,
+  Building,
+  ArrowLeftRight,
+  Activity,
+  LayoutDashboard,
+};
+
+export function resolveIcon(name: string): LucideIcon {
+  return iconMap[name] || FileText;
+}

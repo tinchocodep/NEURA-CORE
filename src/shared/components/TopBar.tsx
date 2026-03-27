@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Search, Bell } from 'lucide-react';
+import { Search, Bell, AlertTriangle, FileText, Clock } from 'lucide-react';
 import { DolarService } from '../../services/DolarService';
 import type { DolarResumen } from '../../services/DolarService';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
+import { supabase } from '../../lib/supabase';
 import GlobalSearch from './GlobalSearch';
+
+interface Notif { id: string; icon: any; color: string; title: string; subtitle: string; time: string; path: string; }
 
 function useIsMobile() {
     const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
@@ -13,6 +16,70 @@ function useIsMobile() {
     return m;
 }
 
+function useNotifications() {
+    const { tenant } = useTenant();
+    const [notifs, setNotifs] = useState<Notif[]>([]);
+    const [loading, setLoading] = useState(false);
+
+    const load = async () => {
+        if (!tenant) return;
+        setLoading(true);
+        const now = new Date();
+        const items: Notif[] = [];
+        const hasInmob = (tenant.enabled_modules || []).includes('inmobiliaria');
+
+        if (hasInmob) {
+            // Contratos por vencer (30 días)
+            const in30 = new Date(now); in30.setDate(in30.getDate() + 30);
+            const { data: contratos } = await supabase.from('inmobiliaria_contratos')
+                .select('id, fecha_fin, propiedad_id, inmobiliaria_propiedades(direccion)')
+                .eq('tenant_id', tenant.id).eq('estado', 'vigente')
+                .lte('fecha_fin', in30.toISOString().slice(0, 10));
+            (contratos || []).forEach((c: any) => {
+                const dir = c.inmobiliaria_propiedades?.direccion || 'Propiedad';
+                const dias = Math.ceil((new Date(c.fecha_fin).getTime() - now.getTime()) / 86400000);
+                items.push({
+                    id: 'c-' + c.id, icon: AlertTriangle, color: '#F59E0B',
+                    title: `Contrato vence en ${dias}d`, subtitle: dir,
+                    time: new Date(c.fecha_fin).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' }),
+                    path: '/inmobiliaria/contratos',
+                });
+            });
+
+            // Órdenes pendientes (reportado/asignado)
+            const { data: ordenes } = await supabase.from('inmobiliaria_ordenes_trabajo')
+                .select('id, titulo, estado').eq('tenant_id', tenant.id)
+                .in('estado', ['reportado', 'asignado']).limit(5);
+            (ordenes || []).forEach((o: any) => {
+                items.push({
+                    id: 'o-' + o.id, icon: Clock, color: '#F59E0B',
+                    title: o.titulo, subtitle: `Orden ${o.estado}`,
+                    time: '', path: '/inmobiliaria/ordenes',
+                });
+            });
+        }
+
+        // Comprobantes pendientes
+        const { data: comps } = await supabase.from('contable_comprobantes')
+            .select('id, descripcion, estado, fecha').eq('tenant_id', tenant.id)
+            .eq('estado', 'pendiente').order('fecha', { ascending: false }).limit(5);
+        (comps || []).forEach((c: any) => {
+            items.push({
+                id: 'comp-' + c.id, icon: FileText, color: '#3B82F6',
+                title: c.descripcion || 'Comprobante pendiente', subtitle: 'Requiere aprobación',
+                time: new Date(c.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' }),
+                path: hasInmob ? '/inmobiliaria/comprobantes' : '/contable/comprobantes',
+            });
+        });
+
+        setNotifs(items);
+        setLoading(false);
+    };
+
+    useEffect(() => { load(); }, [tenant?.id]);
+
+    return { notifs, loading, reload: load };
+}
 
 export default function TopBar() {
     const { user } = useAuth() as any;
@@ -20,6 +87,8 @@ export default function TopBar() {
     const navigate = useNavigate();
     const isMobile = useIsMobile();
     const [dolar, setDolar] = useState<DolarResumen | null>(null);
+    const { notifs } = useNotifications();
+    const [showNotifs, setShowNotifs] = useState(false);
 
     useEffect(() => {
         DolarService.getCotizaciones().then(setDolar);
@@ -37,27 +106,68 @@ export default function TopBar() {
     const [showSearch, setShowSearch] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
 
+    const notifCount = notifs.length;
+
+    const NotifPanel = ({ style }: { style?: React.CSSProperties }) => (
+        <>
+            <div style={{ position: 'fixed', inset: 0, zIndex: 399 }} onClick={() => setShowNotifs(false)} />
+            <div style={{
+                position: 'absolute', right: 0, top: '100%', marginTop: 8, zIndex: 400,
+                background: 'var(--color-bg-surface)', border: '1px solid var(--color-border-subtle)',
+                borderRadius: 14, boxShadow: '0 12px 32px rgba(0,0,0,0.15)', overflow: 'hidden',
+                width: 340, maxHeight: 420, ...style,
+            }}>
+                <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 700, fontSize: '0.875rem' }}>Notificaciones</span>
+                    {notifCount > 0 && <span style={{ fontSize: '0.6875rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: '#EF444415', color: '#EF4444' }}>{notifCount}</span>}
+                </div>
+                <div style={{ overflowY: 'auto', maxHeight: 360 }}>
+                    {notifs.length === 0 && (
+                        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.8125rem' }}>Sin notificaciones</div>
+                    )}
+                    {notifs.map(n => (
+                        <div key={n.id} onClick={() => { navigate(n.path); setShowNotifs(false); }}
+                            style={{ padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', cursor: 'pointer', display: 'flex', gap: 10, alignItems: 'flex-start', transition: 'background 0.1s' }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                            <div style={{ width: 28, height: 28, borderRadius: 8, background: n.color + '15', color: n.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
+                                <n.icon size={14} />
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: '0.8125rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.title}</div>
+                                <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>{n.subtitle}</div>
+                            </div>
+                            {n.time && <span style={{ fontSize: '0.625rem', color: 'var(--color-text-muted)', flexShrink: 0, marginTop: 4 }}>{n.time}</span>}
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </>
+    );
+
     /* ── MOBILE ── */
     if (isMobile) {
         if (isHome) {
             const dn = authDisplayName || (user as any)?.user_metadata?.display_name || (user as any)?.email?.split('@')[0] || '';
             const firstName = dn.charAt(0).toUpperCase() + dn.slice(1);
             return (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 16px 2px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 10px', boxShadow: '0 8px 40px rgba(59,130,246,0.08), 0 20px 60px rgba(59,130,246,0.04)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--color-cta, #2563EB)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 700, flexShrink: 0 }}>
                             {firstName.charAt(0).toUpperCase()}
                         </div>
                         <span style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--color-text-primary)' }}>Hola, {firstName}</span>
                     </div>
-                    <button onClick={() => navigate('/configuracion')} style={{ width: 34, height: 34, borderRadius: '50%', border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-text-muted)', position: 'relative' }}>
-                        <Bell size={16} />
-                        <span style={{ position: 'absolute', top: 7, right: 7, width: 6, height: 6, borderRadius: '50%', background: '#EF4444' }} />
-                    </button>
+                    <div style={{ position: 'relative' }}>
+                        <button onClick={() => setShowNotifs(p => !p)} style={{ width: 34, height: 34, borderRadius: '50%', border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-text-muted)', position: 'relative' }}>
+                            <Bell size={16} />
+                            {notifCount > 0 && <span style={{ position: 'absolute', top: 7, right: 7, width: 6, height: 6, borderRadius: '50%', background: '#EF4444' }} />}
+                        </button>
+                        {showNotifs && <NotifPanel style={{ right: -8, width: 'calc(100vw - 32px)' }} />}
+                    </div>
                 </div>
             );
         }
-        // Submodules: no TopBar, handled by subtabs in Layout
         return null;
     }
 
@@ -107,11 +217,14 @@ export default function TopBar() {
 
             {/* Right: Notification + Avatar dropdown */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                <button title="Notificaciones"
-                    style={{ width: 36, height: 36, borderRadius: '50%', border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-text-muted)', position: 'relative' }}>
-                    <Bell size={16} />
-                    <span style={{ position: 'absolute', top: 6, right: 6, width: 6, height: 6, borderRadius: '50%', background: 'var(--color-danger)' }} />
-                </button>
+                <div style={{ position: 'relative' }}>
+                    <button onClick={() => setShowNotifs(p => !p)} title="Notificaciones"
+                        style={{ width: 36, height: 36, borderRadius: '50%', border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-text-muted)', position: 'relative' }}>
+                        <Bell size={16} />
+                        {notifCount > 0 && <span style={{ position: 'absolute', top: 6, right: 6, width: 6, height: 6, borderRadius: '50%', background: 'var(--color-danger)' }} />}
+                    </button>
+                    {showNotifs && <NotifPanel />}
+                </div>
 
                 <div style={{ position: 'relative' }}>
                     <div onClick={() => setShowProfileMenu(p => !p)}

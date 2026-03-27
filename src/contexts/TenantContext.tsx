@@ -14,6 +14,7 @@ export interface Tenant {
     cuit: string | null;
     direccion: string | null;
     email: string | null;
+    sidebar_config: any;
 }
 
 interface TenantContextType {

@@ -168,6 +168,18 @@ export default function Propiedades({ wizardOnly, onClose }: { wizardOnly?: bool
         </div>
       </div>
 
+      {/* Inline KPI counter */}
+      {(() => {
+        const total = filtered.length;
+        const disponibles = filtered.filter(p => p.estado === 'disponible').length;
+        const alquiladas = filtered.filter(p => p.estado === 'alquilada').length;
+        return (
+          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', padding: '2px 0' }}>
+            {total} propiedad{total !== 1 ? 'es' : ''} · {disponibles} disponible{disponibles !== 1 ? 's' : ''} · {alquiladas} alquilada{alquiladas !== 1 ? 's' : ''}
+          </div>
+        );
+      })()}
+
       {/* Grid / List (desktop) */}
       {!isMobile && (viewMode === 'grid' ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>

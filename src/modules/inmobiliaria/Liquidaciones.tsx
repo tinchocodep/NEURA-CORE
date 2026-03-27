@@ -173,16 +173,6 @@ export default function Liquidaciones({ wizardOnly, onClose }: LiquidacionesProp
     if (!error) setItems(prev => prev.map(l => l.id === id ? { ...l, ...updates } as Liquidacion : l));
   };
 
-  // KPIs
-  const pendientes = items.filter(l => l.estado === 'borrador').length;
-  const porPagar = items.filter(l => l.estado === 'aprobada').reduce((s, l) => s + Math.abs(l.neto_propietario), 0);
-  const pagadoMes = items.filter(l => l.estado === 'pagada' && l.periodo === new Date().toISOString().slice(0, 7))
-    .reduce((s, l) => s + Math.abs(l.neto_propietario), 0);
-  const fmtMoney = (n: number) => {
-    if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-    if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
-    return `$${n.toLocaleString('es-AR')}`;
-  };
   const getConcepto = (l: Liquidacion) => {
     if (l.categoria === 'alquiler') return `Alquiler ${l.periodo}`;
     const first = l.deducciones_json?.[0];
@@ -250,21 +240,6 @@ export default function Liquidaciones({ wizardOnly, onClose }: LiquidacionesProp
           </button>
         </div>
       )}
-
-      {/* KPIs */}
-      <div style={{ display: 'flex', gap: isMobile ? 6 : 10 }}>
-        {[
-          { label: 'Pendientes', value: String(pendientes), color: pendientes > 0 ? '#F59E0B' : 'var(--color-text-primary)', filter: 'borrador' },
-          { label: 'Por pagar', value: fmtMoney(porPagar), color: porPagar > 0 ? '#3B82F6' : 'var(--color-text-primary)', filter: 'aprobada', mono: true },
-          { label: 'Pagado mes', value: fmtMoney(pagadoMes), color: '#10B981', filter: 'pagada', mono: true },
-        ].map(kpi => (
-          <div key={kpi.label} onClick={() => setFilterEstado(filterEstado === kpi.filter ? '' : kpi.filter)}
-            style={{ flex: 1, padding: '12px 10px', borderRadius: 10, background: 'var(--color-bg-card)', border: `1px solid ${filterEstado === kpi.filter ? kpi.color + '40' : 'var(--color-border-subtle)'}`, textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.15s' }}>
-            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: kpi.color, fontFamily: kpi.mono ? 'var(--font-mono)' : undefined }}>{kpi.value}</div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>{kpi.label}</div>
-          </div>
-        ))}
-      </div>
 
       {/* Filter pills */}
       <div style={{ display: 'flex', gap: 4, overflowX: 'auto', flexShrink: 0 }}>
