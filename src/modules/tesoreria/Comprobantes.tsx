@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { useToast } from '../../contexts/ToastContext';
-import { Search, RefreshCw, X } from 'lucide-react';
+import { Search, RefreshCw, X, Upload } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useComprobantes } from '../contable/Comprobantes/useComprobantes';
 import ComprobantesGrid from '../contable/Comprobantes/ComprobantesGrid';
@@ -23,6 +23,43 @@ export default function Comprobantes() {
     const [syncHasta, setSyncHasta] = useState('');
     const [syncSource, setSyncSource] = useState<'colppy' | 'xubio' | ''>('');
     const [showErpPicker, setShowErpPicker] = useState<'sync' | 'inject' | ''>('');
+    const [uploading, setUploading] = useState(false);
+    const [dragOver, setDragOver] = useState(false);
+    const [empresaCuit, setEmpresaCuit] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Load empresa CUIT
+    useEffect(() => {
+        if (!tenant?.id) return;
+        const cuit = (tenant as any).cuit;
+        if (cuit) { setEmpresaCuit(cuit); return; }
+        supabase.from('contable_config').select('arca_cuit').eq('tenant_id', tenant.id).maybeSingle()
+            .then(({ data }) => { if (data?.arca_cuit) setEmpresaCuit(data.arca_cuit); });
+    }, [tenant?.id]);
+
+    const handleUploadFiles = async (files: File[]) => {
+        if (files.length === 0 || !tenant?.id) return;
+        setUploading(true);
+        const N8N_WEBHOOK = '/api/n8n-comprobantes';
+        let ok = 0, fail = 0;
+        for (const file of files) {
+            try {
+                const formData = new FormData();
+                formData.append('data', file);
+                formData.append('filename', file.name);
+                formData.append('tenant_id', tenant.id);
+                if (empresaCuit) formData.append('cuit_empresa', empresaCuit);
+                const resp = await fetch(N8N_WEBHOOK, { method: 'POST', body: formData });
+                if (resp.ok) { ok++; } else { fail++; }
+            } catch { fail++; }
+        }
+        setUploading(false);
+        if (ok > 0) {
+            addToast('success', 'Cargados', `${ok} comprobante(s) enviados al OCR`);
+            setTimeout(() => reset(), 3000);
+        }
+        if (fail > 0) addToast('error', 'Error', `${fail} archivo(s) fallaron`);
+    };
 
     // Check ERP config
     useEffect(() => {
@@ -300,6 +337,11 @@ export default function Comprobantes() {
             <div className="module-header-desktop">
                 <h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Comprobantes</h1>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
+                    <label className="btn btn-primary" style={{ fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Upload size={14} /> {uploading ? 'Subiendo...' : 'Cargar factura'}
+                        <input type="file" accept="image/*,.pdf" multiple hidden ref={fileInputRef}
+                            onChange={e => { if (e.target.files) handleUploadFiles(Array.from(e.target.files)); e.target.value = ''; }} />
+                    </label>
                     <button className="btn btn-ghost" style={{ fontSize: '0.75rem', color: 'var(--color-danger)' }}
                         onClick={async () => {
                             if (!tenant?.id) return;
@@ -371,10 +413,20 @@ export default function Comprobantes() {
                 </div>
             </div>
 
+            {/* Drop zone */}
+            <div
+                onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={e => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files.length) handleUploadFiles(Array.from(e.dataTransfer.files)); }}
+                style={{ border: `2px dashed ${dragOver ? 'var(--brand)' : 'transparent'}`, borderRadius: 12, padding: dragOver ? 24 : 0, marginBottom: 8, textAlign: 'center', transition: 'all 0.2s', background: dragOver ? 'var(--color-accent-subtle)' : 'transparent' }}
+            >
+                {dragOver && <p style={{ color: 'var(--brand)', fontWeight: 600, margin: 0 }}>Soltá los archivos acá para cargarlos</p>}
+            </div>
+
             {hasErp && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', marginBottom: 8, background: '#6366F110', borderRadius: 8, border: '1px solid #6366F130', fontSize: '0.75rem' }}>
                     <span style={{ color: '#6366F1', fontWeight: 600 }}>ERP conectado</span>
-                    <span style={{ color: 'var(--color-text-muted)' }}>— Los comprobantes aprobados se pueden inyectar a Colppy</span>
+                    <span style={{ color: 'var(--color-text-muted)' }}>— Los comprobantes aprobados se pueden inyectar</span>
                 </div>
             )}
 
