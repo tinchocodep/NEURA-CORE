@@ -432,6 +432,21 @@ export default function ConciliacionBancaria() {
             <div className="module-header-desktop">
                 <h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Conciliación Bancaria</h1>
                 <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+                    <button className="btn btn-ghost" style={{ fontSize: '0.75rem', color: 'var(--color-danger)' }}
+                        onClick={async () => {
+                            if (!tenant?.id) return;
+                            const ok = window.confirm('¿Eliminar TODOS los movimientos bancarios? Esta acción no se puede deshacer.');
+                            if (!ok) return;
+                            const ok2 = window.confirm('¿Estás seguro? Se borrarán TODOS los movimientos importados.');
+                            if (!ok2) return;
+                            await supabase.from('impuestos_acumulados').delete().eq('tenant_id', tenant.id);
+                            await supabase.from('contable_cuentas_corrientes').delete().eq('tenant_id', tenant.id);
+                            const { error } = await supabase.from('movimientos_bancarios').delete().eq('tenant_id', tenant.id);
+                            if (error) addToast('error', 'Error', error.message);
+                            else { addToast('success', 'Eliminados', 'Todos los movimientos fueron eliminados'); setMovimientos([]); }
+                        }}>
+                        Eliminar todos
+                    </button>
                     <button className={`btn ${tab === 'conciliar' ? 'btn-primary' : 'btn-ghost'}`}
                         style={{ fontSize: '0.8rem' }} onClick={() => setTab('conciliar')}>
                         Conciliar

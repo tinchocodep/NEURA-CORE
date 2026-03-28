@@ -300,6 +300,19 @@ export default function Comprobantes() {
             <div className="module-header-desktop">
                 <h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Comprobantes</h1>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
+                    <button className="btn btn-ghost" style={{ fontSize: '0.75rem', color: 'var(--color-danger)' }}
+                        onClick={async () => {
+                            if (!tenant?.id) return;
+                            const ok = window.confirm('¿Eliminar TODOS los comprobantes? Esta acción no se puede deshacer.');
+                            if (!ok) return;
+                            const ok2 = window.confirm('¿Estás seguro? Se borrarán TODOS los comprobantes del tenant.');
+                            if (!ok2) return;
+                            const { error } = await supabase.from('contable_comprobantes').delete().eq('tenant_id', tenant.id);
+                            if (error) addToast('error', 'Error', error.message);
+                            else { addToast('success', 'Eliminados', 'Todos los comprobantes fueron eliminados'); reset(); }
+                        }}>
+                        Eliminar todos
+                    </button>
                     {hasErp && (
                         <div style={{ position: 'relative' }}>
                             <button className="btn btn-ghost" style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 4 }}
