@@ -265,14 +265,37 @@ export class XubioService {
             throw new Error(`Xubio API error ${response.status} on ${method} ${endpoint}: ${errorText}`);
         }
 
-        return response.json();
+        const json = await response.json();
+        console.log(`[Xubio] ${method} ${endpoint}:`, JSON.stringify(json).slice(0, 500));
+        // n8n proxy wraps array responses in {items: [...]}
+        if (json && typeof json === 'object' && Array.isArray(json.items)) {
+            // Check if n8n returned an error inside items
+            if (json.items.length === 1 && json.items[0]?.error) {
+                const err = json.items[0].error;
+                throw new Error(`Xubio API error: ${err.message || err.status || 'Unknown error'}`);
+            }
+            return json.items;
+        }
+        return json;
     }
 
     /* ── Clientes ────────────────────────────── */
 
-    /** Fetch all clientes from Xubio */
+    /** Fetch all clientes from Xubio (list) */
     async getClientes(): Promise<XubioCliente[]> {
         return this.apiRequest<XubioCliente[]>('clienteBean');
+    }
+
+    /** Fetch a single cliente detail from Xubio */
+    async getClienteDetail(clienteId: number): Promise<Record<string, any> | null> {
+        try {
+            const result = await this.apiRequest<any>(`clienteBean/${clienteId}`);
+            // apiRequest already extracts items array; for single detail it returns [obj]
+            const detail = Array.isArray(result) ? result[0] : result;
+            return detail || null;
+        } catch {
+            return null;
+        }
     }
 
     /** Create a cliente in Xubio */
@@ -281,37 +304,61 @@ export class XubioService {
     }
 
     /** Sync clientes from Xubio → Supabase contable_clientes */
-    async syncClientesFromXubio(): Promise<{ imported: number; updated: number; errors: string[] }> {
-        const xubioClientes = await this.getClientes();
+    async syncClientesFromXubio(onProgress?: (current: number, total: number) => void): Promise<{ imported: number; updated: number; errors: string[] }> {
+        const raw = await this.getClientes();
+        const xubioClientes = Array.isArray(raw) ? raw : [];
         let imported = 0;
         let updated = 0;
         const errors: string[] = [];
 
-        for (const xc of xubioClientes) {
-            const razonSocial = xc.razonSocial || `${xc.nombre} ${xc.apellido}`.trim();
-            const cuit = xc.numeroDocumento || null;
+        for (let i = 0; i < xubioClientes.length; i++) {
+            const xc = xubioClientes[i];
+            const xubioId = (xc as any).ID || (xc as any).cliente_id;
+            const nombreBasico = xc.razonSocial || (xc as any).nombre || `${xc.nombre || ''} ${xc.apellido || ''}`.trim();
+
+            if (!xubioId || !nombreBasico) continue;
+
+            onProgress?.(i + 1, xubioClientes.length);
 
             try {
-                // Check if exists by CUIT or razon_social
-                const { data: existing } = await supabase
+                // Fetch full detail for each client
+                const detail = await this.getClienteDetail(xubioId);
+
+                const razonSocial = detail?.razonSocial || detail?.nombre || nombreBasico;
+                const cuit = detail?.CUIT || detail?.cuit || null;
+
+                // Check by xubio_id first, then by razon_social (avoids PostgREST comma issues)
+                let existing: { id: string; xubio_id: number | null } | null = null;
+                const { data: byXubioId } = await supabase
                     .from('contable_clientes')
                     .select('id, xubio_id')
                     .eq('tenant_id', this.tenantId)
-                    .or(`xubio_id.eq.${xc.ID},cuit.eq.${cuit}`)
+                    .eq('xubio_id', xubioId)
                     .maybeSingle();
+                existing = byXubioId;
+                if (!existing && cuit) {
+                    const { data: byCuit } = await supabase
+                        .from('contable_clientes')
+                        .select('id, xubio_id')
+                        .eq('tenant_id', this.tenantId)
+                        .eq('cuit', cuit)
+                        .maybeSingle();
+                    existing = byCuit;
+                }
 
-                const clienteData = {
+                const clienteData: Record<string, unknown> = {
                     tenant_id: this.tenantId,
                     razon_social: razonSocial,
-                    cuit,
-                    email: xc.email || null,
-                    telefono: xc.telefono || null,
-                    direccion: xc.direccion || null,
-                    localidad: xc.localidad || null,
-                    provincia: xc.provincia?.nombre || null,
-                    condicion_impositiva: xc.condicionImpositiva?.nombre || null,
-                    xubio_id: xc.ID,
+                    xubio_id: xubioId,
                 };
+                if (cuit) clienteData.cuit = cuit;
+                if (detail?.email) clienteData.email = detail.email.trim();
+                if (detail?.telefono) clienteData.telefono = detail.telefono.trim();
+                if (detail?.direccion) clienteData.direccion = detail.direccion.trim();
+                if (detail?.categoriaFiscal?.nombre) clienteData.condicion_fiscal = detail.categoriaFiscal.nombre;
+                if (detail?.provincia?.nombre) clienteData.provincia = detail.provincia.nombre;
+                if (detail?.localidad?.nombre) clienteData.localidad = detail.localidad.nombre;
+                if (detail?.descripcion) clienteData.observaciones = detail.descripcion.trim();
 
                 if (existing) {
                     await supabase.from('contable_clientes').update(clienteData).eq('id', existing.id);
@@ -321,7 +368,7 @@ export class XubioService {
                     imported++;
                 }
             } catch (err) {
-                errors.push(`Cliente "${razonSocial}": ${(err as Error).message}`);
+                errors.push(`Cliente "${nombreBasico}": ${(err as Error).message}`);
             }
         }
 
@@ -332,22 +379,33 @@ export class XubioService {
 
     /** Fetch all proveedores from Xubio */
     async getProveedores(): Promise<XubioProveedor[]> {
-        return this.apiRequest<XubioProveedor[]>('proveedorBean');
+        return this.apiRequest<XubioProveedor[]>('ProveedorBean');
     }
 
     /** Create a proveedor in Xubio */
     async createProveedor(proveedor: Partial<XubioProveedor>): Promise<XubioProveedor> {
-        return this.apiRequest<XubioProveedor>('proveedorBean', 'POST', proveedor);
+        return this.apiRequest<XubioProveedor>('ProveedorBean', 'POST', proveedor);
+    }
+
+    /** Fetch a single proveedor detail from Xubio */
+    async getProveedorDetail(proveedorId: number): Promise<Record<string, any> | null> {
+        try {
+            const result = await this.apiRequest<any>(`ProveedorBean/${proveedorId}`);
+            const detail = Array.isArray(result) ? result[0] : result;
+            return detail || null;
+        } catch {
+            return null;
+        }
     }
 
     /** Sync proveedores from Xubio → Supabase contable_proveedores */
-    async syncProveedoresFromXubio(): Promise<{ imported: number; updated: number; errors: string[] }> {
-        let xubioProvs: XubioProveedor[];
+    async syncProveedoresFromXubio(onProgress?: (current: number, total: number) => void): Promise<{ imported: number; updated: number; errors: string[] }> {
+        let xubioProvs: any[];
         try {
             const result = await this.getProveedores();
             xubioProvs = Array.isArray(result) ? result : [];
             if (xubioProvs.length === 0) {
-                return { imported: 0, updated: 0, errors: ['Xubio no devolvió proveedores. Verificá que tu plan incluya acceso a la API de proveedores.'] };
+                return { imported: 0, updated: 0, errors: ['Xubio no devolvió proveedores.'] };
             }
         } catch (err: any) {
             return { imported: 0, updated: 0, errors: [`Error obteniendo proveedores de Xubio: ${err.message}`] };
@@ -356,30 +414,51 @@ export class XubioService {
         let updated = 0;
         const errors: string[] = [];
 
-        for (const xp of xubioProvs) {
-            const razonSocial = xp.razonSocial || `${xp.nombre} ${xp.apellido}`.trim();
-            const cuit = xp.numeroDocumento || null;
+        for (let i = 0; i < xubioProvs.length; i++) {
+            const xp = xubioProvs[i];
+            const xubioId = xp.ID || xp.proveedorid;
+            const nombreBasico = xp.razonSocial || xp.nombre || '';
+
+            if (!xubioId || !nombreBasico) continue;
+
+            onProgress?.(i + 1, xubioProvs.length);
 
             try {
-                const { data: existing } = await supabase
+                const detail = await this.getProveedorDetail(xubioId);
+
+                const razonSocial = detail?.razonSocial || detail?.nombre || nombreBasico;
+                const cuit = detail?.CUIT || detail?.cuit || null;
+
+                // Check by xubio_id first, then by razon_social (avoids PostgREST comma issues)
+                let existing: { id: string; xubio_id: number | null } | null = null;
+                const { data: byXubioId } = await supabase
                     .from('contable_proveedores')
                     .select('id, xubio_id')
                     .eq('tenant_id', this.tenantId)
-                    .or(`xubio_id.eq.${xp.ID},cuit.eq.${cuit}`)
+                    .eq('xubio_id', xubioId)
                     .maybeSingle();
+                existing = byXubioId;
+                if (!existing) {
+                    const { data: byName } = await supabase
+                        .from('contable_proveedores')
+                        .select('id, xubio_id')
+                        .eq('tenant_id', this.tenantId)
+                        .eq('razon_social', razonSocial)
+                        .maybeSingle();
+                    existing = byName;
+                }
 
-                const provData = {
+                const provData: Record<string, unknown> = {
                     tenant_id: this.tenantId,
                     razon_social: razonSocial,
-                    cuit,
-                    email: xp.email || null,
-                    telefono: xp.telefono || null,
-                    direccion: xp.direccion || null,
-                    localidad: xp.localidad || null,
-                    provincia: xp.provincia?.nombre || null,
-                    condicion_impositiva: xp.condicionImpositiva?.nombre || null,
-                    xubio_id: xp.ID,
+                    xubio_id: xubioId,
                 };
+                if (cuit) provData.cuit = cuit;
+                if (detail?.email) provData.email = detail.email.trim();
+                if (detail?.telefono) provData.telefono = detail.telefono.trim();
+                if (detail?.direccion) provData.direccion = detail.direccion.trim();
+                if (detail?.categoriaFiscal?.nombre) provData.condicion_fiscal = detail.categoriaFiscal.nombre;
+                if (detail?.observaciones) provData.observaciones = detail.observaciones.trim();
 
                 if (existing) {
                     await supabase.from('contable_proveedores').update(provData).eq('id', existing.id);
@@ -389,7 +468,7 @@ export class XubioService {
                     imported++;
                 }
             } catch (err) {
-                errors.push(`Proveedor "${razonSocial}": ${(err as Error).message}`);
+                errors.push(`Proveedor "${nombreBasico}": ${(err as Error).message}`);
             }
         }
 
@@ -450,7 +529,7 @@ export class XubioService {
                     observaciones: comprobante.observaciones,
                 };
 
-                const result = await this.apiRequest<{ ID: number }>('facturaDeVentaBean', 'POST', factura);
+                const result = await this.apiRequest<{ ID: number }>('comprobanteVentaBean', 'POST', factura);
                 return { success: true, xubioId: result.ID };
 
             } else {
@@ -488,12 +567,209 @@ export class XubioService {
                     observaciones: comprobante.observaciones,
                 };
 
-                const result = await this.apiRequest<{ ID: number }>('facturaDeCompraBean', 'POST', factura);
+                const result = await this.apiRequest<{ ID: number }>('comprobanteCompraBean', 'POST', factura);
                 return { success: true, xubioId: result.ID };
             }
         } catch (err) {
             return { success: false, error: (err as Error).message };
         }
+    }
+
+    /* ── Sync Comprobantes from Xubio ────────── */
+
+    /** Fetch comprobantes de venta from Xubio */
+    async getComprobantesVenta(fechaDesde?: string, fechaHasta?: string): Promise<any[]> {
+        let endpoint = 'comprobanteVentaBean';
+        const params: string[] = [];
+        if (fechaDesde) params.push(`fechaDesde=${fechaDesde}`);
+        if (fechaHasta) params.push(`fechaHasta=${fechaHasta}`);
+        if (params.length) endpoint += `?${params.join('&')}`;
+        return this.apiRequest<any[]>(endpoint);
+    }
+
+    /** Fetch comprobantes de compra from Xubio */
+    async getComprobantesCompra(fechaDesde?: string, fechaHasta?: string): Promise<any[]> {
+        let endpoint = 'comprobanteCompraBean';
+        const params: string[] = [];
+        if (fechaDesde) params.push(`fechaDesde=${fechaDesde}`);
+        if (fechaHasta) params.push(`fechaHasta=${fechaHasta}`);
+        if (params.length) endpoint += `?${params.join('&')}`;
+        return this.apiRequest<any[]>(endpoint);
+    }
+
+    /** Map Xubio tipo int to our tipo_comprobante string */
+    private mapTipoComprobante(tipo: number, esVenta: boolean): string {
+        if (esVenta) {
+            const map: Record<number, string> = { 1: 'Factura', 2: 'Nota de Débito', 3: 'Nota de Crédito', 4: 'Informe Z', 6: 'Recibo' };
+            return map[tipo] || `Tipo ${tipo}`;
+        }
+        const map: Record<number, string> = { 1: 'Factura', 2: 'Nota de Débito', 3: 'Nota de Crédito', 6: 'Recibo', 99: 'Otros' };
+        return map[tipo] || `Tipo ${tipo}`;
+    }
+
+    /** Sync comprobantes (venta + compra) from Xubio → contable_comprobantes */
+    async syncComprobantes(
+        fechaDesde?: string,
+        fechaHasta?: string,
+        onProgress?: (msg: string) => void,
+    ): Promise<{ imported: number; updated: number; errors: string[] }> {
+        let imported = 0;
+        let updated = 0;
+        const errors: string[] = [];
+
+        // Build lookup maps: xubio_id → our uuid for clientes and proveedores
+        const { data: clientes } = await supabase
+            .from('contable_clientes')
+            .select('id, xubio_id')
+            .eq('tenant_id', this.tenantId)
+            .not('xubio_id', 'is', null);
+        const clienteMap = new Map<string, string>();
+        clientes?.forEach((c: any) => clienteMap.set(String(c.xubio_id), c.id));
+
+        const { data: proveedores } = await supabase
+            .from('contable_proveedores')
+            .select('id, xubio_id')
+            .eq('tenant_id', this.tenantId)
+            .not('xubio_id', 'is', null);
+        const proveedorMap = new Map<string, string>();
+        proveedores?.forEach((p: any) => proveedorMap.set(String(p.xubio_id), p.id));
+
+        // 1. Comprobantes de Venta
+        onProgress?.('Descargando comprobantes de venta...');
+        try {
+            const ventaRaw = await this.getComprobantesVenta(fechaDesde, fechaHasta);
+            const ventas = Array.isArray(ventaRaw) ? ventaRaw : [];
+            onProgress?.(`${ventas.length} comprobantes de venta encontrados`);
+
+            for (let i = 0; i < ventas.length; i++) {
+                const cv = ventas[i];
+                onProgress?.(`Venta ${i + 1}/${ventas.length}`);
+                if (i === 0) console.log('[Xubio] First venta keys:', Object.keys(cv));
+                const xubioId = String(cv.transaccionid || cv.comprobante || cv.numeroDocumento || '');
+                if (!xubioId) continue;
+
+                try {
+                    // Check if already synced
+                    const { data: existing } = await supabase
+                        .from('contable_comprobantes')
+                        .select('id')
+                        .eq('tenant_id', this.tenantId)
+                        .eq('xubio_id', xubioId)
+                        .maybeSingle();
+
+                    const tipoNombre = this.mapTipoComprobante(cv.tipo, true);
+                    const letra = cv.nombre?.match(/[ABC]/)?.[0] || '';
+                    const tipoComprobante = letra ? `${tipoNombre} ${letra}` : tipoNombre;
+
+                    const clienteXubioId = cv.cliente?.ID || cv.cliente?.id;
+                    const clienteUuid = clienteXubioId ? clienteMap.get(String(clienteXubioId)) : null;
+
+                    const compData: Record<string, unknown> = {
+                        tenant_id: this.tenantId,
+                        tipo: 'venta',
+                        tipo_comprobante: tipoComprobante,
+                        fecha: cv.fecha,
+                        numero_comprobante: cv.numeroDocumento || null,
+                        cliente_id: clienteUuid || null,
+                        moneda: 'ARS',
+                        monto_original: cv.importetotal || 0,
+                        monto_ars: cv.importetotal || 0,
+                        neto_gravado: cv.importeGravado || 0,
+                        total_iva: cv.importeImpuestos || 0,
+                        estado: 'aprobado',
+                        source: 'xubio',
+                        xubio_id: xubioId,
+                        xubio_synced_at: new Date().toISOString(),
+                        descripcion: cv.descripcion || null,
+                    };
+                    if (cv.fechaVto) compData.fecha_vencimiento = cv.fechaVto;
+                    if (cv.cotizacion && cv.cotizacion !== 1) {
+                        compData.tipo_cambio = cv.cotizacion;
+                    }
+
+                    if (existing) {
+                        await supabase.from('contable_comprobantes').update(compData).eq('id', existing.id);
+                        updated++;
+                    } else {
+                        await supabase.from('contable_comprobantes').insert(compData);
+                        imported++;
+                    }
+                } catch (err) {
+                    errors.push(`Venta ${cv.numeroDocumento || xubioId}: ${(err as Error).message}`);
+                }
+            }
+        } catch (err) {
+            errors.push(`Error descargando ventas: ${(err as Error).message}`);
+        }
+
+        // 2. Comprobantes de Compra
+        onProgress?.('Descargando comprobantes de compra...');
+        try {
+            const compraRaw = await this.getComprobantesCompra(fechaDesde, fechaHasta);
+            const compras = Array.isArray(compraRaw) ? compraRaw : [];
+            onProgress?.(`${compras.length} comprobantes de compra encontrados`);
+
+            for (let i = 0; i < compras.length; i++) {
+                const cc = compras[i];
+                onProgress?.(`Compra ${i + 1}/${compras.length}`);
+                if (i === 0) console.log('[Xubio] First compra keys:', Object.keys(cc));
+                const xubioId = String(cc.transaccionid || cc.comprobante || cc.numeroDocumento || '');
+                if (!xubioId) continue;
+
+                try {
+                    const { data: existing } = await supabase
+                        .from('contable_comprobantes')
+                        .select('id')
+                        .eq('tenant_id', this.tenantId)
+                        .eq('xubio_id', xubioId)
+                        .maybeSingle();
+
+                    const tipoNombre = this.mapTipoComprobante(cc.tipo, false);
+                    const letra = cc.nombre?.match(/[ABC]/)?.[0] || '';
+                    const tipoComprobante = letra ? `${tipoNombre} ${letra}` : tipoNombre;
+
+                    const provXubioId = cc.proveedor?.ID || cc.proveedor?.id;
+                    const provUuid = provXubioId ? proveedorMap.get(String(provXubioId)) : null;
+
+                    const compData: Record<string, unknown> = {
+                        tenant_id: this.tenantId,
+                        tipo: 'compra',
+                        tipo_comprobante: tipoComprobante,
+                        fecha: cc.fecha,
+                        numero_comprobante: cc.numeroDocumento || null,
+                        proveedor_id: provUuid || null,
+                        moneda: 'ARS',
+                        monto_original: cc.importetotal || 0,
+                        monto_ars: cc.importetotal || 0,
+                        neto_gravado: cc.importeGravado || 0,
+                        total_iva: cc.importeImpuestos || 0,
+                        estado: 'aprobado',
+                        source: 'xubio',
+                        xubio_id: xubioId,
+                        xubio_synced_at: new Date().toISOString(),
+                        descripcion: cc.descripcion || null,
+                    };
+                    if (cc.fechaVto) compData.fecha_vencimiento = cc.fechaVto;
+                    if (cc.cotizacion && cc.cotizacion !== 1) {
+                        compData.tipo_cambio = cc.cotizacion;
+                    }
+
+                    if (existing) {
+                        await supabase.from('contable_comprobantes').update(compData).eq('id', existing.id);
+                        updated++;
+                    } else {
+                        await supabase.from('contable_comprobantes').insert(compData);
+                        imported++;
+                    }
+                } catch (err) {
+                    errors.push(`Compra ${cc.numeroDocumento || xubioId}: ${(err as Error).message}`);
+                }
+            }
+        } catch (err) {
+            errors.push(`Error descargando compras: ${(err as Error).message}`);
+        }
+
+        return { imported, updated, errors };
     }
 
     /* ── Test Connection ────────────────────── */
@@ -507,7 +783,7 @@ export class XubioService {
 
         try {
             // Quick test: fetch clientes (just to verify API access works)
-            const clientes = await this.apiRequest<unknown[]>('clienteBean');
+            const clientes = await this.getClientes();
             return {
                 success: true,
                 message: `Conectado ✓ — ${Array.isArray(clientes) ? clientes.length : 0} clientes encontrados`,

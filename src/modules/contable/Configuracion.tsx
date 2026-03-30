@@ -3,7 +3,7 @@ import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
 import {
     Users, Plus, Settings, RefreshCw, Building2, Save, Trash2, CheckCircle, XCircle, Eye, EyeOff, FolderTree,
-    Zap, Download, Upload, Landmark, MessageCircle
+    Zap, Download, Upload, Landmark, MessageCircle, FileText
 } from 'lucide-react';
 import { SkeletonCard } from '../../shared/components/SkeletonKit';
 import MessagingTab from './components/MessagingTab';
@@ -104,6 +104,8 @@ export default function Configuracion() {
     const [syncingClientes, setSyncingClientes] = useState(false);
     const [syncingProveedores, setSyncingProveedores] = useState(false);
     const [syncResult, setSyncResult] = useState('');
+
+    const [syncingComprobantes, setSyncingComprobantes] = useState(false);
 
     const [syncingColpyClientes, setSyncingColpyClientes] = useState(false);
     const [syncingColpyProveedores, setSyncingColpyProveedores] = useState(false);
@@ -442,16 +444,44 @@ export default function Configuracion() {
 
     async function handleSyncClientes() {
         setSyncingClientes(true); setSyncResult('');
-        try { const xubio = getXubioService(tenant!.id); await xubio.loadConfig(); const r = await xubio.syncClientesFromXubio(); setSyncResult(`Clientes: ${r.imported} importados, ${r.updated} actualizados${r.errors.length ? ` (${r.errors.length} errores)` : ''}`); }
+        try {
+            const xubio = getXubioService(tenant!.id);
+            await xubio.loadConfig();
+            const r = await xubio.syncClientesFromXubio((current, total) => {
+                setSyncResult(`Sincronizando... ${current}/${total}`);
+            });
+            setSyncResult(`Clientes: ${r.imported} importados, ${r.updated} actualizados${r.errors.length ? ` (${r.errors.length} errores)` : ''}`);
+        }
         catch (err) { setSyncResult(`Error: ${(err as Error).message}`); }
         setSyncingClientes(false);
     }
 
     async function handleSyncProveedores() {
         setSyncingProveedores(true); setSyncResult('');
-        try { const xubio = getXubioService(tenant!.id); await xubio.loadConfig(); const r = await xubio.syncProveedoresFromXubio(); setSyncResult(`Proveedores: ${r.imported} importados, ${r.updated} actualizados${r.errors.length ? ` (${r.errors.length} errores)` : ''}`); }
+        try {
+            const xubio = getXubioService(tenant!.id);
+            await xubio.loadConfig();
+            const r = await xubio.syncProveedoresFromXubio((current, total) => {
+                setSyncResult(`Sincronizando proveedores... ${current}/${total}`);
+            });
+            setSyncResult(`Proveedores: ${r.imported} importados, ${r.updated} actualizados${r.errors.length ? ` (${r.errors.length} errores)` : ''}`);
+        }
         catch (err) { setSyncResult(`Error: ${(err as Error).message}`); }
         setSyncingProveedores(false);
+    }
+
+    async function handleSyncComprobantes() {
+        setSyncingComprobantes(true); setSyncResult('');
+        try {
+            const xubio = getXubioService(tenant!.id);
+            await xubio.loadConfig();
+            const r = await xubio.syncComprobantes(undefined, undefined, (msg) => {
+                setSyncResult(msg);
+            });
+            setSyncResult(`Comprobantes: ${r.imported} importados, ${r.updated} actualizados${r.errors.length ? ` (${r.errors.length} errores)` : ''}`);
+        }
+        catch (err) { setSyncResult(`Error: ${(err as Error).message}`); }
+        setSyncingComprobantes(false);
     }
 
     async function testArca() {
@@ -594,12 +624,15 @@ export default function Configuracion() {
                 {xubioStatus === 'ok' && (
                     <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem' }}>
                         <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Sincronización</div>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                             <button className="btn btn-secondary btn-sm" onClick={handleSyncClientes} disabled={syncingClientes} style={{ flex: 1 }}>
                                 <Users size={13} /> {syncingClientes ? 'Sincronizando...' : 'Sync Clientes'}
                             </button>
                             <button className="btn btn-secondary btn-sm" onClick={handleSyncProveedores} disabled={syncingProveedores} style={{ flex: 1 }}>
                                 <Download size={13} /> {syncingProveedores ? 'Sincronizando...' : 'Sync Proveedores'}
+                            </button>
+                            <button className="btn btn-primary btn-sm" onClick={handleSyncComprobantes} disabled={syncingComprobantes} style={{ flex: '1 1 100%' }}>
+                                <FileText size={13} /> {syncingComprobantes ? 'Sincronizando...' : 'Sync Comprobantes'}
                             </button>
                         </div>
                         {syncResult && <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)', padding: '0.5rem 0.75rem', background: 'var(--bg-subtle)', borderRadius: 'var(--r-sm)' }}>{syncResult}</div>}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, Plus, Building2, Edit2, X, Save, Trash2, Eye, Send } from 'lucide-react';
 import { SkeletonTable } from '../../shared/components/SkeletonKit';
 import Entity360Panel from './Entity360Panel';
@@ -12,6 +12,13 @@ interface Cliente {
     razon_social: string;
     segmento: string | null;
     activo: boolean;
+    condicion_fiscal: string | null;
+    email: string | null;
+    telefono: string | null;
+    direccion: string | null;
+    provincia: string | null;
+    localidad: string | null;
+    observaciones: string | null;
     categoria_default: { id: string; nombre: string; color: string; tipo: string; } | null;
 }
 
@@ -25,6 +32,7 @@ interface Categoria {
 export default function Clientes() {
     const { tenant } = useTenant();
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [categorias, setCategorias] = useState<Categoria[]>([]);
     const [loading, setLoading] = useState(true);
@@ -47,11 +55,23 @@ export default function Clientes() {
         load();
     }, [tenant]);
 
+    // Open 360 panel if navigated with ?cliente_id=
+    useEffect(() => {
+        const clienteId = searchParams.get('cliente_id');
+        if (clienteId && clientes.length > 0) {
+            const found = clientes.find(c => c.id === clienteId);
+            if (found) {
+                setSelectedCliente(found);
+                setSearchParams({}, { replace: true });
+            }
+        }
+    }, [clientes, searchParams]);
+
     async function load() {
         setLoading(true);
         const [{ data: clis }, { data: cats }] = await Promise.all([
             supabase.from('contable_clientes')
-                .select('id, cuit, razon_social, segmento, activo, categoria_default:contable_categorias(id, nombre, color, tipo)')
+                .select('id, cuit, razon_social, segmento, activo, condicion_fiscal, email, telefono, direccion, provincia, localidad, observaciones, categoria_default:contable_categorias(id, nombre, color, tipo)')
                 .eq('tenant_id', tenant!.id)
                 .eq('activo', true)
                 .order('razon_social'),
@@ -112,11 +132,6 @@ export default function Clientes() {
         return true;
     });
 
-    const segmentoBadge = (s: string | null) => {
-        if (s === 'corp') return <span className="badge badge-info">Corp</span>;
-        if (s === 'biz') return <span className="badge" style={{ background: 'rgba(168, 85, 247, 0.1)', color: '#a855f7', border: '1px solid rgba(168, 85, 247, 0.2)' }}>Biz</span>;
-        return <span style={{ color: 'var(--text-faint)', fontSize: '0.8125rem' }}>—</span>;
-    };
 
     return (
         <div>
@@ -178,7 +193,8 @@ export default function Clientes() {
                                 <tr>
                                     <th>Razón Social</th>
                                     <th>CUIT</th>
-                                    <th>Segmento</th>
+                                    <th>Cond. Fiscal</th>
+                                    <th>Contacto</th>
                                     <th style={{ width: 140 }}></th>
                                 </tr>
                             </thead>
@@ -198,7 +214,12 @@ export default function Clientes() {
                                         <td style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: c.cuit ? 'var(--text-sub)' : 'var(--text-faint)' }}>
                                             {c.cuit || 'Sin CUIT'}
                                         </td>
-                                        <td>{segmentoBadge(c.segmento)}</td>
+                                        <td style={{ fontSize: '0.8rem', color: c.condicion_fiscal ? 'var(--text-sub)' : 'var(--text-faint)' }}>
+                                            {c.condicion_fiscal || '—'}
+                                        </td>
+                                        <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            {c.email || c.telefono || [c.localidad, c.provincia].filter(Boolean).join(', ') || '—'}
+                                        </td>
                                         <td>
                                             <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
                                                 <button

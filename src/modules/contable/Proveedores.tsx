@@ -986,8 +986,8 @@ export default function Proveedores() {
                                     <tr>
                                         <th>Razón Social</th>
                                         <th>CUIT</th>
-                                        <th>Producto/Servicio</th>
-                                        <th>Grupo</th>
+                                        <th>Cond. Fiscal</th>
+                                        <th>Contacto</th>
                                         <th>Actividad</th>
                                         <th></th>
                                     </tr>
@@ -1031,37 +1031,11 @@ export default function Proveedores() {
                                                 <td style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: p.cuit ? 'var(--text-sub)' : 'var(--text-faint)' }}>
                                                     {p.cuit || 'Sin CUIT'}
                                                 </td>
-                                                <td>
-                                                    {(p.producto_servicio_default as ProductoServicio | null)?.nombre
-                                                        ? <span style={{
-                                                            display: 'inline-block', maxWidth: '100%',
-                                                            padding: '0.2rem 0.6rem', borderRadius: 99,
-                                                            fontSize: '0.75rem', fontWeight: 600,
-                                                            background: 'rgba(25, 88, 224, 0.1)',
-                                                            color: '#1958E0',
-                                                            border: '1px solid rgba(25, 88, 224, 0.2)',
-                                                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                                                        }}>{(p.producto_servicio_default as ProductoServicio | null)!.nombre}</span>
-                                                        : <span style={{
-                                                            display: 'inline-block',
-                                                            padding: '0.2rem 0.6rem', borderRadius: 99,
-                                                            fontSize: '0.75rem', fontWeight: 500,
-                                                            color: '#94a3b8',
-                                                            border: '1px dashed #cbd5e1',
-                                                        }}>Sin asignar</span>
-                                                    }
+                                                <td style={{ fontSize: '0.8rem', color: p.condicion_fiscal ? 'var(--text-sub)' : 'var(--text-faint)' }}>
+                                                    {p.condicion_fiscal || '—'}
                                                 </td>
-                                                <td>
-                                                    {(p.producto_servicio_default as ProductoServicio | null)?.grupo && (
-                                                        <span style={{
-                                                            display: 'inline-block',
-                                                            padding: '0.2rem 0.6rem', borderRadius: 99,
-                                                            fontSize: '0.7rem', fontWeight: 600,
-                                                            background: 'rgba(13, 148, 136, 0.1)',
-                                                            color: '#0d9488',
-                                                            border: '1px solid rgba(13, 148, 136, 0.2)',
-                                                        }}>{(p.producto_servicio_default as ProductoServicio | null)!.grupo}</span>
-                                                    )}
+                                                <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                    {p.email || p.telefono || '—'}
                                                 </td>
                                                 <td>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>

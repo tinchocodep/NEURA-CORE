@@ -31,6 +31,8 @@ export interface Comprobante {
     percepciones_iibb?: number | null;
     percepciones_iva?: number | null;
     colpy_synced_at?: string | null;
+    proveedor_id: string | null;
+    cliente_id: string | null;
     proveedor: { razon_social: string; producto_servicio_default_id: string | null; colpy_id?: string | null; xubio_id?: string | null; cuit?: string | null } | null;
     cliente: { razon_social: string; xubio_id?: string | null } | null;
     producto_servicio: { nombre: string; grupo: string } | null;
@@ -45,6 +47,7 @@ const SELECT_FIELDS = `
   pdf_url, source, cuit_emisor, cuit_receptor, created_at,
   fecha_vencimiento, neto_gravado, neto_no_gravado, total_iva,
   percepciones_iibb, percepciones_iva, colpy_synced_at,
+  proveedor_id, cliente_id,
   proveedor:contable_proveedores(razon_social, producto_servicio_default_id, colpy_id, xubio_id, cuit),
   cliente:contable_clientes(razon_social),
   producto_servicio:contable_productos_servicio(nombre, grupo),

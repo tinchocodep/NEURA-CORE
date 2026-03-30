@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     ArrowDownLeft, ArrowUpRight, CheckCircle, XCircle, Send,
-    Eye, Upload as UploadIcon, Trash2
+    Eye, Upload as UploadIcon, Trash2, ExternalLink
 } from 'lucide-react';
 import { DataGrid } from '../../../design-system/components/DataGrid/DataGrid';
 import type { ColumnDef } from '../../../design-system/components/DataGrid/DataGrid';
@@ -42,6 +43,7 @@ export default function ComprobantesGrid({
     data, totalCount, isLoading, hasMore, onLoadMore, onAction, onDocPreview,
     selectedIds, onSelectionChange, onSort, sortCol, sortDir, onAttachInvoice, hasErp
 }: Props) {
+    const navigate = useNavigate();
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
     const handleRowActivate = useCallback((row: Comprobante) => {
@@ -92,10 +94,20 @@ export default function ComprobantesGrid({
         {
             id: 'tipo',
             header: '',
-            width: 36,
-            accessor: (c) => c.tipo === 'compra'
-                ? <ArrowDownLeft size={14} color="var(--color-danger)" />
-                : <ArrowUpRight size={14} color="var(--color-success)" />,
+            width: 72,
+            accessor: (c) => (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    {c.tipo === 'compra'
+                        ? <ArrowDownLeft size={14} color="var(--color-danger)" />
+                        : <ArrowUpRight size={14} color="var(--color-success)" />}
+                    <span style={{
+                        fontSize: '0.6rem', fontWeight: 700, textTransform: 'uppercase',
+                        padding: '1px 5px', borderRadius: 4, letterSpacing: '0.03em',
+                        background: c.tipo === 'compra' ? 'var(--color-danger-dim)' : 'var(--color-success-dim)',
+                        color: c.tipo === 'compra' ? 'var(--color-danger)' : 'var(--color-success)',
+                    }}>{c.tipo === 'compra' ? 'Compra' : 'Venta'}</span>
+                </div>
+            ),
         },
         {
             id: 'fecha',
@@ -156,16 +168,25 @@ export default function ComprobantesGrid({
                      }
                 }
 
-                const prodGrupo = (c.producto_servicio as any)?.grupo;
-                const prodNombre = (c.producto_servicio as any)?.nombre;
+                const entityId = c.tipo === 'compra' ? c.proveedor_id : c.cliente_id;
+                const hasEntity = !!entityId;
+                const entityRoute = c.tipo === 'compra' ? '/contable/proveedores' : '/contable/clientes';
+                const entityParam = c.tipo === 'compra' ? `?id=${entityId}` : `?cliente_id=${entityId}`;
 
                 return (
-                    <div>
-                        <div>{name || <span style={{ color: 'var(--color-text-muted)' }}>—</span>}</div>
-                        {prodGrupo && (
-                            <span style={{ display: 'inline-block', marginTop: 2, fontSize: '0.6rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: 'rgba(13, 148, 136, 0.1)', color: '#0d9488', border: '1px solid rgba(13, 148, 136, 0.2)' }}>
-                                {prodGrupo}{prodNombre ? ` · ${prodNombre}` : ''}
-                            </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                            <div>{name || <span style={{ color: 'var(--color-text-muted)' }}>—</span>}</div>
+                        </div>
+                        {hasEntity && name && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); navigate(entityRoute + entityParam); }}
+                                className="btn btn-ghost btn-icon"
+                                style={{ padding: 2, flexShrink: 0 }}
+                                title={c.tipo === 'compra' ? 'Ver Proveedor' : 'Ver Cliente'}
+                            >
+                                <ExternalLink size={12} color="var(--color-accent)" />
+                            </button>
                         )}
                     </div>
                 );
@@ -310,7 +331,7 @@ export default function ComprobantesGrid({
                             </button>
                         </>
                     )}
-                    {c.estado === 'aprobado' && c.source !== 'colpy' && hasErp && (
+                    {c.estado === 'aprobado' && c.source !== 'colpy' && c.source !== 'xubio' && hasErp && (
                         <button
                             className="btn btn-sm btn-primary"
                             onClick={() => onAction(c.id, 'inyectar')}
@@ -375,8 +396,26 @@ export default function ComprobantesGrid({
                 <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Etiquetas</div>
                 <TagPicker comprobanteId={c.id} />
             </div>
-            {c.pdf_url && (
-                <div style={{ gridColumn: '1/-1' }}>
+            <div style={{ gridColumn: '1/-1', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {c.tipo === 'compra' && c.proveedor_id && (c.proveedor as any)?.razon_social && (
+                    <button
+                        onClick={() => navigate(`/contable/proveedores?id=${c.proveedor_id}`)}
+                        className="btn btn-secondary btn-sm"
+                        style={{ gap: 6 }}
+                    >
+                        <ExternalLink size={13} /> Ver Proveedor: {(c.proveedor as any).razon_social}
+                    </button>
+                )}
+                {c.tipo === 'venta' && c.cliente_id && (c.cliente as any)?.razon_social && (
+                    <button
+                        onClick={() => navigate(`/contable/clientes?cliente_id=${c.cliente_id}`)}
+                        className="btn btn-secondary btn-sm"
+                        style={{ gap: 6 }}
+                    >
+                        <ExternalLink size={13} /> Ver Cliente: {(c.cliente as any).razon_social}
+                    </button>
+                )}
+                {c.pdf_url && (
                     <button
                         onClick={() => onDocPreview(c.pdf_url!.trim())}
                         className="btn btn-ghost btn-sm"
@@ -384,8 +423,8 @@ export default function ComprobantesGrid({
                     >
                         <Eye size={13} /> Ver documento adjunto
                     </button>
-                </div>
-            )}
+                )}
+            </div>
         </div>
     );
 

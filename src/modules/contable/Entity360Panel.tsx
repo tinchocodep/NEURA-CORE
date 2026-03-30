@@ -36,6 +36,8 @@ interface EntityInfo {
     telefono?: string | null;
     email?: string | null;
     direccion?: string | null;
+    provincia?: string | null;
+    localidad?: string | null;
     segmento?: string | null;
     observaciones?: string | null;
 }
@@ -200,7 +202,7 @@ export default function Entity360Panel({ entity, entityType, onClose, onDocPrevi
     const byEstado: Record<string, number> = {};
     comprobantesOnly.forEach(c => { byEstado[c.estado] = (byEstado[c.estado] || 0) + 1; });
 
-    const hasContactInfo = entity.telefono || entity.email || entity.direccion;
+    const hasContactInfo = entity.telefono || entity.email || entity.direccion || entity.provincia || entity.localidad;
     const entityLabel = entityType === 'proveedor' ? 'Proveedor' : 'Cliente';
 
     return (
@@ -336,9 +338,10 @@ export default function Entity360Panel({ entity, entityType, onClose, onDocPrevi
                                     <a href={`mailto:${entity.email}`} style={{ color: 'var(--color-accent)', textDecoration: 'none' }}>{entity.email}</a>
                                 </div>
                             )}
-                            {entity.direccion && (
+                            {(entity.direccion || entity.localidad || entity.provincia) && (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    <MapPin size={12} color="var(--color-text-muted)" /> {entity.direccion}
+                                    <MapPin size={12} color="var(--color-text-muted)" />
+                                    {[entity.direccion, entity.localidad, entity.provincia].filter(Boolean).join(' · ')}
                                 </div>
                             )}
                         </div>

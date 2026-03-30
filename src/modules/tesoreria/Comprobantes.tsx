@@ -12,6 +12,7 @@ export default function Comprobantes() {
     const { addToast } = useToast();
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
+    const [tipoFilter, setTipoFilter] = useState('');
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [hasErp, setHasErp] = useState(false);
@@ -91,7 +92,7 @@ export default function Comprobantes() {
         eliminarComprobante,
         reset
     } = useComprobantes({
-        tipo: '',
+        tipo: tipoFilter,
         estado: statusFilter,
         busqueda: searchTerm,
         fechaDesde: '',
@@ -101,7 +102,7 @@ export default function Comprobantes() {
     useEffect(() => {
         reset();
         setSelectedIds(new Set());
-    }, [tenant?.id, statusFilter, searchTerm]);
+    }, [tenant?.id, statusFilter, searchTerm, tipoFilter]);
 
     // ── Sync from Colppy ──
     const handleSync = async () => {
@@ -387,6 +388,16 @@ export default function Comprobantes() {
                             )}
                         </div>
                     )}
+                    <select
+                        className="form-input"
+                        value={tipoFilter}
+                        onChange={(e) => setTipoFilter(e.target.value)}
+                        style={{ height: 34, fontSize: '0.8rem', minWidth: 100 }}
+                    >
+                        <option value="">Compra y Venta</option>
+                        <option value="compra">Compra</option>
+                        <option value="venta">Venta</option>
+                    </select>
                     <select
                         className="form-input"
                         value={statusFilter}
