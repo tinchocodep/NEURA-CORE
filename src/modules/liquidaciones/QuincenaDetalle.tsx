@@ -210,8 +210,8 @@ export default function QuincenaDetalle() {
     return {
       emp,
       horasBrutas: Math.round(horasBrutas),
-      extra50: Math.round(extra50),
-      extra100: Math.round(extra100),
+      extra50: 0,
+      extra100: 0,
       satuHoras: Math.round(satuHoras),
       ausCount,
       horasNetas: Math.round(horasNetas),
