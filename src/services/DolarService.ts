@@ -73,12 +73,24 @@ export const DolarService = {
         }
 
         try {
-            const [oficial, blue, mep, ccl] = await Promise.all([
-                fetchCotizacion('oficial'),
-                fetchCotizacion('blue'),
-                fetchCotizacion('bolsa'),
-                fetchCotizacion('contadoconliqui'),
-            ]);
+            // Single request to get all quotes
+            const response = await fetch(`${BASE_URL}`, { headers: { 'Accept': 'application/json' } });
+            let oficial: DolarCotizacion | null = null;
+            let blue: DolarCotizacion | null = null;
+            let mep: DolarCotizacion | null = null;
+            let ccl: DolarCotizacion | null = null;
+
+            if (response.ok) {
+                const data = await response.json();
+                const arr = Array.isArray(data) ? data : [];
+                for (const d of arr) {
+                    const cot: DolarCotizacion = { nombre: d.nombre || d.casa, compra: Number(d.compra) || 0, venta: Number(d.venta) || 0, fechaActualizacion: d.fechaActualizacion || '' };
+                    if (d.casa === 'oficial') oficial = cot;
+                    else if (d.casa === 'blue') blue = cot;
+                    else if (d.casa === 'bolsa') mep = cot;
+                    else if (d.casa === 'contadoconliqui') ccl = cot;
+                }
+            }
 
             const result: DolarResumen = {
                 oficial,

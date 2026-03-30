@@ -16,6 +16,7 @@ import ChatbotAsistente from './ChatbotAsistente';
 import TopBar from './TopBar';
 import MobileNav from './MobileNav';
 import DynamicSidebar from './DynamicSidebar';
+import { resolveIcon } from '../utils/iconMap';
 
 export default function Layout() {
     const { user, role, userModules } = useAuth() as any;
@@ -217,6 +218,7 @@ export default function Layout() {
             sectionItems = activeSection.children.map((c: any) => ({
                 name: c.label,
                 path: c.path,
+                icon: resolveIcon(c.icon || 'FileText'),
             }));
         }
     } else {

@@ -46,11 +46,20 @@ import InmoAgenda from './modules/inmobiliaria/Agenda';
 import InmoProveedores from './modules/inmobiliaria/Proveedores';
 import InmoOrdenesTrabajo from './modules/inmobiliaria/OrdenesTrabajoMobile';
 import FacturarMobile from './modules/inmobiliaria/FacturarMobile';
+import FacturarAgro from './modules/agro/FacturarAgro';
 import InmoExpensas from './modules/inmobiliaria/Expensas';
 import InmoServicios from './modules/inmobiliaria/Servicios';
 import ProyeccionesInmob from './modules/inmobiliaria/Proyecciones';
 import { useAuth } from './contexts/AuthContext';
 import { useTenant } from './contexts/TenantContext';
+
+/* Route-level component that picks Facturar based on rubro */
+function FacturarRouter() {
+  const { tenant } = useTenant();
+  const rubro = (tenant as any)?.rubro || 'general';
+  if (rubro === 'inmobiliaria') return <FacturarMobile />;
+  return <FacturarAgro />;
+}
 import { ThemeProvider } from './contexts/ThemeContext';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -104,7 +113,7 @@ export default function App() {
             {/* Modulo Contable */}
             <Route path="contable">
               <Route index element={<ContableDashboard />} />
-              <Route path="comprobantes" element={<FacturarMobile />} />
+              <Route path="comprobantes" element={<FacturarRouter />} />
               <Route path="proveedores" element={<ContableProveedores />} />
               <Route path="clientes" element={<ContableClientes />} />
               <Route path="catalogos" element={<ContableCatalogos />} />

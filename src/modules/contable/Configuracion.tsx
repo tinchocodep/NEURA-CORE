@@ -236,6 +236,7 @@ export default function Configuracion() {
             arca_cuit: config.arca_cuit,
             arca_certificate: config.arca_certificate,
             arca_private_key: config.arca_private_key,
+            punto_venta: config.punto_venta,
             auto_approve_threshold: config.auto_approve_threshold,
             sync_enabled: config.sync_enabled,
         }).eq('id', config.id);
@@ -713,20 +714,11 @@ export default function Configuracion() {
                     <label className="form-label">CUIT de la empresa</label>
                     <input className="form-input" value={config?.arca_cuit || ''} onChange={e => updateConfig('arca_cuit', e.target.value)} placeholder="Ej: 30-12345678-9" />
                 </div>
+                {/* Certificado y clave privada se configuran en n8n, no desde la app */}
                 <div className="form-group">
-                    <label className="form-label">Certificado Digital (PEM)</label>
-                    <textarea className="form-input" value={config?.arca_certificate || ''} onChange={e => updateConfig('arca_certificate', e.target.value)} placeholder="Pegá aquí el contenido del certificado .pem" rows={3} style={{ fontFamily: 'monospace', fontSize: '0.75rem', resize: 'vertical' as const }} />
-                </div>
-                <div className="form-group">
-                    <label className="form-label">Clave Privada</label>
-                    <div style={{ position: 'relative' }}>
-                        <textarea className="form-input" value={config?.arca_private_key || ''} onChange={e => updateConfig('arca_private_key', e.target.value)}
-                            placeholder="Pegá aquí la clave privada" rows={3}
-                            style={{ fontFamily: 'monospace', fontSize: '0.75rem', resize: 'vertical' as const, WebkitTextSecurity: showKey ? 'none' : 'disc' } as any} />
-                        <button onClick={() => setShowKey(!showKey)} style={{ position: 'absolute', right: 8, top: 8, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
-                            {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
-                    </div>
+                    <label className="form-label">Punto de Venta</label>
+                    <input className="form-input" type="number" min={1} value={config?.punto_venta || 1} onChange={e => updateConfig('punto_venta', Number(e.target.value))} placeholder="Ej: 1" style={{ width: 120 }} />
+                    <p style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginTop: 4 }}>Número de punto de venta habilitado en AFIP</p>
                 </div>
                 <button className="btn btn-secondary" onClick={testArca} disabled={testingArca} style={{ width: '100%' }}>
                     <RefreshCw size={14} className={testingArca ? 'spinning' : ''} /> {testingArca ? 'Probando...' : 'Probar conexión'}

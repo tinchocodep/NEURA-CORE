@@ -91,7 +91,8 @@ export default function TopBar() {
     const [showNotifs, setShowNotifs] = useState(false);
 
     useEffect(() => {
-        DolarService.getCotizaciones().then(setDolar);
+        console.log('[TopBar] Loading dolar, tenant rubro:', tenant?.rubro);
+        DolarService.getCotizaciones().then(d => { console.log('[TopBar] Dolar loaded:', d); setDolar(d); }).catch(e => console.error('[TopBar] Dolar error:', e));
         const interval = setInterval(() => { DolarService.getCotizaciones().then(setDolar); }, 5 * 60 * 1000);
         return () => clearInterval(interval);
     }, []);
@@ -184,17 +185,17 @@ export default function TopBar() {
                 )}
             </div>
 
-            {/* Dollar quotes — only for tenants with rubro 'general' (SAILO) */}
-            {dolar && tenant?.rubro === 'general' && (
+            {/* Dollar quotes — for agro and general tenants */}
+            {dolar && (tenant?.rubro === 'general' || tenant?.rubro === 'agro') && (
                 <div style={{ display: 'flex', gap: 12, flexShrink: 0 }}>
                     {[
-                        { label: 'OFICIAL', value: dolar.oficial },
-                        { label: 'BLUE', value: dolar.blue },
-                        { label: 'MEP', value: dolar.mep },
+                        { label: 'OFICIAL', value: dolar.oficial?.venta },
+                        { label: 'BLUE', value: dolar.blue?.venta },
+                        { label: 'MEP', value: dolar.mep?.venta },
                     ].map(d => (
                         <div key={d.label} style={{ textAlign: 'center', lineHeight: 1.2 }}>
                             <div style={{ fontSize: '0.55rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{d.label}</div>
-                            <div style={{ fontSize: '0.75rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>${d.value ? Number(d.value).toLocaleString('es-AR') : '—'}</div>
+                            <div style={{ fontSize: '0.75rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>{d.value ? `$${Number(d.value).toLocaleString('es-AR')}` : '—'}</div>
                         </div>
                     ))}
                 </div>
