@@ -41,24 +41,7 @@ let cachedResumen: DolarResumen | null = null;
 
 /* ─── API Call Wrapper ───────────────────────────────── */
 
-async function fetchCotizacion(tipo: string): Promise<DolarCotizacion | null> {
-    try {
-        const response = await fetch(`${BASE_URL}/${tipo}`, {
-            headers: { 'Accept': 'application/json' },
-        });
-        if (!response.ok) return null;
-
-        const data = await response.json();
-        return {
-            nombre: data.nombre || tipo,
-            compra: Number(data.compra) || 0,
-            venta: Number(data.venta) || 0,
-            fechaActualizacion: data.fechaActualizacion || new Date().toISOString(),
-        };
-    } catch {
-        return null;
-    }
-}
+/* fetchCotizacion removed — now using single bulk endpoint in getCotizaciones */
 
 /* ─── Public API ─────────────────────────────────────── */
 

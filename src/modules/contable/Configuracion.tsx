@@ -31,6 +31,7 @@ interface Config {
     arca_cuit: string | null;
     arca_certificate: string | null;
     arca_private_key: string | null;
+    punto_venta: number | null;
     auto_approve_threshold: number;
     sync_enabled: boolean;
     last_sync_at: string | null;
@@ -64,7 +65,6 @@ export default function Configuracion() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [showSecret, setShowSecret] = useState(false);
-    const [showKey, setShowKey] = useState(false);
     const [testingXubio, setTestingXubio] = useState(false);
     const [testingColpy, setTestingColpy] = useState(false);
     const [testingArca, setTestingArca] = useState(false);

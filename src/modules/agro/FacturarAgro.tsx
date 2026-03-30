@@ -4,7 +4,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { supabase } from '../../lib/supabase';
 import { DolarService } from '../../services/DolarService';
 import type { DolarResumen } from '../../services/DolarService';
-import { Plus, Trash2, Send, FileText, ChevronDown, Search, X, DollarSign } from 'lucide-react';
+import { Plus, Trash2, Send, FileText, Search, X } from 'lucide-react';
 
 /* ── Types ─── */
 interface Cliente { id: string; razon_social: string; cuit: string | null; condicion_fiscal: string | null; telefono: string | null; email: string | null; direccion: string | null; }
@@ -245,7 +245,6 @@ export default function FacturarAgro() {
 
             let cae: string | null = null;
             let invoiceNumber: string | null = null;
-            let invoiceId: string | null = null;
             let pdfBlobUrl: string | null = null;
             let estado = 'pendiente';
 
@@ -307,7 +306,7 @@ export default function FacturarAgro() {
                 // Read headers
                 cae = resp.headers.get('x-cae');
                 invoiceNumber = resp.headers.get('x-invoice-number');
-                invoiceId = resp.headers.get('x-invoice-id');
+                // invoiceId available in resp.headers.get('x-invoice-id') if needed
 
                 if (resp.ok) {
                     // Response is PDF binary
@@ -339,7 +338,7 @@ export default function FacturarAgro() {
                 tipo: 'venta',
                 tipo_comprobante: tipoComp,
                 numero_comprobante: nroComp,
-                fecha: fechaHoy,
+                fecha: fecha || new Date().toISOString().split('T')[0],
                 cliente_id: clienteId,
                 moneda: 'ARS',
                 monto_original: total,
