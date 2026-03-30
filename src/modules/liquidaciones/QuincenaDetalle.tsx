@@ -2,16 +2,11 @@ import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calculator } from 'lucide-react';
-import type { Quincena, Empleado, Fichaje, Ausencia, Categoria, ValorHora } from './types';
+import { ArrowLeft } from 'lucide-react';
+import type { Quincena, Empleado, Fichaje, Ausencia } from './types';
 import { ESTADO_QUINCENA_COLOR, ESTADO_QUINCENA_LABEL, TIPO_AUSENCIA_LABEL } from './types';
 
 const DIAS_SEMANA = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
-
-function fmtMoney(n: number) {
-  if (!n) return '$0';
-  return '$ ' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 
 function getDatesInRange(start: string, end: string): string[] {
   const dates: string[] = [];
@@ -67,8 +62,6 @@ function getBadgeForDay(
 
   // Calculate hours from fichajes
   let totalHoras = 0;
-  let extra50 = 0;
-  let extra100 = 0;
   fichajes.forEach(f => {
     if (!f.hora_salida) return;
     const [eh, em] = f.hora_entrada.split(':').map(Number);
@@ -183,8 +176,6 @@ export default function QuincenaDetalle() {
   // Calculate per-employee summaries
   const empSummaries = empleados.map(emp => {
     let horasBrutas = 0;
-    let extra50 = 0;
-    let extra100 = 0;
     let ausCount = 0;
     let vacDias = 0;
     let satuHoras = 0;

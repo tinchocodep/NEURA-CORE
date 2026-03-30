@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
-import { Plus, X, Search, Users, Trash2, Shield } from 'lucide-react';
+import { Plus, X, Search, Trash2, Shield } from 'lucide-react';
 import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
 import type { Empleado, Categoria } from './types';
 

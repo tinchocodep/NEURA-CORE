@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
-import { Save, Check, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
+import { Save, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 import type { Empleado, Obra } from './types';
 
 const DIAS_SEMANA = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 
-function formatDate(d: Date) { return d.toISOString().slice(0, 10); }
+// formatDate removed — not needed
 
 function getQuincenaDates(base: Date): { label: string; desde: string; hasta: string; dates: string[] } {
   const y = base.getFullYear();
@@ -248,7 +248,7 @@ export default function FichajeMasivo() {
           <button onClick={nextQ} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: 4 }}><ChevronRight size={18} /></button>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => { setBulkObra(obras[0]?.id || ''); setBulkEntrada('08:00'); setBulkSalida('18:00'); setBulkDias(workDays); setShowBulk(true); }} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', fontSize: '0.8125rem', color: 'var(--color-text-primary)', cursor: 'pointer' }}>
+          <button onClick={() => { setBulkObra(obras[0]?.id || ''); setBulkEntrada('08:00'); setBulkHoras(9); setBulkDias(workDays); setShowBulk(true); }} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', fontSize: '0.8125rem', color: 'var(--color-text-primary)', cursor: 'pointer' }}>
             <Plus size={14} /> Fichaje Masivo
           </button>
           <button onClick={handleSave} disabled={saving || unsavedCells === 0} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: 'none', background: unsavedCells > 0 ? '#10b981' : 'var(--color-accent)', color: '#fff', fontWeight: 600, fontSize: '0.8125rem', cursor: 'pointer', opacity: saving || unsavedCells === 0 ? 0.6 : 1 }}>
