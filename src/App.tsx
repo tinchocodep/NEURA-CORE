@@ -50,6 +50,14 @@ import FacturarAgro from './modules/agro/FacturarAgro';
 import InmoExpensas from './modules/inmobiliaria/Expensas';
 import InmoServicios from './modules/inmobiliaria/Servicios';
 import ProyeccionesInmob from './modules/inmobiliaria/Proyecciones';
+import LiqDashboard from './modules/liquidaciones/Dashboard';
+import LiqEmpleados from './modules/liquidaciones/Empleados';
+import LiqObras from './modules/liquidaciones/Obras';
+import LiqFichajes from './modules/liquidaciones/FichajeMasivo';
+import LiqQuincenas from './modules/liquidaciones/Quincenas';
+import LiqCategorias from './modules/liquidaciones/Categorias';
+import LiqQuincenaDetalle from './modules/liquidaciones/QuincenaDetalle';
+// FichajeMasivo is now imported as LiqFichajes above
 import { useAuth } from './contexts/AuthContext';
 import { useTenant } from './contexts/TenantContext';
 
@@ -174,6 +182,18 @@ export default function App() {
               <Route path="iva" element={<ImpuestoPlaceholder tipo="IVA" />} />
               <Route path="iibb" element={<ImpuestoPlaceholder tipo="Ingresos Brutos" />} />
               <Route path="retenciones" element={<ImpuestoPlaceholder tipo="Retenciones" />} />
+            </Route>
+
+            {/* Modulo Liquidaciones */}
+            <Route path="liquidaciones">
+              <Route index element={<LiqDashboard />} />
+              <Route path="empleados" element={<LiqEmpleados />} />
+              <Route path="obras" element={<LiqObras />} />
+              <Route path="fichajes" element={<LiqFichajes />} />
+              <Route path="quincenas" element={<LiqQuincenas />} />
+              <Route path="categorias" element={<LiqCategorias />} />
+              <Route path="quincenas/:id" element={<LiqQuincenaDetalle />} />
+              <Route path="fichaje-masivo" element={<LiqFichajes />} />
             </Route>
 
             {/* Global Configuracion */}

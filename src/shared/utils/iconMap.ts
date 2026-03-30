@@ -23,6 +23,12 @@ import {
   ArrowLeftRight,
   Activity,
   LayoutDashboard,
+  Calculator,
+  Clock,
+  Calendar,
+  HardHat,
+  UserPlus,
+  Table,
 } from 'lucide-react';
 
 const iconMap: Record<string, LucideIcon> = {
@@ -49,6 +55,12 @@ const iconMap: Record<string, LucideIcon> = {
   ArrowLeftRight,
   Activity,
   LayoutDashboard,
+  Calculator,
+  Clock,
+  Calendar,
+  HardHat,
+  UserPlus,
+  Table,
 };
 
 export function resolveIcon(name: string): LucideIcon {
