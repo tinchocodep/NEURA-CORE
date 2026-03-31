@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { useToast } from '../../contexts/ToastContext';
 import { supabase } from '../../lib/supabase';
-import { RefreshCw, Search, CheckCircle, AlertTriangle, XCircle, Filter, Download } from 'lucide-react';
+import { RefreshCw, Search, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
 
 /* ── Types ─── */
 interface ComprobanteAFIP {
@@ -193,10 +193,6 @@ export default function ConciliacionComprobantes() {
         }));
     }
 
-    function buildKey(pv: string, tipo: string, num: string): string {
-        return `${pv.padStart(5, '0')}-${tipo}-${num.padStart(8, '0')}`;
-    }
-
     function conciliar(afipList: ComprobanteAFIP[], localList: ComprobanteLocal[]): ComprobanteMatch[] {
         const result: ComprobanteMatch[] = [];
         const localMap = new Map<string, ComprobanteLocal>();
@@ -211,9 +207,6 @@ export default function ConciliacionComprobantes() {
         const matchedLocalIds = new Set<string>();
 
         for (const afip of afipList) {
-            const tipoNombre = TIPOS_COMPROBANTE_AFIP[afip.tipoComprobante] || `Tipo ${afip.tipoComprobante}`;
-            const key = buildKey(afip.puntoVenta, afip.tipoComprobante, afip.numeroDesde);
-
             // Try multiple match strategies
             let found: ComprobanteLocal | undefined;
 
@@ -278,7 +271,7 @@ export default function ConciliacionComprobantes() {
 
     async function handleConciliar() {
         if (!isConfigured) {
-            addToast('Configurá las credenciales de ARCA en Configuración → Integraciones', 'error');
+            addToast('error', 'Configurá las credenciales de ARCA en Configuración → Integraciones');
             return;
         }
         setLoading(true);
@@ -288,9 +281,9 @@ export default function ConciliacionComprobantes() {
             const result = conciliar(afipList, localList);
             setMatches(result);
             setConsulted(true);
-            addToast(`Conciliación completada: ${afipList.length} de AFIP, ${localList.length} del sistema`, 'success');
+            addToast('success', 'Conciliación completada', `${afipList.length} de AFIP, ${localList.length} del sistema`);
         } catch (err: any) {
-            addToast(err.message || 'Error al consultar AFIP', 'error');
+            addToast('error', 'Error AFIP', err.message || 'Error al consultar AFIP');
         } finally {
             setLoading(false);
         }
