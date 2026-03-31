@@ -24,6 +24,7 @@ import ContableConfiguracion from './modules/contable/Configuracion';
 import ContableComprobantesIndex from './modules/contable/Comprobantes/index';
 import ImpuestoPlaceholder from './modules/impuestos/Placeholder';
 // import Conciliacion from './modules/contable/Conciliacion/index'; // bloqueada
+import ConciliacionComprobantes from './modules/agro/ConciliacionComprobantes';
 import VisionGeneral from './modules/VisionGeneral';
 import CRMDashboard from './modules/crm/Dashboard';
 import CRMContactos from './modules/crm/Contactos';
@@ -125,7 +126,7 @@ export default function App() {
               <Route path="proveedores" element={<ContableProveedores />} />
               <Route path="clientes" element={<ContableClientes />} />
               <Route path="catalogos" element={<ContableCatalogos />} />
-              {/* Conciliación bloqueada por ahora */}
+              <Route path="conciliacion-comprobantes" element={<ConciliacionComprobantes />} />
             </Route>
             
             {/* Modulo CRM */}

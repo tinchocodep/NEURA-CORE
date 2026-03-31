@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, Plus, Building2, Edit2, X, Save, Trash2, Eye, Send } from 'lucide-react';
+import { Search, Plus, Building2, Edit2, X, Save, Trash2, Eye, Send, RefreshCw } from 'lucide-react';
 import { SkeletonTable } from '../../shared/components/SkeletonKit';
 import Entity360Panel from './Entity360Panel';
 
@@ -42,6 +42,15 @@ export default function Clientes() {
     const [editando, setEditando] = useState<Cliente | null>(null);
     const [form, setForm] = useState({ razon_social: '', cuit: '', segmento: '', categoria_default_id: '' });
     const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
+
+    // Sync state
+    const [syncingClientes, setSyncingClientes] = useState(false);
+    const [showSyncMenu, setShowSyncMenu] = useState(false);
+    const tenantModules = (tenant?.enabled_modules as string[]) || [];
+    const hasColppy = tenantModules.includes('erp_colppy');
+    const hasXubio = tenantModules.includes('erp_xubio');
+    const hasBothErps = hasColppy && hasXubio;
+    const hasErpModule = hasColppy || hasXubio;
 
     // Pagination state
     const [visibleCount, setVisibleCount] = useState(50);
@@ -132,6 +141,35 @@ export default function Clientes() {
         return true;
     });
 
+    const handleSyncClientes = async (source?: 'colppy' | 'xubio') => {
+        if (!tenant) return;
+        if (hasBothErps && !source) { setShowSyncMenu(!showSyncMenu); return; }
+        const selectedSource = source || (hasColppy ? 'colppy' : 'xubio');
+        setShowSyncMenu(false);
+        setSyncingClientes(true);
+        try {
+            if (selectedSource === 'colppy') {
+                const { getColpyService } = await import('../../services/ColpyService');
+                const colpy = getColpyService(tenant.id);
+                await colpy.loadConfig();
+                if (!colpy.isConfigured) { alert('Colppy no está configurado.'); setSyncingClientes(false); return; }
+                const result = await colpy.syncClientesFromColpy();
+                alert(`Colppy: ${result.imported} importados, ${result.updated} actualizados${result.errors.length > 0 ? `, ${result.errors.length} errores` : ''}`);
+            } else {
+                const { getXubioService } = await import('../../services/XubioService');
+                const xubio = getXubioService(tenant.id);
+                await xubio.loadConfig();
+                if (!xubio.isConfigured) { alert('Xubio no está configurado.'); setSyncingClientes(false); return; }
+                const result = await xubio.syncClientesFromXubio();
+                alert(`Xubio: ${result.imported} importados, ${result.updated} actualizados${result.errors.length > 0 ? `, ${result.errors.length} errores` : ''}`);
+            }
+            load();
+        } catch (err: any) {
+            console.error('Sync error:', err);
+            alert('Error al sincronizar: ' + (err.message || 'Error desconocido'));
+        }
+        setSyncingClientes(false);
+    };
 
     return (
         <div>
@@ -140,9 +178,32 @@ export default function Clientes() {
                     <h1>Clientes</h1>
                     <p>Gestión de clientes de venta · {clientes.length} activos</p>
                 </div>
-                <button className="btn btn-primary" onClick={openNew}>
-                    <Plus size={16} /> Nuevo Cliente
-                </button>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    {hasErpModule && (
+                        <div style={{ position: 'relative' }}>
+                            <button className="btn btn-ghost" onClick={() => handleSyncClientes()} disabled={syncingClientes}
+                                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', fontSize: '0.8rem', borderRadius: 10 }}>
+                                <RefreshCw size={14} className={syncingClientes ? 'spin' : ''} />
+                                {syncingClientes ? 'Sincronizando...' : 'Sincronizar'}
+                            </button>
+                            {showSyncMenu && hasBothErps && (
+                                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 100, minWidth: 160, overflow: 'hidden' }}>
+                                    <button onClick={() => handleSyncClientes('colppy')} style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontSize: '0.8rem' }}
+                                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                                        Desde Colppy
+                                    </button>
+                                    <button onClick={() => handleSyncClientes('xubio')} style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontSize: '0.8rem' }}
+                                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                                        Desde Xubio
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    <button className="btn btn-primary" onClick={openNew}>
+                        <Plus size={16} /> Nuevo Cliente
+                    </button>
+                </div>
             </div>
 
             <div className="card" style={{ padding: '0.75rem 1.25rem', marginBottom: '1.25rem' }}>

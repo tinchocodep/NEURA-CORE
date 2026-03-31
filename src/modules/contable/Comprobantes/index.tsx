@@ -67,14 +67,20 @@ export default function ComprobantesIndex({ defaultTipo }: ComprobantesIndexProp
     // CUIT de la empresa + ERP connection status
     const [empresaCuit, setEmpresaCuit] = useState<string | null>(null);
     const [hasErp, setHasErp] = useState(false);
+    const [hasColppy, setHasColppy] = useState(false);
+    const [hasXubio, setHasXubio] = useState(false);
+    const [syncSource, setSyncSource] = useState<'colppy' | 'xubio' | null>(null);
+    const [showSyncSourceMenu, setShowSyncSourceMenu] = useState(false);
     useEffect(() => {
         if (!tenant?.id) return;
         supabase.from('contable_config').select('arca_cuit, xubio_client_id, xubio_client_secret, colpy_username, colpy_password').eq('tenant_id', tenant.id).maybeSingle()
             .then(({ data }) => {
                 if (data?.arca_cuit) setEmpresaCuit(data.arca_cuit);
-                const hasXubio = !!(data?.xubio_client_id && data?.xubio_client_secret);
-                const hasColppy = !!(data?.colpy_username && data?.colpy_password);
-                setHasErp(hasXubio || hasColppy);
+                const xubio = !!(data?.xubio_client_id && data?.xubio_client_secret);
+                const colppy = !!(data?.colpy_username && data?.colpy_password);
+                setHasXubio(xubio);
+                setHasColppy(colppy);
+                setHasErp(xubio || colppy);
             });
     }, [tenant?.id]);
 
@@ -682,6 +688,50 @@ export default function ComprobantesIndex({ defaultTipo }: ComprobantesIndexProp
         }
     };
 
+    const handleSyncXubio = async (desde: string, hasta: string) => {
+        if (!tenant) return;
+        setIsSyncModalOpen(false);
+        setSyncingColpy(true); // reuse same loading state
+        addToast('info', 'Sincronización', `Conectando con Xubio (Desde: ${desde || 'Histórico'}, Hasta: ${hasta || 'Hoy'})...`);
+        try {
+            const { getXubioService } = await import('../../../services/XubioService');
+            const xubio = getXubioService(tenant.id);
+            await xubio.loadConfig();
+            if (!xubio.isConfigured) {
+                addToast('error', 'Error', 'Xubio no está configurado. Ve a Configuración.');
+                setSyncingColpy(false);
+                return;
+            }
+            const result = await xubio.syncComprobantes(desde || undefined, hasta || undefined, (msg) => {
+                console.log('[Xubio sync]', msg);
+            });
+            if (result.imported === 0 && result.updated === 0) {
+                addToast('info', 'Al Día', 'No se encontraron comprobantes nuevos en Xubio.');
+            } else {
+                addToast('success', 'Completado', `Xubio: ${result.imported} importados, ${result.updated} actualizados${result.errors.length > 0 ? `, ${result.errors.length} errores` : ''}`);
+            }
+            reset();
+        } catch (e: any) {
+            addToast('error', 'Error Xubio', e.message);
+        } finally {
+            setSyncingColpy(false);
+        }
+    };
+
+    const handleSync = (desde: string, hasta: string) => {
+        if (syncSource === 'xubio') {
+            handleSyncXubio(desde, hasta);
+        } else {
+            handleSyncColpy(desde, hasta);
+        }
+    };
+
+    const openSyncModal = (source: 'colppy' | 'xubio') => {
+        setSyncSource(source);
+        setShowSyncSourceMenu(false);
+        setIsSyncModalOpen(true);
+    };
+
     // Hotkeys: Cmd+N → crear, Cmd+U → upload
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
@@ -744,7 +794,7 @@ export default function ComprobantesIndex({ defaultTipo }: ComprobantesIndexProp
                         
                         <div className="flex items-center gap-3 mb-4 text-indigo-400">
                             <RefreshCw size={24} />
-                            <h2 className="text-xl font-semibold text-white">Sincronizar Colppy</h2>
+                            <h2 className="text-xl font-semibold text-white">Sincronizar {syncSource === 'xubio' ? 'Xubio' : 'Colppy'}</h2>
                         </div>
                         
                         <p className="text-sm text-slate-300 mb-6">
@@ -781,7 +831,7 @@ export default function ComprobantesIndex({ defaultTipo }: ComprobantesIndexProp
                                 Cancelar
                             </button>
                             <button 
-                                onClick={() => handleSyncColpy(syncDesde, syncHasta)}
+                                onClick={() => handleSync(syncDesde, syncHasta)}
                                 className="px-5 py-2 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-lg shadow-lg shadow-indigo-500/20 font-medium hover:from-indigo-500 hover:to-blue-500 transition-all flex items-center gap-2"
                             >
                                 <RefreshCw size={16} /> Descargar
@@ -802,8 +852,10 @@ export default function ComprobantesIndex({ defaultTipo }: ComprobantesIndexProp
                             className="btn btn-secondary"
                             onClick={async () => {
                                 if (!tenant) return;
-                                const { getColpyService } = await import('../../../services/ColpyService');
-                                getColpyService(tenant.id).abortSync();
+                                if (syncSource === 'colppy') {
+                                    const { getColpyService } = await import('../../../services/ColpyService');
+                                    getColpyService(tenant.id).abortSync();
+                                }
                                 addToast('warning', 'Cancelando', 'Deteniendo sincronización en breve...');
                             }}
                             style={{ padding: '8px 14px', fontSize: '0.8rem', borderRadius: 10, background: 'var(--color-danger)', color: 'white', borderColor: 'var(--color-danger)' }}
@@ -811,13 +863,33 @@ export default function ComprobantesIndex({ defaultTipo }: ComprobantesIndexProp
                             <XCircle size={14} /> Parar sync
                         </button>
                     ) : (
-                        <button
-                            className="btn btn-secondary"
-                            onClick={() => setIsSyncModalOpen(true)}
-                            style={{ padding: '8px 14px', fontSize: '0.8rem', borderRadius: 10 }}
-                        >
-                            <RefreshCw size={14} /> Sincronizar
-                        </button>
+                        <div style={{ position: 'relative' }}>
+                            <button
+                                className="btn btn-secondary"
+                                onClick={() => {
+                                    if (hasColppy && hasXubio) {
+                                        setShowSyncSourceMenu(!showSyncSourceMenu);
+                                    } else {
+                                        openSyncModal(hasColppy ? 'colppy' : 'xubio');
+                                    }
+                                }}
+                                style={{ padding: '8px 14px', fontSize: '0.8rem', borderRadius: 10 }}
+                            >
+                                <RefreshCw size={14} /> Sincronizar
+                            </button>
+                            {showSyncSourceMenu && hasColppy && hasXubio && (
+                                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 100, minWidth: 160, overflow: 'hidden' }}>
+                                    <button onClick={() => openSyncModal('colppy')} style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontSize: '0.8rem' }}
+                                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                                        Desde Colppy
+                                    </button>
+                                    <button onClick={() => openSyncModal('xubio')} style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontSize: '0.8rem' }}
+                                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                                        Desde Xubio
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     ))}
                     <button
                         className="btn btn-primary"

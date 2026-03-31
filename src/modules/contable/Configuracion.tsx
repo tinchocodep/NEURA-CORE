@@ -29,6 +29,8 @@ interface Config {
     xubio_token: string | null;
     xubio_token_expires_at: string | null;
     arca_cuit: string | null;
+    arca_username: string | null;
+    arca_password: string | null;
     arca_certificate: string | null;
     arca_private_key: string | null;
     punto_venta: number | null;
@@ -236,6 +238,8 @@ export default function Configuracion() {
             colpy_password: config.colpy_password,
             colpy_empresa_id: config.colpy_empresa_id,
             arca_cuit: config.arca_cuit,
+            arca_username: config.arca_username,
+            arca_password: config.arca_password,
             arca_certificate: config.arca_certificate,
             arca_private_key: config.arca_private_key,
             punto_venta: config.punto_venta,
@@ -487,7 +491,9 @@ export default function Configuracion() {
     async function testArca() {
         setTestingArca(true); setArcaStatus('idle');
         await new Promise(r => setTimeout(r, 1500));
-        setArcaStatus(config?.arca_cuit && config?.arca_certificate ? 'ok' : 'error');
+        const hasMisComprobantes = config?.arca_cuit && config?.arca_username && config?.arca_password;
+        const hasCertificado = config?.arca_cuit && config?.arca_certificate;
+        setArcaStatus(hasMisComprobantes || hasCertificado ? 'ok' : 'error');
         setTestingArca(false);
     }
 
@@ -747,11 +753,63 @@ export default function Configuracion() {
                     <label className="form-label">CUIT de la empresa</label>
                     <input className="form-input" value={config?.arca_cuit || ''} onChange={e => updateConfig('arca_cuit', e.target.value)} placeholder="Ej: 30-12345678-9" />
                 </div>
-                {/* Certificado y clave privada se configuran en n8n, no desde la app */}
+                <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '1rem 0', paddingTop: '1rem' }}>
+                    <p style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.75rem' }}>Mis Comprobantes (AFIP SDK)</p>
+                </div>
+                <div className="form-group">
+                    <label className="form-label">CUIT login</label>
+                    <input className="form-input" value={config?.arca_username || ''} onChange={e => updateConfig('arca_username', e.target.value)} placeholder="CUIT para loguearse en ARCA (si administrás sociedad, es tu CUIT personal)" />
+                    <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4 }}>Normalmente es el mismo CUIT de la empresa. Si administrás una sociedad, usá tu CUIT personal</p>
+                </div>
+                <div className="form-group">
+                    <label className="form-label">Clave fiscal</label>
+                    <div style={{ position: 'relative' }}>
+                        <input className="form-input" type={showSecret ? 'text' : 'password'} value={config?.arca_password || ''} onChange={e => updateConfig('arca_password', e.target.value)} placeholder="Contraseña de ARCA" style={{ paddingRight: 40 }} />
+                        <button type="button" onClick={() => setShowSecret(!showSecret)} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                            {showSecret ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                    </div>
+                </div>
+                <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '1rem 0', paddingTop: '1rem' }}>
+                    <p style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.75rem' }}>Facturación Electrónica (Certificado Digital)</p>
+                </div>
+                <div className="form-group">
+                    <label className="form-label">Certificado (.crt)</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <label className="btn btn-secondary" style={{ cursor: 'pointer', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: 6, margin: 0 }}>
+                            <Upload size={14} /> {config?.arca_certificate ? 'Cambiar certificado' : 'Subir .crt'}
+                            <input type="file" accept=".crt,.pem,.cer" style={{ display: 'none' }} onChange={e => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                const reader = new FileReader();
+                                reader.onload = () => updateConfig('arca_certificate', reader.result as string);
+                                reader.readAsText(file);
+                            }} />
+                        </label>
+                        {config?.arca_certificate && <CheckCircle size={16} color="var(--success)" />}
+                    </div>
+                </div>
+                <div className="form-group">
+                    <label className="form-label">Clave privada (.key)</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <label className="btn btn-secondary" style={{ cursor: 'pointer', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: 6, margin: 0 }}>
+                            <Upload size={14} /> {config?.arca_private_key ? 'Cambiar clave' : 'Subir .key'}
+                            <input type="file" accept=".key,.pem" style={{ display: 'none' }} onChange={e => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                const reader = new FileReader();
+                                reader.onload = () => updateConfig('arca_private_key', reader.result as string);
+                                reader.readAsText(file);
+                            }} />
+                        </label>
+                        {config?.arca_private_key && <CheckCircle size={16} color="var(--success)" />}
+                    </div>
+                    <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4 }}>Se genera con OpenSSL y se tramita en AFIP → Administración de Certificados Digitales</p>
+                </div>
                 <div className="form-group">
                     <label className="form-label">Punto de Venta</label>
                     <input className="form-input" type="number" min={1} value={config?.punto_venta || 1} onChange={e => updateConfig('punto_venta', Number(e.target.value))} placeholder="Ej: 1" style={{ width: 120 }} />
-                    <p style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginTop: 4 }}>Número de punto de venta habilitado en AFIP</p>
+                    <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4 }}>Número de punto de venta habilitado en AFIP</p>
                 </div>
                 <button className="btn btn-secondary" onClick={testArca} disabled={testingArca} style={{ width: '100%' }}>
                     <RefreshCw size={14} className={testingArca ? 'spinning' : ''} /> {testingArca ? 'Probando...' : 'Probar conexión'}
