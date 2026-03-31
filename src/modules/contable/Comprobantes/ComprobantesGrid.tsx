@@ -2,7 +2,8 @@ import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     ArrowDownLeft, ArrowUpRight, CheckCircle, XCircle, Send,
-    Eye, Upload as UploadIcon, Trash2, ExternalLink
+    Eye, Upload as UploadIcon, Trash2, ExternalLink,
+    ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight
 } from 'lucide-react';
 import { DataGrid } from '../../../design-system/components/DataGrid/DataGrid';
 import type { ColumnDef } from '../../../design-system/components/DataGrid/DataGrid';
@@ -27,7 +28,11 @@ interface Props {
     totalCount: number;
     isLoading: boolean;
     hasMore: boolean;
-    onLoadMore: () => void;
+    currentPage: number;
+    totalPages: number;
+    pageSize: number;
+    onPageChange: (page: number) => void;
+    onPageSizeChange: (size: number) => void;
     onAction: (id: string, action: 'aprobar' | 'rechazar' | 'inyectar' | 'eliminar') => void;
     onDocPreview: (url: string) => void;
     selectedIds: Set<string>;
@@ -39,8 +44,11 @@ interface Props {
     hasErp?: boolean;
 }
 
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+
 export default function ComprobantesGrid({
-    data, totalCount, isLoading, hasMore, onLoadMore, onAction, onDocPreview,
+    data, totalCount, isLoading, hasMore, currentPage, totalPages, pageSize,
+    onPageChange, onPageSizeChange, onAction, onDocPreview,
     selectedIds, onSelectionChange, onSort, sortCol, sortDir, onAttachInvoice, hasErp
 }: Props) {
     const navigate = useNavigate();
@@ -436,26 +444,112 @@ export default function ComprobantesGrid({
         </div>
     );
 
+    const fromItem = totalCount === 0 ? 0 : currentPage * pageSize + 1;
+    const toItem = Math.min((currentPage + 1) * pageSize, totalCount);
+
     return (
-        <DataGrid
-            columns={columns}
-            data={data}
-            totalCount={totalCount}
-            isLoading={isLoading}
-            hasMore={hasMore}
-            onLoadMore={onLoadMore}
-            onRowActivate={handleRowActivate}
-            expandedRowId={expandedId}
-            renderExpanded={renderExpanded}
-            emptyState={emptyState}
-            onSort={onSort}
-            sortCol={sortCol}
-            sortDir={sortDir}
-            keyboardShortcuts={{
-                a: (row) => onAction(row.id, 'aprobar'),
-                r: (row) => onAction(row.id, 'rechazar'),
-                ...(hasErp ? { i: (row: any) => onAction(row.id, 'inyectar') } : {}),
-            }}
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+            <DataGrid
+                columns={columns}
+                data={data}
+                totalCount={totalCount}
+                isLoading={isLoading}
+                hasMore={false}
+                onLoadMore={() => {}}
+                onRowActivate={handleRowActivate}
+                expandedRowId={expandedId}
+                renderExpanded={renderExpanded}
+                emptyState={emptyState}
+                onSort={onSort}
+                sortCol={sortCol}
+                sortDir={sortDir}
+                keyboardShortcuts={{
+                    a: (row) => onAction(row.id, 'aprobar'),
+                    r: (row) => onAction(row.id, 'rechazar'),
+                    ...(hasErp ? { i: (row: any) => onAction(row.id, 'inyectar') } : {}),
+                }}
+            />
+
+            {/* Pagination footer */}
+            {totalCount > 0 && (
+                <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '0.75rem 1rem',
+                    borderTop: '1px solid var(--color-border-subtle)',
+                    background: 'var(--color-bg-surface)',
+                    borderRadius: '0 0 12px 12px',
+                    fontSize: '0.8125rem', color: 'var(--color-text-secondary)',
+                    flexWrap: 'wrap', gap: '0.5rem',
+                }}>
+                    {/* Left: page size selector */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span>Mostrar</span>
+                        <select
+                            value={pageSize}
+                            onChange={e => onPageSizeChange(Number(e.target.value))}
+                            style={{
+                                padding: '4px 8px', borderRadius: 6,
+                                border: '1px solid var(--color-border-subtle)',
+                                background: 'var(--color-bg)', color: 'var(--color-text-primary)',
+                                fontSize: '0.8125rem', cursor: 'pointer',
+                            }}
+                        >
+                            {PAGE_SIZE_OPTIONS.map(n => (
+                                <option key={n} value={n}>{n}</option>
+                            ))}
+                        </select>
+                        <span>por página</span>
+                    </div>
+
+                    {/* Center: showing X-Y of Z */}
+                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                        {fromItem}–{toItem} de {totalCount}
+                    </span>
+
+                    {/* Right: page navigation */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <button
+                            onClick={() => onPageChange(0)}
+                            disabled={currentPage === 0}
+                            className="btn btn-ghost btn-icon btn-sm"
+                            title="Primera página"
+                            style={{ opacity: currentPage === 0 ? 0.3 : 1 }}
+                        >
+                            <ChevronsLeft size={16} />
+                        </button>
+                        <button
+                            onClick={() => onPageChange(currentPage - 1)}
+                            disabled={currentPage === 0}
+                            className="btn btn-ghost btn-icon btn-sm"
+                            title="Página anterior"
+                            style={{ opacity: currentPage === 0 ? 0.3 : 1 }}
+                        >
+                            <ChevronLeft size={16} />
+                        </button>
+                        <span style={{ padding: '0 8px', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+                            {currentPage + 1} / {totalPages}
+                        </span>
+                        <button
+                            onClick={() => onPageChange(currentPage + 1)}
+                            disabled={!hasMore}
+                            className="btn btn-ghost btn-icon btn-sm"
+                            title="Página siguiente"
+                            style={{ opacity: !hasMore ? 0.3 : 1 }}
+                        >
+                            <ChevronRight size={16} />
+                        </button>
+                        <button
+                            onClick={() => onPageChange(totalPages - 1)}
+                            disabled={!hasMore}
+                            className="btn btn-ghost btn-icon btn-sm"
+                            title="Última página"
+                            style={{ opacity: !hasMore ? 0.3 : 1 }}
+                        >
+                            <ChevronsRight size={16} />
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
     );
 }

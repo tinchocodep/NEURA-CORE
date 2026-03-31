@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { useToast } from '../../contexts/ToastContext';
-import { Search, RefreshCw, X, Upload } from 'lucide-react';
+import { Search, RefreshCw, X, Upload, CheckCircle, Send, Download, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import * as XLSX from 'xlsx';
 import { useComprobantes } from '../contable/Comprobantes/useComprobantes';
 import ComprobantesGrid from '../contable/Comprobantes/ComprobantesGrid';
 import { getColpyService } from '../../services/ColpyService';
@@ -27,6 +28,7 @@ export default function Comprobantes() {
     const [uploading, setUploading] = useState(false);
     const [dragOver, setDragOver] = useState(false);
     const [empresaCuit, setEmpresaCuit] = useState<string | null>(null);
+    const [bulkProcessing, setBulkProcessing] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Load empresa CUIT
@@ -82,12 +84,16 @@ export default function Comprobantes() {
             });
     }, [tenant?.id]);
 
+    const [pageSize, setPageSize] = useState(25);
+
     const {
         data: comprobantes,
         isLoading: loading,
         totalCount,
         hasMore,
-        loadMore,
+        currentPage,
+        totalPages,
+        goToPage,
         updateEstado,
         eliminarComprobante,
         reset
@@ -96,13 +102,14 @@ export default function Comprobantes() {
         estado: statusFilter,
         busqueda: searchTerm,
         fechaDesde: '',
-        fechaHasta: ''
+        fechaHasta: '',
+        pageSize
     });
 
     useEffect(() => {
         reset();
         setSelectedIds(new Set());
-    }, [tenant?.id, statusFilter, searchTerm, tipoFilter]);
+    }, [tenant?.id, statusFilter, searchTerm, tipoFilter, pageSize]);
 
     // ── Sync from Colppy ──
     const handleSync = async () => {
@@ -441,6 +448,106 @@ export default function Comprobantes() {
                 </div>
             )}
 
+            {/* Bulk Action Bar */}
+            {selectedIds.size > 0 && (
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: '0.75rem',
+                    padding: '0.75rem 1rem', marginBottom: '0.75rem',
+                    background: 'var(--color-accent-subtle)', border: '1px solid var(--brand)',
+                    borderRadius: 'var(--radius-lg)',
+                    animation: 'fadeIn 0.15s ease',
+                }}>
+                    <span style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--brand)' }}>
+                        {selectedIds.size} seleccionado{selectedIds.size > 1 ? 's' : ''}
+                    </span>
+                    <div style={{ flex: 1 }} />
+                    <button
+                        className="btn btn-sm"
+                        style={{ background: 'var(--color-success)', color: '#fff', gap: 4 }}
+                        disabled={bulkProcessing}
+                        onClick={async () => {
+                            setBulkProcessing(true);
+                            for (const id of selectedIds) await handleAction(id, 'aprobar');
+                            setSelectedIds(new Set());
+                            setBulkProcessing(false);
+                            reset();
+                        }}
+                    >
+                        <CheckCircle size={13} /> Aprobar
+                    </button>
+                    {hasErp && (
+                        <button
+                            className="btn btn-sm btn-primary"
+                            style={{ gap: 4 }}
+                            disabled={bulkProcessing}
+                            onClick={async () => {
+                                const selected = comprobantes.filter(c => selectedIds.has(c.id));
+                                const injectable = selected.filter(c => c.estado === 'aprobado' && c.source !== 'colpy' && c.source !== 'xubio');
+                                if (injectable.length === 0) {
+                                    addToast('error', 'Sin comprobantes', 'Solo se pueden inyectar comprobantes aprobados y cargados desde NeuraCore');
+                                    return;
+                                }
+                                setBulkProcessing(true);
+                                for (const c of injectable) await handleAction(c.id, 'inyectar');
+                                setSelectedIds(new Set());
+                                setBulkProcessing(false);
+                                reset();
+                            }}
+                        >
+                            <Send size={13} /> Inyectar ({(() => { const n = comprobantes.filter(c => selectedIds.has(c.id) && c.estado === 'aprobado' && c.source !== 'colpy' && c.source !== 'xubio').length; return n; })()})
+                        </button>
+                    )}
+                    <button
+                        className="btn btn-sm"
+                        style={{ background: 'var(--color-bg-surface)', color: 'var(--color-text-primary)', border: '1px solid var(--color-border-subtle)', gap: 4 }}
+                        disabled={bulkProcessing}
+                        onClick={() => {
+                            const selected = comprobantes.filter(c => selectedIds.has(c.id));
+                            if (selected.length === 0) return;
+                            const headers = ['Fecha', 'Tipo', 'N° Comprobante', 'Entidad', 'CUIT', 'Moneda', 'Monto', 'Estado'];
+                            const rows = selected.map(c => [
+                                c.fecha,
+                                c.tipo_comprobante || c.tipo,
+                                c.numero_comprobante || '',
+                                (c.proveedor as any)?.razon_social || (c.cliente as any)?.razon_social || '',
+                                c.cuit_emisor || '',
+                                c.moneda || 'ARS',
+                                Number(c.monto_ars || c.monto_original || 0),
+                                c.estado,
+                            ]);
+                            const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+                            ws['!cols'] = [{ wch: 12 }, { wch: 14 }, { wch: 22 }, { wch: 30 }, { wch: 14 }, { wch: 7 }, { wch: 16 }, { wch: 12 }];
+                            const wb = XLSX.utils.book_new();
+                            XLSX.utils.book_append_sheet(wb, ws, 'Seleccionados');
+                            XLSX.writeFile(wb, `Comprobantes_seleccionados_${new Date().toISOString().split('T')[0]}.xlsx`);
+                        }}
+                    >
+                        <Download size={13} /> Exportar
+                    </button>
+                    <button
+                        className="btn btn-sm"
+                        style={{ background: 'transparent', color: 'var(--color-danger)', border: '1px solid var(--color-danger)', gap: 4 }}
+                        disabled={bulkProcessing}
+                        onClick={async () => {
+                            if (!confirm(`¿Eliminar ${selectedIds.size} comprobante(s)? Esta acción no se puede deshacer.`)) return;
+                            setBulkProcessing(true);
+                            for (const id of selectedIds) await eliminarComprobante(id);
+                            setSelectedIds(new Set());
+                            setBulkProcessing(false);
+                            reset();
+                        }}
+                    >
+                        <Trash2 size={13} /> Eliminar
+                    </button>
+                    <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => setSelectedIds(new Set())}
+                    >
+                        <X size={13} />
+                    </button>
+                </div>
+            )}
+
             <div style={{ background: 'var(--color-bg-card)', borderRadius: 12, border: '1px solid var(--color-border-subtle)', overflow: 'hidden' }}>
                 {loading && comprobantes.length === 0 ? (
                     <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Cargando documentos...</div>
@@ -450,7 +557,11 @@ export default function Comprobantes() {
                         totalCount={totalCount}
                         isLoading={loading}
                         hasMore={hasMore}
-                        onLoadMore={loadMore}
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        pageSize={pageSize}
+                        onPageChange={(page) => { goToPage(page); setSelectedIds(new Set()); }}
+                        onPageSizeChange={(size) => { setPageSize(size); setSelectedIds(new Set()); }}
                         onAction={handleAction}
                         onDocPreview={(url) => setPreviewUrl(url)}
                         selectedIds={selectedIds}

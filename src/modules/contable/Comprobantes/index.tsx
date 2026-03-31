@@ -91,11 +91,13 @@ export default function ComprobantesIndex({ defaultTipo }: ComprobantesIndexProp
 
     const { open: cmdOpen, setOpen: setCmdOpen } = useCommandBar();
 
-    const { data, totalCount, isLoading, hasMore, loadMore, reset, updateEstado, eliminarComprobante } =
-        useComprobantes({ tipo: filtroTipo, estado: filtroEstado, busqueda, fechaDesde, fechaHasta, sortCol, sortDir });
+    const [pageSize, setPageSize] = useState(25);
+
+    const { data, totalCount, isLoading, hasMore, currentPage, totalPages, goToPage, reset, updateEstado, eliminarComprobante } =
+        useComprobantes({ tipo: filtroTipo, estado: filtroEstado, busqueda, fechaDesde, fechaHasta, sortCol, sortDir, pageSize });
 
     // Load on mount, when filters change, or when tenant is available
-    useEffect(() => { reset(); setSelectedIds(new Set()); }, [tenant?.id, filtroTipo, filtroEstado, busqueda, fechaDesde, fechaHasta, sortCol, sortDir]);
+    useEffect(() => { reset(); setSelectedIds(new Set()); }, [tenant?.id, filtroTipo, filtroEstado, busqueda, fechaDesde, fechaHasta, sortCol, sortDir, pageSize]);
 
     const handleExportExcel = () => {
         if (data.length === 0) return;
@@ -1035,7 +1037,11 @@ export default function ComprobantesIndex({ defaultTipo }: ComprobantesIndexProp
                         totalCount={totalCount}
                         isLoading={isLoading}
                         hasMore={hasMore}
-                        onLoadMore={loadMore}
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        pageSize={pageSize}
+                        onPageChange={(page) => { goToPage(page); setSelectedIds(new Set()); }}
+                        onPageSizeChange={(size) => { setPageSize(size); setSelectedIds(new Set()); }}
                         onAction={handleAction}
                         onDocPreview={setDocPreview}
                         selectedIds={selectedIds}

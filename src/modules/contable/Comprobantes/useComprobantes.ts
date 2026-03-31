@@ -55,7 +55,7 @@ const SELECT_FIELDS = `
   centro_costo:contable_centros_costo(nombre)
 `;
 
-const PAGE_SIZE = 50;
+const DEFAULT_PAGE_SIZE = 25;
 
 export interface ComprobantesFilters {
     tipo: string;
@@ -65,26 +65,31 @@ export interface ComprobantesFilters {
     fechaHasta: string;
     sortCol?: string | null;
     sortDir?: 'asc' | 'desc';
+    pageSize?: number;
 }
 
 export function useComprobantes(filters: ComprobantesFilters) {
     const { tenant } = useTenant();
-    const [pages, setPages] = useState<Comprobante[][]>([]);
+    const [data, setData] = useState<Comprobante[]>([]);
     const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
-    const [hasMore, setHasMore] = useState(true);
-    const [lastCreatedAt, setLastCreatedAt] = useState<string | null>(null);
+    const [currentPage, setCurrentPage] = useState(0);
 
-    const data = useMemo(() => pages.flat(), [pages]);
+    const pageSize = filters.pageSize || DEFAULT_PAGE_SIZE;
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    const hasMore = currentPage < totalPages - 1;
 
-    const buildQuery = useCallback(async (isLoadMore: boolean) => {
+    const buildQuery = useCallback(async (page: number) => {
         if (!tenant) return null;
+
+        const from = page * pageSize;
+        const to = from + pageSize - 1;
 
         let query = supabase
             .from('contable_comprobantes')
-            .select(SELECT_FIELDS, isLoadMore ? undefined : { count: 'exact' })
+            .select(SELECT_FIELDS, { count: 'exact' })
             .eq('tenant_id', tenant.id)
-            .limit(PAGE_SIZE);
+            .range(from, to);
 
         // Apply dynamic sorting
         if (filters.sortCol === 'fecha') {
@@ -92,10 +97,6 @@ export function useComprobantes(filters: ComprobantesFilters) {
         }
         // Always fallback to created_at for stable pagination
         query = query.order('created_at', { ascending: false });
-
-        if (isLoadMore && lastCreatedAt) {
-            query = query.lt('created_at', lastCreatedAt);
-        }
 
         if (filters.tipo && filters.tipo !== 'todos') query = query.eq('tipo', filters.tipo);
         if (filters.estado && filters.estado !== 'todos') query = query.eq('estado', filters.estado);
@@ -130,36 +131,32 @@ export function useComprobantes(filters: ComprobantesFilters) {
         }
 
         return query;
-    }, [tenant, filters.tipo, filters.estado, filters.busqueda, filters.fechaDesde, filters.fechaHasta, filters.sortCol, filters.sortDir, lastCreatedAt]);
+    }, [tenant, filters.tipo, filters.estado, filters.busqueda, filters.fechaDesde, filters.fechaHasta, filters.sortCol, filters.sortDir, pageSize]);
 
     const isFetchingRef = useRef(false);
 
-    const reset = useCallback(async () => {
+    const fetchPage = useCallback(async (page: number) => {
         if (!tenant || isFetchingRef.current) return;
         isFetchingRef.current = true;
         setIsLoading(true);
-        setPages([]);
-        setLastCreatedAt(null);
-        setHasMore(true);
 
-        const query = await buildQuery(false);
-        if (!query) { 
-            setIsLoading(false); 
+        const query = await buildQuery(page);
+        if (!query) {
+            setIsLoading(false);
             isFetchingRef.current = false;
-            return; 
+            return;
         }
 
         const { data: rows, count, error } = await query;
         setIsLoading(false);
         isFetchingRef.current = false;
-        
-        if (error) { console.error('useComprobantes/reset:', error); return; }
+
+        if (error) { console.error('useComprobantes/fetchPage:', error); return; }
 
         const freshRows = (rows || []) as unknown as Comprobante[];
-        setPages([freshRows]);
+        setData(freshRows);
         setTotalCount(count || 0);
-        if (freshRows.length < PAGE_SIZE) setHasMore(false);
-        if (freshRows.length > 0) setLastCreatedAt(freshRows[freshRows.length - 1].created_at);
+        setCurrentPage(page);
 
         // Background backfill: link producto_servicio from proveedor's default for comprobantes missing it
         const toBackfill = freshRows.filter(
@@ -174,48 +171,24 @@ export function useComprobantes(filters: ComprobantesFilters) {
                         .eq('id', c.id)
                 )
             ).then(async () => {
-                // Silently re-fetch to show linked products
-                const q = await buildQuery(false);
+                const q = await buildQuery(page);
                 if (q) {
                     const { data: refreshed } = await q;
-                    if (refreshed) setPages([(refreshed as unknown as Comprobante[])]);
+                    if (refreshed) setData(refreshed as unknown as Comprobante[]);
                 }
             });
         }
     }, [tenant, buildQuery]);
 
-    const loadMore = useCallback(async () => {
-        if (!tenant || isLoading || !hasMore || !lastCreatedAt || isFetchingRef.current) return;
-        isFetchingRef.current = true;
-        setIsLoading(true);
+    const reset = useCallback(() => {
+        setCurrentPage(0);
+        fetchPage(0);
+    }, [fetchPage]);
 
-        const query = await buildQuery(true);
-        if (!query) { 
-            setIsLoading(false); 
-            isFetchingRef.current = false;
-            return; 
-        }
-
-        const { data: rows, error } = await query;
-        setIsLoading(false);
-        isFetchingRef.current = false;
-
-        if (error) { console.error('useComprobantes/loadMore:', error); return; }
-
-        const newRows = (rows || []) as unknown as Comprobante[];
-        if (newRows.length < PAGE_SIZE) setHasMore(false);
-        
-        if (newRows.length > 0) {
-            setPages(prev => {
-                // Prevenir duplicidades asegurando que la primera id de newRows no esté ya en prev
-                const existingIds = new Set(prev.flat().map(r => r.id));
-                const uniqueNewRows = newRows.filter(r => !existingIds.has(r.id));
-                if (uniqueNewRows.length === 0) return prev;
-                return [...prev, uniqueNewRows];
-            });
-            setLastCreatedAt(newRows[newRows.length - 1].created_at);
-        }
-    }, [tenant, isLoading, hasMore, lastCreatedAt, buildQuery]);
+    const goToPage = useCallback((page: number) => {
+        if (page < 0 || page >= totalPages) return;
+        fetchPage(page);
+    }, [fetchPage, totalPages]);
 
     const updateEstado = useCallback(async (id: string, estado: ComprobanteEstado) => {
         const payload: Record<string, unknown> = { estado };
@@ -223,22 +196,22 @@ export function useComprobantes(filters: ComprobantesFilters) {
         const { error } = await supabase.from('contable_comprobantes').update(payload).eq('id', id);
         if (error) { console.error('updateEstado:', error); return false; }
         // Optimistically update in-place
-        setPages(prev => prev.map(page =>
-            page.map(c => c.id === id ? { ...c, estado } : c)
-        ));
+        setData(prev => prev.map(c => c.id === id ? { ...c, estado } : c));
         return true;
     }, []);
 
     const eliminarComprobante = useCallback(async (id: string) => {
         const { error } = await supabase.from('contable_comprobantes').delete().eq('id', id);
         if (error) { console.error('eliminarComprobante:', error); return false; }
-        // Optimistically remove from state
-        setPages(prev => prev.map(page => page.filter(c => c.id !== id)));
+        // Optimistically remove and re-fetch current page
+        setData(prev => prev.filter(c => c.id !== id));
         return true;
     }, []);
 
-    const resetRef = useRef(reset);
-    useEffect(() => { resetRef.current = reset; }, [reset]);
+    const fetchPageRef = useRef(fetchPage);
+    useEffect(() => { fetchPageRef.current = fetchPage; }, [fetchPage]);
+    const currentPageRef = useRef(currentPage);
+    useEffect(() => { currentPageRef.current = currentPage; }, [currentPage]);
 
     // Listen for real-time changes
     useEffect(() => {
@@ -249,7 +222,7 @@ export function useComprobantes(filters: ComprobantesFilters) {
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'contable_comprobantes', filter: `tenant_id=eq.${tenant.id}` },
                 () => {
-                    resetRef.current();
+                    fetchPageRef.current(currentPageRef.current);
                 }
             )
             .subscribe();
@@ -259,5 +232,5 @@ export function useComprobantes(filters: ComprobantesFilters) {
         };
     }, [tenant?.id]);
 
-    return { data, totalCount, isLoading, hasMore, loadMore, reset, updateEstado, eliminarComprobante };
+    return { data, totalCount, isLoading, hasMore, currentPage, totalPages, pageSize, goToPage, reset, updateEstado, eliminarComprobante };
 }
