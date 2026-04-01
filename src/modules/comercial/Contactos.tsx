@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Plus, Download, MessageCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 
 interface Stage { id: string; nombre: string; color: string; }
@@ -93,16 +94,16 @@ export default function ComercialContactos() {
                     <input type="text" placeholder="Buscar..." value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setPage(1); }}
                         className="form-input" style={{ paddingLeft: 30, height: 32, fontSize: '0.8rem' }} />
                 </div>
-                <select value={filterStage} onChange={e => { setFilterStage(e.target.value); setPage(1); }} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
+                <StyledSelect value={filterStage} onChange={e => { setFilterStage(e.target.value); setPage(1); }} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
                     <option value="">Todas las etapas</option>
                     {stages.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
-                </select>
-                <select value={filterPriority} onChange={e => { setFilterPriority(e.target.value); setPage(1); }} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
+                </StyledSelect>
+                <StyledSelect value={filterPriority} onChange={e => { setFilterPriority(e.target.value); setPage(1); }} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
                     <option value="">Toda prioridad</option>
                     <option value="alta">Alta</option>
                     <option value="media">Media</option>
                     <option value="baja">Baja</option>
-                </select>
+                </StyledSelect>
                 <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
                     <button onClick={exportCSV} style={{ padding: '0.4rem 0.75rem', borderRadius: 6, border: '1px solid var(--color-border-subtle)', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-primary)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 4 }}>
                         <Download size={14} /> Exportar

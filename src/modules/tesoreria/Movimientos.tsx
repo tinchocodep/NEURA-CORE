@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { Pencil, LayoutList, CalendarDays, ChevronLeft, ChevronRight, Search, Plus, ArrowUpRight, ArrowDownRight, X, Check } from 'lucide-react';
 import EditTransactionModal from './components/EditTransactionModal';
 import CustomSelect from '../../shared/components/CustomSelect';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 const fmt = (n: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n);
 
@@ -116,11 +117,11 @@ export default function Movimientos() {
                     <input type="text" placeholder="Buscar concepto, cuenta..." value={searchText} onChange={e => setSearchText(e.target.value)}
                         className="form-input" style={{ paddingLeft: 30, height: 32, fontSize: '0.8rem' }} />
                 </div>
-                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
+                <StyledSelect value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
                     <option value="">Todos los estados</option>
                     <option value="completado">Confirmados</option>
                     <option value="pendiente">Pendientes</option>
-                </select>
+                </StyledSelect>
                 <div style={{ display: 'flex', gap: '0.25rem', background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-sm)', padding: 2 }}>
                     <button onClick={() => setViewMode('table')} style={{ padding: '0.3rem 0.5rem', borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer', background: viewMode === 'table' ? 'var(--color-accent)' : 'transparent', color: viewMode === 'table' ? '#fff' : 'var(--color-text-muted)' }}><LayoutList size={14} /></button>
                     <button onClick={() => setViewMode('calendar')} style={{ padding: '0.3rem 0.5rem', borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer', background: viewMode === 'calendar' ? 'var(--color-accent)' : 'transparent', color: viewMode === 'calendar' ? '#fff' : 'var(--color-text-muted)' }}><CalendarDays size={14} /></button>

@@ -4,6 +4,7 @@ import { useTenant } from '../../contexts/TenantContext';
 import { Plus, X, Search, Trash2, Shield } from 'lucide-react';
 import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
 import type { Empleado, Categoria } from './types';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 const EMPTY: Partial<Empleado> = { nombre: '', apellido: '', dni: '', cuil: '', categoria_id: null, es_revestimiento: false, revestimiento_porcentaje: 20, estado: 'activo', notas: '' };
 
@@ -98,11 +99,11 @@ export default function LiqEmpleados() {
             <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar empleado..." style={{ width: '100%', padding: '8px 10px 8px 30px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', fontSize: '0.8125rem', color: 'var(--color-text-primary)' }} />
           </div>
-          <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', fontSize: '0.8125rem', color: 'var(--color-text-primary)' }}>
+          <StyledSelect value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', fontSize: '0.8125rem', color: 'var(--color-text-primary)' }}>
             <option value="activo">Activos</option>
             <option value="inactivo">Inactivos</option>
             <option value="">Todos</option>
-          </select>
+          </StyledSelect>
         </div>
 
         {/* Table */}
@@ -187,10 +188,10 @@ export default function LiqEmpleados() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
                   <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 4, display: 'block' }}>Categoría</label>
-                  <select value={editing.categoria_id || ''} onChange={e => setEditing({ ...editing, categoria_id: e.target.value || null })} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', fontSize: '0.8125rem', color: 'var(--color-text-primary)' }}>
+                  <StyledSelect value={editing.categoria_id || ''} onChange={e => setEditing({ ...editing, categoria_id: e.target.value || null })} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', fontSize: '0.8125rem', color: 'var(--color-text-primary)' }}>
                     <option value="">Sin categoría</option>
                     {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                  </select>
+                  </StyledSelect>
                 </div>
                 <div>
                   <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 4, display: 'block' }}>Fecha Ingreso</label>
@@ -215,10 +216,10 @@ export default function LiqEmpleados() {
 
               <div>
                 <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 4, display: 'block' }}>Estado</label>
-                <select value={editing.estado || 'activo'} onChange={e => setEditing({ ...editing, estado: e.target.value as any })} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', fontSize: '0.8125rem', color: 'var(--color-text-primary)' }}>
+                <StyledSelect value={editing.estado || 'activo'} onChange={e => setEditing({ ...editing, estado: e.target.value as any })} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', fontSize: '0.8125rem', color: 'var(--color-text-primary)' }}>
                   <option value="activo">Activo</option>
                   <option value="inactivo">Inactivo</option>
-                </select>
+                </StyledSelect>
               </div>
               <div>
                 <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 4, display: 'block' }}>Notas</label>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import { Car, Plus, Search, X, Edit2, Trash2, Gauge, Fuel, Settings2, LayoutGrid, List, ChevronDown, User, TrendingUp } from 'lucide-react';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 interface Cliente { id: string; razon_social: string; }
 interface Contacto { id: string; nombre: string; apellido: string | null; }
@@ -210,20 +211,20 @@ export default function CatalogoAutos() {
             style={{ paddingLeft: 34, width: '100%' }} />
         </div>
         <div style={{ position: 'relative' }}>
-          <select className="form-input" value={filterEstado} onChange={e => setFilterEstado(e.target.value)}
+          <StyledSelect className="form-input" value={filterEstado} onChange={e => setFilterEstado(e.target.value)}
             style={{ paddingRight: 28, appearance: 'none', minWidth: 140 }}>
             <option value="todos">Todos los estados</option>
             {ESTADOS.map(e => <option key={e.id} value={e.id}>{e.label}</option>)}
-          </select>
+          </StyledSelect>
           <ChevronDown size={14} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--color-text-muted)' }} />
         </div>
         <div style={{ position: 'relative' }}>
-          <select className="form-input" value={filterTipo} onChange={e => setFilterTipo(e.target.value)}
+          <StyledSelect className="form-input" value={filterTipo} onChange={e => setFilterTipo(e.target.value)}
             style={{ paddingRight: 28, appearance: 'none', minWidth: 120 }}>
             <option value="todos">Todos</option>
             <option value="nuevo">0km</option>
             <option value="usado">Usado</option>
-          </select>
+          </StyledSelect>
           <ChevronDown size={14} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--color-text-muted)' }} />
         </div>
         <div style={{ display: 'flex', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
@@ -539,9 +540,9 @@ function FormSelect({ label, value, onChange, options }: {
     <div>
       <label style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>{label}</label>
       <div style={{ position: 'relative' }}>
-        <select className="form-input" value={value} onChange={e => onChange(e.target.value)} style={{ width: '100%', appearance: 'none', paddingRight: 28 }}>
+        <StyledSelect className="form-input" value={value} onChange={e => onChange(e.target.value)} style={{ width: '100%', appearance: 'none', paddingRight: 28 }}>
           {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
+        </StyledSelect>
         <ChevronDown size={14} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--color-text-muted)' }} />
       </div>
     </div>

@@ -11,6 +11,7 @@ import { getXubioService } from '../../services/XubioService';
 import { getColpyService } from '../../services/ColpyService';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 function useIsMobile() {
     const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
@@ -684,7 +685,7 @@ export default function Configuracion() {
                         </button>
                     </label>
                     {colpyEmpresas && colpyEmpresas.length > 0 && (
-                        <select 
+                        <StyledSelect 
                             className="form-input" 
                             style={{ marginBottom: '0.5rem' }}
                             value={config?.colpy_empresa_id || ''} 
@@ -696,7 +697,7 @@ export default function Configuracion() {
                                     {emp.razonSocial || emp.Nombre || emp.RazonSocial} (ID: {emp.IdEmpresa})
                                 </option>
                             ))}
-                        </select>
+                        </StyledSelect>
                     )}
                     <input className="form-input" value={config?.colpy_empresa_id || ''} onChange={e => updateConfig('colpy_empresa_id', e.target.value)} placeholder="Ej: 118337 (Ingresar a mano u obtener desde 'Buscar mis empresas')" />
                 </div>
@@ -853,20 +854,20 @@ export default function Configuracion() {
                                 </div>
                                 <div className="form-group" style={{ marginBottom: '0.75rem' }}>
                                     <label className="form-label" style={{ fontSize: '0.7rem' }}>Banco</label>
-                                    <select className="form-input" value={cred.bank_code} onChange={e => { const copy = [...bankCreds]; copy[i].bank_code = e.target.value; setBankCreds(copy); }} style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
+                                    <StyledSelect className="form-input" value={cred.bank_code} onChange={e => { const copy = [...bankCreds]; copy[i].bank_code = e.target.value; setBankCreds(copy); }} style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
                                         <option value="supervielle">Banco Supervielle</option>
                                         <option value="galicia">Banco Galicia</option>
                                         <option value="santander">Banco Santander</option>
                                         <option value="macro">Banco Macro</option>
                                         <option value="ypf_ruta">YPF Ruta</option>
-                                    </select>
+                                    </StyledSelect>
                                 </div>
                                 <div className="form-group" style={{ marginBottom: '0.75rem' }}>
                                     <label className="form-label" style={{ fontSize: '0.7rem' }}>Entorno</label>
-                                    <select className="form-input" value={cred.environment} onChange={e => { const copy = [...bankCreds]; copy[i].environment = e.target.value; setBankCreds(copy); }} style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
+                                    <StyledSelect className="form-input" value={cred.environment} onChange={e => { const copy = [...bankCreds]; copy[i].environment = e.target.value; setBankCreds(copy); }} style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
                                         <option value="sandbox">Sandbox (Pruebas)</option>
                                         <option value="production">Producción</option>
-                                    </select>
+                                    </StyledSelect>
                                 </div>
                                 <div className="form-group" style={{ marginBottom: '0.75rem' }}>
                                     <label className="form-label" style={{ fontSize: '0.7rem' }}>Client ID</label>
@@ -954,10 +955,10 @@ export default function Configuracion() {
                                         </div>
                                         <div className="form-group" style={{ marginBottom: 0 }}>
                                             <label className="form-label" style={{ fontSize: '0.7rem' }}>Rol</label>
-                                            <select className="form-input" value={editRole} onChange={e => setEditRole(e.target.value)}>
+                                            <StyledSelect className="form-input" value={editRole} onChange={e => setEditRole(e.target.value)}>
                                                 <option value="user">Usuario</option>
                                                 <option value="admin">Admin</option>
-                                            </select>
+                                            </StyledSelect>
                                         </div>
                                         <div className="form-group" style={{ marginBottom: 0 }}>
                                             <label className="form-label" style={{ fontSize: '0.7rem' }}>Nueva contraseña</label>

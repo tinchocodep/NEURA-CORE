@@ -5,6 +5,7 @@ import { useTenant } from '../../../contexts/TenantContext';
 import { useToast } from '../../../contexts/ToastContext';
 import { Plus, Search, Check } from 'lucide-react';
 import ProjectSearch from './ProjectSearch';
+import StyledSelect from '../../../shared/components/StyledSelect';
 
 // ── Searchable expense-category picker ──────────────────────────────────────
 function ExpenseCategorySearch({ categories, selectedId, onSelect, tenant, onCreated }: {
@@ -370,7 +371,7 @@ export default function TransactionForm({
                 {/* Cuenta */}
                 <div className="form-group" style={{ gridColumn: txType === 'transfer' ? '1' : '1 / -1' }}>
                     <label className="form-label">{txType === 'transfer' ? 'Cuenta Origen' : 'Banco / Cuenta'}</label>
-                    <select className="form-input" value={accountId} onChange={e => setAccountId(e.target.value)} required>
+                    <StyledSelect className="form-input" value={accountId} onChange={e => setAccountId(e.target.value)} required>
                         <option value="">Seleccione una cuenta</option>
                         {txType === 'transfer' ? (
                             <>
@@ -391,14 +392,14 @@ export default function TransactionForm({
                                 <option key={acc.id} value={acc.id}>{acc.name} — ${acc.balance?.toLocaleString('es-AR')}</option>
                             ))
                         )}
-                    </select>
+                    </StyledSelect>
                 </div>
 
                 {/* Cuenta destino para transferencia */}
                 {txType === 'transfer' && (
                     <div className="form-group">
                         <label className="form-label">Cuenta Destino</label>
-                        <select className="form-input" value={destinationAccountId} onChange={e => setDestinationAccountId(e.target.value)} required>
+                        <StyledSelect className="form-input" value={destinationAccountId} onChange={e => setDestinationAccountId(e.target.value)} required>
                             <option value="">Seleccione destino</option>
                             <optgroup label="🏦 Bancos">
                                 {accounts.filter(a => !a.assigned_user_id).map(acc => (
@@ -410,7 +411,7 @@ export default function TransactionForm({
                                     <option key={acc.id} value={acc.id} disabled={acc.id === accountId}>{acc.name}</option>
                                 ))}
                             </optgroup>
-                        </select>
+                        </StyledSelect>
                     </div>
                 )}
 
@@ -455,12 +456,12 @@ export default function TransactionForm({
                                                 No hay categorías de ingreso. Hacé click en <strong>"Crear nueva"</strong> para agregar una.
                                             </div>
                                         ) : (
-                                            <select className="form-input" value={incomeCategoryId} onChange={e => setIncomeCategoryId(e.target.value)} required>
+                                            <StyledSelect className="form-input" value={incomeCategoryId} onChange={e => setIncomeCategoryId(e.target.value)} required>
                                                 <option value="">Seleccione una categoría</option>
                                                 {incomeCategories.map(cat => (
                                                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                                                 ))}
-                                            </select>
+                                            </StyledSelect>
                                         )}
                                     </motion.div>
                                 ) : (
@@ -506,7 +507,7 @@ export default function TransactionForm({
 
                         <div className="form-group">
                             <label className="form-label">Método de Pago</label>
-                            <select className="form-input" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
+                            <StyledSelect className="form-input" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
                                 {/* Dynamic transferencia options — one per bank account */}
                                 {accounts.filter(a => a.type === 'bank').length > 0
                                     ? accounts.filter(a => a.type === 'bank').map(a => (
@@ -520,7 +521,7 @@ export default function TransactionForm({
                                 <option value="cheque">Cheque</option>
                                 <option value="tarjeta">Tarjeta</option>
                                 <option value="otro">Otro</option>
-                            </select>
+                            </StyledSelect>
                         </div>
 
                         {/* Cheque fields — shown automatically when method = cheque */}
@@ -553,10 +554,10 @@ export default function TransactionForm({
                         {!isCheque && (
                             <div className="form-group">
                                 <label className="form-label">Estado</label>
-                                <select className="form-input" value={status} onChange={e => setStatus(e.target.value)}>
+                                <StyledSelect className="form-input" value={status} onChange={e => setStatus(e.target.value)}>
                                     <option value="completado">Completado</option>
                                     <option value="pendiente">Pendiente (A futuro)</option>
-                                </select>
+                                </StyledSelect>
                             </div>
                         )}
 

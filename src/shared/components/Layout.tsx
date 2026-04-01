@@ -20,7 +20,7 @@ import { resolveIcon } from '../utils/iconMap';
 
 export default function Layout() {
     const { user, role, userModules } = useAuth() as any;
-    const { tenant } = useTenant();
+    const { tenant, loading: tenantLoading } = useTenant();
     const location = useLocation();
     const [pendingCount, setPendingCount] = useState(0);
     const [pendingComprobantes, setPendingComprobantes] = useState(0);
@@ -135,12 +135,14 @@ export default function Layout() {
     };
 
     const allTesoreriaItems = [
-        { name: 'Proyecciones', path: '/tesoreria', icon: LayoutDashboard },
+        { name: 'Dashboard', path: '/tesoreria', icon: LayoutDashboard },
         { name: 'Movimientos', path: '/tesoreria/movimientos', icon: ArrowRightLeft, submodule: 'tesoreria.movimientos' },
         { name: 'Órdenes de Pago', path: '/tesoreria/ordenes-pago', icon: Receipt, submodule: 'tesoreria.ordenes-pago' },
         { name: 'Comprobantes', path: '/tesoreria/comprobantes', icon: FileText, submodule: 'tesoreria.comprobantes' },
         { name: 'Cajas', path: '/tesoreria/cajas', icon: Landmark, submodule: 'tesoreria.cajas' },
         { name: 'Bancos', path: '/tesoreria/bancos', icon: Landmark, submodule: 'tesoreria.bancos' },
+        { name: 'Proyecciones', path: '/tesoreria/proyecciones', icon: TrendingUp },
+        { name: 'Centro de Costos', path: '/tesoreria/centro-costos', icon: Tag },
         { name: 'Monitor', path: '/tesoreria/monitor', icon: Activity, submodule: 'tesoreria.monitor' },
         { name: 'Equipo', path: '/tesoreria/equipo', icon: Users, adminOnly: true, submodule: 'tesoreria.equipo' },
     ];
@@ -206,9 +208,11 @@ export default function Layout() {
     const isCRM = location.pathname.startsWith('/crm');
     const isInmobiliaria = location.pathname.startsWith('/inmobiliaria');
 
-    // Determine current section nav items
+    // Determine current section nav items — don't fall back to hardcoded tabs while tenant is loading
     let sectionItems: { name: string; path: string; icon?: any }[] = [];
-    if (hasDynamicSidebar) {
+    if (tenantLoading || !tenant) {
+        // Tenant still loading — leave empty to avoid flash
+    } else if (hasDynamicSidebar) {
         // Derive subtabs from sidebar_config children for the active section
         const sections = tenant?.sidebar_config?.sections || [];
         const activeSection = sections.find((s: any) =>
@@ -314,10 +318,10 @@ export default function Layout() {
                 className={`app-shell${agentCollapsed ? ' agent-collapsed' : ''} inmob-layout`}
             >
                 {/* ──────────────── SIDEBAR ──────────────── */}
-                {!isMobile && hasDynamicSidebar && (
+                {!isMobile && (hasDynamicSidebar || tenantLoading) && (
                     <aside className="sidebar"><DynamicSidebar /></aside>
                 )}
-                {!isMobile && !hasDynamicSidebar && (
+                {!isMobile && !hasDynamicSidebar && !tenantLoading && (
                     <aside className="sidebar">
                         {/* + Button */}
                         <div style={{ position: 'relative', marginBottom: 8 }}>

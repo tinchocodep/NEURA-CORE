@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 function useIsMobile() {
   const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
@@ -124,10 +125,10 @@ export default function ProveedoresInmob() {
           <input type="text" placeholder="Buscar proveedor..." value={search} onChange={e => setSearch(e.target.value)}
             className="form-input" style={{ paddingLeft: 30, height: 32, fontSize: '0.8rem' }} />
         </div>
-        <select value={filterRubro} onChange={e => setFilterRubro(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
+        <StyledSelect value={filterRubro} onChange={e => setFilterRubro(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
           <option value="">Todos los rubros</option>
           {RUBROS.map(r => <option key={r} value={r}>{RUBRO_LABEL[r]}</option>)}
-        </select>
+        </StyledSelect>
         <button onClick={openNew} className="btn btn-primary" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem' }}>
           <Plus size={14} /> Nuevo
         </button>

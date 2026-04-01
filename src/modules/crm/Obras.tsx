@@ -9,6 +9,7 @@ import { Plus, Upload, Trash2, FileText, ExternalLink, MapPin, X, Edit2 } from '
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import StyledSelect from '../../shared/components/StyledSelect';
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({ iconUrl: markerIcon, iconRetinaUrl: markerIcon2x, shadowUrl: markerShadow });
 
@@ -311,9 +312,9 @@ export default function CRMObras() {
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                                 <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>Archivos y Presupuestos</span>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <select id="tipo-archivo" className="form-input" style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', height: 'auto' }}>
+                                    <StyledSelect id="tipo-archivo" className="form-input" style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', height: 'auto' }}>
                                         {TIPOS_ARCHIVO.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
-                                    </select>
+                                    </StyledSelect>
                                     <button
                                         className="btn btn-ghost"
                                         style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 4 }}
@@ -357,9 +358,9 @@ export default function CRMObras() {
                             </div>
                             <div className="form-group">
                                 <label className="form-label">Estado</label>
-                                <select className="form-input" value={editing.estado || 'activa'} onChange={e => setEditing(p => ({ ...p, estado: e.target.value }))}>
+                                <StyledSelect className="form-input" value={editing.estado || 'activa'} onChange={e => setEditing(p => ({ ...p, estado: e.target.value }))}>
                                     {ESTADOS.map(e => <option key={e.id} value={e.id}>{e.label}</option>)}
-                                </select>
+                                </StyledSelect>
                             </div>
                             <div className="form-group">
                                 <label className="form-label">Avance (%)</label>
@@ -367,17 +368,17 @@ export default function CRMObras() {
                             </div>
                             <div className="form-group">
                                 <label className="form-label">Cliente</label>
-                                <select className="form-input" value={editing.cliente_id || ''} onChange={e => setEditing(p => ({ ...p, cliente_id: e.target.value || null }))}>
+                                <StyledSelect className="form-input" value={editing.cliente_id || ''} onChange={e => setEditing(p => ({ ...p, cliente_id: e.target.value || null }))}>
                                     <option value="">Sin cliente</option>
                                     {clientes.map(c => <option key={c.id} value={c.id}>{c.razon_social}</option>)}
-                                </select>
+                                </StyledSelect>
                             </div>
                             <div className="form-group">
                                 <label className="form-label">Contacto</label>
-                                <select className="form-input" value={editing.contacto_id || ''} onChange={e => setEditing(p => ({ ...p, contacto_id: e.target.value || null }))}>
+                                <StyledSelect className="form-input" value={editing.contacto_id || ''} onChange={e => setEditing(p => ({ ...p, contacto_id: e.target.value || null }))}>
                                     <option value="">Sin contacto</option>
                                     {contactos.map(c => <option key={c.id} value={c.id}>{c.nombre} {c.apellido || ''}</option>)}
-                                </select>
+                                </StyledSelect>
                             </div>
                             <div className="form-group">
                                 <label className="form-label">Fecha Inicio</label>

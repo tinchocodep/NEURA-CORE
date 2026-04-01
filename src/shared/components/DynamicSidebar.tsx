@@ -22,7 +22,10 @@ interface SidebarSection {
 export default function DynamicSidebar() {
   const { tenant } = useTenant();
   const location = useLocation();
-  const sections: SidebarSection[] = tenant?.sidebar_config?.sections || [];
+  const enabledModules: string[] = tenant?.enabled_modules || [];
+  const allSections: SidebarSection[] = tenant?.sidebar_config?.sections || [];
+  // Filter sections by module_required
+  const sections = allSections.filter(s => !s.module_required || enabledModules.includes(s.module_required));
 
   return (
     <>

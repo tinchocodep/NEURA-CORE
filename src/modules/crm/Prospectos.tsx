@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import { Plus, Search, ChevronRight, ChevronLeft, Trash2, DollarSign, X, Phone } from 'lucide-react';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 interface Contacto { id: string; nombre: string; apellido: string | null; }
 interface Propiedad { id: string; direccion: string; }
@@ -281,16 +282,16 @@ export default function CRMProspectos() {
                             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
                                 <div className="form-group" style={{ marginBottom: 0 }}>
                                     <label className="form-label">Etapa</label>
-                                    <select className="form-input" value={editing.etapa || 'Nuevo'} onChange={e => setEditing(p => ({ ...p, etapa: e.target.value }))}>
+                                    <StyledSelect className="form-input" value={editing.etapa || 'Nuevo'} onChange={e => setEditing(p => ({ ...p, etapa: e.target.value }))}>
                                         {ETAPAS.map(e => <option key={e.id} value={e.id}>{e.label}</option>)}
-                                    </select>
+                                    </StyledSelect>
                                 </div>
                                 <div className="form-group" style={{ marginBottom: 0 }}>
                                     <label className="form-label">Fuente</label>
-                                    <select className="form-input" value={editing.fuente || ''} onChange={e => setEditing(p => ({ ...p, fuente: e.target.value || null }))}>
+                                    <StyledSelect className="form-input" value={editing.fuente || ''} onChange={e => setEditing(p => ({ ...p, fuente: e.target.value || null }))}>
                                         <option value="">Sin especificar</option>
                                         {FUENTES.map(f => <option key={f} value={f}>{f}</option>)}
-                                    </select>
+                                    </StyledSelect>
                                 </div>
                             </div>
 
@@ -312,20 +313,20 @@ export default function CRMProspectos() {
                                 </div>
                                 <div className="form-group" style={{ marginBottom: 0 }}>
                                     <label className="form-label">Contacto vinculado</label>
-                                    <select className="form-input" value={editing.contacto_id || ''} onChange={e => setEditing(p => ({ ...p, contacto_id: e.target.value || null }))}>
+                                    <StyledSelect className="form-input" value={editing.contacto_id || ''} onChange={e => setEditing(p => ({ ...p, contacto_id: e.target.value || null }))}>
                                         <option value="">Sin contacto</option>
                                         {contactos.map(c => <option key={c.id} value={c.id}>{c.nombre} {c.apellido || ''}</option>)}
-                                    </select>
+                                    </StyledSelect>
                                 </div>
                             </div>
 
                             {propiedades.length > 0 && (
                                 <div className="form-group" style={{ marginBottom: 0 }}>
                                     <label className="form-label">Propiedad de interés</label>
-                                    <select className="form-input" value={editing.propiedad_interes_id || ''} onChange={e => setEditing(p => ({ ...p, propiedad_interes_id: e.target.value || null }))}>
+                                    <StyledSelect className="form-input" value={editing.propiedad_interes_id || ''} onChange={e => setEditing(p => ({ ...p, propiedad_interes_id: e.target.value || null }))}>
                                         <option value="">Sin especificar</option>
                                         {propiedades.map(p => <option key={p.id} value={p.id}>{p.direccion}</option>)}
-                                    </select>
+                                    </StyledSelect>
                                 </div>
                             )}
 

@@ -5,6 +5,7 @@ import { useTenant } from '../../../contexts/TenantContext';
 import { useToast } from '../../../contexts/ToastContext';
 import { Building2, Save, FileText, Plus, Trash2, Calendar, X, Download, Mail, Send, Loader, User } from 'lucide-react';
 import { DocumentViewer } from '../../../shared/components/DocumentViewer';
+import StyledSelect from '../../../shared/components/StyledSelect';
 
 interface Proveedor {
     id: string;
@@ -365,7 +366,7 @@ export default function NuevaOrdenPago({ onAceptar }: { onAceptar?: () => void }
                 <div className="card-body" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem', paddingTop: '1rem', paddingBottom: '1rem' }}>
                     <div className="form-group">
                         <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontWeight: 600 }}><Building2 size={14} color="var(--color-text-muted)" /> Proveedor</label>
-                        <select
+                        <StyledSelect
                             className="form-input"
                             value={proveedorId}
                             onChange={(e) => setProveedorId(e.target.value)}
@@ -375,7 +376,7 @@ export default function NuevaOrdenPago({ onAceptar }: { onAceptar?: () => void }
                             {proveedores.map(p => (
                                 <option key={p.id} value={p.id}>{p.razon_social} ({p.cuit})</option>
                             ))}
-                        </select>
+                        </StyledSelect>
                     </div>
                     
                     <div className="form-group">
@@ -482,9 +483,9 @@ export default function NuevaOrdenPago({ onAceptar }: { onAceptar?: () => void }
                                     <div key={r.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 1fr) 100px 80px 100px 40px', gap: '0.5rem', alignItems: 'end', background: 'var(--color-bg-secondary)', padding: '1rem', borderRadius: 8 }}>
                                         <div className="form-group" style={{ marginBottom: 0 }}>
                                             <label style={{ fontSize: '0.7rem' }}>Impuesto</label>
-                                            <select className="form-control form-control-sm" value={r.tipo} onChange={e => updateRetencion(r.id, 'tipo', e.target.value)}>
+                                            <StyledSelect className="form-control form-control-sm" value={r.tipo} onChange={e => updateRetencion(r.id, 'tipo', e.target.value)}>
                                                 {TIPOS_RETENCION.map(t => <option key={t} value={t}>{t}</option>)}
-                                            </select>
+                                            </StyledSelect>
                                         </div>
                                         <div className="form-group" style={{ marginBottom: 0 }}>
                                             <label style={{ fontSize: '0.7rem' }}>Base Imp.</label>

@@ -5,6 +5,7 @@ import { useTenant } from '../../contexts/TenantContext';
 import { useToast } from '../../contexts/ToastContext';
 import { UserPlus, X, Mail, Shield, Wallet, CheckCircle2, Clock, Users } from 'lucide-react';
 import { SkeletonTable } from '../../shared/components/SkeletonKit';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 const SUPABASE_URL = 'https://fuytejvnwihghxymyayw.supabase.co';
 
@@ -247,21 +248,21 @@ export default function Equipo() {
 
                                 <div className="form-group">
                                     <label className="form-label">Rol</label>
-                                    <select className="form-input" value={role} onChange={e => setRole(e.target.value)}>
+                                    <StyledSelect className="form-input" value={role} onChange={e => setRole(e.target.value)}>
                                         <option value="basic">Básico — solo ve sus movimientos</option>
                                         <option value="operator">Operador — puede registrar movimientos</option>
                                         <option value="admin">Administrador — acceso completo</option>
-                                    </select>
+                                    </StyledSelect>
                                 </div>
 
                                 <div className="form-group">
                                     <label className="form-label">Asignar caja (opcional)</label>
-                                    <select className="form-input" value={accountId} onChange={e => setAccountId(e.target.value)}>
+                                    <StyledSelect className="form-input" value={accountId} onChange={e => setAccountId(e.target.value)}>
                                         <option value="">Sin caja asignada</option>
                                         {freeAccounts.map(a => (
                                             <option key={a.id} value={a.id}>{a.name}</option>
                                         ))}
-                                    </select>
+                                    </StyledSelect>
                                     {freeAccounts.length === 0 && (
                                         <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.4rem 0 0' }}>
                                             Todas las cajas ya tienen un usuario asignado. Creá una nueva en la sección Cajas.

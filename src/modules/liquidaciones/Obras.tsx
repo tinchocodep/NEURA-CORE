@@ -5,6 +5,7 @@ import { Plus, X, Search, HardHat, Trash2 } from 'lucide-react';
 import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
 import type { Obra } from './types';
 import { ESTADO_OBRA_COLOR } from './types';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 const EMPTY: Partial<Obra> = { nombre: '', direccion: '', estado: 'activa', notas: '' };
 
@@ -80,12 +81,12 @@ export default function LiqObras() {
             <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar obra..." style={{ width: '100%', padding: '8px 10px 8px 30px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', fontSize: '0.8125rem', color: 'var(--color-text-primary)' }} />
           </div>
-          <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', fontSize: '0.8125rem', color: 'var(--color-text-primary)' }}>
+          <StyledSelect value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', fontSize: '0.8125rem', color: 'var(--color-text-primary)' }}>
             <option value="">Todos los estados</option>
             <option value="activa">Activa</option>
             <option value="pausada">Pausada</option>
             <option value="finalizada">Finalizada</option>
-          </select>
+          </StyledSelect>
         </div>
 
         {/* Table */}
@@ -148,11 +149,11 @@ export default function LiqObras() {
               </div>
               <div>
                 <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 4, display: 'block' }}>Estado</label>
-                <select value={editing.estado || 'activa'} onChange={e => setEditing({ ...editing, estado: e.target.value as any })} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', fontSize: '0.8125rem', color: 'var(--color-text-primary)' }}>
+                <StyledSelect value={editing.estado || 'activa'} onChange={e => setEditing({ ...editing, estado: e.target.value as any })} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', fontSize: '0.8125rem', color: 'var(--color-text-primary)' }}>
                   <option value="activa">Activa</option>
                   <option value="pausada">Pausada</option>
                   <option value="finalizada">Finalizada</option>
-                </select>
+                </StyledSelect>
               </div>
               <div>
                 <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 4, display: 'block' }}>Notas</label>

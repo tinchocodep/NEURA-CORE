@@ -4,6 +4,7 @@ import { useTenant } from '../../contexts/TenantContext';
 import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
 import { Plus, X, Check, ChevronRight, ChevronLeft, Search, ArrowUpRight, ArrowDownRight, Trash2, LayoutList, CalendarDays, Calendar } from 'lucide-react';
 import CustomSelect from '../../shared/components/CustomSelect';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 interface Proyeccion {
   id: string; tipo: 'ingreso' | 'gasto'; concepto: string; monto: number;
@@ -198,12 +199,12 @@ export default function ProyeccionesInmob() {
           <input type="text" placeholder="Buscar concepto..." value={search} onChange={e => setSearch(e.target.value)}
             className="form-input" style={{ paddingLeft: 30, height: 32, fontSize: '0.8rem' }} />
         </div>
-        <select value={filterTipo} onChange={e => setFilterTipo(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
+        <StyledSelect value={filterTipo} onChange={e => setFilterTipo(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
           <option value="">Todos</option>
           <option value="ingreso">Ingresos</option>
           <option value="gasto">Gastos</option>
           <option value="pendiente">Solo pendientes</option>
-        </select>
+        </StyledSelect>
         <div style={{ display: 'flex', gap: '0.25rem', background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-sm)', padding: 2 }}>
           <button onClick={() => setViewMode('table')} title="Tabla" style={{ padding: '0.3rem 0.5rem', borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer', background: viewMode === 'table' ? 'var(--color-accent)' : 'transparent', color: viewMode === 'table' ? '#fff' : 'var(--color-text-muted)' }}><LayoutList size={14} /></button>
           <button onClick={() => setViewMode('month')} title="Mes" style={{ padding: '0.3rem 0.5rem', borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer', background: viewMode === 'month' ? 'var(--color-accent)' : 'transparent', color: viewMode === 'month' ? '#fff' : 'var(--color-text-muted)' }}><CalendarDays size={14} /></button>

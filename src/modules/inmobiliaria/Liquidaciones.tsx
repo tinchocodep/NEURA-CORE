@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import CustomSelect from '../../shared/components/CustomSelect';
 import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 interface Liquidacion {
   id: string; contrato_id: string; propietario_id: string; periodo: string;
@@ -212,16 +213,16 @@ export default function Liquidaciones({ wizardOnly, onClose }: LiquidacionesProp
           <input type="text" placeholder="Buscar propiedad o concepto..." value={searchText} onChange={e => setSearchText(e.target.value)}
             className="form-input" style={{ paddingLeft: 30, height: 32, fontSize: '0.8rem' }} />
         </div>
-        <select value={filterEstado} onChange={e => setFilterEstado(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
+        <StyledSelect value={filterEstado} onChange={e => setFilterEstado(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
           <option value="">Todos los estados</option>
           <option value="borrador">Borrador</option>
           <option value="aprobada">Aprobada</option>
           <option value="pagada">Pagada</option>
-        </select>
-        <select value={filterCategoria} onChange={e => setFilterCategoria(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
+        </StyledSelect>
+        <StyledSelect value={filterCategoria} onChange={e => setFilterCategoria(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
           <option value="">Todas las categorías</option>
           {CATEGORIAS.map(c => <option key={c} value={c}>{CAT_LABEL[c]}</option>)}
-        </select>
+        </StyledSelect>
         <button onClick={() => openNew()} className="btn btn-primary" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem' }}>
           <Plus size={14} /> Nueva
         </button>

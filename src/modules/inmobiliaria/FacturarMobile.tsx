@@ -6,6 +6,7 @@ import { useTenant } from '../../contexts/TenantContext';
 import CustomSelect from '../../shared/components/CustomSelect';
 import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
 import jsPDF from 'jspdf';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 interface Comprobante {
   id: string; tipo: string; fecha: string; numero_comprobante: string | null;
@@ -228,12 +229,12 @@ export default function FacturarMobile({ wizardOnly, onClose }: FacturarMobilePr
           <input type="text" placeholder="Buscar comprobante..." value={search} onChange={e => setSearch(e.target.value)}
             className="form-input" style={{ paddingLeft: 30, height: 32, fontSize: '0.8rem' }} />
         </div>
-        <select value={filterEstado} onChange={e => setFilterEstado(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
+        <StyledSelect value={filterEstado} onChange={e => setFilterEstado(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
           <option value="">Todos los estados</option>
           <option value="pendiente">Pendiente</option>
           <option value="aprobado">Aprobado</option>
           <option value="pagado">Pagado</option>
-        </select>
+        </StyledSelect>
         <button onClick={openNew} className="btn btn-primary" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem' }}>
           <Plus size={14} /> Nuevo
         </button>

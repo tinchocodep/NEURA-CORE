@@ -3,6 +3,7 @@ import { Calendar, Check, AlertTriangle, Plus, X, ChevronLeft, ChevronRight, Che
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 interface Vencimiento {
   id: string; tipo: string; referencia_id: string | null; fecha: string;
@@ -266,9 +267,9 @@ export default function Agenda() {
               <div style={{ width: 36, height: 4, borderRadius: 99, background: 'var(--color-border)', margin: '0 auto 16px' }} />
               <h3 style={{ fontWeight: 700, fontSize: '1.0625rem', margin: '0 0 16px' }}>Nuevo vencimiento</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <select className="form-input" value={formData.tipo} onChange={e => setFormData(f => ({ ...f, tipo: e.target.value }))} style={{ height: 42, borderRadius: 10 }}>
+                <StyledSelect className="form-input" value={formData.tipo} onChange={e => setFormData(f => ({ ...f, tipo: e.target.value }))} style={{ height: 42, borderRadius: 10 }}>
                   {TIPOS.map(t => <option key={t} value={t}>{TIPO_CFG[t]?.label}</option>)}
-                </select>
+                </StyledSelect>
                 <input type="date" className="form-input" value={formData.fecha} onChange={e => setFormData(f => ({ ...f, fecha: e.target.value }))} style={{ height: 42, borderRadius: 10 }} />
                 <textarea className="form-input" rows={3} placeholder="Descripción..." value={formData.descripcion} onChange={e => setFormData(f => ({ ...f, descripcion: e.target.value }))} style={{ borderRadius: 10, resize: 'vertical' }} />
               </div>
@@ -492,9 +493,9 @@ export default function Agenda() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Tipo</label>
-                  <select className="form-input" value={formData.tipo} onChange={e => setFormData(f => ({ ...f, tipo: e.target.value }))}>
+                  <StyledSelect className="form-input" value={formData.tipo} onChange={e => setFormData(f => ({ ...f, tipo: e.target.value }))}>
                     {TIPOS.map(t => <option key={t} value={t}>{TIPO_CFG[t]?.label}</option>)}
-                  </select>
+                  </StyledSelect>
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Fecha *</label>
@@ -517,10 +518,10 @@ export default function Agenda() {
               {/* Row 3: Propiedad */}
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Propiedad (opcional)</label>
-                <select className="form-input" value={formData.propiedad_id} onChange={e => setFormData(f => ({ ...f, propiedad_id: e.target.value }))}>
+                <StyledSelect className="form-input" value={formData.propiedad_id} onChange={e => setFormData(f => ({ ...f, propiedad_id: e.target.value }))}>
                   <option value="">Sin propiedad</option>
                   {propiedades.map(p => <option key={p.id} value={p.id}>{p.direccion}</option>)}
-                </select>
+                </StyledSelect>
               </div>
 
               {/* Row 4: Descripción */}

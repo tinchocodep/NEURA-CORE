@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Search, SlidersHorizontal, FileText, CreditCard, Check, XCircle, ChevronDown } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useTenant } from '../../../contexts/TenantContext';
+import StyledSelect from '../../../shared/components/StyledSelect';
 
 interface ComprobanteMin {
   id: string; tipo: 'compra' | 'venta'; fecha: string; numero_comprobante: string;
@@ -139,17 +140,17 @@ export default function ComprobantesMobile() {
       {/* Filters */}
       {showFilters && (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', animation: 'fadeIn 0.15s ease' }}>
-          <select value={filterEstado} onChange={e => setFilterEstado(e.target.value)} className="form-input" style={{ height: 36, fontSize: '0.8rem', width: 'auto', borderRadius: 8 }}>
+          <StyledSelect value={filterEstado} onChange={e => setFilterEstado(e.target.value)} className="form-input" style={{ height: 36, fontSize: '0.8rem', width: 'auto', borderRadius: 8 }}>
             <option value="">Todos los estados</option>
             {['pendiente', 'clasificado', 'aprobado', 'inyectado', 'pagado', 'error', 'rechazado'].map(e => (
               <option key={e} value={e}>{e}</option>
             ))}
-          </select>
-          <select value={filterTipo} onChange={e => setFilterTipo(e.target.value)} className="form-input" style={{ height: 36, fontSize: '0.8rem', width: 'auto', borderRadius: 8 }}>
+          </StyledSelect>
+          <StyledSelect value={filterTipo} onChange={e => setFilterTipo(e.target.value)} className="form-input" style={{ height: 36, fontSize: '0.8rem', width: 'auto', borderRadius: 8 }}>
             <option value="">Compras y ventas</option>
             <option value="compra">Compras</option>
             <option value="venta">Ventas</option>
-          </select>
+          </StyledSelect>
           {(filterEstado || filterTipo) && (
             <button onClick={() => { setFilterEstado(''); setFilterTipo(''); }} style={{ height: 36, padding: '0 10px', borderRadius: 8, border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-card)', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '0.75rem' }}>
               Limpiar

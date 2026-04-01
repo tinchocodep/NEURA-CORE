@@ -5,6 +5,7 @@ import { Plus, X, ChevronLeft, ChevronRight, Clock, Trash2, AlertCircle } from '
 import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
 import type { Fichaje, Empleado, Obra, Ausencia, TipoAusencia } from './types';
 import { TIPO_AUSENCIA_LABEL } from './types';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
@@ -319,17 +320,17 @@ export default function LiqFichajes() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
                 <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 4, display: 'block' }}>Empleado *</label>
-                <select value={formEmpleado} onChange={e => setFormEmpleado(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', fontSize: '0.8125rem', color: 'var(--color-text-primary)' }}>
+                <StyledSelect value={formEmpleado} onChange={e => setFormEmpleado(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', fontSize: '0.8125rem', color: 'var(--color-text-primary)' }}>
                   <option value="">Seleccionar...</option>
                   {empleados.map(emp => <option key={emp.id} value={emp.id}>{emp.apellido}, {emp.nombre}</option>)}
-                </select>
+                </StyledSelect>
               </div>
               <div>
                 <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 4, display: 'block' }}>Obra *</label>
-                <select value={formObra} onChange={e => setFormObra(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', fontSize: '0.8125rem', color: 'var(--color-text-primary)' }}>
+                <StyledSelect value={formObra} onChange={e => setFormObra(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', fontSize: '0.8125rem', color: 'var(--color-text-primary)' }}>
                   <option value="">Seleccionar...</option>
                   {obras.map(o => <option key={o.id} value={o.id}>{o.nombre}</option>)}
-                </select>
+                </StyledSelect>
               </div>
               <div>
                 <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 4, display: 'block' }}>Fecha *</label>
@@ -377,10 +378,10 @@ export default function LiqFichajes() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
                 <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 4, display: 'block' }}>Empleado *</label>
-                <select value={ausEmpleado} onChange={e => setAusEmpleado(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', fontSize: '0.8125rem', color: 'var(--color-text-primary)' }}>
+                <StyledSelect value={ausEmpleado} onChange={e => setAusEmpleado(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', fontSize: '0.8125rem', color: 'var(--color-text-primary)' }}>
                   <option value="">Seleccionar...</option>
                   {empleados.map(emp => <option key={emp.id} value={emp.id}>{emp.apellido}, {emp.nombre}</option>)}
-                </select>
+                </StyledSelect>
               </div>
               <div>
                 <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 4, display: 'block' }}>Fecha *</label>
@@ -388,9 +389,9 @@ export default function LiqFichajes() {
               </div>
               <div>
                 <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 4, display: 'block' }}>Tipo *</label>
-                <select value={ausTipo} onChange={e => setAusTipo(e.target.value as TipoAusencia)} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', fontSize: '0.8125rem', color: 'var(--color-text-primary)' }}>
+                <StyledSelect value={ausTipo} onChange={e => setAusTipo(e.target.value as TipoAusencia)} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', fontSize: '0.8125rem', color: 'var(--color-text-primary)' }}>
                   {Object.entries(TIPO_AUSENCIA_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                </select>
+                </StyledSelect>
               </div>
               <div>
                 <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 4, display: 'block' }}>Notas</label>

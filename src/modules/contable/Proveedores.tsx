@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase';
 import { Search, Plus, Edit2, AlertTriangle, X, Save, Trash2, Loader, Globe, ChevronDown, ChevronRight, Download, Clock, FileText, Filter, Eye, Send, Star, MoreVertical, RefreshCw } from 'lucide-react';
 import { SkeletonTable } from '../../shared/components/SkeletonKit';
 import { DocumentViewer } from '../../shared/components/DocumentViewer';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 // --- Types ---
 
@@ -906,7 +907,7 @@ export default function Proveedores() {
                             )}
                         </div>
 
-                        <select
+                        <StyledSelect
                             className="form-input"
                             value={condicionFilter}
                             onChange={e => setCondicionFilter(e.target.value)}
@@ -917,9 +918,9 @@ export default function Proveedores() {
                             {CONDICIONES_FISCALES.map(c => (
                                 <option key={c} value={c}>{c}</option>
                             ))}
-                        </select>
+                        </StyledSelect>
 
-                        <select
+                        <StyledSelect
                             className="form-input"
                             value={categoriaFilter}
                             onChange={e => setCategoriaFilter(e.target.value)}
@@ -930,9 +931,9 @@ export default function Proveedores() {
                             {categorias.filter(c => c.tipo !== 'ingreso').map(c => (
                                 <option key={c.id} value={c.id}>{c.nombre}</option>
                             ))}
-                        </select>
+                        </StyledSelect>
 
-                        <select
+                        <StyledSelect
                             className="form-input"
                             value={casoRojoFilter}
                             onChange={e => setCasoRojoFilter(e.target.value as 'all' | 'si' | 'no')}
@@ -941,7 +942,7 @@ export default function Proveedores() {
                             <option value="all">Caso Rojo: Todos</option>
                             <option value="si">🔴 Solo caso rojo</option>
                             <option value="no">✅ Sin caso rojo</option>
-                        </select>
+                        </StyledSelect>
 
                         {hasActiveFilters && (
                             <button
@@ -1267,10 +1268,10 @@ export default function Proveedores() {
                                         <div className="form-group" style={{ marginBottom: 0 }}>
                                             <label className="form-label">Condición Fiscal</label>
                                             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                                <select className="form-input" value={form.condicion_fiscal} onChange={e => setForm({ ...form, condicion_fiscal: e.target.value })} style={{ flex: 1 }}>
+                                                <StyledSelect className="form-input" value={form.condicion_fiscal} onChange={e => setForm({ ...form, condicion_fiscal: e.target.value })} style={{ flex: 1 }}>
                                                     <option value="">Sin definir</option>
                                                     {CONDICIONES_FISCALES.map(c => <option key={c} value={c}>{c}</option>)}
-                                                </select>
+                                                </StyledSelect>
                                                 {(() => {
                                                     const sug = sugerirTipoFactura('Responsable Inscripto', form.condicion_fiscal);
                                                     if (!sug) return null;
@@ -1302,7 +1303,7 @@ export default function Proveedores() {
                                     </div>
                                     <div className="form-group" style={{ marginBottom: '1rem' }}>
                                         <label className="form-label">Categoría Default</label>
-                                        <select
+                                        <StyledSelect
                                             className="form-input"
                                             value={form.categoria_default_id}
                                             onChange={e => setForm({ ...form, categoria_default_id: e.target.value })}
@@ -1311,7 +1312,7 @@ export default function Proveedores() {
                                             {categorias.filter(c => c.tipo !== 'ingreso').map(c => (
                                                 <option key={c.id} value={c.id}>{c.nombre}</option>
                                             ))}
-                                        </select>
+                                        </StyledSelect>
                                     </div>
                                     <div className="form-group" style={{ marginBottom: 0 }}>
                                         <label className="form-label">Producto/Servicio Default</label>

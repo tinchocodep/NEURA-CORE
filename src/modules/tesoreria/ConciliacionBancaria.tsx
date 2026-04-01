@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import { useToast } from '../../contexts/ToastContext';
 import { Upload, Search, CheckCircle, AlertTriangle, XCircle, X, Check, FileText, Users, Building2, Landmark, Receipt, Wallet, Briefcase, HelpCircle } from 'lucide-react';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 // ── Types ──
 interface MovBancario {
@@ -708,7 +709,7 @@ export default function ConciliacionBancaria() {
 
                             <div className="wizard-field">
                                 <label className="form-label">Tipo de destino</label>
-                                <select className="form-input" value={classTipo} onChange={e => setClassTipo(e.target.value)}>
+                                <StyledSelect className="form-input" value={classTipo} onChange={e => setClassTipo(e.target.value)}>
                                     <option value="cliente">Cliente (cobro)</option>
                                     <option value="proveedor">Proveedor (pago)</option>
                                     <option value="impuesto">Impuesto</option>
@@ -718,7 +719,7 @@ export default function ConciliacionBancaria() {
                                     <option value="fci">FCI</option>
                                     <option value="prestamo">Préstamo</option>
                                     <option value="otro">Otro</option>
-                                </select>
+                                </StyledSelect>
                             </div>
 
                             <div className="wizard-field">

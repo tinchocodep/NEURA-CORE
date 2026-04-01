@@ -7,6 +7,7 @@ import { Search, Trash2, X, Download, Mail, Send, Loader, User, DollarSign, Chec
 import { useToast } from '../../../contexts/ToastContext';
 import { DocumentViewer } from '../../../shared/components/DocumentViewer';
 import PaymentModal from './PaymentModal';
+import StyledSelect from '../../../shared/components/StyledSelect';
 
 interface OrdenPago {
     id: string;
@@ -177,12 +178,12 @@ export default function OrdenesPagoList({ onNueva }: { onNueva?: () => void } = 
                     <input type="text" placeholder="Buscar OP o proveedor..." value={busqueda} onChange={e => setBusqueda(e.target.value)}
                         className="form-input" style={{ paddingLeft: 30, height: 32, fontSize: '0.8rem' }} />
                 </div>
-                <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
+                <StyledSelect value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
                     <option value="todas">Todos los estados</option>
                     <option value="aprobada">Pendientes</option>
                     <option value="pagada">Liquidadas</option>
                     <option value="anulada">Anuladas</option>
-                </select>
+                </StyledSelect>
                 {onNueva && (
                     <button onClick={onNueva} className="btn btn-primary" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem' }}>
                         <DollarSign size={14} /> Nueva OP

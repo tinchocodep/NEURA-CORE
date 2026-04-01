@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import { useAuth } from '../../contexts/AuthContext';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 interface Stage { id: string; nombre: string; color: string; orden: number; es_final: boolean; }
 interface Source { id: string; nombre: string; icono: string; }
@@ -452,10 +453,10 @@ export default function ComercialPipeline() {
                                 style={{ padding: '0.3rem 0.6rem', borderRadius: 6, border: '1px solid var(--color-border-subtle)', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
                                 <Calendar size={12} /> Recordatorio
                             </button>
-                            <select value={selectedLead.etapa_id} onChange={e => moveToStage(selectedLead.id, e.target.value)}
+                            <StyledSelect value={selectedLead.etapa_id} onChange={e => moveToStage(selectedLead.id, e.target.value)}
                                 className="form-input" style={{ fontSize: '0.75rem', height: 28, padding: '0 0.5rem' }}>
                                 {stages.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
-                            </select>
+                            </StyledSelect>
                         </div>
 
                         {/* Note/Reminder forms */}
@@ -559,15 +560,15 @@ export default function ComercialPipeline() {
                             <input type="text" placeholder="Teléfono" value={newLead.telefono} onChange={e => setNewLead(p => ({ ...p, telefono: e.target.value }))} className="form-input" />
                             <input type="email" placeholder="Email" value={newLead.email} onChange={e => setNewLead(p => ({ ...p, email: e.target.value }))} className="form-input" />
                             <input type="text" placeholder="Vehículo de interés" value={newLead.vehiculo_interes} onChange={e => setNewLead(p => ({ ...p, vehiculo_interes: e.target.value }))} className="form-input" />
-                            <select value={newLead.fuente_id} onChange={e => setNewLead(p => ({ ...p, fuente_id: e.target.value }))} className="form-input">
+                            <StyledSelect value={newLead.fuente_id} onChange={e => setNewLead(p => ({ ...p, fuente_id: e.target.value }))} className="form-input">
                                 <option value="">Fuente de origen</option>
                                 {sources.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
-                            </select>
-                            <select value={newLead.prioridad} onChange={e => setNewLead(p => ({ ...p, prioridad: e.target.value }))} className="form-input">
+                            </StyledSelect>
+                            <StyledSelect value={newLead.prioridad} onChange={e => setNewLead(p => ({ ...p, prioridad: e.target.value }))} className="form-input">
                                 <option value="baja">Prioridad: Baja</option>
                                 <option value="media">Prioridad: Media</option>
                                 <option value="alta">Prioridad: Alta</option>
-                            </select>
+                            </StyledSelect>
                         </div>
                         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
                             <button onClick={() => setShowNewLeadForm(false)} style={{ padding: '0.4rem 1rem', borderRadius: 6, border: '1px solid var(--color-border-subtle)', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-primary)', fontSize: '0.85rem' }}>Cancelar</button>

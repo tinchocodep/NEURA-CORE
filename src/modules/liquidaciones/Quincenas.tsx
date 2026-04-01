@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import type { Quincena, LiquidacionDetalle, Empleado, ValorHora } from './types';
 import { ESTADO_QUINCENA_COLOR, ESTADO_QUINCENA_LABEL } from './types';
 import { calcularEmpleado } from './hooks/useCalculoQuincenal';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 function fmtMoney(n: number | null | undefined) {
   if (!n) return '$0';
@@ -347,12 +348,12 @@ export default function LiqQuincenas() {
             </div>
             <div>
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 4, display: 'block' }}>Período *</label>
-              <select value={newPeriodo} onChange={e => setNewPeriodo(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', fontSize: '0.8125rem', color: 'var(--color-text-primary)' }}>
+              <StyledSelect value={newPeriodo} onChange={e => setNewPeriodo(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', fontSize: '0.8125rem', color: 'var(--color-text-primary)' }}>
                 <option value="">Seleccionar...</option>
                 {opts.filter(o => !existingPeriods.has(o.periodo)).map(o => (
                   <option key={o.periodo} value={o.periodo}>{o.periodo} ({o.desde} → {o.hasta})</option>
                 ))}
-              </select>
+              </StyledSelect>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
               <button onClick={() => setShowModal(false)} style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'transparent', fontSize: '0.8125rem', color: 'var(--color-text-primary)', cursor: 'pointer' }}>Cancelar</button>

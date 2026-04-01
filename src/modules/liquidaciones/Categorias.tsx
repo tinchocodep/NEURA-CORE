@@ -4,6 +4,7 @@ import { useTenant } from '../../contexts/TenantContext';
 import { Plus, X, Trash2, TrendingUp } from 'lucide-react';
 import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
 import type { Categoria, ValorHora } from './types';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 export default function LiqCategorias() {
   const { tenant } = useTenant();
@@ -274,10 +275,10 @@ export default function LiqCategorias() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
                 <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 4, display: 'block' }}>Categoría *</label>
-                <select value={valorCatId} onChange={e => setValorCatId(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', fontSize: '0.8125rem', color: 'var(--color-text-primary)' }}>
+                <StyledSelect value={valorCatId} onChange={e => setValorCatId(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', fontSize: '0.8125rem', color: 'var(--color-text-primary)' }}>
                   <option value="">Seleccionar...</option>
                   {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                </select>
+                </StyledSelect>
               </div>
               <div>
                 <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 4, display: 'block' }}>Valor por Hora ($) *</label>

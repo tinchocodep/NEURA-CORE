@@ -55,19 +55,14 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
             // Fetch user profile to get tenant_id
             const { data: profile } = await supabase
                 .from('users')
-                .select('*')
+                .select('*, tenants(*)')
                 .eq('id', user.id)
                 .single();
 
             if (profile && profile.tenant_id) {
                 if (mounted) setUserProfile(profile);
 
-                // Fetch tenant details
-                const { data: tenantData } = await supabase
-                    .from('tenants')
-                    .select('*')
-                    .eq('id', profile.tenant_id)
-                    .single();
+                const tenantData = (profile as any).tenants;
 
                 if (mounted && tenantData) {
                     setTenant(tenantData as Tenant);

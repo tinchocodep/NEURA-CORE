@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, Plus, Building2, Edit2, X, Save, Trash2, Eye, Send, RefreshCw } from 'lucide-react';
 import { SkeletonTable } from '../../shared/components/SkeletonKit';
 import Entity360Panel from './Entity360Panel';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 interface Cliente {
     id: string;
@@ -219,7 +220,7 @@ export default function Clientes() {
                         />
                     </div>
 
-                    <select
+                    <StyledSelect
                         className="form-input"
                         value={categoriaFilter}
                         onChange={e => setCategoriaFilter(e.target.value)}
@@ -230,7 +231,7 @@ export default function Clientes() {
                         {categorias.filter(c => c.tipo !== 'gasto').map(c => (
                             <option key={c.id} value={c.id}>{c.nombre}</option>
                         ))}
-                    </select>
+                    </StyledSelect>
                 </div>
             </div>
 
@@ -346,16 +347,16 @@ export default function Clientes() {
 
                         <div className="form-group">
                             <label className="form-label">Segmento</label>
-                            <select className="form-input" value={form.segmento} onChange={e => setForm({ ...form, segmento: e.target.value })}>
+                            <StyledSelect className="form-input" value={form.segmento} onChange={e => setForm({ ...form, segmento: e.target.value })}>
                                 <option value="">Sin definir</option>
                                 <option value="biz">Biz (PyME)</option>
                                 <option value="corp">Corp (Corporativo)</option>
-                            </select>
+                            </StyledSelect>
                         </div>
 
                         <div className="form-group">
                             <label className="form-label">Categoría Default</label>
-                            <select
+                            <StyledSelect
                                 className="form-input"
                                 value={form.categoria_default_id}
                                 onChange={e => setForm({ ...form, categoria_default_id: e.target.value })}
@@ -364,7 +365,7 @@ export default function Clientes() {
                                 {categorias.filter(c => c.tipo !== 'gasto').map(c => (
                                     <option key={c.id} value={c.id}>{c.nombre}</option>
                                 ))}
-                            </select>
+                            </StyledSelect>
                         </div>
 
                         <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>

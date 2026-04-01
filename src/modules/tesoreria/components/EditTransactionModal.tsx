@@ -5,6 +5,7 @@ import { supabase } from '../../../lib/supabase';
 import { useToast } from '../../../contexts/ToastContext';
 import { useTenant } from '../../../contexts/TenantContext';
 import ProjectSearch from './ProjectSearch';
+import StyledSelect from '../../../shared/components/StyledSelect';
 
 export default function EditTransactionModal({
     tx,
@@ -161,23 +162,23 @@ export default function EditTransactionModal({
                         {/* Cuenta */}
                         <div className="form-group">
                             <label className="form-label">Cuenta *</label>
-                            <select className="form-input" value={accountId} onChange={e => setAccountId(e.target.value)}>
+                            <StyledSelect className="form-input" value={accountId} onChange={e => setAccountId(e.target.value)}>
                                 {accounts.map(a => (
                                     <option key={a.id} value={a.id}>{a.name}</option>
                                 ))}
-                            </select>
+                            </StyledSelect>
                         </div>
 
                         {/* Categoría */}
                         {tx.type !== 'transfer' && (
                             <div className="form-group">
                                 <label className="form-label">Categoría</label>
-                                <select className="form-input" value={categoryId} onChange={e => setCategoryId(e.target.value)}>
+                                <StyledSelect className="form-input" value={categoryId} onChange={e => setCategoryId(e.target.value)}>
                                     <option value="">Sin categoría</option>
                                     {relevantCats.map(c => (
                                         <option key={c.id} value={c.id}>{c.name} {c.group ? `(${c.group})` : ''}</option>
                                     ))}
-                                </select>
+                                </StyledSelect>
                             </div>
                         )}
 
@@ -201,7 +202,7 @@ export default function EditTransactionModal({
                         {/* Método de pago */}
                         <div className="form-group">
                             <label className="form-label">Método de pago</label>
-                            <select className="form-input" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
+                            <StyledSelect className="form-input" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
                                 {accounts.filter(a => a.type === 'bank').map(a => (
                                     <option key={a.id} value={`transferencia-${a.id}`}>
                                         Transferencia desde {a.name}
@@ -214,16 +215,16 @@ export default function EditTransactionModal({
                                 <option value="cheque">Cheque</option>
                                 <option value="tarjeta">Tarjeta</option>
                                 <option value="otro">Otro</option>
-                            </select>
+                            </StyledSelect>
                         </div>
 
                         {/* Estado */}
                         <div className="form-group">
                             <label className="form-label">Estado</label>
-                            <select className="form-input" value={status} onChange={e => setStatus(e.target.value)}>
+                            <StyledSelect className="form-input" value={status} onChange={e => setStatus(e.target.value)}>
                                 <option value="completado">Completado</option>
                                 <option value="pendiente">Pendiente</option>
-                            </select>
+                            </StyledSelect>
                         </div>
 
                         {/* N° Factura */}

@@ -6,6 +6,7 @@ import { useTenant } from '../../../contexts/TenantContext';
 import { DolarService } from '../../../services/DolarService';
 import { getColpyService } from '../../../services/ColpyService';
 import jsPDF from 'jspdf';
+import StyledSelect from '../../../shared/components/StyledSelect';
 
 /* ─── Types ─────────────────────────────────────────── */
 
@@ -780,18 +781,18 @@ export default function ComprobanteForm({ onSuccess, forceVenta }: Props) {
                         {/* Tipo */}
                         <div className="form-group">
                             <label className="form-label">Tipo</label>
-                            <select className="form-input" value={tipoComp} onChange={e => setTipoComp(e.target.value)}>
+                            <StyledSelect className="form-input" value={tipoComp} onChange={e => setTipoComp(e.target.value)}>
                                 <option value="">Seleccionar...</option>
                                 {TIPOS_COMPROBANTE.map(t => <option key={t} value={t}>{t}</option>)}
-                            </select>
+                            </StyledSelect>
                         </div>
                         {/* Moneda */}
                         <div className="form-group">
                             <label className="form-label">Moneda</label>
-                            <select className="form-input" value={moneda} onChange={e => setMoneda(e.target.value)}>
+                            <StyledSelect className="form-input" value={moneda} onChange={e => setMoneda(e.target.value)}>
                                 <option value="ARS">ARS – Peso Argentino</option>
                                 <option value="USD">USD – Dólar</option>
-                            </select>
+                            </StyledSelect>
                         </div>
                         <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                             <label className="form-label">Concepto Facturable / Descripción Principal</label>
@@ -807,28 +808,28 @@ export default function ComprobanteForm({ onSuccess, forceVenta }: Props) {
                             <>
                                 <div className="form-group">
                                     <label className="form-label">Categoría Automática (IA)</label>
-                                    <select className="form-input" value={categoriaId} onChange={e => setCategoriaId(e.target.value)}>
+                                    <StyledSelect className="form-input" value={categoriaId} onChange={e => setCategoriaId(e.target.value)}>
                                         <option value="">Sin categoría...</option>
                                         {categorias
                                             .filter(c => c.tipo === 'ambos' || c.tipo === (tipo === 'compra' ? 'gasto' : 'ingreso'))
                                             .map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                                    </select>
+                                    </StyledSelect>
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">Concepto Analítico Principal</label>
-                                    <select className="form-input" value={productoId} onChange={e => setProductoId(e.target.value)}>
+                                    <StyledSelect className="form-input" value={productoId} onChange={e => setProductoId(e.target.value)}>
                                         <option value="">Diferenciado por Línea</option>
                                         {productos.map(p => <option key={p.id} value={p.id}>{p.nombre} ({p.grupo})</option>)}
-                                    </select>
+                                    </StyledSelect>
                                 </div>
                             </>
                         )}
                         <div className="form-group" style={{ gridColumn: (isRecibo || isRemito) ? '1 / -1' : 'auto' }}>
                             <label className="form-label">Centro de Costo</label>
-                            <select className="form-input" value={centroCostoId} onChange={e => setCentroId(e.target.value)}>
+                            <StyledSelect className="form-input" value={centroCostoId} onChange={e => setCentroId(e.target.value)}>
                                 <option value="">General</option>
                                 {centros.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                            </select>
+                            </StyledSelect>
                         </div>
                         {/* Tipo de cambio (solo USD) */}
                         {moneda === 'USD' && (
@@ -976,10 +977,10 @@ export default function ComprobanteForm({ onSuccess, forceVenta }: Props) {
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">Centro de Costo</label>
-                                    <select className="form-input" value={centroCostoId} onChange={e => setCentroId(e.target.value)}>
+                                    <StyledSelect className="form-input" value={centroCostoId} onChange={e => setCentroId(e.target.value)}>
                                         <option value="">Sin asignar</option>
                                         {centros.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                                    </select>
+                                    </StyledSelect>
                                 </div>
                                 <div className="form-group" style={{ gridColumn: '1/-1' }}>
                                     <label className="form-label">Descripción</label>
@@ -1019,18 +1020,18 @@ export default function ComprobanteForm({ onSuccess, forceVenta }: Props) {
                                         <div key={l.id} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 70px 110px 80px 30px', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'center' }}>
                                             <input className="form-input" placeholder={`Línea ${i + 1}`} value={l.descripcion} onChange={e => updateLinea(l.id, 'descripcion', e.target.value)} style={{ fontSize: '0.8125rem' }} tabIndex={0} />
                                             {arbolContable.length > 0 ? (
-                                                <select className="form-input" value={l.colpy_cuenta_id || ''} onChange={e => updateLinea(l.id, 'colpy_cuenta_id', e.target.value)} style={{ fontSize: '0.75rem', textOverflow: 'ellipsis' }}>
+                                                <StyledSelect className="form-input" value={l.colpy_cuenta_id || ''} onChange={e => updateLinea(l.id, 'colpy_cuenta_id', e.target.value)} style={{ fontSize: '0.75rem', textOverflow: 'ellipsis' }}>
                                                     <option value="">Seleccionar cuenta...</option>
                                                     {renderColppyOptions(arbolContable)}
-                                                </select>
+                                                </StyledSelect>
                                             ) : (
                                                 <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontStyle: 'italic', padding: '0 0.5rem' }}>Sin Colppy conf.</div>
                                             )}
                                             <input type="number" className="form-input" min={1} value={l.cantidad} onChange={e => updateLinea(l.id, 'cantidad', parseFloat(e.target.value) || 1)} style={{ fontSize: '0.8125rem', textAlign: 'right', fontFamily: 'var(--font-mono)' }} />
                                             <input type="number" className="form-input" min={0} step={0.01} value={l.precio_unitario === 0 ? '' : l.precio_unitario} placeholder="0.00" onChange={e => updateLinea(l.id, 'precio_unitario', parseFloat(e.target.value) || 0)} style={{ fontSize: '0.8125rem', textAlign: 'right', fontFamily: 'var(--font-mono)' }} />
-                                            <select className="form-input" value={l.iva_porcentaje} onChange={e => updateLinea(l.id, 'iva_porcentaje', parseFloat(e.target.value))} style={{ fontSize: '0.8125rem' }}>
+                                            <StyledSelect className="form-input" value={l.iva_porcentaje} onChange={e => updateLinea(l.id, 'iva_porcentaje', parseFloat(e.target.value))} style={{ fontSize: '0.8125rem' }}>
                                                 {IVA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                            </select>
+                                            </StyledSelect>
                                             <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => removeLinea(l.id)} disabled={lineas.length <= 1} title="Eliminar línea">
                                                 <Trash2 size={13} color="var(--color-danger)" />
                                             </button>
@@ -1108,9 +1109,9 @@ export default function ComprobanteForm({ onSuccess, forceVenta }: Props) {
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">Forma de pago</label>
-                                    <select className="form-input" value={recFormaPago} onChange={e => setRecFormaPago(e.target.value)}>
+                                    <StyledSelect className="form-input" value={recFormaPago} onChange={e => setRecFormaPago(e.target.value)}>
                                         {FORMAS_PAGO.map(fp => <option key={fp} value={fp}>{fp}</option>)}
-                                    </select>
+                                    </StyledSelect>
                                 </div>
                             </div>
 
@@ -1315,9 +1316,9 @@ export default function ComprobanteForm({ onSuccess, forceVenta }: Props) {
                                     <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '3fr 70px 70px 28px', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'center' }}>
                                         <input className="form-input" placeholder={`Ítem ${i + 1}`} value={item.descripcion} onChange={e => updateRemItem(item.id, 'descripcion', e.target.value)} style={{ fontSize: '0.8125rem' }} />
                                         <input type="number" className="form-input" min={1} value={item.cantidad} onChange={e => updateRemItem(item.id, 'cantidad', parseFloat(e.target.value) || 1)} style={{ fontSize: '0.8125rem', textAlign: 'right', fontFamily: 'var(--font-mono)' }} />
-                                        <select className="form-input" value={item.unidad} onChange={e => updateRemItem(item.id, 'unidad', e.target.value)} style={{ fontSize: '0.8125rem' }}>
+                                        <StyledSelect className="form-input" value={item.unidad} onChange={e => updateRemItem(item.id, 'unidad', e.target.value)} style={{ fontSize: '0.8125rem' }}>
                                             {['UN', 'KG', 'LT', 'MT', 'M2', 'M3', 'CM', 'PAR', 'JUEGO', 'CAJA', 'BOLSA', 'ROLLO'].map(u => <option key={u} value={u}>{u}</option>)}
-                                        </select>
+                                        </StyledSelect>
                                         <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => removeRemItem(item.id)} disabled={remItems.length <= 1} title="Eliminar">
                                             <Trash2 size={13} color="var(--color-danger)" />
                                         </button>

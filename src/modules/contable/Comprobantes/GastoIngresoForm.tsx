@@ -4,6 +4,7 @@ import { Save, CheckCircle, Loader, RefreshCw, AlertTriangle } from 'lucide-reac
 import { supabase } from '../../../lib/supabase';
 import { useTenant } from '../../../contexts/TenantContext';
 import { DolarService } from '../../../services/DolarService';
+import StyledSelect from '../../../shared/components/StyledSelect';
 
 /* ─── Types ─────────────────────────────────────────── */
 
@@ -278,10 +279,10 @@ export default function GastoIngresoForm({ tipo, onSuccess }: Props) {
                         </div>
                         <div className="form-group">
                             <label className="form-label">Moneda *</label>
-                            <select className="form-input" value={moneda} onChange={e => setMoneda(e.target.value)}>
+                            <StyledSelect className="form-input" value={moneda} onChange={e => setMoneda(e.target.value)}>
                                 <option value="ARS">ARS – Peso Argentino</option>
                                 <option value="USD">USD – Dólar</option>
-                            </select>
+                            </StyledSelect>
                         </div>
                         <div className="form-group">
                             <label className="form-label">Monto (Total) *</label>
@@ -385,30 +386,30 @@ export default function GastoIngresoForm({ tipo, onSuccess }: Props) {
                         </div>
                         <div className="form-group">
                             <label className="form-label">Categoría Automática (IA)</label>
-                            <select className="form-input" value={categoriaId} onChange={e => setCategoriaId(e.target.value)}>
+                            <StyledSelect className="form-input" value={categoriaId} onChange={e => setCategoriaId(e.target.value)}>
                                 <option value="">Sin categoría...</option>
                                 {categorias
                                     .filter(c => c.tipo === 'ambos' || c.tipo === (isGasto ? 'gasto' : 'ingreso'))
                                     .map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                            </select>
+                            </StyledSelect>
                         </div>
                         <div className="form-group">
                             <label className="form-label">Concepto Facturable (Rubro)</label>
-                            <select className="form-input" value={productoId} onChange={e => setProductoId(e.target.value)}>
+                            <StyledSelect className="form-input" value={productoId} onChange={e => setProductoId(e.target.value)}>
                                 <option value="">Sin concepto...</option>
                                 {productos.map(p => <option key={p.id} value={p.id}>{p.nombre} ({p.grupo})</option>)}
-                            </select>
+                            </StyledSelect>
                         </div>
                         <div className="form-group">
                             <label className="form-label">Centro de Costo</label>
-                            <select className="form-input" value={centroId} onChange={e => setCentroId(e.target.value)}>
+                            <StyledSelect className="form-input" value={centroId} onChange={e => setCentroId(e.target.value)}>
                                 <option value="">Sin asignar</option>
                                 {centros.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                            </select>
+                            </StyledSelect>
                         </div>
                         <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                             <label className="form-label" style={{ color: 'var(--color-brand)', fontWeight: 600 }}>Impacto en Tesorería (Caja / Banco)</label>
-                            <select
+                            <StyledSelect
                                 className="form-input"
                                 value={accountId}
                                 onChange={e => setAccountId(e.target.value)}
@@ -418,7 +419,7 @@ export default function GastoIngresoForm({ tipo, onSuccess }: Props) {
                                 {accounts.map(acc => (
                                     <option key={acc.id} value={acc.id}>{acc.name} — ${acc.balance?.toLocaleString('es-AR')}</option>
                                 ))}
-                            </select>
+                            </StyledSelect>
                             <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>
                                 Si seleccionás una cuenta, se creará un movimiento completado en Tesorería y se actualizará el saldo.
                             </span>

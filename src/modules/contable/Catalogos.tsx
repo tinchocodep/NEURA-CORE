@@ -3,6 +3,7 @@ import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
 import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
 import { Search, Plus, Trash2, Eye, X, Check, ChevronRight, ChevronLeft } from 'lucide-react';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 interface CentroCosto {
     id: string;
@@ -95,12 +96,12 @@ export default function CentrosDeCosto() {
                     <input type="text" placeholder="Buscar centro..." value={search} onChange={e => setSearch(e.target.value)}
                         className="form-input" style={{ paddingLeft: 30, height: 32, fontSize: '0.8rem' }} />
                 </div>
-                <select value={filterTipo} onChange={e => setFilterTipo(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
+                <StyledSelect value={filterTipo} onChange={e => setFilterTipo(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
                     <option value="">Todos los tipos</option>
                     <option value="ingreso">Ingreso ({ingresoCount})</option>
                     <option value="gasto">Gasto ({gastoCount})</option>
                     <option value="ambos">Ambos ({ambosCount})</option>
-                </select>
+                </StyledSelect>
                 <button onClick={openNew} className="btn btn-primary" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem' }}>
                     <Plus size={14} /> Nuevo
                 </button>

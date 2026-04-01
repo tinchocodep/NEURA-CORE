@@ -9,6 +9,7 @@ import {
 import jsPDF from 'jspdf';
 import { useSearchParams } from 'react-router-dom';
 import { DocumentViewer } from '../../shared/components/DocumentViewer';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 // --- Types ---
 
@@ -669,19 +670,19 @@ export default function Comprobantes() {
                             </div>
                             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                                 <Filter size={14} color="var(--text-muted)" />
-                                <select className="form-input" value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)} style={{ width: 130, height: 40 }}>
+                                <StyledSelect className="form-input" value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)} style={{ width: 130, height: 40 }}>
                                     <option value="todos">Todos</option>
                                     <option value="compra">Compras</option>
                                     <option value="venta">Ventas</option>
-                                </select>
-                                <select className="form-input" value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)} style={{ width: 150, height: 40 }}>
+                                </StyledSelect>
+                                <StyledSelect className="form-input" value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)} style={{ width: 150, height: 40 }}>
                                     <option value="todos">Todo estado</option>
                                     <option value="pendiente">Pendiente</option>
                                     <option value="clasificado">Clasificado</option>
                                     <option value="aprobado">Aprobado</option>
                                     <option value="inyectado">Inyectado</option>
                                     <option value="error">Error</option>
-                                </select>
+                                </StyledSelect>
                             </div>
                         </div>
 
@@ -1029,10 +1030,10 @@ export default function Comprobantes() {
                                 </div>
                                 <div className="form-group">
                                     <label>Tipo Comprobante</label>
-                                    <select className="form-input" value={formTipoComprobante} onChange={e => setFormTipoComprobante(e.target.value)}>
+                                    <StyledSelect className="form-input" value={formTipoComprobante} onChange={e => setFormTipoComprobante(e.target.value)}>
                                         <option value="">Seleccionar...</option>
                                         {TIPOS_COMPROBANTE.map(t => <option key={t} value={t}>{t}</option>)}
-                                    </select>
+                                    </StyledSelect>
                                 </div>
                             </div>
 
@@ -1040,10 +1041,10 @@ export default function Comprobantes() {
                             <div style={{ display: 'grid', gridTemplateColumns: formMoneda === 'USD' ? '1fr 1fr' : '1fr', gap: '0.75rem', marginBottom: '1rem' }}>
                                 <div className="form-group">
                                     <label>Moneda</label>
-                                    <select className="form-input" value={formMoneda} onChange={e => setFormMoneda(e.target.value)}>
+                                    <StyledSelect className="form-input" value={formMoneda} onChange={e => setFormMoneda(e.target.value)}>
                                         <option value="ARS">ARS - Peso Argentino</option>
                                         <option value="USD">USD - Dólar</option>
-                                    </select>
+                                    </StyledSelect>
                                 </div>
                                 {formMoneda === 'USD' && (
                                     <div className="form-group">
@@ -1250,19 +1251,19 @@ export default function Comprobantes() {
                                 </div>
                                 <div className="form-group">
                                     <label>Centro de Costo</label>
-                                    <select className="form-input" value={formCentroCostoId} onChange={e => setFormCentroCostoId(e.target.value)}>
+                                    <StyledSelect className="form-input" value={formCentroCostoId} onChange={e => setFormCentroCostoId(e.target.value)}>
                                         <option value="">Sin asignar</option>
                                         {centrosCosto.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                                    </select>
+                                    </StyledSelect>
                                 </div>
                                 <div className="form-group">
                                     <label>Categoría</label>
-                                    <select className="form-input" value={formCategoriaId} onChange={e => setFormCategoriaId(e.target.value)}>
+                                    <StyledSelect className="form-input" value={formCategoriaId} onChange={e => setFormCategoriaId(e.target.value)}>
                                         <option value="">Sin asignar</option>
                                         {categorias.filter(c => c.tipo === (formTipo === 'compra' ? 'egreso' : 'ingreso') || c.tipo === 'ambos').map(c => (
                                             <option key={c.id} value={c.id}>{c.nombre}</option>
                                         ))}
-                                    </select>
+                                    </StyledSelect>
                                 </div>
                             </div>
 
@@ -1347,13 +1348,13 @@ export default function Comprobantes() {
                                                         </div>
                                                         <div style={{ flex: 1.2 }}>
                                                             <span style={labelStyle}>Unidad</span>
-                                                            <select
+                                                            <StyledSelect
                                                                 value={item.unidad}
                                                                 onChange={e => updateRemitoItem(item.id, 'unidad', e.target.value)}
                                                                 style={selectStyle}
                                                             >
                                                                 {UNIDADES.map(u => <option key={u} value={u}>{u}</option>)}
-                                                            </select>
+                                                            </StyledSelect>
                                                         </div>
                                                         <div style={{ flex: 1.5 }}>
                                                             <span style={labelStyle}>Código (opcional)</span>
@@ -1495,14 +1496,14 @@ export default function Comprobantes() {
                                                     {/* Producto - full width */}
                                                     <div style={{ marginBottom: 10 }}>
                                                         <span style={labelStyle}>Producto / Servicio</span>
-                                                        <select
+                                                        <StyledSelect
                                                             value={linea.producto_servicio_id}
                                                             onChange={e => updateLinea(linea.id, 'producto_servicio_id', e.target.value)}
                                                             style={selectStyle}
                                                         >
                                                             <option value="">Sin asignar</option>
                                                             {productosServicio.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                                                        </select>
+                                                        </StyledSelect>
                                                     </div>
 
                                                     {/* Cant | Precio | IVA | Subtotal */}
@@ -1527,13 +1528,13 @@ export default function Comprobantes() {
                                                         </div>
                                                         <div style={{ flex: 1 }}>
                                                             <span style={labelStyle}>IVA</span>
-                                                            <select
+                                                            <StyledSelect
                                                                 value={linea.iva_porcentaje}
                                                                 onChange={e => updateLinea(linea.id, 'iva_porcentaje', parseFloat(e.target.value))}
                                                                 style={selectStyle}
                                                             >
                                                                 {IVA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                                            </select>
+                                                            </StyledSelect>
                                                         </div>
                                                         <div style={{ flex: 1.5 }}>
                                                             <span style={labelStyle}>Subtotal</span>

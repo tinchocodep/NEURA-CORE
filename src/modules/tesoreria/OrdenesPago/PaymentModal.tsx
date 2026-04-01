@@ -3,6 +3,7 @@ import { supabase } from '../../../lib/supabase';
 import { useTenant } from '../../../contexts/TenantContext';
 import { useToast } from '../../../contexts/ToastContext';
 import { X, Building2, CreditCard, DollarSign } from 'lucide-react';
+import StyledSelect from '../../../shared/components/StyledSelect';
 
 export default function PaymentModal({ op, onClose, onSuccess }: any) {
     const { tenant } = useTenant();
@@ -125,21 +126,21 @@ export default function PaymentModal({ op, onClose, onSuccess }: any) {
 
                     <div className="form-group" style={{ marginBottom: 0 }}>
                         <label className="form-label font-medium flex items-center gap-1.5"><Building2 size={16}/> Cuenta de Origen</label>
-                        <select className="form-input w-full" value={accountId} onChange={e => setAccountId(e.target.value)}>
+                        <StyledSelect className="form-input w-full" value={accountId} onChange={e => setAccountId(e.target.value)}>
                             <option value="">Seleccione una cuenta/caja...</option>
                             {accounts.map(a => (
                                 <option key={a.id} value={a.id}>{a.name} (Saldo: ${a.balance?.toLocaleString('es-AR', { minimumFractionDigits: 2 })})</option>
                             ))}
-                        </select>
+                        </StyledSelect>
                     </div>
 
                     <div className="form-group" style={{ marginBottom: 0 }}>
                         <label className="form-label font-medium flex items-center gap-1.5"><CreditCard size={16}/> Método de Pago</label>
-                        <select className="form-input w-full" value={method} onChange={e => setMethod(e.target.value)}>
+                        <StyledSelect className="form-input w-full" value={method} onChange={e => setMethod(e.target.value)}>
                             <option value="transferencia">Transferencia Bancaria</option>
                             <option value="efectivo">Efectivo</option>
                             <option value="cheque">Cheque</option>
-                        </select>
+                        </StyledSelect>
                     </div>
 
                     <div className="form-group" style={{ marginBottom: 0 }}>

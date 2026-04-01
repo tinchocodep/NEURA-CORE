@@ -4,6 +4,7 @@ import { useTenant } from '../../contexts/TenantContext';
 // Google Maps loaded via script tag
 import { MapPin, Search, Eye, FileSignature, List } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 interface Propiedad {
   id: string; direccion: string; tipo: string; estado: string;
@@ -150,17 +151,17 @@ export default function MapaPropiedades() {
           <input type="text" placeholder="Buscar dirección..." value={search} onChange={e => setSearch(e.target.value)}
             className="form-input" style={{ paddingLeft: 30, height: 32, fontSize: '0.8rem' }} />
         </div>
-        <select value={filterEstado} onChange={e => setFilterEstado(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
+        <StyledSelect value={filterEstado} onChange={e => setFilterEstado(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
           <option value="">Todos los estados</option>
           <option value="disponible">Disponible</option>
           <option value="alquilada">Alquilada</option>
           <option value="en_venta">En venta</option>
           <option value="reservada">Reservada</option>
-        </select>
-        <select value={filterTipo} onChange={e => setFilterTipo(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
+        </StyledSelect>
+        <StyledSelect value={filterTipo} onChange={e => setFilterTipo(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
           <option value="">Todos los tipos</option>
           {Object.keys(TIPO_COLOR).map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
+        </StyledSelect>
         <div style={{ display: 'flex', gap: '0.25rem', background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-sm)', padding: 2 }}>
           <button onClick={() => setViewMode('map')} style={{ padding: '0.3rem 0.5rem', borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer', background: viewMode === 'map' ? 'var(--color-accent)' : 'transparent', color: viewMode === 'map' ? '#fff' : 'var(--color-text-muted)' }}><MapPin size={14} /></button>
           <button onClick={() => setViewMode('list')} style={{ padding: '0.3rem 0.5rem', borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer', background: viewMode === 'list' ? 'var(--color-accent)' : 'transparent', color: viewMode === 'list' ? '#fff' : 'var(--color-text-muted)' }}><List size={14} /></button>

@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import CustomSelect from '../../shared/components/CustomSelect';
 import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 interface OrdenTrabajo {
   id: string; propiedad_id: string; contrato_id: string | null; proveedor_id: string | null;
@@ -309,14 +310,14 @@ export default function OrdenesTrabajo({ wizardOnly, onClose }: { wizardOnly?: b
           <input type="text" placeholder="Buscar orden..." value={search} onChange={e => setSearch(e.target.value)}
             className="form-input" style={{ paddingLeft: 30, height: 32, fontSize: '0.8rem' }} />
         </div>
-        <select value={filterEstado} onChange={e => setFilterEstado(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
+        <StyledSelect value={filterEstado} onChange={e => setFilterEstado(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
           <option value="">Todos los estados</option>
           {ESTADOS_LIST.map(e => <option key={e} value={e}>{ESTADO_CFG[e]?.label || e}</option>)}
-        </select>
-        <select value={filterProveedor} onChange={e => setFilterProveedor(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
+        </StyledSelect>
+        <StyledSelect value={filterProveedor} onChange={e => setFilterProveedor(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
           <option value="">Todos los proveedores</option>
           {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-        </select>
+        </StyledSelect>
         <button onClick={openNew} className="btn btn-primary" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem' }}>
           <Plus size={14} /> Nueva
         </button>

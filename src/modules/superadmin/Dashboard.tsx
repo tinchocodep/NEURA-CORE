@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { Activity, Settings, CheckCircle, Users, ChevronDown, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 interface Tenant {
     id: string;
@@ -355,10 +356,10 @@ export default function SuperAdminDashboard() {
                                     </h3>
                                     <div className="form-group" style={{ marginBottom: '1rem' }}>
                                         <label className="form-label">Rubro / Industria</label>
-                                        <select className="form-input" value={tenant.rubro || 'general'}
+                                        <StyledSelect className="form-input" value={tenant.rubro || 'general'}
                                             onChange={e => saveTenant(tenant.id, { rubro: e.target.value })}>
                                             {RUBROS.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
-                                        </select>
+                                        </StyledSelect>
                                     </div>
                                     <div style={{ display: 'flex', gap: '1rem', flexDirection: 'column' }}>
                                         <div className="form-group">
@@ -402,7 +403,7 @@ export default function SuperAdminDashboard() {
                                                     <div style={{ flex: '1 1 200px' }}>
                                                         <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-main)', wordBreak: 'break-all' }}>{u.email || 'Sin correo'}</div>
                                                         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                                                            <select
+                                                            <StyledSelect
                                                                 className="form-input"
                                                                 style={{ padding: '0.25rem', fontSize: '0.8rem', height: 'auto' }}
                                                                 value={u.role || 'user'}
@@ -411,8 +412,8 @@ export default function SuperAdminDashboard() {
                                                                 <option value="user">Usuario Bás.</option>
                                                                 <option value="admin">Administrador</option>
                                                                 <option value="superadmin">Super Admin</option>
-                                                            </select>
-                                                            <select
+                                                            </StyledSelect>
+                                                            <StyledSelect
                                                                 className="form-input"
                                                                 style={{ padding: '0.25rem', fontSize: '0.8rem', height: 'auto', color: u.status === 'active' ? 'var(--success)' : 'var(--danger)' }}
                                                                 value={u.status || 'active'}
@@ -420,7 +421,7 @@ export default function SuperAdminDashboard() {
                                                             >
                                                                 <option value="active">Activo</option>
                                                                 <option value="suspended">Suspendido</option>
-                                                            </select>
+                                                            </StyledSelect>
                                                         </div>
                                                     </div>
 

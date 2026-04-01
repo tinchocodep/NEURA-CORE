@@ -13,6 +13,8 @@ import Bancos from './modules/tesoreria/Bancos';
 import OrdenesPago from './modules/tesoreria/OrdenesPago/index';
 import Monitor from './modules/tesoreria/Monitor';
 import Equipo from './modules/tesoreria/Equipo';
+import ProyeccionesTesoreria from './modules/tesoreria/Proyecciones';
+import CentroCostos from './modules/tesoreria/CentroCostos';
 import SuperAdminDashboard from './modules/superadmin/Dashboard';
 import ContableDashboard from './modules/contable/Dashboard';
 
@@ -23,7 +25,6 @@ import ContableCatalogos from './modules/contable/Catalogos';
 import ContableConfiguracion from './modules/contable/Configuracion';
 import ContableComprobantesIndex from './modules/contable/Comprobantes/index';
 import ImpuestoPlaceholder from './modules/impuestos/Placeholder';
-// import Conciliacion from './modules/contable/Conciliacion/index'; // bloqueada
 import ConciliacionComprobantes from './modules/agro/ConciliacionComprobantes';
 import VisionGeneral from './modules/VisionGeneral';
 import CRMDashboard from './modules/crm/Dashboard';
@@ -118,6 +119,8 @@ export default function App() {
               <Route path="ordenes-pago" element={<OrdenesPago />} />
               <Route path="equipo" element={<Equipo />} />
               <Route path="monitor" element={<Monitor />} />
+              <Route path="proyecciones" element={<ProyeccionesTesoreria />} />
+              <Route path="centro-costos" element={<CentroCostos />} />
             </Route>
             {/* Modulo Contable */}
             <Route path="contable">

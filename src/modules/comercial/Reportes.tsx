@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Download } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 interface Stage { id: string; nombre: string; color: string; es_final: boolean; }
 interface Source { id: string; nombre: string; }
@@ -91,13 +92,13 @@ export default function ComercialReportes() {
         <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                 <h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Reportes</h1>
-                <select value={period} onChange={e => setPeriod(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
+                <StyledSelect value={period} onChange={e => setPeriod(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
                     <option value="today">Hoy</option>
                     <option value="week">Esta semana</option>
                     <option value="month">Este mes</option>
                     <option value="quarter">Último trimestre</option>
                     <option value="all">Todo</option>
-                </select>
+                </StyledSelect>
                 <div style={{ marginLeft: 'auto' }}>
                     <button style={{ padding: '0.4rem 0.75rem', borderRadius: 6, border: '1px solid var(--color-border-subtle)', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-primary)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 4 }}>
                         <Download size={14} /> Exportar

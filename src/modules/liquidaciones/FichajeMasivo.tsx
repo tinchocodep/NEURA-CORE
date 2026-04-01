@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import { Save, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 import type { Empleado, Obra } from './types';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 const DIAS_SEMANA = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 
@@ -377,9 +378,9 @@ export default function FichajeMasivo() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
                 <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 4, display: 'block' }}>Obra *</label>
-                <select value={bulkObra} onChange={e => setBulkObra(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', fontSize: '0.8125rem', color: 'var(--color-text-primary)' }}>
+                <StyledSelect value={bulkObra} onChange={e => setBulkObra(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', fontSize: '0.8125rem', color: 'var(--color-text-primary)' }}>
                   {obras.map(o => <option key={o.id} value={o.id}>{o.nombre}</option>)}
-                </select>
+                </StyledSelect>
               </div>
 
               {/* Horas selector */}

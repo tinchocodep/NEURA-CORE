@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import CustomSelect from '../../shared/components/CustomSelect';
 import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 function useIsMobile() {
   const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
@@ -144,14 +145,14 @@ export default function Servicios() {
           <input type="text" placeholder="Buscar propiedad o empresa..." value={search} onChange={e => setSearch(e.target.value)}
             className="form-input" style={{ paddingLeft: 30, height: 32, fontSize: '0.8rem' }} />
         </div>
-        <select value={filterTipo} onChange={e => setFilterTipo(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
+        <StyledSelect value={filterTipo} onChange={e => setFilterTipo(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
           <option value="">Todos los tipos</option>
           {TIPOS.map(t => <option key={t} value={t}>{TIPO_LABEL[t]}</option>)}
-        </select>
-        <select value={filterEstado} onChange={e => setFilterEstado(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
+        </StyledSelect>
+        <StyledSelect value={filterEstado} onChange={e => setFilterEstado(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
           <option value="">Todos los estados</option>
           {ESTADOS.map(e => <option key={e} value={e} style={{ textTransform: 'capitalize' }}>{e}</option>)}
-        </select>
+        </StyledSelect>
         <button onClick={openNew} className="btn btn-primary" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem' }}>
           <Plus size={14} /> Nuevo
         </button>

@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTenant } from '../../contexts/TenantContext';
 import { useToast } from '../../contexts/ToastContext';
 import { supabase } from '../../lib/supabase';
 import { DolarService } from '../../services/DolarService';
 import type { DolarResumen } from '../../services/DolarService';
 import { Plus, Trash2, Send, FileText, Search, X } from 'lucide-react';
+import OrdenDePagoForm from './OrdenDePagoForm';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 /* ── Types ─── */
 interface Cliente { id: string; razon_social: string; cuit: string | null; condicion_fiscal: string | null; telefono: string | null; email: string | null; direccion: string | null; }
@@ -32,14 +35,16 @@ const TIPOS_COMP = [
     { value: 'Nota de Crédito B', label: 'Nota de Crédito B', letra: 'B' },
     { value: 'Recibo X', label: 'Recibo X', letra: 'X' },
     { value: 'Remito', label: 'Remito', letra: 'R' },
+    { value: 'Orden de Pago', label: 'Orden de Pago', letra: 'OP' },
 ];
 
-const CONDICIONES_PAGO = ['Contado', 'A 15 días', 'A 30 días', 'A 60 días', 'A 90 días'];
+const CONDICIONES_PAGO = ['Contado (Efectivo)', 'Transferencia ARS', 'Transferencia USD', 'Cheque', 'A 15 días', 'A 30 días', 'A 60 días', 'A 90 días'];
 
 /* ── Component ─── */
 export default function FacturarAgro() {
     const { tenant } = useTenant();
     const { addToast } = useToast();
+    const [searchParams] = useSearchParams();
 
     // Data
     const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -52,7 +57,7 @@ export default function FacturarAgro() {
     const [emisorPuntoVenta, setEmisorPuntoVenta] = useState(1);
 
     // Form
-    const [showForm, setShowForm] = useState(false);
+    const [showForm, setShowForm] = useState(true);
     const [tipoComp, setTipoComp] = useState('Factura A');
     const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
     const [fechaVencimiento, setFechaVencimiento] = useState('');
@@ -95,7 +100,19 @@ export default function FacturarAgro() {
                 .eq('tenant_id', tenant.id).eq('tipo', 'venta').order('created_at', { ascending: false }).limit(10),
             supabase.from('contable_config').select('arca_cuit, punto_venta').eq('tenant_id', tenant.id).maybeSingle(),
         ]).then(([cliRes, prodRes, recRes, configRes]) => {
-            if (cliRes.data) setClientes(cliRes.data as any);
+            if (cliRes.data) {
+                setClientes(cliRes.data as any);
+                // Pre-select client from URL param
+                const paramClienteId = searchParams.get('cliente_id');
+                if (paramClienteId) {
+                    const cli = (cliRes.data as any[]).find((c: any) => c.id === paramClienteId);
+                    if (cli) {
+                        setClienteId(paramClienteId);
+                        setClienteSearch(cli.razon_social);
+                        autocompletarDesdeHistorial(paramClienteId);
+                    }
+                }
+            }
             if (prodRes.data) setProductos(prodRes.data.filter((p: any) => p.tipo === 'venta' || p.tipo === 'ambos') as any);
             if (recRes.data) setRecientes(recRes.data as any);
             if (configRes.data) {
@@ -177,6 +194,10 @@ export default function FacturarAgro() {
 
     // Factura C = always exento
     const isFacturaC = tipoComp.includes('C');
+    const isOrdenPago = tipoComp === 'Orden de Pago';
+    const isRecibo = tipoComp === 'Recibo X';
+    const isRemito = tipoComp === 'Remito';
+    const isDocPreview = isRecibo || isRemito;
 
     // When switching to Factura C, force all lines to 0% IVA
     useEffect(() => {
@@ -248,9 +269,9 @@ export default function FacturarAgro() {
             let pdfBlobUrl: string | null = null;
             let estado = 'pendiente';
 
-            // If emitir via ARCA webhook
+            // If emitir via ARCA webhook (not for Orden de Pago)
             const webhookUrl = (tenant as any).webhook_facturacion || 'https://n8n.neuracall.net/webhook/NeuraUSUARIOPRUEBA';
-            if (emitirArca && webhookUrl) {
+            if (emitirArca && webhookUrl && !isOrdenPago) {
                 const payload = {
                     emisor: {
                         razonSocial: (tenant as any).razon_social || tenant.name,
@@ -335,7 +356,7 @@ export default function FacturarAgro() {
             const nroComp = invoiceNumber ? `${String((tenant as any).punto_venta || 1).padStart(5, '0')}-${String(invoiceNumber).padStart(8, '0')}` : undefined;
             const { error } = await supabase.from('contable_comprobantes').insert({
                 tenant_id: tenant.id,
-                tipo: 'venta',
+                tipo: isOrdenPago ? 'compra' : 'venta',
                 tipo_comprobante: tipoComp,
                 numero_comprobante: nroComp,
                 fecha: fecha || new Date().toISOString().split('T')[0],
@@ -354,7 +375,7 @@ export default function FacturarAgro() {
             });
 
             if (error) throw error;
-            if (!emitirArca) addToast('success', 'Comprobante guardado', `${tipoComp} registrada como borrador`);
+            if (!emitirArca || isOrdenPago) addToast('success', 'Comprobante guardado', `${tipoComp} registrad${isOrdenPago ? 'a' : 'o'} correctamente`);
             resetForm();
             setShowForm(false);
             // Reload recientes
@@ -372,106 +393,32 @@ export default function FacturarAgro() {
 
     return (
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-            {/* Header */}
-            <div className="module-header-desktop">
-                <h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Facturación</h1>
-                <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
-                    <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem' }}
-                        onClick={() => { resetForm(); setShowForm(true); }}>
-                        <Plus size={16} /> Nueva factura
-                    </button>
+            {/* Form always visible */}
+            <div style={{ background: 'var(--color-bg-card)', borderRadius: 14, border: '1px solid var(--color-border-subtle)', overflow: 'hidden' }}>
+                {/* Form header */}
+                {/* Tipo selector - always visible */}
+                <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>Tipo de comprobante</label>
+                    <StyledSelect className="form-input" value={tipoComp} onChange={e => setTipoComp(e.target.value)} style={{ height: 36, fontSize: '0.85rem', maxWidth: 220 }}>
+                        {TIPOS_COMP.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                    </StyledSelect>
                 </div>
-            </div>
 
-            {/* KPIs */}
-            <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-                {[
-                    { label: 'Pendientes', value: recientes.filter(r => r.estado === 'pendiente').length, color: '#F59E0B' },
-                    { label: 'Aprobadas', value: recientes.filter(r => r.estado === 'aprobado').length, color: '#22C55E' },
-                    { label: 'Este mes', value: `$${recientes.reduce((s: number, r: any) => s + (r.monto_original || 0), 0).toLocaleString('es-AR')}`, color: '#3B82F6' },
-                ].map(k => (
-                    <div key={k.label} style={{ flex: '1 1 140px', padding: '14px 18px', background: 'var(--color-bg-card)', borderRadius: 12, border: '1px solid var(--color-border-subtle)' }}>
-                        <div style={{ fontSize: '1.25rem', fontWeight: 700, color: k.color }}>{k.value}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{k.label}</div>
-                    </div>
-                ))}
-            </div>
+                {/* Orden de Pago: dedicated form with live preview */}
+                {isOrdenPago && <OrdenDePagoForm />}
 
-            {/* Recent invoices list */}
-            {!showForm && (
-                <div style={{ background: 'var(--color-bg-card)', borderRadius: 12, border: '1px solid var(--color-border-subtle)', overflow: 'hidden' }}>
-                    <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Facturas emitidas recientes</span>
-                    </div>
-                    {recientes.length === 0 ? (
-                        <div style={{ padding: 32, textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                            <FileText size={32} style={{ opacity: 0.3, marginBottom: 8 }} />
-                            <p>No hay facturas emitidas aún</p>
-                        </div>
-                    ) : (
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
-                            <thead>
-                                <tr style={{ background: 'var(--color-bg-surface-2)' }}>
-                                    <th style={{ padding: '8px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-muted)', fontSize: '0.6875rem', textTransform: 'uppercase' }}>Tipo</th>
-                                    <th style={{ padding: '8px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-muted)', fontSize: '0.6875rem', textTransform: 'uppercase' }}>Cliente</th>
-                                    <th style={{ padding: '8px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-muted)', fontSize: '0.6875rem', textTransform: 'uppercase' }}>Descripción</th>
-                                    <th style={{ padding: '8px 14px', textAlign: 'right', fontWeight: 600, color: 'var(--color-text-muted)', fontSize: '0.6875rem', textTransform: 'uppercase' }}>Monto</th>
-                                    <th style={{ padding: '8px 14px', textAlign: 'center', fontWeight: 600, color: 'var(--color-text-muted)', fontSize: '0.6875rem', textTransform: 'uppercase' }}>Estado</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {recientes.map((r: any) => (
-                                    <tr key={r.id} style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
-                                        <td style={{ padding: '10px 14px' }}>
-                                            <span style={{ fontWeight: 600, fontSize: '0.75rem', padding: '2px 8px', borderRadius: 6, background: '#3B82F615', color: '#3B82F6' }}>
-                                                {r.tipo_comprobante}
-                                            </span>
-                                        </td>
-                                        <td style={{ padding: '10px 14px', fontWeight: 500 }}>{(r.cliente as any)?.razon_social || '—'}</td>
-                                        <td style={{ padding: '10px 14px', color: 'var(--color-text-muted)' }}>{r.descripcion || '—'}</td>
-                                        <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>
-                                            ${(r.monto_original || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                                        </td>
-                                        <td style={{ padding: '10px 14px', textAlign: 'center' }}>
-                                            <span style={{
-                                                fontSize: '0.6875rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99,
-                                                background: r.estado === 'pendiente' ? '#F59E0B15' : r.estado === 'aprobado' ? '#22C55E15' : '#94A3B815',
-                                                color: r.estado === 'pendiente' ? '#F59E0B' : r.estado === 'aprobado' ? '#22C55E' : '#94A3B8',
-                                            }}>{r.estado}</span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    )}
-                </div>
-            )}
-
-            {/* New invoice form */}
-            {showForm && (
-                <div style={{ background: 'var(--color-bg-card)', borderRadius: 14, border: '1px solid var(--color-border-subtle)', overflow: 'hidden' }}>
-                    {/* Form header */}
-                    <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>Nueva factura</h2>
-                        <button className="btn btn-ghost" onClick={() => setShowForm(false)}><X size={18} /></button>
-                    </div>
-
+                {/* Factura/NC/Recibo/Remito: original form */}
+                {!isOrdenPago && (<>
                     <div style={{ padding: 20, display: 'flex', gap: 24 }}>
                         {/* Left: form */}
                         <div style={{ flex: 1, minWidth: 0 }}>
-                            {/* Row 1: Tipo + Condición */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-                                <div>
-                                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', display: 'block', marginBottom: 4 }}>Tipo de comprobante</label>
-                                    <select className="form-input" value={tipoComp} onChange={e => setTipoComp(e.target.value)} style={{ height: 38 }}>
-                                        {TIPOS_COMP.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                                    </select>
-                                </div>
+                            {/* Row 1: Condición */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12, marginBottom: 16 }}>
                                 <div>
                                     <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', display: 'block', marginBottom: 4 }}>Condición de pago</label>
-                                    <select className="form-input" value={condicionPago} onChange={e => setCondicionPago(e.target.value)} style={{ height: 38 }}>
+                                    <StyledSelect className="form-input" value={condicionPago} onChange={e => setCondicionPago(e.target.value)} style={{ height: 38 }}>
                                         {CONDICIONES_PAGO.map(c => <option key={c} value={c}>{c}</option>)}
-                                    </select>
+                                    </StyledSelect>
                                 </div>
                             </div>
 
@@ -479,10 +426,10 @@ export default function FacturarAgro() {
                             <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 120px', gap: 12, marginBottom: 16 }}>
                                 <div>
                                     <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', display: 'block', marginBottom: 4 }}>Moneda</label>
-                                    <select className="form-input" value={moneda} onChange={e => setMoneda(e.target.value as 'ARS' | 'USD')} style={{ height: 38 }}>
+                                    <StyledSelect className="form-input" value={moneda} onChange={e => setMoneda(e.target.value as 'ARS' | 'USD')} style={{ height: 38 }}>
                                         <option value="ARS">ARS</option>
                                         <option value="USD">USD</option>
-                                    </select>
+                                    </StyledSelect>
                                 </div>
                                 <div>
                                     {moneda === 'USD' ? (
@@ -596,10 +543,10 @@ export default function FacturarAgro() {
                                     <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 80px 80px 80px 32px', gap: 8, marginBottom: 8, alignItems: 'end' }}>
                                         <div>
                                             {i === 0 && <label style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', display: 'block', marginBottom: 2 }}>Producto / Descripción</label>}
-                                            <select className="form-input" value={l.producto_id} onChange={e => updateLinea(i, 'producto_id', e.target.value)} style={{ height: 36, fontSize: '0.8rem' }}>
+                                            <StyledSelect className="form-input" value={l.producto_id} onChange={e => updateLinea(i, 'producto_id', e.target.value)} style={{ height: 36, fontSize: '0.8rem' }}>
                                                 <option value="">Seleccionar producto...</option>
                                                 {productos.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                                            </select>
+                                            </StyledSelect>
                                         </div>
                                         <div>
                                             {i === 0 && <label style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', display: 'block', marginBottom: 2 }}>Descripción</label>}
@@ -623,10 +570,10 @@ export default function FacturarAgro() {
                                                     Exento
                                                 </div>
                                             ) : (
-                                                <select className="form-input" value={l.iva_porcentaje} onChange={e => updateLinea(i, 'iva_porcentaje', Number(e.target.value))}
+                                                <StyledSelect className="form-input" value={l.iva_porcentaje} onChange={e => updateLinea(i, 'iva_porcentaje', Number(e.target.value))}
                                                     style={{ height: 36, fontSize: '0.8rem' }}>
                                                     {IVA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                                </select>
+                                                </StyledSelect>
                                             )}
                                         </div>
                                         <div>
@@ -648,90 +595,97 @@ export default function FacturarAgro() {
                             </div>
                         </div>
 
-                        {/* Right: summary */}
-                        <div style={{ width: 280, flexShrink: 0 }}>
+                        {/* Right: live document preview OR summary */}
+                        <div style={{ width: 320, flexShrink: 0 }}>
+                          {isDocPreview ? (
+                            /* ─── LIVE DOCUMENT PREVIEW (Recibo / Remito) ─── */
+                            <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 4, padding: '24px 20px', fontFamily: 'Georgia, serif', color: '#1a1a1a', fontSize: '0.7rem', lineHeight: 1.5, boxShadow: '0 2px 12px rgba(0,0,0,0.08)', position: 'sticky', top: 20 }}>
+                              <div style={{ textAlign: 'center', borderBottom: '2px solid #1a1a1a', paddingBottom: 12, marginBottom: 12 }}>
+                                <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#64748b', marginBottom: 2 }}>{tipoComp}</div>
+                                <div style={{ fontSize: '1rem', fontWeight: 700 }}>{(tenant as any)?.razon_social || tenant?.name || '—'}</div>
+                                <div style={{ fontSize: '0.6rem', color: '#64748b' }}>CUIT: {emisorCuit || (tenant as any)?.cuit || '—'}</div>
+                              </div>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', marginBottom: 14 }}>
+                                <div><span style={{ color: '#64748b' }}>Fecha:</span> <b>{new Date(fecha + 'T12:00:00').toLocaleDateString('es-AR')}</b></div>
+                                <div><span style={{ color: '#64748b' }}>Condición:</span> <b>{condicionPago}</b></div>
+                              </div>
+                              <div style={{ background: '#f8fafc', padding: '8px 10px', borderRadius: 4, marginBottom: 14, border: '1px solid #e2e8f0' }}>
+                                <div style={{ fontSize: '0.6rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700, marginBottom: 2 }}>Cliente</div>
+                                <div style={{ fontWeight: 700, fontSize: '0.8rem' }}>{selectedCliente?.razon_social || '—'}</div>
+                                {selectedCliente?.cuit && <div style={{ fontSize: '0.6rem', color: '#64748b' }}>CUIT: {selectedCliente.cuit}</div>}
+                              </div>
+                              {lineas.some(l => l.descripcion) && (
+                                <div style={{ marginBottom: 14 }}>
+                                  <div style={{ fontSize: '0.6rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 4 }}>Detalle</div>
+                                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.65rem' }}>
+                                    <thead><tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                      <th style={{ textAlign: 'left', padding: '3px 0', fontWeight: 700, color: '#64748b' }}>Descripción</th>
+                                      <th style={{ textAlign: 'center', padding: '3px 0', fontWeight: 700, color: '#64748b' }}>Cant.</th>
+                                      <th style={{ textAlign: 'right', padding: '3px 0', fontWeight: 700, color: '#64748b' }}>Precio</th>
+                                      <th style={{ textAlign: 'right', padding: '3px 0', fontWeight: 700, color: '#64748b' }}>Subtotal</th>
+                                    </tr></thead>
+                                    <tbody>
+                                      {lineas.filter(l => l.descripcion).map((l, i) => (
+                                        <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                          <td style={{ padding: '3px 0' }}>{l.descripcion}</td>
+                                          <td style={{ padding: '3px 0', textAlign: 'center' }}>{l.cantidad}</td>
+                                          <td style={{ padding: '3px 0', textAlign: 'right', fontFamily: 'monospace' }}>${l.precio_unitario.toLocaleString('es-AR')}</td>
+                                          <td style={{ padding: '3px 0', textAlign: 'right', fontFamily: 'monospace' }}>${(l.cantidad * l.precio_unitario).toLocaleString('es-AR')}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                              {observaciones.trim() && (
+                                <div style={{ marginBottom: 10, padding: '6px 8px', background: '#f8fafc', borderRadius: 4, fontSize: '0.6rem', color: '#64748b', border: '1px solid #e2e8f0' }}>
+                                  <b>Obs:</b> {observaciones}
+                                </div>
+                              )}
+                              <div style={{ borderTop: '2px solid #1a1a1a', paddingTop: 10 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', fontWeight: 700 }}>
+                                  <span>TOTAL</span>
+                                  <span style={{ fontFamily: 'monospace', color: '#2563EB' }}>${total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
+                                </div>
+                              </div>
+                              <button className="btn btn-primary" style={{ width: '100%', marginTop: 16, height: 42, fontSize: '0.875rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                                onClick={handleSave} disabled={saving || !clienteId || lineas.length === 0}>
+                                <Send size={16} /> {saving ? 'Guardando...' : `Emitir ${tipoComp}`}
+                              </button>
+                            </div>
+                          ) : (
+                            /* ─── FACTURA SUMMARY ─── */
                             <div style={{ background: 'var(--color-bg-surface-2)', borderRadius: 12, padding: 20, position: 'sticky', top: 20 }}>
                                 <h3 style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: 16, margin: '0 0 16px' }}>Resumen</h3>
-
-                                {/* Emisor */}
                                 <div style={{ marginBottom: 10, padding: '8px 10px', background: 'var(--color-bg-card)', borderRadius: 8, border: '1px solid var(--color-border-subtle)' }}>
                                     <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>Emisor</div>
                                     <div style={{ fontSize: '0.75rem', fontWeight: 600 }}>{(tenant as any)?.razon_social || tenant?.name || '—'}</div>
                                     <div style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)' }}>CUIT: {emisorCuit || (tenant as any)?.cuit || '—'}</div>
                                     <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>Pto. Venta: {String(emisorPuntoVenta).padStart(5, '0')}</div>
                                 </div>
-
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: '0.8rem' }}>
-                                    <span style={{ color: 'var(--color-text-muted)' }}>Tipo</span>
-                                    <span style={{ fontWeight: 600 }}>{tipoComp}</span>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: '0.8rem' }}>
-                                    <span style={{ color: 'var(--color-text-muted)' }}>Fecha</span>
-                                    <span style={{ fontWeight: 500 }}>{fecha}</span>
-                                </div>
-                                {fechaVencimiento && <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: '0.8rem' }}>
-                                    <span style={{ color: 'var(--color-text-muted)' }}>Vencimiento</span>
-                                    <span style={{ fontWeight: 500 }}>{fechaVencimiento}</span>
-                                </div>}
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: '0.8rem' }}>
-                                    <span style={{ color: 'var(--color-text-muted)' }}>Cliente</span>
-                                    <span style={{ fontWeight: 500, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedCliente?.razon_social || '—'}</span>
-                                </div>
-                                {selectedCliente?.cuit && <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: '0.75rem' }}>
-                                    <span style={{ color: 'var(--color-text-muted)' }}>CUIT cliente</span>
-                                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 500 }}>{selectedCliente.cuit}</span>
-                                </div>}
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: '0.8rem' }}>
-                                    <span style={{ color: 'var(--color-text-muted)' }}>Condición</span>
-                                    <span style={{ fontWeight: 500 }}>{condicionPago}</span>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: '0.8rem' }}>
-                                    <span style={{ color: 'var(--color-text-muted)' }}>Ítems</span>
-                                    <span style={{ fontWeight: 500 }}>{lineas.filter(l => l.descripcion).length}</span>
-                                </div>
-
+                                {[
+                                  ['Tipo', tipoComp], ['Fecha', fecha], ['Cliente', selectedCliente?.razon_social || '—'], ['Condición', condicionPago],
+                                  ['Ítems', String(lineas.filter(l => l.descripcion).length)],
+                                ].map(([label, val]) => (
+                                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: '0.8rem' }}>
+                                    <span style={{ color: 'var(--color-text-muted)' }}>{label}</span>
+                                    <span style={{ fontWeight: 500, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val}</span>
+                                  </div>
+                                ))}
                                 <div style={{ borderTop: '1px solid var(--color-border-subtle)', marginTop: 12, paddingTop: 12 }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: '0.8rem' }}>
                                         <span style={{ color: 'var(--color-text-muted)' }}>Subtotal</span>
                                         <span style={{ fontFamily: 'var(--font-mono)' }}>${subtotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
                                     </div>
-                                    {descuentoPorcentaje > 0 && (
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: '0.8rem', color: '#EF4444' }}>
-                                            <span>Descuento ({descuentoPorcentaje}%)</span>
-                                            <span style={{ fontFamily: 'var(--font-mono)' }}>-${descuentoMonto.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
-                                        </div>
-                                    )}
-                                    {descuentoPorcentaje > 0 && (
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: '0.8rem' }}>
-                                            <span style={{ color: 'var(--color-text-muted)' }}>Neto gravado</span>
-                                            <span style={{ fontFamily: 'var(--font-mono)' }}>${netoGravado.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
-                                        </div>
-                                    )}
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: '0.8rem' }}>
                                         <span style={{ color: 'var(--color-text-muted)' }}>IVA</span>
                                         <span style={{ fontFamily: 'var(--font-mono)' }}>${totalIva.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
                                     </div>
-                                    {moneda === 'USD' && cotizacion > 0 && (
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: '0.8rem' }}>
-                                            <span style={{ color: 'var(--color-text-muted)' }}>Total USD</span>
-                                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>US${totalOrig.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
-                                        </div>
-                                    )}
-                                    {moneda === 'USD' && cotizacion > 0 && (
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
-                                            <span>Cotización {tipoDolar.toUpperCase()}</span>
-                                            <span style={{ fontFamily: 'var(--font-mono)' }}>${cotizacion.toLocaleString('es-AR')}</span>
-                                        </div>
-                                    )}
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, paddingTop: 8, borderTop: '2px solid var(--color-border-subtle)', fontSize: '1rem' }}>
-                                        <span style={{ fontWeight: 700 }}>Total{moneda === 'USD' ? ' ARS' : ''}</span>
-                                        <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--brand)' }}>
-                                            ${total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                                        </span>
+                                        <span style={{ fontWeight: 700 }}>Total</span>
+                                        <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--brand)' }}>${total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
                                     </div>
                                 </div>
-
-                                {/* Toggle ARCA */}
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, padding: '10px 0', borderTop: '1px solid var(--color-border-subtle)' }}>
                                     <div>
                                         <div style={{ fontSize: '0.8rem', fontWeight: 600 }}>Emitir via ARCA</div>
@@ -744,34 +698,24 @@ export default function FacturarAgro() {
                                         </span>
                                     </label>
                                 </div>
-
                                 <button className="btn btn-primary" style={{ width: '100%', marginTop: 12, height: 42, fontSize: '0.875rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                                     onClick={handleSave} disabled={saving || !clienteId || lineas.length === 0}>
                                     <Send size={16} /> {saving ? (emitirArca ? 'Emitiendo...' : 'Guardando...') : (emitirArca ? 'Emitir factura' : 'Guardar borrador')}
                                 </button>
-
-                                {!emitirArca && (
-                                    <p style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', textAlign: 'center', marginTop: 6 }}>Se guarda como borrador sin enviar a AFIP</p>
-                                )}
-
-                                {/* CAE result */}
                                 {lastCae && (
                                     <div style={{ marginTop: 12, padding: 12, background: '#22C55E10', borderRadius: 8, border: '1px solid #22C55E30' }}>
                                         <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#22C55E', marginBottom: 4 }}>Factura emitida</div>
                                         <div style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)' }}>CAE: {lastCae}</div>
                                         {lastInvoiceNum && <div style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)' }}>N°: {lastInvoiceNum}</div>}
-                                        {pdfUrl && (
-                                            <a href={pdfUrl} target="_blank" rel="noreferrer" style={{ fontSize: '0.75rem', color: 'var(--brand)', fontWeight: 600, marginTop: 6, display: 'inline-block' }}>
-                                                Ver PDF
-                                            </a>
-                                        )}
+                                        {pdfUrl && <a href={pdfUrl} target="_blank" rel="noreferrer" style={{ fontSize: '0.75rem', color: 'var(--brand)', fontWeight: 600, marginTop: 6, display: 'inline-block' }}>Ver PDF</a>}
                                     </div>
                                 )}
                             </div>
+                          )}
                         </div>
                     </div>
-                </div>
-            )}
+                </>)}
+            </div>
         </div>
     );
 }

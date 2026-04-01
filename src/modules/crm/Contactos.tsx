@@ -5,6 +5,7 @@ import { useTenant } from '../../contexts/TenantContext';
 import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
 import { Plus, Search, Trash2, Building2, Mail, Phone, X, Wrench, Eye, Check, ChevronRight, ChevronLeft } from 'lucide-react';
 import CustomSelect from '../../shared/components/CustomSelect';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 function useIsMobile() {
   const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
@@ -118,12 +119,12 @@ export default function CRMContactos() {
                     <input type="text" placeholder="Buscar nombre, empresa..." value={search} onChange={e => setSearch(e.target.value)}
                         className="form-input" style={{ paddingLeft: 30, height: 32, fontSize: '0.8rem' }} />
                 </div>
-                <select value={filterTipo} onChange={e => setFilterTipo(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
+                <StyledSelect value={filterTipo} onChange={e => setFilterTipo(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
                     <option value="">Todos los tipos</option>
                     <option value="clientes">Clientes</option>
                     <option value="proveedores">Proveedores</option>
                     <option value="sin_vincular">Sin vincular</option>
-                </select>
+                </StyledSelect>
                 <button onClick={openCreate} className="btn btn-primary" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem' }}>
                     <Plus size={14} /> Nuevo
                 </button>

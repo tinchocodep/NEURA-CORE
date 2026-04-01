@@ -4,6 +4,7 @@ import { Search, Plus, X, Grid3X3, List, MapPin, FileSignature, Check, ChevronRi
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 interface Propiedad {
   id: string; direccion: string; tipo: string; superficie_m2: number | null;
@@ -133,14 +134,14 @@ export default function Propiedades({ wizardOnly, onClose }: { wizardOnly?: bool
           <input type="text" placeholder="Buscar direccion..." value={search} onChange={e => setSearch(e.target.value)}
             className="form-input" style={{ paddingLeft: 30, height: 32, fontSize: '0.8rem' }} />
         </div>
-        <select value={filterEstado} onChange={e => setFilterEstado(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
+        <StyledSelect value={filterEstado} onChange={e => setFilterEstado(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
           <option value="">Todos los estados</option>
           {ESTADOS.map(e => <option key={e} value={e}>{e.replace(/_/g, ' ')}</option>)}
-        </select>
-        <select value={filterTipo} onChange={e => setFilterTipo(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
+        </StyledSelect>
+        <StyledSelect value={filterTipo} onChange={e => setFilterTipo(e.target.value)} className="form-input" style={{ height: 32, fontSize: '0.8rem', width: 'auto' }}>
           <option value="">Todos los tipos</option>
           {TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
+        </StyledSelect>
         <div style={{ display: 'flex', gap: '0.25rem', background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-sm)', padding: 2 }}>
           <button onClick={() => setViewMode('grid')} style={{ padding: '0.3rem 0.5rem', borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer', background: viewMode === 'grid' ? 'var(--color-accent)' : 'transparent', color: viewMode === 'grid' ? '#fff' : 'var(--color-text-muted)' }}><Grid3X3 size={14} /></button>
           <button onClick={() => setViewMode('list')} style={{ padding: '0.3rem 0.5rem', borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer', background: viewMode === 'list' ? 'var(--color-accent)' : 'transparent', color: viewMode === 'list' ? '#fff' : 'var(--color-text-muted)' }}><List size={14} /></button>
@@ -158,10 +159,10 @@ export default function Propiedades({ wizardOnly, onClose }: { wizardOnly?: bool
             <input type="text" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)}
               className="form-input" style={{ paddingLeft: 34, height: 38, fontSize: '0.875rem' }} />
           </div>
-          <select value={filterEstado} onChange={e => setFilterEstado(e.target.value)} className="form-input" style={{ height: 38, fontSize: '0.875rem', width: 'auto' }}>
+          <StyledSelect value={filterEstado} onChange={e => setFilterEstado(e.target.value)} className="form-input" style={{ height: 38, fontSize: '0.875rem', width: 'auto' }}>
             <option value="">Estado</option>
             {ESTADOS.map(e => <option key={e} value={e}>{e.replace(/_/g, ' ')}</option>)}
-          </select>
+          </StyledSelect>
           <button onClick={openNew} style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--color-cta, #2563EB)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <Plus size={18} />
           </button>

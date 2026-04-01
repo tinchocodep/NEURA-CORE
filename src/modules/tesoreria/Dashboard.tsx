@@ -8,6 +8,7 @@ import {
     CheckCircle2, X, AlertCircle, RefreshCw
 } from 'lucide-react';
 import TransactionForm from './components/TransactionForm';
+import StyledSelect from '../../shared/components/StyledSelect';
 
 interface Transaction {
     id: string;
@@ -578,13 +579,13 @@ export default function Dashboard() {
                                     <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: '0 0 1.25rem' }}>{actionItem.description}</p>
                                     <div className="form-group">
                                         <label className="form-label">Forma de pago (puede cambiarla)</label>
-                                        <select className="form-input" value={newPayment} onChange={e => setNewPayment(e.target.value)}>
+                                        <StyledSelect className="form-input" value={newPayment} onChange={e => setNewPayment(e.target.value)}>
                                             <option value="transferencia">Transferencia</option>
                                             <option value="efectivo">Efectivo</option>
                                             <option value="cheque">Cheque</option>
                                             <option value="tarjeta">Tarjeta</option>
                                             <option value="otro">Otro</option>
-                                        </select>
+                                        </StyledSelect>
                                     </div>
                                     <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem' }}>
                                         <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => { setActionItem(null); setActionType(null); }}>Cancelar</button>
@@ -618,13 +619,13 @@ export default function Dashboard() {
                                     <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: '0 0 1.25rem' }}>{actionItem.description}</p>
                                     <div className="form-group">
                                         <label className="form-label">Nueva forma de pago</label>
-                                        <select className="form-input" value={newPayment} onChange={e => setNewPayment(e.target.value)}>
+                                        <StyledSelect className="form-input" value={newPayment} onChange={e => setNewPayment(e.target.value)}>
                                             <option value="transferencia">Transferencia</option>
                                             <option value="efectivo">Efectivo</option>
                                             <option value="cheque">Cheque</option>
                                             <option value="tarjeta">Tarjeta</option>
                                             <option value="otro">Otro</option>
-                                        </select>
+                                        </StyledSelect>
                                     </div>
                                     <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem' }}>
                                         <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => { setActionItem(null); setActionType(null); }}>Cancelar</button>
