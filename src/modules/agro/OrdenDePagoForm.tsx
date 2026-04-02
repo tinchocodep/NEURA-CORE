@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import { useToast } from '../../contexts/ToastContext';
-import { Plus, Trash2, Send, Check } from 'lucide-react';
+import { Plus, Trash2, Send } from 'lucide-react';
 import StyledSelect from '../../shared/components/StyledSelect';
 
 interface Proveedor { id: string; razon_social: string; cuit: string | null; }

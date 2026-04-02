@@ -5,7 +5,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { supabase } from '../../lib/supabase';
 import { DolarService } from '../../services/DolarService';
 import type { DolarResumen } from '../../services/DolarService';
-import { Plus, Trash2, Send, FileText, Search, X } from 'lucide-react';
+import { Plus, Trash2, Send, Search, X } from 'lucide-react';
 import OrdenDePagoForm from './OrdenDePagoForm';
 import StyledSelect from '../../shared/components/StyledSelect';
 
@@ -49,7 +49,7 @@ export default function FacturarAgro() {
     // Data
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [productos, setProductos] = useState<Producto[]>([]);
-    const [recientes, setRecientes] = useState<any[]>([]);
+    const [, setRecientes] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     // Emisor config (from contable_config)
@@ -57,7 +57,7 @@ export default function FacturarAgro() {
     const [emisorPuntoVenta, setEmisorPuntoVenta] = useState(1);
 
     // Form
-    const [showForm, setShowForm] = useState(true);
+    const [, setShowForm] = useState(true);
     const [tipoComp, setTipoComp] = useState('Factura A');
     const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
     const [fechaVencimiento, setFechaVencimiento] = useState('');

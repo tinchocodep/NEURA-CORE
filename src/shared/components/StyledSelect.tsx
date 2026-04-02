@@ -14,6 +14,7 @@ import { ChevronDown, Check } from 'lucide-react';
 interface StyledSelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'onChange'> {
   children: React.ReactNode;
   onChange?: (e: { target: { value: string } }) => void;
+  placeholder?: string;
 }
 
 interface ParsedOption {
@@ -48,7 +49,7 @@ function parseOptions(children: React.ReactNode): ParsedOption[] {
   return opts;
 }
 
-export default function StyledSelect({ children, value, onChange, className, style, disabled, placeholder, ...rest }: StyledSelectProps) {
+export default function StyledSelect({ children, value, onChange, className, style, disabled, placeholder }: StyledSelectProps) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
   const ref = useRef<HTMLDivElement>(null);
