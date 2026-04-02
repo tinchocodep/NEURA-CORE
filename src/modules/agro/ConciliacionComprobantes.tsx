@@ -114,45 +114,53 @@ export default function ConciliacionComprobantes() {
 
     const isConfigured = config?.arca_cuit && config?.arca_username && config?.arca_password;
 
+    async function executeAfipAutomation(params: Record<string, any>): Promise<any[]> {
+        const createRes = await fetch('/api/afipsdk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${AFIPSDK_API_KEY}` },
+            body: JSON.stringify({ automation: 'mis-comprobantes', params }),
+        });
+        if (!createRes.ok) {
+            const err = await createRes.text();
+            throw new Error(`AFIP SDK error: ${err}`);
+        }
+        const created = await createRes.json();
+        const automationId = created.id;
+        if (!automationId) throw new Error('AFIP SDK no devolvió ID de automatización');
+
+        for (let i = 0; i < 60; i++) {
+            await new Promise(r => setTimeout(r, 5000));
+            const pollRes = await fetch(`/api/afipsdk/${automationId}`, {
+                headers: { 'Authorization': `Bearer ${AFIPSDK_API_KEY}` },
+            });
+            if (!pollRes.ok) continue;
+            const result = await pollRes.json();
+            if (result.status === 'in_process') continue;
+            if (result.status === 'complete' && Array.isArray(result.data)) return result.data;
+            if (result.status === 'error') throw new Error(result.message || 'Error en automatización AFIP');
+            return result.data || [];
+        }
+        throw new Error('Timeout esperando respuesta de AFIP SDK');
+    }
+
     async function fetchAFIP(): Promise<ComprobanteAFIP[]> {
         if (!config) return [];
 
         const fromDate = fechaDesde.split('-').reverse().join('/');
         const toDate = fechaHasta.split('-').reverse().join('/');
 
-        const res = await fetch('https://app.afipsdk.com/api/v1/execute', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${AFIPSDK_API_KEY}`,
+        const data = await executeAfipAutomation({
+            cuit: config.arca_cuit.replace(/-/g, ''),
+            username: config.arca_username.replace(/-/g, ''),
+            password: config.arca_password,
+            filters: {
+                t: tipoConsulta,
+                fechaEmision: `${fromDate} - ${toDate}`,
+                ...(config.punto_venta && tipoConsulta === 'E' ? { puntosVenta: [config.punto_venta] } : {}),
             },
-            body: JSON.stringify({
-                automation: 'mis-comprobantes',
-                params: {
-                    cuit: config.arca_cuit.replace(/-/g, ''),
-                    username: config.arca_username.replace(/-/g, ''),
-                    password: config.arca_password,
-                    filters: {
-                        t: tipoConsulta,
-                        fechaEmision: `${fromDate} - ${toDate}`,
-                        ...(config.punto_venta && tipoConsulta === 'E' ? { puntosVenta: [config.punto_venta] } : {}),
-                    },
-                },
-            }),
         });
 
-        if (!res.ok) {
-            const err = await res.text();
-            throw new Error(`AFIP SDK error: ${err}`);
-        }
-
-        const json = await res.json();
-
-        if (json.status !== 'complete' || !Array.isArray(json.data)) {
-            throw new Error('Respuesta inesperada de AFIP SDK');
-        }
-
-        return json.data.map((r: any) => ({
+        return data.map((r: any) => ({
             fechaEmision: r['Fecha de Emisión'] || '',
             tipoComprobante: r['Tipo de Comprobante'] || '',
             puntoVenta: r['Punto de Venta'] || '',

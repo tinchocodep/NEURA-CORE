@@ -69,18 +69,23 @@ export default function ComprobantesIndex({ defaultTipo }: ComprobantesIndexProp
     const [hasErp, setHasErp] = useState(false);
     const [hasColppy, setHasColppy] = useState(false);
     const [hasXubio, setHasXubio] = useState(false);
-    const [syncSource, setSyncSource] = useState<'colppy' | 'xubio' | null>(null);
+    const [hasArca, setHasArca] = useState(false);
+    const [arcaConfig, setArcaConfig] = useState<{ arca_cuit: string; arca_username: string; arca_password: string; punto_venta: number | null } | null>(null);
+    const [syncSource, setSyncSource] = useState<'colppy' | 'xubio' | 'arca' | null>(null);
     const [showSyncSourceMenu, setShowSyncSourceMenu] = useState(false);
     useEffect(() => {
         if (!tenant?.id) return;
-        supabase.from('contable_config').select('arca_cuit, xubio_client_id, xubio_client_secret, colpy_username, colpy_password').eq('tenant_id', tenant.id).maybeSingle()
+        supabase.from('contable_config').select('arca_cuit, arca_username, arca_password, punto_venta, xubio_client_id, xubio_client_secret, colpy_username, colpy_password').eq('tenant_id', tenant.id).maybeSingle()
             .then(({ data }) => {
                 if (data?.arca_cuit) setEmpresaCuit(data.arca_cuit);
                 const xubio = !!(data?.xubio_client_id && data?.xubio_client_secret);
                 const colppy = !!(data?.colpy_username && data?.colpy_password);
+                const arca = !!(data?.arca_cuit && data?.arca_username && data?.arca_password);
                 setHasXubio(xubio);
                 setHasColppy(colppy);
-                setHasErp(xubio || colppy);
+                setHasArca(arca);
+                if (arca) setArcaConfig({ arca_cuit: data!.arca_cuit!, arca_username: data!.arca_username!, arca_password: data!.arca_password!, punto_venta: data!.punto_venta ?? null });
+                setHasErp(xubio || colppy || arca);
             });
     }, [tenant?.id]);
 
@@ -718,15 +723,168 @@ export default function ComprobantesIndex({ defaultTipo }: ComprobantesIndexProp
         }
     };
 
+    const AFIPSDK_API_KEY = '3zZiVxOJP4zPQbK5mEc6FXQOa34hOPAPTSu3bl2S51LewxPc15xUb63Dm43s4BiL';
+
+    const TIPOS_COMPROBANTE_AFIP: Record<string, string> = {
+        '1': 'Factura A', '2': 'Nota de Débito A', '3': 'Nota de Crédito A',
+        '6': 'Factura B', '7': 'Nota de Débito B', '8': 'Nota de Crédito B',
+        '11': 'Factura C', '12': 'Nota de Débito C', '13': 'Nota de Crédito C',
+        '51': 'Factura M', '201': 'Factura de Crédito Electrónica A',
+    };
+
+    function parseAFIPNumber(s: string): number {
+        return parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
+    }
+
+    async function executeAfipAutomation(params: Record<string, any>): Promise<any[]> {
+        const createRes = await fetch('/api/afipsdk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${AFIPSDK_API_KEY}` },
+            body: JSON.stringify({ automation: 'mis-comprobantes', params }),
+        });
+        if (!createRes.ok) {
+            const err = await createRes.text();
+            throw new Error(`AFIP SDK error: ${err}`);
+        }
+        const created = await createRes.json();
+        const automationId = created.id;
+        if (!automationId) throw new Error('AFIP SDK no devolvió ID de automatización');
+
+        for (let i = 0; i < 60; i++) {
+            await new Promise(r => setTimeout(r, 5000));
+            const pollRes = await fetch(`/api/afipsdk/${automationId}`, {
+                headers: { 'Authorization': `Bearer ${AFIPSDK_API_KEY}` },
+            });
+            if (!pollRes.ok) continue;
+            const result = await pollRes.json();
+            if (result.status === 'in_process') continue;
+            if (result.status === 'complete' && Array.isArray(result.data)) return result.data;
+            if (result.status === 'error') throw new Error(result.message || 'Error en automatización AFIP');
+            return result.data || [];
+        }
+        throw new Error('Timeout esperando respuesta de AFIP SDK');
+    }
+
+    const handleSyncArca = async (desde: string, hasta: string) => {
+        if (!tenant || !arcaConfig) return;
+        setIsSyncModalOpen(false);
+        setSyncingColpy(true);
+        addToast('info', 'Sincronización', 'Conectando con ARCA (AFIP SDK)... esto puede tardar unos minutos.');
+
+        try {
+            const fechaDesdeStr = desde || (() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return d.toISOString().split('T')[0]; })();
+            const fechaHastaStr = hasta || new Date().toISOString().split('T')[0];
+            const fromDate = fechaDesdeStr.split('-').reverse().join('/');
+            const toDate = fechaHastaStr.split('-').reverse().join('/');
+
+            let importados = 0;
+
+            for (const tipoConsulta of ['E', 'R'] as const) {
+                const data = await executeAfipAutomation({
+                    cuit: arcaConfig.arca_cuit.replace(/-/g, ''),
+                    username: arcaConfig.arca_username.replace(/-/g, ''),
+                    password: arcaConfig.arca_password,
+                    filters: {
+                        t: tipoConsulta,
+                        fechaEmision: `${fromDate} - ${toDate}`,
+                        ...(arcaConfig.punto_venta && tipoConsulta === 'E' ? { puntosVenta: [arcaConfig.punto_venta] } : {}),
+                    },
+                });
+
+                if (!Array.isArray(data) || data.length === 0) continue;
+
+                const isVenta = tipoConsulta === 'E';
+
+                for (const r of data) {
+                    const pv = (r['Punto de Venta'] || '').padStart(5, '0');
+                    const numDesde = (r['Número Desde'] || '').padStart(8, '0');
+                    const nroComprobante = `${pv}-${numDesde}`;
+                    const tipoComp = r['Tipo de Comprobante'] || '';
+                    const tipoNombre = TIPOS_COMPROBANTE_AFIP[tipoComp] || `Tipo ${tipoComp}`;
+                    const fechaRaw = r['Fecha de Emisión'] || '';
+                    // Convert DD/MM/YYYY to YYYY-MM-DD
+                    let fecha = fechaRaw;
+                    if (fechaRaw.includes('/')) {
+                        const [dd, mm, yyyy] = fechaRaw.split('/');
+                        fecha = `${yyyy}-${mm}-${dd}`;
+                    }
+
+                    const total = parseAFIPNumber(r['Imp. Total'] || '0');
+                    const netoGravado = parseAFIPNumber(r['Imp. Neto Gravado'] || '0');
+                    const netoNoGravado = parseAFIPNumber(r['Imp. Neto No Gravado'] || '0');
+                    const iva = parseAFIPNumber(r['IVA'] || '0');
+                    const otrosTributos = parseAFIPNumber(r['Otros Tributos'] || '0');
+                    const codAutorizacion = r['Cód. Autorización'] || '';
+                    const nroDocReceptor = r['Nro. Doc. Receptor'] || '';
+                    const denominacion = r['Denominación Receptor'] || '';
+                    const monedaRaw = r['Moneda'] || 'PES';
+                    const moneda = monedaRaw === 'PES' ? 'ARS' : monedaRaw === 'DOL' ? 'USD' : monedaRaw;
+
+                    // Check if already exists by numero_comprobante + tipo + tenant
+                    const { data: existe } = await supabase
+                        .from('contable_comprobantes')
+                        .select('id')
+                        .eq('tenant_id', tenant.id)
+                        .eq('numero_comprobante', nroComprobante)
+                        .eq('tipo_comprobante', tipoNombre)
+                        .eq('tipo', isVenta ? 'venta' : 'compra')
+                        .maybeSingle();
+
+                    if (!existe) {
+                        const payload = {
+                            tenant_id: tenant.id,
+                            tipo: isVenta ? 'venta' : 'compra',
+                            tipo_comprobante: tipoNombre,
+                            numero_comprobante: nroComprobante,
+                            fecha,
+                            monto_original: total,
+                            monto_ars: total,
+                            moneda,
+                            neto_gravado: netoGravado,
+                            neto_no_gravado: netoNoGravado,
+                            total_iva: iva,
+                            estado: 'aprobado',
+                            source: 'arca',
+                            origen: 'arca',
+                            cuit_receptor: isVenta ? nroDocReceptor : arcaConfig.arca_cuit.replace(/-/g, ''),
+                            cuit_emisor: isVenta ? arcaConfig.arca_cuit.replace(/-/g, '') : nroDocReceptor,
+                            descripcion: `${denominacion}${codAutorizacion ? ` | CAE: ${codAutorizacion}` : ''}${otrosTributos ? ` | Otros tributos: ${otrosTributos}` : ''}`,
+                        };
+
+                        const { error } = await supabase.from('contable_comprobantes').insert(payload);
+                        if (error) {
+                            console.error('[ARCA sync] Insert error:', error, payload);
+                        } else {
+                            importados++;
+                        }
+                    }
+                }
+            }
+
+            if (importados === 0) {
+                addToast('info', 'Al Día', 'No se encontraron comprobantes nuevos en ARCA.');
+            } else {
+                addToast('success', 'Completado', `Importados ${importados} comprobantes desde ARCA.`);
+            }
+            reset();
+        } catch (e: any) {
+            addToast('error', 'Error ARCA', e.message);
+        } finally {
+            setSyncingColpy(false);
+        }
+    };
+
     const handleSync = (desde: string, hasta: string) => {
         if (syncSource === 'xubio') {
             handleSyncXubio(desde, hasta);
+        } else if (syncSource === 'arca') {
+            handleSyncArca(desde, hasta);
         } else {
             handleSyncColpy(desde, hasta);
         }
     };
 
-    const openSyncModal = (source: 'colppy' | 'xubio') => {
+    const openSyncModal = (source: 'colppy' | 'xubio' | 'arca') => {
         setSyncSource(source);
         setShowSyncSourceMenu(false);
         setIsSyncModalOpen(true);
@@ -794,7 +952,7 @@ export default function ComprobantesIndex({ defaultTipo }: ComprobantesIndexProp
                         
                         <div className="flex items-center gap-3 mb-4 text-indigo-400">
                             <RefreshCw size={24} />
-                            <h2 className="text-xl font-semibold text-white">Sincronizar {syncSource === 'xubio' ? 'Xubio' : 'Colppy'}</h2>
+                            <h2 className="text-xl font-semibold text-white">Sincronizar {syncSource === 'xubio' ? 'Xubio' : syncSource === 'arca' ? 'ARCA (AFIP)' : 'Colppy'}</h2>
                         </div>
                         
                         <p className="text-sm text-slate-300 mb-6">
@@ -867,26 +1025,31 @@ export default function ComprobantesIndex({ defaultTipo }: ComprobantesIndexProp
                             <button
                                 className="btn btn-secondary"
                                 onClick={() => {
-                                    if (hasColppy && hasXubio) {
-                                        setShowSyncSourceMenu(!showSyncSourceMenu);
+                                    const sources = [hasColppy && 'colppy', hasXubio && 'xubio', hasArca && 'arca'].filter(Boolean) as ('colppy' | 'xubio' | 'arca')[];
+                                    if (sources.length === 1) {
+                                        openSyncModal(sources[0]);
                                     } else {
-                                        openSyncModal(hasColppy ? 'colppy' : 'xubio');
+                                        setShowSyncSourceMenu(!showSyncSourceMenu);
                                     }
                                 }}
                                 style={{ padding: '8px 14px', fontSize: '0.8rem', borderRadius: 10 }}
                             >
                                 <RefreshCw size={14} /> Sincronizar
                             </button>
-                            {showSyncSourceMenu && hasColppy && hasXubio && (
+                            {showSyncSourceMenu && (
                                 <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 100, minWidth: 160, overflow: 'hidden' }}>
-                                    <button onClick={() => openSyncModal('colppy')} style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontSize: '0.8rem' }}
+                                    {hasArca && <button onClick={() => openSyncModal('arca')} style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontSize: '0.8rem', color: 'inherit' }}
+                                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                                        Desde ARCA (AFIP)
+                                    </button>}
+                                    {hasColppy && <button onClick={() => openSyncModal('colppy')} style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontSize: '0.8rem', color: 'inherit' }}
                                         onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
                                         Desde Colppy
-                                    </button>
-                                    <button onClick={() => openSyncModal('xubio')} style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontSize: '0.8rem' }}
+                                    </button>}
+                                    {hasXubio && <button onClick={() => openSyncModal('xubio')} style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontSize: '0.8rem', color: 'inherit' }}
                                         onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
                                         Desde Xubio
-                                    </button>
+                                    </button>}
                                 </div>
                             )}
                         </div>

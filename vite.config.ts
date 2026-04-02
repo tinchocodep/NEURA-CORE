@@ -37,6 +37,12 @@ export default defineConfig({
         target: 'https://n8n.neuracall.net',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/n8n-ordenes-pago/, '/webhook/ordenes%20de%20pago'),
+      },
+      // Proxy AFIP SDK to avoid CORS
+      '/api/afipsdk': {
+        target: 'https://app.afipsdk.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/afipsdk/, '/api/v1/automations'),
       }
     },
   },

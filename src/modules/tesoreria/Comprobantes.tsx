@@ -19,11 +19,13 @@ export default function Comprobantes() {
     const [hasErp, setHasErp] = useState(false);
     const [hasColppy, setHasColppy] = useState(false);
     const [hasXubio, setHasXubio] = useState(false);
+    const [hasArca, setHasArca] = useState(false);
+    const [arcaConfig, setArcaConfig] = useState<{ arca_cuit: string; arca_username: string; arca_password: string; punto_venta: number | null } | null>(null);
     const [syncing, setSyncing] = useState(false);
     const [showSyncModal, setShowSyncModal] = useState(false);
     const [syncDesde, setSyncDesde] = useState('');
     const [syncHasta, setSyncHasta] = useState('');
-    const [syncSource, setSyncSource] = useState<'colppy' | 'xubio' | ''>('');
+    const [syncSource, setSyncSource] = useState<'colppy' | 'xubio' | 'arca' | ''>('');
     const [showErpPicker, setShowErpPicker] = useState<'sync' | 'inject' | ''>('');
     const [uploading, setUploading] = useState(false);
     const [dragOver, setDragOver] = useState(false);
@@ -64,23 +66,23 @@ export default function Comprobantes() {
         if (fail > 0) addToast('error', 'Error', `${fail} archivo(s) fallaron`);
     };
 
-    // Check ERP config
+    // Check ERP + ARCA config
     useEffect(() => {
         if (!tenant?.id) return;
-        const modules = (tenant.enabled_modules as string[]) || [];
-        const erpEnabled = modules.includes('erp_colppy') || modules.includes('erp_xubio');
-        if (!erpEnabled) { setHasErp(false); return; }
-
         supabase.from('contable_config')
-            .select('colpy_username, colpy_password, colpy_empresa_id, xubio_client_id, xubio_client_secret')
+            .select('colpy_username, colpy_password, colpy_empresa_id, xubio_client_id, xubio_client_secret, arca_cuit, arca_username, arca_password, punto_venta')
             .eq('tenant_id', tenant.id).maybeSingle()
             .then(({ data }) => {
                 if (!data) { setHasErp(false); return; }
-                const colppyOk = !!(data.colpy_username && data.colpy_password && data.colpy_empresa_id);
-                const xubioOk = !!(data.xubio_client_id && data.xubio_client_secret);
+                const modules = (tenant.enabled_modules as string[]) || [];
+                const colppyOk = modules.includes('erp_colppy') && !!(data.colpy_username && data.colpy_password && data.colpy_empresa_id);
+                const xubioOk = modules.includes('erp_xubio') && !!(data.xubio_client_id && data.xubio_client_secret);
+                const arcaOk = !!(data.arca_cuit && data.arca_username && data.arca_password);
                 setHasColppy(colppyOk);
                 setHasXubio(xubioOk);
-                setHasErp(colppyOk || xubioOk);
+                setHasArca(arcaOk);
+                if (arcaOk) setArcaConfig({ arca_cuit: data.arca_cuit!, arca_username: data.arca_username!, arca_password: data.arca_password!, punto_venta: data.punto_venta ?? null });
+                setHasErp(colppyOk || xubioOk || arcaOk);
             });
     }, [tenant?.id]);
 
@@ -189,6 +191,147 @@ export default function Comprobantes() {
             addToast('error', 'Error de sincronización', err.message || 'Error desconocido');
         }
         setSyncing(false);
+    };
+
+    const AFIPSDK_API_KEY = '3zZiVxOJP4zPQbK5mEc6FXQOa34hOPAPTSu3bl2S51LewxPc15xUb63Dm43s4BiL';
+    const TIPOS_COMPROBANTE_AFIP: Record<string, string> = {
+        '1': 'Factura A', '2': 'Nota de Débito A', '3': 'Nota de Crédito A',
+        '6': 'Factura B', '7': 'Nota de Débito B', '8': 'Nota de Crédito B',
+        '11': 'Factura C', '12': 'Nota de Débito C', '13': 'Nota de Crédito C',
+        '51': 'Factura M', '201': 'Factura de Crédito Electrónica A',
+    };
+    function parseAFIPNumber(s: string): number {
+        return parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
+    }
+
+    async function executeAfipAutomation(params: Record<string, any>): Promise<any[]> {
+        // Step 1: Create automation
+        const createRes = await fetch('/api/afipsdk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${AFIPSDK_API_KEY}` },
+            body: JSON.stringify({ automation: 'mis-comprobantes', params }),
+        });
+        if (!createRes.ok) {
+            const err = await createRes.text();
+            throw new Error(`AFIP SDK error: ${err}`);
+        }
+        const created = await createRes.json();
+        const automationId = created.id;
+        if (!automationId) throw new Error('AFIP SDK no devolvió ID de automatización');
+
+        // Step 2: Poll until complete
+        for (let i = 0; i < 60; i++) { // max 5 min
+            await new Promise(r => setTimeout(r, 5000));
+            const pollRes = await fetch(`/api/afipsdk/${automationId}`, {
+                headers: { 'Authorization': `Bearer ${AFIPSDK_API_KEY}` },
+            });
+            if (!pollRes.ok) continue;
+            const result = await pollRes.json();
+            if (result.status === 'in_process') continue;
+            if (result.status === 'complete' && Array.isArray(result.data)) return result.data;
+            if (result.status === 'error') throw new Error(result.message || 'Error en automatización AFIP');
+            return result.data || [];
+        }
+        throw new Error('Timeout esperando respuesta de AFIP SDK');
+    }
+
+    const handleSyncArca = async () => {
+        if (!tenant || !arcaConfig) return;
+        setShowSyncModal(false);
+        setSyncing(true);
+        addToast('info', 'Sincronización', 'Conectando con ARCA (AFIP SDK)... esto puede tardar unos minutos.');
+
+        try {
+            const fechaDesdeStr = syncDesde || (() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return d.toISOString().split('T')[0]; })();
+            const fechaHastaStr = syncHasta || new Date().toISOString().split('T')[0];
+            const fromDate = fechaDesdeStr.split('-').reverse().join('/');
+            const toDate = fechaHastaStr.split('-').reverse().join('/');
+
+            let importados = 0;
+
+            for (const tipoConsulta of ['E', 'R'] as const) {
+                const data = await executeAfipAutomation({
+                    cuit: arcaConfig.arca_cuit.replace(/-/g, ''),
+                    username: arcaConfig.arca_username.replace(/-/g, ''),
+                    password: arcaConfig.arca_password,
+                    filters: {
+                        t: tipoConsulta,
+                        fechaEmision: `${fromDate} - ${toDate}`,
+                        ...(arcaConfig.punto_venta && tipoConsulta === 'E' ? { puntosVenta: [arcaConfig.punto_venta] } : {}),
+                    },
+                });
+
+                if (!Array.isArray(data) || data.length === 0) continue;
+
+                const isVenta = tipoConsulta === 'E';
+
+                for (const r of data) {
+                    const pv = (r['Punto de Venta'] || '').padStart(5, '0');
+                    const numDesde = (r['Número Desde'] || '').padStart(8, '0');
+                    const nroComprobante = `${pv}-${numDesde}`;
+                    const tipoComp = r['Tipo de Comprobante'] || '';
+                    const tipoNombre = TIPOS_COMPROBANTE_AFIP[tipoComp] || `Tipo ${tipoComp}`;
+                    const fechaRaw = r['Fecha de Emisión'] || '';
+                    let fecha = fechaRaw;
+                    if (fechaRaw.includes('/')) {
+                        const [dd, mm, yyyy] = fechaRaw.split('/');
+                        fecha = `${yyyy}-${mm}-${dd}`;
+                    }
+
+                    const total = parseAFIPNumber(r['Imp. Total'] || '0');
+                    const netoGravado = parseAFIPNumber(r['Imp. Neto Gravado'] || '0');
+                    const netoNoGravado = parseAFIPNumber(r['Imp. Neto No Gravado'] || '0');
+                    const iva = parseAFIPNumber(r['IVA'] || '0');
+                    const otrosTributos = parseAFIPNumber(r['Otros Tributos'] || '0');
+                    const codAutorizacion = r['Cód. Autorización'] || '';
+                    const nroDocReceptor = r['Nro. Doc. Receptor'] || '';
+                    const denominacion = r['Denominación Receptor'] || '';
+                    const monedaRaw = r['Moneda'] || 'PES';
+                    const moneda = monedaRaw === 'PES' ? 'ARS' : monedaRaw === 'DOL' ? 'USD' : monedaRaw;
+
+                    const { data: existe } = await supabase
+                        .from('contable_comprobantes')
+                        .select('id')
+                        .eq('tenant_id', tenant.id)
+                        .eq('numero_comprobante', nroComprobante)
+                        .eq('tipo_comprobante', tipoNombre)
+                        .eq('tipo', isVenta ? 'venta' : 'compra')
+                        .maybeSingle();
+
+                    if (!existe) {
+                        const { error } = await supabase.from('contable_comprobantes').insert({
+                            tenant_id: tenant.id,
+                            tipo: isVenta ? 'venta' : 'compra',
+                            tipo_comprobante: tipoNombre,
+                            numero_comprobante: nroComprobante,
+                            fecha,
+                            monto_original: total,
+                            monto_ars: total,
+                            moneda,
+                            neto_gravado: netoGravado,
+                            neto_no_gravado: netoNoGravado,
+                            total_iva: iva,
+                            estado: 'aprobado',
+                            source: 'arca',
+                            origen: 'arca',
+                            cuit_receptor: isVenta ? nroDocReceptor : arcaConfig.arca_cuit.replace(/-/g, ''),
+                            cuit_emisor: isVenta ? arcaConfig.arca_cuit.replace(/-/g, '') : nroDocReceptor,
+                            descripcion: `${denominacion}${codAutorizacion ? ` | CAE: ${codAutorizacion}` : ''}${otrosTributos ? ` | Otros tributos: ${otrosTributos}` : ''}`,
+                        });
+                        if (error) console.error('[ARCA sync] Insert error:', error);
+                        else importados++;
+                    }
+                }
+            }
+
+            if (importados === 0) addToast('info', 'Al Día', 'No se encontraron comprobantes nuevos en ARCA.');
+            else addToast('success', 'Completado', `Importados ${importados} comprobantes desde ARCA.`);
+            reset();
+        } catch (e: any) {
+            addToast('error', 'Error ARCA', e.message);
+        } finally {
+            setSyncing(false);
+        }
     };
 
     const handleAction = async (id: string, action: 'aprobar' | 'rechazar' | 'inyectar' | 'eliminar') => {
@@ -367,29 +510,29 @@ export default function Comprobantes() {
                         <div style={{ position: 'relative' }}>
                             <button className="btn btn-ghost" style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 4 }}
                                 onClick={() => {
-                                    if (hasColppy && hasXubio) setShowErpPicker(showErpPicker === 'sync' ? '' : 'sync');
-                                    else { setSyncSource(hasColppy ? 'colppy' : 'xubio'); setShowSyncModal(true); }
+                                    const sources = [hasArca && 'arca', hasColppy && 'colppy', hasXubio && 'xubio'].filter(Boolean) as string[];
+                                    if (sources.length === 1) { setSyncSource(sources[0] as any); setShowSyncModal(true); }
+                                    else setShowErpPicker(showErpPicker === 'sync' ? '' : 'sync');
                                 }} disabled={syncing}>
                                 <RefreshCw size={14} className={syncing ? 'spin' : ''} />
                                 {syncing ? 'Sincronizando...' : 'Sincronizar'}
                             </button>
-                            {showErpPicker && (
+                            {showErpPicker === 'sync' && (
                                 <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 100, minWidth: 160, overflow: 'hidden' }}>
-                                    {hasColppy && <button onClick={() => {
-                                        setShowErpPicker('');
-                                        if (showErpPicker === 'sync') { setSyncSource('colppy'); setShowSyncModal(true); }
-                                        else { const id = [...selectedIds][0]; if (id) executeErpInjection(id, 'colppy'); }
-                                    }} style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontSize: '0.8rem' }}
+                                    {hasArca && <button onClick={() => { setShowErpPicker(''); setSyncSource('arca'); setShowSyncModal(true); }}
+                                        style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontSize: '0.8rem', color: 'inherit' }}
                                         onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
-                                        Colppy
+                                        Desde ARCA (AFIP)
                                     </button>}
-                                    {hasXubio && <button onClick={() => {
-                                        setShowErpPicker('');
-                                        if (showErpPicker === 'sync') { setSyncSource('xubio'); setShowSyncModal(true); }
-                                        else { const id = [...selectedIds][0]; if (id) executeErpInjection(id, 'xubio'); }
-                                    }} style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontSize: '0.8rem' }}
+                                    {hasColppy && <button onClick={() => { setShowErpPicker(''); setSyncSource('colppy'); setShowSyncModal(true); }}
+                                        style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontSize: '0.8rem', color: 'inherit' }}
                                         onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
-                                        Xubio
+                                        Desde Colppy
+                                    </button>}
+                                    {hasXubio && <button onClick={() => { setShowErpPicker(''); setSyncSource('xubio'); setShowSyncModal(true); }}
+                                        style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontSize: '0.8rem', color: 'inherit' }}
+                                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                                        Desde Xubio
                                     </button>}
                                 </div>
                             )}
@@ -576,12 +719,14 @@ export default function Comprobantes() {
                 <div className="wizard-overlay" onClick={() => setShowSyncModal(false)}>
                     <div className="wizard-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
                         <div className="wizard-header">
-                            <h3>Sincronizar con {syncSource === 'xubio' ? 'Xubio' : 'Colppy'}</h3>
+                            <h3>Sincronizar con {syncSource === 'arca' ? 'ARCA (AFIP)' : syncSource === 'xubio' ? 'Xubio' : 'Colppy'}</h3>
                             <button className="wizard-close" onClick={() => setShowSyncModal(false)}><X size={18} /></button>
                         </div>
                         <div className="wizard-body">
                             <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: 12 }}>
-                                Descarga comprobantes de venta y compra desde Colppy. Si dejás "Desde" vacío, se busca desde la última sincronización.
+                                {syncSource === 'arca'
+                                    ? 'Descarga comprobantes emitidos y recibidos desde ARCA. Si dejás "Desde" vacío, descarga el último mes.'
+                                    : 'Descarga comprobantes de venta y compra. Si dejás "Desde" vacío, se busca desde la última sincronización.'}
                             </p>
                             <div className="wizard-field">
                                 <label className="form-label">Desde (opcional)</label>
@@ -595,7 +740,10 @@ export default function Comprobantes() {
                         <div className="wizard-footer">
                             <div className="wizard-footer-left" />
                             <div className="wizard-footer-right">
-                                <button className="wizard-btn-next" onClick={handleSync}>
+                                <button className="wizard-btn-next" onClick={() => {
+                                    if (syncSource === 'arca') handleSyncArca();
+                                    else handleSync();
+                                }}>
                                     <RefreshCw size={16} /> Sincronizar
                                 </button>
                             </div>
