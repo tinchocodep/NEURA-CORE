@@ -8,7 +8,18 @@
         "--project-ref",
         "fuytejvnwihghxymyayw",
         "--access-token",
-        "sbp_ecd24715d8c72939b51d188b08f7c3d9c10304a7"
+        "sbp_0cef53923532066f7c7a72bbd7ed163acea29643"
+      ]
+    },
+    "n8n": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "supergateway",
+        "--streamableHttp",
+        "https://n8n.neuracall.net/mcp-server/http",
+        "--header",
+        "authorization:Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1YzMzYzllYy1iMmQ4LTRjYWMtYmE1YS1hMTVhMGE4YmNkZTciLCJpc3MiOiJuOG4iLCJhdWQiOiJtY3Atc2VydmVyLWFwaSIsImp0aSI6ImYyYzE3NmI5LTBkYTItNGM3My1iOTU1LWUyMzQxZDA3OTQ5YiIsImlhdCI6MTc3NTQ0MTQxOX0.4N1btPI5I5LHCDcHX7-aosuUMJxglTB1bOPJYTL1TdE"
       ]
     }
   }
