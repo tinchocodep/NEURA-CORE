@@ -1,11 +1,12 @@
 // ============================================================
 // Edge Function: conciliar
 // ============================================================
-// Compara comprobantes de ARCA vs Xubio en la base de datos
-// y clasifica cada uno como: conciliado, diferencia,
-// solo_arca, o solo_xubio.
+// Compara comprobantes de ARCA vs el ERP del tenant (Xubio,
+// Colppy, etc.) y clasifica cada uno como: conciliado,
+// diferencia, solo_arca, o solo_erp.
 //
-// Lógica extraída de src/modules/agro/ConciliacionComprobantes.tsx
+// Lee el erp_type de contable_config para saber contra qué
+// source comparar. Default: "xubio".
 //
 // Deploy: supabase functions deploy conciliar
 // ============================================================
@@ -39,9 +40,9 @@ interface ComprobanteRow {
 }
 
 interface MatchResult {
-  status: "conciliado" | "diferencia" | "solo_arca" | "solo_xubio";
+  status: "conciliado" | "diferencia" | "solo_arca" | "solo_erp";
   arca: ComprobanteRow | null;
-  xubio: ComprobanteRow | null;
+  erp: ComprobanteRow | null;
   diferencias?: string[];
 }
 
@@ -54,19 +55,20 @@ function normalizeNumero(n: string | null): string {
 
 function conciliarLists(
   arcaList: ComprobanteRow[],
-  xubioList: ComprobanteRow[]
+  erpList: ComprobanteRow[],
+  erpName: string
 ): MatchResult[] {
   const results: MatchResult[] = [];
 
-  // Index xubio by numero_comprobante
-  const xubioMap = new Map<string, ComprobanteRow>();
-  for (const x of xubioList) {
+  // Index ERP comprobantes by numero_comprobante
+  const erpMap = new Map<string, ComprobanteRow>();
+  for (const x of erpList) {
     if (x.numero_comprobante) {
-      xubioMap.set(normalizeNumero(x.numero_comprobante), x);
+      erpMap.set(normalizeNumero(x.numero_comprobante), x);
     }
   }
 
-  const matchedXubioIds = new Set<string>();
+  const matchedErpIds = new Set<string>();
 
   for (const arca of arcaList) {
     let found: ComprobanteRow | undefined;
@@ -74,9 +76,8 @@ function conciliarLists(
     // Strategy 1: exact match on numero_comprobante
     const arcaNum = normalizeNumero(arca.numero_comprobante);
     if (arcaNum) {
-      for (const [xNum, xRow] of xubioMap) {
-        if (matchedXubioIds.has(xRow.id)) continue;
-        // Exact match or partial (xubio might include the number)
+      for (const [xNum, xRow] of erpMap) {
+        if (matchedErpIds.has(xRow.id)) continue;
         if (xNum === arcaNum || xNum.includes(arcaNum.split("-")[1] || "")) {
           found = xRow;
           break;
@@ -86,8 +87,8 @@ function conciliarLists(
 
     // Strategy 2: match by date + amount + tipo
     if (!found) {
-      for (const x of xubioList) {
-        if (matchedXubioIds.has(x.id)) continue;
+      for (const x of erpList) {
+        if (matchedErpIds.has(x.id)) continue;
         if (x.fecha === arca.fecha &&
             x.tipo === arca.tipo &&
             Math.abs(Number(x.monto_original) - Number(arca.monto_original)) < 0.01) {
@@ -98,38 +99,38 @@ function conciliarLists(
     }
 
     if (found) {
-      matchedXubioIds.add(found.id);
+      matchedErpIds.add(found.id);
       const difs: string[] = [];
 
       const montoArca = Number(arca.monto_original);
-      const montoXubio = Number(found.monto_original);
-      if (Math.abs(montoArca - montoXubio) >= 0.01) {
-        difs.push(`Monto: ARCA ${formatCurrency(montoArca)} vs Xubio ${formatCurrency(montoXubio)}`);
+      const montoErp = Number(found.monto_original);
+      if (Math.abs(montoArca - montoErp) >= 0.01) {
+        difs.push(`Monto: ARCA ${formatCurrency(montoArca)} vs ${erpName} ${formatCurrency(montoErp)}`);
       }
       if (arca.neto_gravado != null && found.neto_gravado != null &&
           Math.abs(Number(arca.neto_gravado) - Number(found.neto_gravado)) >= 0.01) {
-        difs.push(`Neto gravado: ARCA ${formatCurrency(Number(arca.neto_gravado))} vs Xubio ${formatCurrency(Number(found.neto_gravado))}`);
+        difs.push(`Neto gravado: ARCA ${formatCurrency(Number(arca.neto_gravado))} vs ${erpName} ${formatCurrency(Number(found.neto_gravado))}`);
       }
       if (arca.total_iva != null && found.total_iva != null &&
           Math.abs(Number(arca.total_iva) - Number(found.total_iva)) >= 0.01) {
-        difs.push(`IVA: ARCA ${formatCurrency(Number(arca.total_iva))} vs Xubio ${formatCurrency(Number(found.total_iva))}`);
+        difs.push(`IVA: ARCA ${formatCurrency(Number(arca.total_iva))} vs ${erpName} ${formatCurrency(Number(found.total_iva))}`);
       }
 
       results.push({
         arca,
-        xubio: found,
+        erp: found,
         status: difs.length > 0 ? "diferencia" : "conciliado",
         diferencias: difs.length > 0 ? difs : undefined,
       });
     } else {
-      results.push({ arca, xubio: null, status: "solo_arca" });
+      results.push({ arca, erp: null, status: "solo_arca" });
     }
   }
 
-  // Xubio sin match en ARCA
-  for (const x of xubioList) {
-    if (!matchedXubioIds.has(x.id)) {
-      results.push({ arca: null, xubio: x, status: "solo_xubio" });
+  // ERP sin match en ARCA
+  for (const x of erpList) {
+    if (!matchedErpIds.has(x.id)) {
+      results.push({ arca: null, erp: x, status: "solo_erp" });
     }
   }
 
@@ -148,6 +149,20 @@ serve(async (req: Request) => {
     if (!fechaDesde || !fechaHasta) return errorResponse("fechaDesde y fechaHasta son requeridos");
 
     const supabase = createSupabaseAdmin();
+
+    // Leer el ERP del tenant desde contable_config
+    const { data: config } = await supabase
+      .from("contable_config")
+      .select("erp_type")
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+
+    const erpType = config?.erp_type || "xubio";
+    // En la DB el source de Colppy es "colpy" (sin doble p)
+    const erpSource = erpType === "colppy" ? "colpy" : erpType;
+    // Nombre legible para los reportes
+    const erpNameMap: Record<string, string> = { xubio: "Xubio", colppy: "Colppy", manual: "Manual" };
+    const erpName = erpNameMap[erpType] || erpType;
 
     // Crear sync_run
     const syncRunId = await createSyncRun(supabase, {
@@ -172,39 +187,40 @@ serve(async (req: Request) => {
 
     if (arcaErr) throw new Error(`Error leyendo comprobantes ARCA: ${arcaErr.message}`);
 
-    // Traer comprobantes de Xubio en el rango
-    const { data: xubioData, error: xubioErr } = await supabase
+    // Traer comprobantes del ERP en el rango
+    const { data: erpData, error: erpErr } = await supabase
       .from("contable_comprobantes")
       .select(selectFields)
       .eq("tenant_id", tenantId)
-      .eq("source", "xubio")
+      .eq("source", erpSource)
       .gte("fecha", fechaDesde)
       .lte("fecha", fechaHasta)
       .order("fecha", { ascending: false });
 
-    if (xubioErr) throw new Error(`Error leyendo comprobantes Xubio: ${xubioErr.message}`);
+    if (erpErr) throw new Error(`Error leyendo comprobantes ${erpName}: ${erpErr.message}`);
 
     const arcaList = (arcaData || []) as ComprobanteRow[];
-    const xubioList = (xubioData || []) as ComprobanteRow[];
+    const erpList = (erpData || []) as ComprobanteRow[];
 
     // Conciliar ambas listas
-    const matches = conciliarLists(arcaList, xubioList);
+    const matches = conciliarLists(arcaList, erpList, erpName);
 
     // Calcular stats
     const stats = {
       conciliados: matches.filter(m => m.status === "conciliado").length,
       diferencias: matches.filter(m => m.status === "diferencia").length,
       solo_arca: matches.filter(m => m.status === "solo_arca").length,
-      solo_xubio: matches.filter(m => m.status === "solo_xubio").length,
+      solo_erp: matches.filter(m => m.status === "solo_erp").length,
       total: matches.length,
       total_arca: arcaList.length,
-      total_xubio: xubioList.length,
+      total_erp: erpList.length,
+      erp_name: erpName,
     };
 
     // Guardar resultado en sync_run
     await completeSyncRun(supabase, syncRunId, {
       status: "success",
-      result_summary: { stats, matches },
+      result_summary: { stats, matches, erpName },
     });
 
     return jsonResponse({
@@ -212,6 +228,7 @@ serve(async (req: Request) => {
       syncRunId,
       stats,
       matches,
+      erpName,
     });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Error desconocido";

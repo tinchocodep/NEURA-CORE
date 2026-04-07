@@ -23,45 +23,46 @@ function generateHtmlReport(
     conciliados: number;
     diferencias: number;
     solo_arca: number;
-    solo_xubio: number;
+    solo_erp: number;
     total: number;
     total_arca: number;
-    total_xubio: number;
+    total_erp: number;
   },
   matches: Array<{
     status: string;
     arca: { numero_comprobante: string; tipo_comprobante: string; fecha: string; monto_original: number; descripcion?: string } | null;
-    xubio: { numero_comprobante: string; tipo_comprobante: string; fecha: string; monto_original: number; descripcion?: string } | null;
+    erp: { numero_comprobante: string; tipo_comprobante: string; fecha: string; monto_original: number; descripcion?: string } | null;
     diferencias?: string[];
   }>,
   fechaDesde: string,
   fechaHasta: string,
-  tenantName: string
+  tenantName: string,
+  erpName: string
 ): string {
   const problemMatches = matches.filter(
-    m => m.status === "diferencia" || m.status === "solo_arca" || m.status === "solo_xubio"
+    m => m.status === "diferencia" || m.status === "solo_arca" || m.status === "solo_erp"
   );
 
   const statusColors: Record<string, string> = {
     diferencia: "#f59e0b",
     solo_arca: "#ef4444",
-    solo_xubio: "#3b82f6",
+    solo_erp: "#3b82f6",
   };
 
   const statusLabels: Record<string, string> = {
     diferencia: "Diferencia",
     solo_arca: "Solo en ARCA",
-    solo_xubio: "Solo en Xubio",
+    solo_erp: `Solo en ${erpName}`,
   };
 
   const problemRows = problemMatches
     .map((m) => {
-      const comp = m.arca || m.xubio;
+      const comp = m.arca || m.erp;
       const numero = comp?.numero_comprobante || "-";
       const tipo = comp?.tipo_comprobante || "-";
       const fecha = comp?.fecha || "-";
       const montoArca = m.arca ? formatCurrency(Number(m.arca.monto_original)) : "-";
-      const montoXubio = m.xubio ? formatCurrency(Number(m.xubio.monto_original)) : "-";
+      const montoErp = m.erp ? formatCurrency(Number(m.erp.monto_original)) : "-";
       const color = statusColors[m.status] || "#6b7280";
       const label = statusLabels[m.status] || m.status;
       const difDetail = m.diferencias ? m.diferencias.join("<br>") : "";
@@ -75,7 +76,7 @@ function generateHtmlReport(
           <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb;">${tipo}</td>
           <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb;">${numero}</td>
           <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">${montoArca}</td>
-          <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">${montoXubio}</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">${montoErp}</td>
           <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; font-size: 12px; color: #6b7280;">${difDetail}</td>
         </tr>`;
     })
@@ -115,14 +116,14 @@ function generateHtmlReport(
         <div style="font-size: 12px; color: #4b5563; margin-top: 4px;">Solo ARCA</div>
       </div>
       <div style="flex: 1; min-width: 120px; background: #eff6ff; border-radius: 8px; padding: 16px; text-align: center;">
-        <div style="font-size: 28px; font-weight: bold; color: #2563eb;">${stats.solo_xubio}</div>
-        <div style="font-size: 12px; color: #4b5563; margin-top: 4px;">Solo Xubio</div>
+        <div style="font-size: 28px; font-weight: bold; color: #2563eb;">${stats.solo_erp}</div>
+        <div style="font-size: 12px; color: #4b5563; margin-top: 4px;">Solo ${erpName}</div>
       </div>
     </div>
 
     <!-- Summary -->
     <div style="padding: 0 20px 12px; font-size: 13px; color: #6b7280;">
-      Total ARCA: ${stats.total_arca} comprobantes &mdash; Total Xubio: ${stats.total_xubio} comprobantes
+      Total ARCA: ${stats.total_arca} comprobantes &mdash; Total ${erpName}: ${stats.total_erp} comprobantes
     </div>
 
     ${noProblems ? `
@@ -146,7 +147,7 @@ function generateHtmlReport(
             <th style="padding: 8px 12px; text-align: left; border-bottom: 2px solid #e5e7eb;">Tipo</th>
             <th style="padding: 8px 12px; text-align: left; border-bottom: 2px solid #e5e7eb;">Número</th>
             <th style="padding: 8px 12px; text-align: right; border-bottom: 2px solid #e5e7eb;">ARCA</th>
-            <th style="padding: 8px 12px; text-align: right; border-bottom: 2px solid #e5e7eb;">Xubio</th>
+            <th style="padding: 8px 12px; text-align: right; border-bottom: 2px solid #e5e7eb;">${erpName}</th>
             <th style="padding: 8px 12px; text-align: left; border-bottom: 2px solid #e5e7eb;">Detalle</th>
           </tr>
         </thead>
@@ -193,8 +194,8 @@ serve(async (req: Request) => {
 
     const summary = run.result_summary || {};
     const stats = summary.stats || {
-      conciliados: 0, diferencias: 0, solo_arca: 0, solo_xubio: 0,
-      total: 0, total_arca: 0, total_xubio: 0,
+      conciliados: 0, diferencias: 0, solo_arca: 0, solo_erp: 0,
+      total: 0, total_arca: 0, total_erp: 0,
     };
     const matches = summary.matches || [];
 
@@ -219,6 +220,7 @@ serve(async (req: Request) => {
       .maybeSingle();
 
     const destinatario = configData?.auto_conciliacion_emails || "";
+    const erpName = summary.erpName || "ERP";
 
     // Generar HTML
     const html = generateHtmlReport(
@@ -226,10 +228,11 @@ serve(async (req: Request) => {
       matches,
       run.fecha_desde || "?",
       run.fecha_hasta || "?",
-      tenantName
+      tenantName,
+      erpName
     );
 
-    const problemCount = stats.diferencias + stats.solo_arca + stats.solo_xubio;
+    const problemCount = stats.diferencias + stats.solo_arca + stats.solo_erp;
     const subject = problemCount > 0
       ? `Conciliación ${tenantName} — ${problemCount} items requieren atención (${run.fecha_desde} al ${run.fecha_hasta})`
       : `Conciliación ${tenantName} — Todo OK (${run.fecha_desde} al ${run.fecha_hasta})`;
