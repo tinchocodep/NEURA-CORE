@@ -1,0 +1,2331 @@
+{
+  "name": "Carga de comrpobantes",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "CargaDeComprobantes",
+        "responseMode": "responseNode",
+        "options": {
+          "binaryPropertyName": "data"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -976,
+        0
+      ],
+      "id": "e6ac43ff-e21a-480d-8734-c8e559f6634a",
+      "name": "Webhook",
+      "webhookId": "1084c52e-de42-4d15-9757-cba6d34fe74c"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "data0",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        -304,
+        -160
+      ],
+      "id": "bbcce182-73af-4b4f-a39c-eee589348ee9",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "f14f2d74-6624-4a70-aa21-99b191830e05",
+              "leftValue": "={{ $('Webhook').item.json.body.filename }}",
+              "rightValue": "pdf",
+              "operator": {
+                "type": "string",
+                "operation": "endsWith"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -480,
+        -16
+      ],
+      "id": "8127a625-cd91-4d84-b0bb-9fe6a1e457e4",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3.1-pro-preview",
+          "mode": "list",
+          "cachedResultName": "models/gemini-3.1-pro-preview"
+        },
+        "text": "=Eres un asistente contable experto y un procesador de datos OCR de alta precisión. Tu único objetivo es analizar la imagen adjunta de este comprobante contable y extraer la información solicitada en un formato JSON estructurado perfecto. No inventes datos. Si un campo no está presente, devuelve \"null\". Devuelve ÚNICAMENTE un objeto JSON válido, sin texto adicional ni bloques de código markdown (no uses ```json).\n\nReglas de extracción estrictas:\n1. \"fecha\": Formato estricto YYYY-MM-DD.\n2. \"numero_comprobante\": El número completo (ej. 00003-00001234).\n3. \"tipo_comprobante\": Identifica si es \"Factura A\", \"Factura B\", \"Factura C\", \"Ticket\", \"Remito\", etc.\n4. \"moneda\": Usa el código ISO (ej. \"ARS\", \"USD\"). Si hay símbolo $, asume ARS salvo que diga explícitamente dólares.\n5. \"monto_original\": Devuelve solo el número final total, sin símbolos ni separadores de miles. Usa punto para los decimales.\n6. \"descripcion\": Genera un resumen muy breve (máximo 5 palabras) de lo que se facturó.\n7. \"cuit_emisor\": El CUIT de quien emite el comprobante (solo números, sin guiones).\n8. \"cuit_receptor\": El CUIT a quien se le factura (solo números, sin guiones).\n9. \"Razon social\": La Razon social es el nombre del emisor",
+        "inputType": "binary",
+        "binaryPropertyName": "data0",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        80,
+        0
+      ],
+      "id": "403d9d16-8e2f-4bc9-a078-fc3b34180a41",
+      "name": "Analyze an image",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ckp67BViTFwefxtq",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3.1-flash-lite-preview",
+          "mode": "list",
+          "cachedResultName": "models/gemini-3.1-flash-lite-preview"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Analiza el siguiente texto extraído de un comprobante y extrae los datos siguiendo estas reglas:\n\n\"fecha\": Formato YYYY-MM-DD.\n\n\"numero_comprobante\": Número completo (ej. 0001-00012345).\n\n\"tipo_comprobante\": Factura A, B, C, Ticket, etc.\n\n\"moneda\": Código ISO (ARS, USD).\n\n\"monto_original\": Solo número, usa punto para decimales.\n\n\"descripcion\": Resumen de máximo 5 palabras.\n\n\"cuit_emisor\": Solo números del emisor.\n\n\"cuit_receptor\": Solo números del receptor.\n\nTEXTO A ANALIZAR:\n{{ $json.text }}"
+            }
+          ]
+        },
+        "options": {
+          "systemMessage": "=Eres un asistente contable experto y un procesador de datos OCR de alta precisión. Tu único objetivo es analizar el texto de comprobantes contables y extraer la información solicitada en un formato JSON estructurado perfecto.  REGLAS CRÍTICAS:  No inventes datos. Si un campo no está presente, devuelve \"null\".  Formatea las fechas estrictamente como YYYY-MM-DD.  Devuelve ÚNICAMENTE un objeto JSON válido.  No incluyas explicaciones, ni bloques de código markdown (sin ```json)."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        -160
+      ],
+      "id": "8e46410e-a2bb-4b0c-b01e-d292b5d3de26",
+      "name": "Message a model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ckp67BViTFwefxtq",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Obtenemos el objeto principal\nconst item = items[0].json;\n\n// 2. Navegamos por la estructura específica: content -> parts[0] -> text\nlet rawResponse = \"\";\n\nif (item.content && item.content.parts && item.content.parts[0] && item.content.parts[0].text) {\n    rawResponse = item.content.parts[0].text;\n} else {\n    // Backup por si la estructura cambia o viene de otro modo\n    rawResponse = item.text || item.output || (typeof item.content === 'string' ? item.content : \"\");\n}\n\ntry {\n    // 3. Limpieza de Markdown (quitar bloques ```json ... ```)\n    let cleanString = rawResponse\n        .replace(/```json/gi, '') \n        .replace(/```/g, '')      \n        .trim();\n\n    // 4. Parsear el JSON interno\n    const parsedData = JSON.parse(cleanString);\n\n    // 5. Devolvemos el objeto para que n8n vea los campos (fecha, monto, etc.)\n    return [{ json: parsedData }];\n\n} catch (error) {\n    // Si falla el parseo, devolvemos el texto plano para no perder la info\n    return [{ \n        json: { \n            error: \"No se pudo parsear el JSON\",\n            raw_text: rawResponse \n        } \n    }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        272,
+        -80
+      ],
+      "id": "44888b52-22cd-43a5-9523-57cf7020ab6b",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTU2MTQzMSwiZXhwIjoyMDg3MTM3NDMxfQ.N9AhuM2sPXcXJmTiM1lux4weZI94ltNw0B4oHwxWecU"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/pdf"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        3184,
+        -128
+      ],
+      "id": "052bed16-a9ec-456f-9b09-6a23ae3406f1",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "619529fd-5e5b-46ee-b9d6-e366fc42e3bf",
+              "name": "fecha",
+              "value": "={{ $json.fecha }}",
+              "type": "string"
+            },
+            {
+              "id": "1d7283b7-35fd-4c4f-826e-556863bce5e0",
+              "name": "numero_comprobante",
+              "value": "={{ $json.numero_comprobante }}",
+              "type": "string"
+            },
+            {
+              "id": "13cfb759-d3c7-4364-a00a-6cdc2826713a",
+              "name": "tipo_comprobante",
+              "value": "={{ $json.tipo_comprobante }}",
+              "type": "string"
+            },
+            {
+              "id": "247d18c9-fba5-46ea-a0da-a7a2b99064dc",
+              "name": "moneda",
+              "value": "={{ $json.moneda }}",
+              "type": "string"
+            },
+            {
+              "id": "ab001f60-a140-4705-a33f-7e639832157d",
+              "name": "monto_original",
+              "value": "={{ $json.monto_original }}",
+              "type": "number"
+            },
+            {
+              "id": "e15e1603-f69e-4abd-a7b7-8ae102b71aa9",
+              "name": "descripcion",
+              "value": "={{ $json.descripcion }}",
+              "type": "string"
+            },
+            {
+              "id": "8d77fd6f-52e3-45ac-9d9b-bb8a21e1c416",
+              "name": "cuit_emisor",
+              "value": "={{ $json.cuit_emisor }}",
+              "type": "string"
+            },
+            {
+              "id": "b7b78a40-36b8-44b9-98ee-8dd140afccee",
+              "name": "cuit_receptor",
+              "value": "={{ $json.cuit_receptor }}",
+              "type": "string"
+            },
+            {
+              "id": "ec768fe6-8e8f-472d-87cf-4104e764f488",
+              "name": "body.tenant_id",
+              "value": "={{ $('Edit Fields1').item.json.body.tenant_id }}",
+              "type": "string"
+            },
+            {
+              "id": "18871a99-3a31-4ac1-a3b7-69e119757eda",
+              "name": "razon_social",
+              "value": "={{ $json['Razon social'] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        416,
+        -80
+      ],
+      "id": "9722d656-3c2a-4180-85ad-2bd2d4cb0ae3",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "73461ec5-0b3b-4501-9a68-9ea8f8ec1d13",
+              "leftValue": "={{ $('Edit Fields').item.json.cuit_receptor ? $('Edit Fields').item.json.cuit_receptor.toString().replace(/\\D/g, '') : '' }}",
+              "rightValue": "={{ $json.arca_cuit }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        384,
+        224
+      ],
+      "id": "5499b057-3daf-400b-937d-9f897a79ca38",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "tableId": "contable_comprobantes",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "tipo_comprobante",
+              "fieldValue": "={{ $json.tipo_comprobante }}"
+            },
+            {
+              "fieldId": "numero_comprobante",
+              "fieldValue": "={{ $json.numero_comprobante }}"
+            },
+            {
+              "fieldId": "fecha",
+              "fieldValue": "={{ $json.fecha }}"
+            },
+            {
+              "fieldId": "moneda",
+              "fieldValue": "={{ $json.moneda }}"
+            },
+            {
+              "fieldId": "monto_original",
+              "fieldValue": "={{ $json.monto_original }}"
+            },
+            {
+              "fieldId": "tenant_id",
+              "fieldValue": "={{ $json.body.tenant_id }}"
+            },
+            {
+              "fieldId": "tipo",
+              "fieldValue": "venta"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1312,
+        432
+      ],
+      "id": "7e91a786-cccb-4a8d-8074-2f1d0c18735e",
+      "name": "Create a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b70f1a1e-aaf3-4a7f-a3a5-b0be4bb9de8c",
+              "name": "body.tenant_id",
+              "value": "={{ $json.body.tenant_id }}",
+              "type": "string"
+            },
+            {
+              "id": "c3d7a2ec-b874-43b2-8df2-75bc0fb39ed7",
+              "name": "body.filename",
+              "value": "={{ $json.body.filename }}",
+              "type": "string"
+            },
+            {
+              "id": "94c99bc1-7bf6-46ed-9f99-3b43954dc9d8",
+              "name": "body.tenant_id",
+              "value": "={{ $json.body.tenant_id }}",
+              "type": "string"
+            },
+            {
+              "id": "e5ec520c-20d6-491e-87e7-e88d0f8e58de",
+              "name": "cuit_empresa",
+              "value": "={{ $json.body.cuit_empresa }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -640,
+        -16
+      ],
+      "id": "675a8070-918d-45ec-bc4d-6091d775041d",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "contable_clientes",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "cuit",
+              "keyValue": "{{ $json.cuit_receptor }}"
+            },
+            {
+              "keyName": "id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1168,
+        432
+      ],
+      "id": "f417149e-c40b-474a-878e-67817496d03e",
+      "name": "Get a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "contable_comprobantes",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "tenant_id",
+              "fieldValue": "={{ $('Edit Fields1').first().json.body.tenant_id }}"
+            },
+            {
+              "fieldId": "cuit_emisor",
+              "fieldValue": "={{ $('Edit Fields').first().json.cuit_emisor }}"
+            },
+            {
+              "fieldId": "proveedor_id",
+              "fieldValue": "={{ $if($('Crea el proveedor si no esta').isExecuted, $('Crea el proveedor si no esta').first().json.id, $('Ve si existe el proveedor').first().json.id) }}"
+            },
+            {
+              "fieldId": "numero_comprobante",
+              "fieldValue": "={{ $('Edit Fields').first().json.numero_comprobante }}"
+            },
+            {
+              "fieldId": "monto_original",
+              "fieldValue": "={{ $('Edit Fields').first().json.monto_original }}"
+            },
+            {
+              "fieldId": "moneda",
+              "fieldValue": "={{ $('Edit Fields').first().json.moneda }}"
+            },
+            {
+              "fieldId": "descripcion",
+              "fieldValue": "={{ $('Edit Fields').first().json.descripcion }}"
+            },
+            {
+              "fieldId": "cuit_receptor",
+              "fieldValue": "={{ $('Edit Fields').first().json.cuit_receptor }}"
+            },
+            {
+              "fieldId": "tipo",
+              "fieldValue": "compra"
+            },
+            {
+              "fieldId": "tipo_comprobante",
+              "fieldValue": "={{ $('Edit Fields').first().json.tipo_comprobante }}"
+            },
+            {
+              "fieldId": "pdf_url",
+              "fieldValue": "={{ ($json.pdf_url || '').replace(/[\\n\\r\\s]+$/, '').replaceAll(' ', '_') }}"
+            },
+            {
+              "fieldId": "source",
+              "fieldValue": "pdf_upload "
+            },
+            {
+              "fieldId": "fecha",
+              "fieldValue": "={{ $('Edit Fields').first().json.fecha }}"
+            },
+            {
+              "fieldId": "categoria_id",
+              "fieldValue": "={{ $json.text.replace(/[\\n\\r]/g, '').trim() }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2816,
+        -128
+      ],
+      "id": "86375da7-466b-44a6-a894-da5f4e061fad",
+      "name": "Create a row1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{'https://fuytejvnwihghxymyayw.supabase.co/storage/v1/object/comprobantes/' + $('Webhook').first().binary.data0.fileName.trim()}}\n\n",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization ",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTU2MTQzMSwiZXhwIjoyMDg3MTM3NDMxfQ.N9AhuM2sPXcXJmTiM1lux4weZI94ltNw0B4oHwxWecU"
+            },
+            {
+              "name": "Content-Type",
+              "value": "=image/png"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTU2MTQzMSwiZXhwIjoyMDg3MTM3NDMxfQ.N9AhuM2sPXcXJmTiM1lux4weZI94ltNw0B4oHwxWecU"
+            },
+            {
+              "name": "x-upsert\t",
+              "value": "true"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data0",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -432,
+        192
+      ],
+      "id": "bd5a73a2-3726-4f31-8446-58fbc3f4a213",
+      "name": "HTTP Request",
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Aquí tienes los detalles del comprobante a clasificar:\n\n- Descripción o Ítems: {{ $('Edit Fields').first().json.tipo_comprobante }}\n- Proveedor/Cliente: {{ $('Edit Fields').first().json.cuit_emisor }}\n- Monto Total: {{ $('Edit Fields').first().json.monto_original }}\n\nAquí está la lista ESTRICTA de categorías disponibles en nuestra base de datos (formato JSON):\n{{ $json.categorias_texto }}\n\nAnaliza el comprobante que puede ser:\n\n{{ $if($(\"Extract from File\").isExecuted, $(\"Extract from File\").first().json.text, $(\"Analyze an image\").first().json.content.parts[0].text) }}\n\ny empareja lógicamente el gasto o ingreso con la categoría más adecuada de la lista anterior.\nRecuerda: Responde ÚNICAMENTE con el \"id\" de la categoría ganadora, o con \"null\" si nada encaja.\n",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "Eres un asistente contable experto en clasificación financiera.  Tu única misión es asignar la categoría correcta a un comprobante (factura, ticket, recibo de gasto o ingreso) según una lista estricta de categorías permitidas.  REGLAS ESTRICTAS: 1. SOLO debes responder con el \"id\" (UUID) de la categoría que mejor describa el comprobante. 2. NUNCA respondas con texto adicional, explicaciones, ni comillas. Solo la cadena exacta del UUID válido. 3. Si el comprobante es un Gasto (compra), solo puedes asignarlo a categorías de tipo \"gasto\" o \"ambos\". 4. Si el comprobante es un Ingreso (venta), solo puedes asignarlo a categorías de tipo \"ingreso\" o \"ambos\". 5. Si ninguna de las categorías encaja lógicamente con la descripción del comprobante, o si la lista de categorías permitidas está vacía, DEBES responder exactamente con la palabra: null 6. BAJO NINGUNA CIRCUNSTANCIA inventes una categoría nueva ni devuelvas un ID que no esté en la lista que se te proporciona."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        2256,
+        -128
+      ],
+      "id": "535bf174-a178-4826-bd46-1736e79658ca",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite-preview",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        2192,
+        80
+      ],
+      "id": "92e61718-79d0-41af-9df1-4ab4a64b3572",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ckp67BViTFwefxtq",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "contable_proveedores",
+        "limit": 1,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "cuit",
+              "condition": "eq",
+              "keyValue": "={{ $('Edit Fields').first().json.cuit_emisor }}"
+            },
+            {
+              "keyName": "tenant_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Edit Fields1').first().json.body.tenant_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        832,
+        -80
+      ],
+      "id": "3952fd74-3ba0-4149-ae09-3af470c123a5",
+      "name": "Contable proveedores cuit",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const categorias = $input.all().map(item => item.json);\n\nconst listaCategoriasTexto = categorias.map(c => \n  `- ID: ${c.id} | Nombre: ${c.nombre} | Tipo: ${c.tipo}`\n).join('\\n');\n\nreturn [{\n  json: {\n    categorias_texto: listaCategoriasTexto,\n    descripcion_gasto: $('Edit Fields').first().json.descripcion,\n    monto: $('Edit Fields').first().json.monto_original\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2096,
+        -144
+      ],
+      "id": "0a28325a-e173-4a7e-bca9-35bdadc85a5e",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "contable_comprobantes",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "categoria_id",
+              "fieldValue": "={{ $json.categoria_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3024,
+        -128
+      ],
+      "id": "c3bc3f30-57c1-465e-9f93-6c416e338ce5",
+      "name": "Update a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "neuracore-chat",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -992,
+        464
+      ],
+      "id": "08f55666-4ddf-4553-a79d-1416449caad9",
+      "name": "Webhook1",
+      "webhookId": "50218a36-5411-4b52-a128-0158712f0dda"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Webhook1').item.json.body.chatInput }}\n",
+        "options": {
+          "systemMessage": "Sos Neura, el Asistente Inteligente nativo del ERP NeuraCore. Tu objetivo es ayudar a los usuarios de la empresa a consultar información operativa sobre proveedores, finanzas y facturación de forma rápida, amable y precisa.\n\nREGLAS DE COMPORTAMIENTO:\n1. TONO: Respondé siempre de forma profesional pero cercana. Usá \"vos\" (español rioplatense) en lugar de \"tú\". Sé conciso, no des explicaciones largas a menos que te lo pidan.\n2. FORMATO: Cuando devuelvas datos (como listas de facturas o montos), usá formato Markdown amable. Usá viñetas, negritas para resaltar importes y tablas si hay muchos datos. \n3. MONEDAS: Formateá siempre los montos de dinero correctamente (ej: \"$ 150.000,00\").\n4. LIMITACIÓN ESTRICTA DE LA VERDAD: NUNCA inventes datos. Si te preguntan por un proveedor o una factura y la herramienta no te devuelve nada, responde: \"No encontré registros que coincidan con esa búsqueda en el sistema.\"\n\nUSO DE HERRAMIENTAS (HTTP REQUEST TOOL):\nTienes tu disposición exclusiva una herramienta conectada (\"HTTP Request\") para consultar la base de datos de facturas (contable_comprobantes) en tiempo real.\nREGLAS ESTRICTAS PARA USARLA:\n- DEBES usar esta herramienta SIEMPRE que te pregunten por facturas, compras, pagos o proveedores.\n- La herramienta solo acepta UN parámetro llamado `query`.\n- El valor de `query` DEBE SER UNA SOLA PALABRA CLAVE distintiva del nombre del proveedor.\n- EJEMPLO: Si el usuario busca \"Bautista Diaz\", envía solo `query=\"Bautista\"`. Si busca \"Telecom Argentina S.A.\", envía solo `query=\"Telecom\"`.\n- NUNCA intentes enviar el CUIT a la herramienta. Solo envía la palabra clave de texto.\n- NUNCA envíes más de una palabra.\n- La herramienta ya se encarga automáticamente de filtrar por tu empresa (tenant_id), seleccionar facturas de compra y buscar coincidencias parciales. Confía en ella.\n\nEJEMPLO DE RESPUESTA IDEAL:\n\"Encontré **3 facturas pendientes** del proveedor 'Servicios IT SRL'. El detalle es el siguiente:\n- **FC-0001-00432**: $ 150.000,00 (Vence el 15/10/2026)\n- **FC-0001-00450**: $ 30.000,00 (Vence el 20/10/2026)\n- **FC-0001-00488**: $ 45.000,00 (Vence el 25/10/2026)\nEl total pendiente de pago es de **$ 225.000,00**. ¿Necesitás ver el detalle de alguna en particular?\"\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -784,
+        464
+      ],
+      "id": "7a5b1ee3-7c63-401a-a632-de7f27891443",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3-flash-preview",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -928,
+        672
+      ],
+      "id": "546c2682-1d65-4896-baf3-157b0f285472",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ckp67BViTFwefxtq",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.body.tenant_id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -704,
+        672
+      ],
+      "id": "5ad70d43-cac5-46b6-ad79-5fd0d1877a4f",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -432,
+        464
+      ],
+      "id": "52dc23ee-8061-4ef4-bd0b-a2e3e1b7bdc7",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/contable_comprobantes",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "contable_proveedores.razon_social",
+              "value": "=ilike.*{{ $json.query }}*"
+            },
+            {
+              "name": "tipo",
+              "value": "eq.compra"
+            },
+            {
+              "name": "tenant_id",
+              "value": "=eq.{{ $('Webhook1').item.json.body.tenant_id }}"
+            },
+            {
+              "name": "limit",
+              "value": "5"
+            },
+            {
+              "name": "select",
+              "value": "id,numero_comprobante,fecha,monto_ars,estado,contable_proveedores!inner(razon_social)"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        -448,
+        688
+      ],
+      "id": "a4cebcfb-d30d-4d52-a54d-ed10e552a515",
+      "name": "HTTP Request1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ordenes de pago",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -128,
+        880
+      ],
+      "id": "56ef14d1-9b15-4ea2-a3af-f1391be8043d",
+      "name": "Webhook2",
+      "webhookId": "be8c0bc1-45db-4f97-9b2c-8a944fbd25f0"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"archivo_url\": \"https://fuytejvnwihghxymyayw.supabase.co/storage/v1/object/public/comprobantes/{{ $('Edit Fields2').item.json.tenant_id }}/OP_{{ $('Edit Fields2').item.json.numero_op }}.pdf\"\n}\n",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/pdf"
+              },
+              {
+                "name": "Content-Disposition",
+                "value": "attachment; filename=\"orden_pago.pdf"
+              },
+              {
+                "name": "Access-Control-Expose-Headers",
+                "value": "Content-Disposition, Content-Type"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2256,
+        880
+      ],
+      "id": "de83567d-01fa-4280-86da-a46a7c67dcc4",
+      "name": "Respond to Webhook2"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Obtenemos los datos que llegaron del Webhook\nconst data = $input.item.json.body;\n\n// Función auxiliar para formatear moneda ARS\nconst formatoMoneda = (monto) => {\n  if (monto === undefined || monto === null) return \"$ 0,00\";\n  return new Intl.NumberFormat('es-AR', {\n    style: 'currency',\n    currency: 'ARS'\n  }).format(monto);\n};\n\n// Función auxiliar para formatear fecha de YYYY-MM-DD a DD/MM/YYYY\nconst formatoFecha = (fechaStr) => {\n  if (!fechaStr) return \"\";\n  const [year, month, day] = fechaStr.split('-');\n  return `${day}/${month}/${year}`;\n};\n\n// Limpiamos y estructuramos un nuevo objeto armadito para el HTML\nconst ordenDePago = {\n  id: data.op_id,\n  numero_op: data.numero_op || \"Sin Número\",\n  proveedor_id: data.proveedor_id,\n  tenant_id: data.tenant_id, // <-- ¡Acá agregamos el tenant_id para que pase al resto de los nodos!\n  fecha: formatoFecha(data.fecha),\n  observaciones: data.observaciones || \"Sin observaciones\",\n  \n  // Montos ya formateados listos para imprimir en HTML (ej: \"$ 150.000,00\")\n  monto_bruto_str: formatoMoneda(data.monto_bruto),\n  monto_retenciones_str: formatoMoneda(data.monto_retenciones),\n  monto_neto_str: formatoMoneda(data.monto_neto),\n  \n  // Montos matematicos puros por si necesitas hacer cálculos despues\n  bruto_num: Number(data.monto_bruto || 0),\n  retenciones_num: Number(data.monto_retenciones || 0),\n  neto_num: Number(data.monto_neto || 0)\n};\n\n// Devolvemos el item limpio para el siguiente nodo (Edit Fields)\nreturn {\n  json: ordenDePago\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        880
+      ],
+      "id": "d3ed039d-ac79-46cc-b27c-6c446a99a331",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8adc99a3-2f32-4e57-8426-4f0bca8af6fa",
+              "name": "id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "daa0359f-3980-4092-bbf6-2fb6f292de27",
+              "name": "numero_op",
+              "value": "={{ $json.numero_op }}",
+              "type": "string"
+            },
+            {
+              "id": "adb49609-28d0-45db-b0c8-1499659a1121",
+              "name": "proveedor_id",
+              "value": "={{ $json.proveedor_id }}",
+              "type": "string"
+            },
+            {
+              "id": "f5612b58-0afd-4bc7-b25d-bc70586c05ac",
+              "name": "fecha",
+              "value": "={{ $json.fecha }}",
+              "type": "string"
+            },
+            {
+              "id": "527d65fd-b11f-480e-873f-34f80391c0af",
+              "name": "observaciones",
+              "value": "={{ $json.observaciones }}",
+              "type": "string"
+            },
+            {
+              "id": "4e8a491c-7293-4d22-8638-47e6d34d13ea",
+              "name": "monto_bruto_str",
+              "value": "={{ $json.monto_bruto_str }}",
+              "type": "string"
+            },
+            {
+              "id": "c7de0551-202a-4d83-af6d-a227eda5abb1",
+              "name": "monto_retenciones_str",
+              "value": "={{ $json.monto_retenciones_str }}",
+              "type": "string"
+            },
+            {
+              "id": "00d2b384-6687-4924-b70e-30d1a136388a",
+              "name": "monto_neto_str",
+              "value": "={{ $json.monto_neto_str }}",
+              "type": "string"
+            },
+            {
+              "id": "0a43a36d-d933-4533-a395-f797b00c2f61",
+              "name": "bruto_num",
+              "value": "={{ $json.bruto_num }}",
+              "type": "number"
+            },
+            {
+              "id": "999d903c-b874-45c3-9a35-48654e718377",
+              "name": "retenciones_num",
+              "value": "={{ $json.retenciones_num }}",
+              "type": "number"
+            },
+            {
+              "id": "e483241f-c97b-4d1d-ba58-55e419f52799",
+              "name": "neto_num",
+              "value": "={{ $json.neto_num }}",
+              "type": "number"
+            },
+            {
+              "id": "06855cea-c14f-4075-9af6-a6942d70359b",
+              "name": "tenant_id",
+              "value": "={{ $json.tenant_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        288,
+        880
+      ],
+      "id": "ab4ce65f-b6cc-46b8-985b-d023c9ef9897",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "html": "<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n    <meta charset=\"UTF-8\">\n    <style>\n        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; line-height: 1.6; }\n        .container { max-width: 800px; margin: 0 auto; padding: 40px; }\n        .header { display: flex; justify-content: space-between; border-bottom: 2px solid #2ab86f; padding-bottom: 20px; margin-bottom: 30px; }\n        .logo { font-size: 24px; font-weight: bold; color: #2ab86f; }\n        .op-number { font-size: 20px; color: #666; text-align: right; }\n        table { width: 100%; border-collapse: collapse; margin-top: 20px; margin-bottom: 30px; }\n        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }\n        th { background-color: #f9fafb; font-weight: 600; color: #555; }\n        .total-row td { border-top: 2px solid #333; font-weight: bold; font-size: 18px; }\n        .notes { background-color: #f9fafb; padding: 20px; border-radius: 8px; border-left: 4px solid #2ab86f; }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <div class=\"header\">\n            <div class=\"logo\">NEURACALL S.A.</div>\n            <div class=\"op-number\">\n                <strong>ORDEN DE PAGO</strong><br>\n                {{ $json.numero_op }}<br>\n                <small>Fecha: {{ $json.fecha }}</small>\n            </div>\n        </div>\n\n        <h3>Detalle de Liquidación</h3>\n        <table>\n            <thead>\n                <tr>\n                    <th>Concepto</th>\n             <th style=\"text-align: right;\">Importe</th>\n                </tr>\n            </thead>\n            <tbody>\n                <tr>\n                    <td>Subtotal Bruto (Facturas canceladas)</td>\n                    <td style=\"text-align: right;\">{{ $json.monto_bruto_str }}</td>\n                </tr>\n                <tr>\n                    <td>Retenciones Impositivas</td>\n                    <td style=\"text-align: right; color: #d93025;\">- {{ $json.monto_retenciones_str }}</td>\n                </tr>\n                <tr class=\"total-row\">\n                    <td>NETO A TRANSFERIR</td>\n                    <td style=\"text-align: right; color: #2ab86f;\">{{ $json.monto_neto_str }}</td>\n                </tr>\n            </tbody>\n        </table>\n\n        <div class=\"notes\">\n            <strong>Observaciones:</strong><br>\n            {{ $json.observaciones }}\n        </div>\n    </div>\n</body>\n</html>\n"
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        496,
+        880
+      ],
+      "id": "7f2c878d-0c19-4767-ab8c-0f69bde32e16",
+      "name": "HTML"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.pdf_url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1104,
+        1168
+      ],
+      "id": "693e4fd6-b543-4359-9ad1-e343417b65de",
+      "name": "HTTP Request2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://fuytejvnwihghxymyayw.supabase.co/storage/v1/object/comprobantes/{{ $('Edit Fields2').item.json.tenant_id }}/OP_{{ $('Code in JavaScript2').item.json.numero_op }}.pdf\n",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization ",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjE0MzEsImV4cCI6MjA4NzEzNzQzMX0.DpQeHA--4qG8hjudz4fMBhnYwlpKcsZ7wuKgTzxpKsw"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjE0MzEsImV4cCI6MjA4NzEzNzQzMX0.DpQeHA--4qG8hjudz4fMBhnYwlpKcsZ7wuKgTzxpKsw"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/pdf"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1280,
+        928
+      ],
+      "id": "adbcf3c9-7e93-4149-9229-6ff75d319597",
+      "name": "HTTP Request3",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "outputFormat": "pdf",
+        "inputBinaryData": false,
+        "inputFileContent": "={{ $json.html }}",
+        "inputFilename": "file.html",
+        "additionalOptions": "="
+      },
+      "type": "@cloudconvert/n8n-nodes-cloudconvert.cloudConvert",
+      "typeVersion": 1,
+      "position": [
+        720,
+        1072
+      ],
+      "id": "c26d08da-79a7-49ba-8063-8ea8c00557b0",
+      "name": "CloudConvert",
+      "credentials": {
+        "cloudConvertOAuth2Api": {
+          "id": "Nc8x5bHVpkLnb5oK",
+          "name": "CloudConvert account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.pdf_url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1440,
+        1168
+      ],
+      "id": "22966c0e-51c0-4983-84a5-eb711b8ff4a5",
+      "name": "HTTP Request4"
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1408,
+        -608
+      ],
+      "id": "a5437866-e115-413f-929e-f87afda1926a",
+      "name": "Telegram Trigger",
+      "webhookId": "da0b4ea6-d276-480f-8804-2d8c8739a9d5",
+      "credentials": {
+        "telegramApi": {
+          "id": "7S6oXZM7j1LN9Hd9",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "097b33a6-b530-43f7-a60a-7660d0c073c8",
+              "leftValue": "={{ $json.message.text }}",
+              "rightValue": "/vincular",
+              "operator": {
+                "type": "string",
+                "operation": "startsWith"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -960,
+        -608
+      ],
+      "id": "78eb9842-02b7-4674-a6e1-439fbc366fe5",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $json.message.text; // \"/vincular ANTI-4X7K\"\nconst code = text.split(' ')[1]?.trim().toUpperCase();\nconst chat_id = String($json.message.chat.id);\nconst username = $json.message.from?.username \n  ? '@' + $json.message.from.username \n  : $json.message.from?.first_name || '';\n\nreturn [{ json: { code, chat_id, username } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -752,
+        -656
+      ],
+      "id": "db606d3e-93ed-434d-80f4-7f1bba17ffff",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/rpc/activate_messaging_connection",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjE0MzEsImV4cCI6MjA4NzEzNzQzMX0.DpQeHA--4qG8hjudz4fMBhnYwlpKcsZ7wuKgTzxpKsw"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTU2MTQzMSwiZXhwIjoyMDg3MTM3NDMxfQ.N9AhuM2sPXcXJmTiM1lux4weZI94ltNw0B4oHwxWecU"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_code\": \"{{ $json.code }}\",\n  \"p_external_id\": \"{{ $json.chat_id }}\",\n  \"p_external_name\": \"{{ $json.username }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -544,
+        -656
+      ],
+      "id": "a9ccb468-1dff-4461-8273-b16437eeb25e",
+      "name": "HTTP Request5"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Code in JavaScript3').item.json.chat_id }}",
+        "text": "={{ $json.success ? '✅ Conexión activada correctamente.' : '❌ Código inválido o expirado. Generá uno nuevo desde la app.' }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -256,
+        -672
+      ],
+      "id": "bd4daca3-e319-489d-b470-6f8c7cca55d1",
+      "name": "Send a text message",
+      "webhookId": "272a3f70-0695-4d44-a78e-5518c20a5b02",
+      "credentials": {
+        "telegramApi": {
+          "id": "7S6oXZM7j1LN9Hd9",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "bded7475-11d2-4f75-bc3a-5e3fbe583df6",
+              "leftValue": "={{ $json.message.photo ? 'foto' : 'doc' }}",
+              "rightValue": "foto",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1008,
+        -384
+      ],
+      "id": "a6fed56d-bf69-4526-966d-cd939d3ecb10",
+      "name": "If3"
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $json.message.photo.last().file_id }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -528,
+        -464
+      ],
+      "id": "c076ad6b-5ade-48c7-9faa-edbc32fa1da4",
+      "name": "Get a file FOTO",
+      "webhookId": "12f15e78-7a10-4670-b64e-366844fa39f4",
+      "credentials": {
+        "telegramApi": {
+          "id": "7S6oXZM7j1LN9Hd9",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $json.message.document.file_id }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -528,
+        -320
+      ],
+      "id": "0127d9a5-6745-473d-b0ce-2ba9abfca04c",
+      "name": "Get a file DOCUM",
+      "webhookId": "12f15e78-7a10-4670-b64e-366844fa39f4",
+      "credentials": {
+        "telegramApi": {
+          "id": "7S6oXZM7j1LN9Hd9",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://fuytejvnwihghxymyayw.supabase.co/rest/v1/messaging_connections?external_id=eq.{{ $('Telegram Trigger').item.json.message.chat.id }}&status=eq.active&select=tenant_id",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjE0MzEsImV4cCI6MjA4NzEzNzQzMX0.DpQeHA--4qG8hjudz4fMBhnYwlpKcsZ7wuKgTzxpKsw"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTU2MTQzMSwiZXhwIjoyMDg3MTM3NDMxfQ.N9AhuM2sPXcXJmTiM1lux4weZI94ltNw0B4oHwxWecU"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -336,
+        -320
+      ],
+      "id": "9d907deb-3bd3-41eb-98ba-1527fd910bd9",
+      "name": "HTTP Request6"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/file/bot8637236671:AAHZOQqGO4T2kAbKDWS6byrXOVeFLYWy6Sk/{{ $('Get a file FOTO').item.json.result.file_path }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data0"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -128,
+        -464
+      ],
+      "id": "430f8f27-7c62-41e1-92ee-5480934e3b2c",
+      "name": "HTTP Request7"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n.neuracall.net/webhook/CargaDeComprobantes",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "data0",
+              "inputDataFieldName": "data0"
+            },
+            {
+              "name": "tenant_id",
+              "value": "={{ $if($('HTTP Request7').isExecuted, $('HTTP Request7').first().json.tenant_id, $('HTTP Request12').first().json.tenant_id) }}"
+            },
+            {
+              "name": "filename",
+              "value": "={{ $if($('HTTP Request7').isExecuted, 'foto_telegram.jpg', 'documento_telegram.pdf') }}"
+            },
+            {
+              "name": "chat_id",
+              "value": "={{ $('Telegram Trigger').first().json.message.chat.id }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text",
+              "outputPropertyName": "data0"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        352,
+        -384
+      ],
+      "id": "d02b5a3e-7ed0-45c5-9c0f-c3ee7f18f430",
+      "name": "HTTP Request8"
+    },
+    {
+      "parameters": {
+        "url": "=https://fuytejvnwihghxymyayw.supabase.co/rest/v1/messaging_connections?external_id=eq.{{ $('Telegram Trigger').item.json.message.chat.id }}&status=eq.active&select=tenant_id",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjE0MzEsImV4cCI6MjA4NzEzNzQzMX0.DpQeHA--4qG8hjudz4fMBhnYwlpKcsZ7wuKgTzxpKsw"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTU2MTQzMSwiZXhwIjoyMDg3MTM3NDMxfQ.N9AhuM2sPXcXJmTiM1lux4weZI94ltNw0B4oHwxWecU"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -336,
+        -480
+      ],
+      "id": "38e68741-626f-4d74-ab8f-c8d0f543f504",
+      "name": "HTTP Request9"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').first().json.message.chat.id }}",
+        "text": "✅ Factura recibida, la estamos procesando.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        352,
+        -528
+      ],
+      "id": "b1ad5aff-808f-4a13-9f4f-c2a8cf68aecc",
+      "name": "Send a text message1",
+      "webhookId": "31dbbf1d-585d-4b01-b0af-0c96aa4cfadd",
+      "credentials": {
+        "telegramApi": {
+          "id": "7S6oXZM7j1LN9Hd9",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst binary = item.binary.data0;\n\nif (binary.fileName && binary.fileName.endsWith('.pdf')) {\n  binary.mimeType = 'application/pdf';\n} else {\n  binary.mimeType = 'image/jpeg';\n}\n\nreturn [{\n  json: item.json,\n  binary: { data0: binary }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        48,
+        -384
+      ],
+      "id": "8b9e3986-55a9-48c9-a4c8-2453661e9eed",
+      "name": "Code in JavaScript4"
+    },
+    {
+      "parameters": {
+        "url": "=https://fuytejvnwihghxymyayw.supabase.co/rest/v1/contable_config?tenant_id=eq.{{ $('Edit Fields1').item.json.body.tenant_id }}&select=arca_cuit",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjE0MzEsImV4cCI6MjA4NzEzNzQzMX0.DpQeHA--4qG8hjudz4fMBhnYwlpKcsZ7wuKgTzxpKsw"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTU2MTQzMSwiZXhwIjoyMDg3MTM3NDMxfQ.N9AhuM2sPXcXJmTiM1lux4weZI94ltNw0B4oHwxWecU"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        208
+      ],
+      "id": "1224b33b-1a31-48ab-97e9-3f5e7b10bc37",
+      "name": "HTTP Request10"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Edit Fields1').first().json.body.chat_id }}",
+        "text": "=🧾 *Nueva {{ $json.tipo_comprobante }} Registrada*\n\n*Nro de Comprobante:* {{ $json.numero_comprobante }}\n*Fecha:* {{ $json.fecha }}\n*Concepto:* {{ $json.descripcion }}\n\n💰 *Monto Total:* ${{ $json.monto_original }} ({{ $json.moneda }})\n🏢 *CUIT Emisor:* {{ $json.cuit_emisor }}\n👤 *CUIT Receptor:* {{ $json.cuit_receptor }}\n\n📌 *Estado:* {{ $json.estado }}\n📎 [Ver comprobante original]({{ $json.pdf_url }})",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3392,
+        -128
+      ],
+      "id": "9df8f010-b11d-4e51-bffa-c6fa68ce13a6",
+      "name": "Send a text message2",
+      "webhookId": "ba6cb6b3-8f48-411e-962e-823a89c1ed77",
+      "credentials": {
+        "telegramApi": {
+          "id": "7S6oXZM7j1LN9Hd9",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "bc48c1c3-595c-43ca-8f95-c8a05b0b636d",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1760,
+        -128
+      ],
+      "id": "e0b357e3-5f23-4b0f-b443-f0954f13b5dd",
+      "name": "If4"
+    },
+    {
+      "parameters": {
+        "tableId": "contable_categorias",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "tenant_id",
+              "fieldValue": "={{ $('Edit Fields1').item.json.body.tenant_id }}"
+            },
+            {
+              "fieldId": "nombre",
+              "fieldValue": "={{ $('Edit Fields').item.json.descripcion }}"
+            },
+            {
+              "fieldId": "tipo",
+              "fieldValue": "gasto"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1936,
+        64
+      ],
+      "id": "964c9d35-78f1-45dc-a422-fe8c0ff5960d",
+      "name": "Create a categorias",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://fuytejvnwihghxymyayw.supabase.co/rest/v1/contable_proveedores?cuit=eq.{{ $('Edit Fields').first().json.cuit_emisor }}&tenant_id=eq.{{ $('Edit Fields1').first().json.body.tenant_id }}&limit=1",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjE0MzEsImV4cCI6MjA4NzEzNzQzMX0.DpQeHA--4qG8hjudz4fMBhnYwlpKcsZ7wuKgTzxpKsw"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTU2MTQzMSwiZXhwIjoyMDg3MTM3NDMxfQ.N9AhuM2sPXcXJmTiM1lux4weZI94ltNw0B4oHwxWecU"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        560,
+        128
+      ],
+      "id": "7b7058ea-e119-4485-a3da-7a3b2f5fea3e",
+      "name": "HTTP Request11",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "tableId": "contable_proveedores",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "cuit",
+              "fieldValue": "={{ $('Edit Fields').first().json.cuit_emisor }}"
+            },
+            {
+              "fieldId": "razon_social",
+              "fieldValue": "={{ $('Edit Fields').first().json.razon_social }}"
+            },
+            {
+              "fieldId": "tenant_id",
+              "fieldValue": "={{ $('Edit Fields1').first().json.body.tenant_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1328,
+        112
+      ],
+      "id": "55bfe8ad-9a81-4fca-a316-27b8d1ef8150",
+      "name": "Crea el proveedor si no esta",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "10ce6bc3-b2fe-4ab7-bebb-176bddc9176e",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1120,
+        -80
+      ],
+      "id": "5c64aece-859c-4fa4-84a1-03e1ff9b3b3a",
+      "name": "Ve si existe el proveedor"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "contable_categorias",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "tenant_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Edit Fields1').item.json.body.tenant_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1552,
+        -144
+      ],
+      "id": "68350f59-f54d-4ddf-b093-660bf8819310",
+      "name": "Agarra el tenant (nose si mio o del proveedor pero lo trae del Edit Field)",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    ...($input.first().json),\n    text: $input.first().json.text.replace(/[\\n\\r]/g, '').trim(),\n    pdf_url: ('https://fuytejvnwihghxymyayw.supabase.co/storage/v1/object/public/comprobantes/' + $('Webhook').first().binary.data0.fileName).replace(/[\\n\\r]/g, '').trim(),\n    categoria_id: ($input.first().json.categoria_id || '').replace(/[\\n\\r]/g, '').trim()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2608,
+        -112
+      ],
+      "id": "ae972452-b13b-4499-bb1a-7d349e1731c6",
+      "name": "Code in JavaScript5"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/file/bot8637236671:AAHZOQqGO4T2kAbKDWS6byrXOVeFLYWy6Sk/{{ $('Get a file DOCUM').item.json.result.file_path }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data0"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -128,
+        -320
+      ],
+      "id": "c5011d66-3649-4078-9f48-cb373527ae3e",
+      "name": "HTTP Request12"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Edit Fields1').first().json.body.chat_id }}",
+        "text": "Este comprobante no corresponde a una factura que tu empresa sea la receptora",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        560,
+        272
+      ],
+      "id": "c9d164a8-e0dc-48a4-a964-933f3f027d1d",
+      "name": "Send a text message3",
+      "webhookId": "bc9a4368-8922-41ed-b6b2-446b6a8e7362",
+      "credentials": {
+        "telegramApi": {
+          "id": "7S6oXZM7j1LN9Hd9",
+          "name": "Telegram account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Analyze an image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze an image": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Contable proveedores cuit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request11",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a row": {
+      "main": [
+        [
+          {
+            "node": "Create a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row1": {
+      "main": [
+        [
+          {
+            "node": "Update a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        []
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contable proveedores cuit": {
+      "main": [
+        [
+          {
+            "node": "Ve si existe el proveedor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update a row": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML": {
+      "main": [
+        [
+          {
+            "node": "CloudConvert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request3": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CloudConvert": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request5": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If3": {
+      "main": [
+        [
+          {
+            "node": "Get a file FOTO",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get a file DOCUM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a file FOTO": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a file DOCUM": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request7": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request9": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request8": {
+      "main": [
+        []
+      ]
+    },
+    "Code in JavaScript4": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request8",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request10": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        [
+          {
+            "node": "Send a text message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If4": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create a categorias",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a categorias": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request11": {
+      "main": [
+        []
+      ]
+    },
+    "Crea el proveedor si no esta": {
+      "main": [
+        [
+          {
+            "node": "Agarra el tenant (nose si mio o del proveedor pero lo trae del Edit Field)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ve si existe el proveedor": {
+      "main": [
+        [
+          {
+            "node": "Agarra el tenant (nose si mio o del proveedor pero lo trae del Edit Field)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Crea el proveedor si no esta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agarra el tenant (nose si mio o del proveedor pero lo trae del Edit Field)": {
+      "main": [
+        [
+          {
+            "node": "If4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript5": {
+      "main": [
+        [
+          {
+            "node": "Create a row1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request6": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request12",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request12": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message1": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "e7195eeb-201f-4ca2-b859-5ca74bf04bce",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "389bc4a833b9a53a284e411ec17b72e882bb1083c0e92907792c004c331457ab"
+  },
+  "id": "DL4f73ony4VaBiJX",
+  "tags": []
+}

@@ -1,0 +1,573 @@
+{
+  "name": "BOT TELEGRAM",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1280,
+        -48
+      ],
+      "id": "0b1626e2-3023-4273-bd1b-7792c32fb2de",
+      "name": "Telegram Trigger",
+      "webhookId": "da0b4ea6-d276-480f-8804-2d8c8739a9d5",
+      "credentials": {
+        "telegramApi": {
+          "id": "7S6oXZM7j1LN9Hd9",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "097b33a6-b530-43f7-a60a-7660d0c073c8",
+              "leftValue": "={{ $json.message.text }}",
+              "rightValue": "/vincular",
+              "operator": {
+                "type": "string",
+                "operation": "startsWith"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -816,
+        -64
+      ],
+      "id": "f9e21d18-7f4b-4bed-a114-95a77f1e0b54",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $json.message.text; // \"/vincular ANTI-4X7K\"\nconst code = text.split(' ')[1]?.trim().toUpperCase();\nconst chat_id = String($json.message.chat.id);\nconst username = $json.message.from?.username \n  ? '@' + $json.message.from.username \n  : $json.message.from?.first_name || '';\n\nreturn [{ json: { code, chat_id, username } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -608,
+        -112
+      ],
+      "id": "55754b9a-6fc2-40d7-9f6c-e2090a6816b1",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/rpc/activate_messaging_connection",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjE0MzEsImV4cCI6MjA4NzEzNzQzMX0.DpQeHA--4qG8hjudz4fMBhnYwlpKcsZ7wuKgTzxpKsw"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTU2MTQzMSwiZXhwIjoyMDg3MTM3NDMxfQ.N9AhuM2sPXcXJmTiM1lux4weZI94ltNw0B4oHwxWecU"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_code\": \"{{ $json.code }}\",\n  \"p_external_id\": \"{{ $json.chat_id }}\",\n  \"p_external_name\": \"{{ $json.username }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -400,
+        -112
+      ],
+      "id": "173a3f1c-7561-4444-995c-104b35f955ee",
+      "name": "HTTP Request5"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Code in JavaScript3').item.json.chat_id }}",
+        "text": "={{ $json.success ? '✅ Conexión activada correctamente.' : '❌ Código inválido o expirado. Generá uno nuevo desde la app.' }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -112,
+        -128
+      ],
+      "id": "9be3cf77-6ff2-400f-8bcf-94c8720b797a",
+      "name": "Send a text message",
+      "webhookId": "272a3f70-0695-4d44-a78e-5518c20a5b02",
+      "credentials": {
+        "telegramApi": {
+          "id": "7S6oXZM7j1LN9Hd9",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "bded7475-11d2-4f75-bc3a-5e3fbe583df6",
+              "leftValue": "={{ $json.message.photo ? 'foto' : 'doc' }}",
+              "rightValue": "foto",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -864,
+        160
+      ],
+      "id": "90144cab-ba86-47e5-a77b-91027a173960",
+      "name": "If3"
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $json.message.photo.last().file_id }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -384,
+        80
+      ],
+      "id": "8413ee94-362b-4e7e-8056-f27d9ae9388e",
+      "name": "Get a file FOTO",
+      "webhookId": "12f15e78-7a10-4670-b64e-366844fa39f4",
+      "credentials": {
+        "telegramApi": {
+          "id": "7S6oXZM7j1LN9Hd9",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $json.message.document.file_id }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -384,
+        224
+      ],
+      "id": "cc3d6c5d-e90e-4a79-9276-fe6635b3293f",
+      "name": "Get a file DOCUM",
+      "webhookId": "12f15e78-7a10-4670-b64e-366844fa39f4",
+      "credentials": {
+        "telegramApi": {
+          "id": "7S6oXZM7j1LN9Hd9",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://fuytejvnwihghxymyayw.supabase.co/rest/v1/messaging_connections?external_id=eq.{{ $('Telegram Trigger').item.json.message.chat.id }}&status=eq.active&select=tenant_id",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjE0MzEsImV4cCI6MjA4NzEzNzQzMX0.DpQeHA--4qG8hjudz4fMBhnYwlpKcsZ7wuKgTzxpKsw"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTU2MTQzMSwiZXhwIjoyMDg3MTM3NDMxfQ.N9AhuM2sPXcXJmTiM1lux4weZI94ltNw0B4oHwxWecU"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -192,
+        224
+      ],
+      "id": "4d1ec65c-843f-4df4-853a-ff184a41a11c",
+      "name": "HTTP Request6"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/file/bot8637236671:AAHZOQqGO4T2kAbKDWS6byrXOVeFLYWy6Sk/{{ $('Get a file FOTO').item.json.result.file_path }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data0"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        16,
+        80
+      ],
+      "id": "ee420f33-37d4-47a3-8049-2056e4ca907a",
+      "name": "HTTP Request7"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n.neuracall.net/webhook/CargaDeComprobantes",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "data0",
+              "inputDataFieldName": "data0"
+            },
+            {
+              "name": "tenant_id",
+              "value": "={{ $if($('HTTP Request7').isExecuted, $('HTTP Request7').first().json.tenant_id, $('HTTP Request12').first().json.tenant_id) }}"
+            },
+            {
+              "name": "filename",
+              "value": "={{ $if($('HTTP Request7').isExecuted, 'foto_telegram.jpg', 'documento_telegram.pdf') }}"
+            },
+            {
+              "name": "chat_id",
+              "value": "={{ $('Telegram Trigger').first().json.message.chat.id }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text",
+              "outputPropertyName": "data0"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        496,
+        160
+      ],
+      "id": "1113f6a8-1a29-4953-945a-16011cdbca7f",
+      "name": "HTTP Request8"
+    },
+    {
+      "parameters": {
+        "url": "=https://fuytejvnwihghxymyayw.supabase.co/rest/v1/messaging_connections?external_id=eq.{{ $('Telegram Trigger').item.json.message.chat.id }}&status=eq.active&select=tenant_id",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjE0MzEsImV4cCI6MjA4NzEzNzQzMX0.DpQeHA--4qG8hjudz4fMBhnYwlpKcsZ7wuKgTzxpKsw"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTU2MTQzMSwiZXhwIjoyMDg3MTM3NDMxfQ.N9AhuM2sPXcXJmTiM1lux4weZI94ltNw0B4oHwxWecU"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -192,
+        64
+      ],
+      "id": "2ce4a1a5-c45b-4a36-83dd-c7705c8dabf9",
+      "name": "HTTP Request9"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').first().json.message.chat.id }}",
+        "text": "✅ Factura recibida, la estamos procesando.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        496,
+        16
+      ],
+      "id": "7703c11a-25ec-48ec-878f-c0f0a7ed6cd5",
+      "name": "Send a text message1",
+      "webhookId": "31dbbf1d-585d-4b01-b0af-0c96aa4cfadd",
+      "credentials": {
+        "telegramApi": {
+          "id": "7S6oXZM7j1LN9Hd9",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst binary = item.binary.data0;\n\nif (binary.fileName && binary.fileName.endsWith('.pdf')) {\n  binary.mimeType = 'application/pdf';\n} else {\n  binary.mimeType = 'image/jpeg';\n}\n\nreturn [{\n  json: item.json,\n  binary: { data0: binary }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        192,
+        160
+      ],
+      "id": "901d2047-16a4-4a68-843b-44a4805e8264",
+      "name": "Code in JavaScript4"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/file/bot8637236671:AAHZOQqGO4T2kAbKDWS6byrXOVeFLYWy6Sk/{{ $('Get a file DOCUM').item.json.result.file_path }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data0"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        16,
+        224
+      ],
+      "id": "23a2cf0f-5fea-498d-9724-09d1849388c1",
+      "name": "HTTP Request12"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cargar-comprobante-ocr",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1280,
+        128
+      ],
+      "id": "c5f2c8f5-66ce-4f29-b4fb-6f57838cd322",
+      "name": "Webhook",
+      "webhookId": "d9b5b92e-a50a-4f78-9208-43695dee25d0"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        []
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request5": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If3": {
+      "main": [
+        [
+          {
+            "node": "Get a file FOTO",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get a file DOCUM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a file FOTO": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a file DOCUM": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request6": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request12",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request7": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request9": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript4": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request8",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request12": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "6784e7eb-0625-4823-af29-34dd8f446685",
+  "meta": {
+    "instanceId": "389bc4a833b9a53a284e411ec17b72e882bb1083c0e92907792c004c331457ab"
+  },
+  "id": "qldF1rwfLdAvAzCH",
+  "tags": []
+}

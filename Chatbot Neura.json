@@ -1,0 +1,203 @@
+{
+  "name": "Chatbot Neura",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "neuracore-chat",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -32,
+        -48
+      ],
+      "id": "dad01299-6081-4f4f-9deb-07107126c587",
+      "name": "Webhook1",
+      "webhookId": "50218a36-5411-4b52-a128-0158712f0dda"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Webhook1').item.json.body.chatInput }}\n",
+        "options": {
+          "systemMessage": "Sos Neura, el Asistente Inteligente nativo del ERP NeuraCore. Tu objetivo es ayudar a los usuarios de la empresa a consultar información operativa sobre proveedores, finanzas y facturación de forma rápida, amable y precisa.\n\nREGLAS DE COMPORTAMIENTO:\n1. TONO: Respondé siempre de forma profesional pero cercana. Usá \"vos\" (español rioplatense) en lugar de \"tú\". Sé conciso, no des explicaciones largas a menos que te lo pidan.\n2. FORMATO: Cuando devuelvas datos (como listas de facturas o montos), usá formato Markdown amable. Usá viñetas, negritas para resaltar importes y tablas si hay muchos datos. \n3. MONEDAS: Formateá siempre los montos de dinero correctamente (ej: \"$ 150.000,00\").\n4. LIMITACIÓN ESTRICTA DE LA VERDAD: NUNCA inventes datos. Si te preguntan por un proveedor o una factura y la herramienta no te devuelve nada, responde: \"No encontré registros que coincidan con esa búsqueda en el sistema.\"\n\nUSO DE HERRAMIENTAS (HTTP REQUEST TOOL):\nTienes tu disposición exclusiva una herramienta conectada (\"HTTP Request\") para consultar la base de datos de facturas (contable_comprobantes) en tiempo real.\nREGLAS ESTRICTAS PARA USARLA:\n- DEBES usar esta herramienta SIEMPRE que te pregunten por facturas, compras, pagos o proveedores.\n- La herramienta solo acepta UN parámetro llamado `query`.\n- El valor de `query` DEBE SER UNA SOLA PALABRA CLAVE distintiva del nombre del proveedor.\n- EJEMPLO: Si el usuario busca \"Bautista Diaz\", envía solo `query=\"Bautista\"`. Si busca \"Telecom Argentina S.A.\", envía solo `query=\"Telecom\"`.\n- NUNCA intentes enviar el CUIT a la herramienta. Solo envía la palabra clave de texto.\n- NUNCA envíes más de una palabra.\n- La herramienta ya se encarga automáticamente de filtrar por tu empresa (tenant_id), seleccionar facturas de compra y buscar coincidencias parciales. Confía en ella.\n\nEJEMPLO DE RESPUESTA IDEAL:\n\"Encontré **3 facturas pendientes** del proveedor 'Servicios IT SRL'. El detalle es el siguiente:\n- **FC-0001-00432**: $ 150.000,00 (Vence el 15/10/2026)\n- **FC-0001-00450**: $ 30.000,00 (Vence el 20/10/2026)\n- **FC-0001-00488**: $ 45.000,00 (Vence el 25/10/2026)\nEl total pendiente de pago es de **$ 225.000,00**. ¿Necesitás ver el detalle de alguna en particular?\"\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        176,
+        -48
+      ],
+      "id": "0f18963d-6595-4c49-8794-7d74342c3791",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3-flash-preview",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        32,
+        160
+      ],
+      "id": "5ffa1b1a-14a7-4894-81dd-4be82a735683",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ckp67BViTFwefxtq",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.body.tenant_id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        256,
+        160
+      ],
+      "id": "eb9300be-cb3f-450b-bebc-dcc6f027413a",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        528,
+        -48
+      ],
+      "id": "ecd81c48-7345-42f5-b603-476bc009c227",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/contable_comprobantes",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "contable_proveedores.razon_social",
+              "value": "=ilike.*{{ $json.query }}*"
+            },
+            {
+              "name": "tipo",
+              "value": "eq.compra"
+            },
+            {
+              "name": "tenant_id",
+              "value": "=eq.{{ $('Webhook1').item.json.body.tenant_id }}"
+            },
+            {
+              "name": "limit",
+              "value": "5"
+            },
+            {
+              "name": "select",
+              "value": "id,numero_comprobante,fecha,monto_ars,estado,contable_proveedores!inner(razon_social)"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        512,
+        176
+      ],
+      "id": "5646f76f-4992-47e6-8604-51cbee70c363",
+      "name": "HTTP Request1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "53ffaec5-e954-4b91-827a-4ac1218cc057",
+  "meta": {
+    "instanceId": "389bc4a833b9a53a284e411ec17b72e882bb1083c0e92907792c004c331457ab"
+  },
+  "id": "fsK9VLjyQ5p3TYvC",
+  "tags": []
+}

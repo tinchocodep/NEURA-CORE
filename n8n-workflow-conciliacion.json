@@ -1,0 +1,242 @@
+{
+  "name": "AGR - Conciliación Semanal",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8,
+              "triggerAtMinute": 0,
+              "field": "weeks",
+              "weekday": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [0, 0],
+      "id": "d185405d-10ee-494c-a5f1-efcdab3133dc",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"tenantId\": \"9444a5fb-e8ed-4702-ba89-539bee71f4c2\",\n  \"supabaseUrl\": \"https://fuytejvnwihghxymyayw.supabase.co\",\n  \"anonKey\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjE0MzEsImV4cCI6MjA4NzEzNzQzMX0.DpQeHA--4qG8hjudz4fMBhnYwlpKcsZ9wuKgTzxpKsw\",\n  \"arcaCuit\": \"20435065261\",\n  \"fechaDesde\": \"{{ DateTime.now().minus({ days: 7 }).toISODate() }}\",\n  \"fechaHasta\": \"{{ DateTime.now().toISODate() }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [220, 0],
+      "id": "a1b2c3d4-0001-4000-a000-000000000001",
+      "name": "Set Variables"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.supabaseUrl }}/functions/v1/sync-arca-iniciar",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $json.anonKey }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tenantId\": \"{{ $json.tenantId }}\",\n  \"fechaDesde\": \"{{ $json.fechaDesde }}\",\n  \"fechaHasta\": \"{{ $json.fechaHasta }}\",\n  \"triggeredBy\": \"n8n\"\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 0],
+      "id": "a1b2c3d4-0002-4000-a000-000000000002",
+      "name": "Sync ARCA Iniciar",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Poll AFIP SDK automations until both E (ventas) and R (compras) complete\nconst prev = $input.first().json;\n\n// If sync-arca-iniciar failed, skip polling\nif (!prev.success || !prev.automationIds) {\n  return [{ json: { skipped: true, syncRunId: prev.syncRunId || null, arcaCuit: '', emitidosData: [], recibidosData: [] } }];\n}\n\nconst automationIds = prev.automationIds;\nconst AFIPSDK_API_KEY = '3zZiVxOJP4zPQbK5mEc6FXQOa34hOPAPTSu3bl2S51LewxPc15xUb63Dm43s4BiL';\nconst results = {};\n\nfor (const { tipo, automationId } of automationIds) {\n  let found = false;\n  for (let i = 0; i < 60; i++) {\n    await new Promise(r => setTimeout(r, 5000)); // wait 5 seconds\n    \n    const response = await fetch(\n      `https://app.afipsdk.com/api/v1/automations/${automationId}`,\n      { headers: { 'Authorization': `Bearer ${AFIPSDK_API_KEY}` } }\n    );\n    const result = await response.json();\n    \n    if (result.status === 'complete' && Array.isArray(result.data)) {\n      results[tipo] = result.data;\n      found = true;\n      break;\n    }\n    if (result.status === 'error') {\n      console.log(`AFIP error (${tipo}): ${result.message}`);\n      results[tipo] = [];\n      found = true;\n      break;\n    }\n    // status === 'in_process' → keep polling\n  }\n  if (!found) {\n    console.log(`AFIP timeout for ${tipo}`);\n    results[tipo] = [];\n  }\n}\n\nreturn [{\n  json: {\n    syncRunId: prev.syncRunId,\n    arcaCuit: '20435065261',\n    emitidosData: results['E'] || [],\n    recibidosData: results['R'] || [],\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 0],
+      "id": "a1b2c3d4-0003-4000-a000-000000000003",
+      "name": "Poll AFIP",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://fuytejvnwihghxymyayw.supabase.co/functions/v1/sync-arca-guardar",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjE0MzEsImV4cCI6MjA4NzEzNzQzMX0.DpQeHA--4qG8hjudz4fMBhnYwlpKcsZ9wuKgTzxpKsw" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tenantId\": \"9444a5fb-e8ed-4702-ba89-539bee71f4c2\",\n  \"syncRunId\": \"{{ $json.syncRunId }}\",\n  \"arcaCuit\": \"{{ $json.arcaCuit }}\",\n  \"emitidosData\": {{ JSON.stringify($json.emitidosData) }},\n  \"recibidosData\": {{ JSON.stringify($json.recibidosData) }}\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 0],
+      "id": "a1b2c3d4-0004-4000-a000-000000000004",
+      "name": "Sync ARCA Guardar",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://fuytejvnwihghxymyayw.supabase.co/functions/v1/sync-xubio",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjE0MzEsImV4cCI6MjA4NzEzNzQzMX0.DpQeHA--4qG8hjudz4fMBhnYwlpKcsZ9wuKgTzxpKsw" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tenantId\": \"9444a5fb-e8ed-4702-ba89-539bee71f4c2\",\n  \"fechaDesde\": \"{{ DateTime.now().minus({ days: 7 }).toISODate() }}\",\n  \"fechaHasta\": \"{{ DateTime.now().toISODate() }}\",\n  \"triggeredBy\": \"n8n\"\n}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 0],
+      "id": "a1b2c3d4-0005-4000-a000-000000000005",
+      "name": "Sync Xubio",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://fuytejvnwihghxymyayw.supabase.co/functions/v1/conciliar",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjE0MzEsImV4cCI6MjA4NzEzNzQzMX0.DpQeHA--4qG8hjudz4fMBhnYwlpKcsZ9wuKgTzxpKsw" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tenantId\": \"9444a5fb-e8ed-4702-ba89-539bee71f4c2\",\n  \"fechaDesde\": \"{{ DateTime.now().minus({ days: 7 }).toISODate() }}\",\n  \"fechaHasta\": \"{{ DateTime.now().toISODate() }}\",\n  \"triggeredBy\": \"n8n\"\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 0],
+      "id": "a1b2c3d4-0006-4000-a000-000000000006",
+      "name": "Conciliar"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://fuytejvnwihghxymyayw.supabase.co/functions/v1/generar-reporte",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjE0MzEsImV4cCI6MjA4NzEzNzQzMX0.DpQeHA--4qG8hjudz4fMBhnYwlpKcsZ9wuKgTzxpKsw" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tenantId\": \"9444a5fb-e8ed-4702-ba89-539bee71f4c2\",\n  \"syncRunId\": \"{{ $json.syncRunId }}\",\n  \"format\": \"html\"\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1540, 0],
+      "id": "a1b2c3d4-0007-4000-a000-000000000007",
+      "name": "Generar Reporte"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n.neuracall.net/webhook/enviar_por_mail",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"destinatario\": \"CONFIGURAR_EMAIL_AQUI\",\n  \"asunto\": \"{{ $json.subject }}\",\n  \"html\": {{ JSON.stringify($json.html) }}\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1760, 0],
+      "id": "a1b2c3d4-0008-4000-a000-000000000008",
+      "name": "Enviar Email",
+      "continueOnFail": true
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [{ "node": "Set Variables", "type": "main", "index": 0 }]
+      ]
+    },
+    "Set Variables": {
+      "main": [
+        [{ "node": "Sync ARCA Iniciar", "type": "main", "index": 0 }]
+      ]
+    },
+    "Sync ARCA Iniciar": {
+      "main": [
+        [{ "node": "Poll AFIP", "type": "main", "index": 0 }]
+      ]
+    },
+    "Poll AFIP": {
+      "main": [
+        [{ "node": "Sync ARCA Guardar", "type": "main", "index": 0 }]
+      ]
+    },
+    "Sync ARCA Guardar": {
+      "main": [
+        [{ "node": "Sync Xubio", "type": "main", "index": 0 }]
+      ]
+    },
+    "Sync Xubio": {
+      "main": [
+        [{ "node": "Conciliar", "type": "main", "index": 0 }]
+      ]
+    },
+    "Conciliar": {
+      "main": [
+        [{ "node": "Generar Reporte", "type": "main", "index": 0 }]
+      ]
+    },
+    "Generar Reporte": {
+      "main": [
+        [{ "node": "Enviar Email", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Argentina/Buenos_Aires",
+    "saveExecutionProgress": true
+  }
+}
