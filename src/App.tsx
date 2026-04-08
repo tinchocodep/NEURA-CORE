@@ -60,6 +60,15 @@ import LiqQuincenas from './modules/liquidaciones/Quincenas';
 import LiqCategorias from './modules/liquidaciones/Categorias';
 import LiqQuincenaDetalle from './modules/liquidaciones/QuincenaDetalle';
 // FichajeMasivo is now imported as LiqFichajes above
+import ObrasDashboard from './modules/obras/Dashboard';
+import ObrasFichas from './modules/obras/Fichas';
+import ObraDetalle from './modules/obras/ObraDetalle';
+import ObrasContratistas from './modules/obras/Contratistas';
+import ObrasMateriales from './modules/obras/Materiales';
+import ObrasVencimientos from './modules/obras/Vencimientos';
+import ObrasF931 from './modules/obras/F931';
+import ObrasReportes from './modules/obras/Reportes';
+import ObrasCartasOferta from './modules/obras/CartasOferta';
 import { useAuth } from './contexts/AuthContext';
 import { useTenant } from './contexts/TenantContext';
 
@@ -198,6 +207,19 @@ export default function App() {
               <Route path="categorias" element={<LiqCategorias />} />
               <Route path="quincenas/:id" element={<LiqQuincenaDetalle />} />
               <Route path="fichaje-masivo" element={<LiqFichajes />} />
+            </Route>
+
+            {/* Modulo Obras (constructora) */}
+            <Route path="obras">
+              <Route index element={<ObrasDashboard />} />
+              <Route path="listado" element={<ObrasFichas />} />
+              <Route path=":obraId" element={<ObraDetalle />} />
+              <Route path="contratistas" element={<ObrasContratistas />} />
+              <Route path="cartas-oferta" element={<ObrasCartasOferta />} />
+              <Route path="materiales" element={<ObrasMateriales />} />
+              <Route path="vencimientos" element={<ObrasVencimientos />} />
+              <Route path="f931" element={<ObrasF931 />} />
+              <Route path="reportes" element={<ObrasReportes />} />
             </Route>
 
             {/* Global Configuracion */}

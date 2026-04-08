@@ -104,6 +104,22 @@ const MODULE_TREE: ModuleNode[] = [
             { id: 'inmobiliaria.reportes', name: 'Reportes' },
         ],
     },
+    {
+        id: 'obras',
+        name: 'Obras',
+        rubros: ['constructora'],
+        submodules: [
+            { id: 'obras.fichas', name: 'Fichas de Obra', rubros: ['constructora'] },
+            { id: 'obras.presupuesto', name: 'Presupuesto y Certificados', rubros: ['constructora'] },
+            { id: 'obras.contratistas', name: 'Contratistas', rubros: ['constructora'] },
+            { id: 'obras.documentacion', name: 'Documentación', rubros: ['constructora'] },
+            { id: 'obras.partes-diarios', name: 'Partes Diarios', rubros: ['constructora'] },
+            { id: 'obras.materiales', name: 'Materiales/Compras', rubros: ['constructora'] },
+            { id: 'obras.vencimientos', name: 'Vencimientos', rubros: ['constructora'] },
+            { id: 'obras.f931', name: 'F931', rubros: ['constructora'] },
+            { id: 'obras.reportes', name: 'Reportes', rubros: ['constructora'] },
+        ],
+    },
     { id: 'administracion', name: 'Administración', submodules: [] },
     { id: 'logistica', name: 'Logística', submodules: [] },
 ];
