@@ -217,6 +217,8 @@ export default function Layout() {
         const sections = tenant?.sidebar_config?.sections || [];
         const activeSection = sections.find((s: any) =>
             s.children?.some((c: any) => location.pathname.startsWith(c.path))
+        ) || sections.find((s: any) =>
+            s.id && s.children?.length && location.pathname.startsWith('/' + s.id)
         );
         if (activeSection?.children) {
             sectionItems = activeSection.children.map((c: any) => ({
