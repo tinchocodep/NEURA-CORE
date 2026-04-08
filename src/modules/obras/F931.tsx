@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
-import { ClipboardList, Plus, ChevronDown, ChevronRight, Trash2, Upload, ExternalLink } from 'lucide-react';
+import { ClipboardList, Plus, ChevronDown, ChevronRight, Trash2, ExternalLink } from 'lucide-react';
 import type { F931, F931Detalle } from './types';
 
 export default function ObrasF931() {

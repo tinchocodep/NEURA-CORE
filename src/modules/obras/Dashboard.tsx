@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
-import { HardHat, Users, FileText, AlertTriangle, ClipboardList, Truck, ShieldAlert, Calendar } from 'lucide-react';
+import { HardHat, Users, FileText, AlertTriangle, ClipboardList, Truck, ShieldAlert } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import type { ObraFicha, Vencimiento } from './types';
+import type { ObraFicha } from './types';
 import { ESTADO_OBRA_COLOR, ESTADO_OBRA_LABEL } from './types';
 
 export default function ObrasDashboard() {

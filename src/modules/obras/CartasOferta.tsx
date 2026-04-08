@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
-import { FileText, Plus, Search, Pencil, Trash2, X, Check, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, X, Check, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import StyledSelect from '../../shared/components/StyledSelect';
 import jsPDF from 'jspdf';
 import type { CartaOferta, CartaOfertaItem, EstadoCartaOferta, ObraFicha, Contratista } from './types';
@@ -19,8 +19,8 @@ const EMPTY_ITEM: Partial<CartaOfertaItem> = { descripcion: '', unidad: '', cant
 export default function ObrasCartasOferta() {
   const { tenant } = useTenant();
   const [items, setItems] = useState<CartaOferta[]>([]);
-  const [obras, setObras] = useState<ObraFicha[]>([]);
-  const [contratistas, setContratistas] = useState<Contratista[]>([]);
+  const [obras, setObras] = useState<Pick<ObraFicha, 'id' | 'nombre'>[]>([]);
+  const [contratistas, setContratistas] = useState<Pick<Contratista, 'id' | 'razon_social'>[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Partial<CartaOferta>>(EMPTY);
@@ -42,8 +42,8 @@ export default function ObrasCartasOferta() {
       supabase.from('obras_contratistas').select('id, razon_social').eq('tenant_id', tenant!.id).eq('estado', 'activo').order('razon_social'),
     ]);
     setItems(cartasRes.data || []);
-    setObras(obrasRes.data || []);
-    setContratistas(contRes.data || []);
+    setObras((obrasRes.data || []) as any);
+    setContratistas((contRes.data || []) as any);
     setLoading(false);
   };
 

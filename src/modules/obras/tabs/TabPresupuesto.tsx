@@ -100,8 +100,6 @@ export default function TabPresupuesto({ obraId }: { obraId: string }) {
   if (loading) return <div style={{ padding: 20, textAlign: 'center', color: 'var(--color-text-muted)' }}>Cargando presupuesto...</div>;
 
   const totalPres = items.reduce((s, i) => s + i.subtotal, 0);
-  // Avance global from last cert
-  const lastCert = certificados.find(c => c.estado !== 'borrador') || certificados[0];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>

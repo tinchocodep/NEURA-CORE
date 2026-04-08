@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../contexts/TenantContext';
 import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
-import { Truck, Plus, Search, Pencil, Trash2, X, Check, ChevronLeft, ChevronRight, Package } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, X, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import StyledSelect from '../../shared/components/StyledSelect';
 import type { MaterialPedido, EstadoPedido, ObraFicha, MaterialPedidoItem } from './types';
 import { ESTADO_PEDIDO_COLOR, ESTADO_PEDIDO_LABEL } from './types';
@@ -17,7 +17,7 @@ const EMPTY_ITEM: Partial<MaterialPedidoItem> = { material: '', cantidad: 0, uni
 export default function ObrasMateriales() {
   const { tenant } = useTenant();
   const [items, setItems] = useState<MaterialPedido[]>([]);
-  const [obras, setObras] = useState<ObraFicha[]>([]);
+  const [obras, setObras] = useState<Pick<ObraFicha, 'id' | 'nombre'>[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Partial<MaterialPedido>>(EMPTY);
@@ -39,7 +39,7 @@ export default function ObrasMateriales() {
       supabase.from('obras_fichas').select('id, nombre').eq('tenant_id', tenant!.id).eq('estado', 'activa').order('nombre'),
     ]);
     setItems(pedRes.data || []);
-    setObras(obrasRes.data || []);
+    setObras((obrasRes.data || []) as any);
     setLoading(false);
   };
 
