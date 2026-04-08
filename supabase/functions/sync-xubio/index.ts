@@ -160,164 +160,129 @@ serve(async (req: Request) => {
         .eq("id", config.id);
     }
 
-    // Armar lookups de clientes y proveedores (xubio_id → uuid)
+    // Armar lookups de clientes y proveedores (xubio_id → {uuid, cuit})
     const { data: clientes } = await supabase
       .from("contable_clientes")
-      .select("id, xubio_id")
+      .select("id, xubio_id, cuit")
       .eq("tenant_id", tenantId)
       .not("xubio_id", "is", null);
-    const clienteMap = new Map<string, string>();
-    clientes?.forEach((c: { id: string; xubio_id: string }) =>
-      clienteMap.set(String(c.xubio_id), c.id)
+    const clienteMap = new Map<string, { id: string; cuit: string | null }>();
+    clientes?.forEach((c: { id: string; xubio_id: string; cuit: string | null }) =>
+      clienteMap.set(String(c.xubio_id), { id: c.id, cuit: c.cuit })
     );
 
     const { data: proveedores } = await supabase
       .from("contable_proveedores")
-      .select("id, xubio_id")
+      .select("id, xubio_id, cuit")
       .eq("tenant_id", tenantId)
       .not("xubio_id", "is", null);
-    const proveedorMap = new Map<string, string>();
-    proveedores?.forEach((p: { id: string; xubio_id: string }) =>
-      proveedorMap.set(String(p.xubio_id), p.id)
+    const proveedorMap = new Map<string, { id: string; cuit: string | null }>();
+    proveedores?.forEach((p: { id: string; xubio_id: string; cuit: string | null }) =>
+      proveedorMap.set(String(p.xubio_id), { id: p.id, cuit: p.cuit })
     );
 
     let imported = 0;
     let updated = 0;
     let failed = 0;
     const errors: string[] = [];
+    const now = new Date().toISOString();
 
-    // --- Comprobantes de Venta ---
-    try {
-      let endpoint = "comprobanteVentaBean";
+    // Helper: armar query params de fecha
+    function buildEndpoint(base: string): string {
       const params: string[] = [];
       if (fechaDesde) params.push(`fechaDesde=${fechaDesde}`);
       if (fechaHasta) params.push(`fechaHasta=${fechaHasta}`);
-      if (params.length) endpoint += `?${params.join("&")}`;
-
-      const ventas = await xubioApiRequest<any[]>(endpoint, accessToken!);
-      const ventasList = Array.isArray(ventas) ? ventas : [];
-
-      for (const cv of ventasList) {
-        const xubioId = String(cv.transaccionid || cv.comprobante || cv.numeroDocumento || "");
-        if (!xubioId) continue;
-
-        try {
-          const { data: existing } = await supabase
-            .from("contable_comprobantes")
-            .select("id")
-            .eq("tenant_id", tenantId)
-            .eq("xubio_id", xubioId)
-            .maybeSingle();
-
-          const tipoNombre = mapTipoComprobante(cv.tipo, true);
-          const letra = cv.nombre?.match(/[ABC]/)?.[0] || "";
-          const tipoComprobante = letra ? `${tipoNombre} ${letra}` : tipoNombre;
-
-          const clienteXubioId = cv.cliente?.ID || cv.cliente?.id;
-          const clienteUuid = clienteXubioId ? clienteMap.get(String(clienteXubioId)) : null;
-
-          const compData: Record<string, unknown> = {
-            tenant_id: tenantId,
-            tipo: "venta",
-            tipo_comprobante: tipoComprobante,
-            fecha: cv.fecha,
-            numero_comprobante: cv.numeroDocumento || null,
-            cliente_id: clienteUuid || null,
-            moneda: "ARS",
-            monto_original: cv.importetotal || 0,
-            monto_ars: cv.importetotal || 0,
-            neto_gravado: cv.importeGravado || 0,
-            total_iva: cv.importeImpuestos || 0,
-            estado: "aprobado",
-            source: "xubio",
-            xubio_id: xubioId,
-            xubio_synced_at: new Date().toISOString(),
-            descripcion: cv.descripcion || null,
-          };
-          if (cv.fechaVto) compData.fecha_vencimiento = cv.fechaVto;
-          if (cv.cotizacion && cv.cotizacion !== 1) compData.tipo_cambio = cv.cotizacion;
-
-          if (existing) {
-            await supabase.from("contable_comprobantes").update(compData).eq("id", existing.id);
-            updated++;
-          } else {
-            await supabase.from("contable_comprobantes").insert(compData);
-            imported++;
-          }
-        } catch (err) {
-          failed++;
-          errors.push(`Venta ${cv.numeroDocumento || xubioId}: ${(err as Error).message}`);
-        }
-      }
-    } catch (err) {
-      errors.push(`Error descargando ventas: ${(err as Error).message}`);
+      return params.length ? `${base}?${params.join("&")}` : base;
     }
 
-    // --- Comprobantes de Compra ---
-    try {
-      let endpoint = "comprobanteCompraBean";
-      const params: string[] = [];
-      if (fechaDesde) params.push(`fechaDesde=${fechaDesde}`);
-      if (fechaHasta) params.push(`fechaHasta=${fechaHasta}`);
-      if (params.length) endpoint += `?${params.join("&")}`;
+    // Helper: mapear comprobante a row de DB
+    function mapComprobante(c: any, tipo: "venta" | "compra"): Record<string, unknown> | null {
+      const xubioId = String(c.transaccionid || c.comprobante || c.numeroDocumento || "");
+      if (!xubioId) return null;
 
-      const compras = await xubioApiRequest<any[]>(endpoint, accessToken!);
-      const comprasList = Array.isArray(compras) ? compras : [];
+      const esVenta = tipo === "venta";
+      const tipoNombre = mapTipoComprobante(c.tipo, esVenta);
+      const letra = c.nombre?.match(/[ABC]/)?.[0] || "";
+      const tipoComprobante = letra ? `${tipoNombre} ${letra}` : tipoNombre;
 
-      for (const cc of comprasList) {
-        const xubioId = String(cc.transaccionid || cc.comprobante || cc.numeroDocumento || "");
-        if (!xubioId) continue;
+      let entityUuid: string | null = null;
+      let entityCuit: string | null = null;
+      if (esVenta) {
+        const clienteXubioId = c.cliente?.ID || c.cliente?.id;
+        const clienteData = clienteXubioId ? clienteMap.get(String(clienteXubioId)) : null;
+        entityUuid = clienteData?.id || null;
+        entityCuit = clienteData?.cuit || null;
+      } else {
+        const provXubioId = c.proveedor?.ID || c.proveedor?.id;
+        const provData = provXubioId ? proveedorMap.get(String(provXubioId)) : null;
+        entityUuid = provData?.id || null;
+        entityCuit = provData?.cuit || null;
+      }
 
-        try {
-          const { data: existing } = await supabase
-            .from("contable_comprobantes")
-            .select("id")
-            .eq("tenant_id", tenantId)
-            .eq("xubio_id", xubioId)
-            .maybeSingle();
+      const row: Record<string, unknown> = {
+        tenant_id: tenantId,
+        tipo,
+        tipo_comprobante: tipoComprobante,
+        fecha: c.fecha,
+        numero_comprobante: c.numeroDocumento || null,
+        ...(esVenta
+          ? { cliente_id: entityUuid, cuit_receptor: entityCuit }
+          : { proveedor_id: entityUuid, cuit_emisor: entityCuit }),
+        moneda: "ARS",
+        monto_original: c.importetotal || 0,
+        monto_ars: c.importetotal || 0,
+        neto_gravado: c.importeGravado || 0,
+        total_iva: c.importeImpuestos || 0,
+        estado: "aprobado",
+        source: "xubio",
+        xubio_id: xubioId,
+        xubio_synced_at: now,
+        descripcion: c.descripcion || null,
+      };
+      if (c.fechaVto) row.fecha_vencimiento = c.fechaVto;
+      if (c.cotizacion && c.cotizacion !== 1) row.tipo_cambio = c.cotizacion;
+      return row;
+    }
 
-          const tipoNombre = mapTipoComprobante(cc.tipo, false);
-          const letra = cc.nombre?.match(/[ABC]/)?.[0] || "";
-          const tipoComprobante = letra ? `${tipoNombre} ${letra}` : tipoNombre;
-
-          const provXubioId = cc.proveedor?.ID || cc.proveedor?.id;
-          const provUuid = provXubioId ? proveedorMap.get(String(provXubioId)) : null;
-
-          const compData: Record<string, unknown> = {
-            tenant_id: tenantId,
-            tipo: "compra",
-            tipo_comprobante: tipoComprobante,
-            fecha: cc.fecha,
-            numero_comprobante: cc.numeroDocumento || null,
-            proveedor_id: provUuid || null,
-            moneda: "ARS",
-            monto_original: cc.importetotal || 0,
-            monto_ars: cc.importetotal || 0,
-            neto_gravado: cc.importeGravado || 0,
-            total_iva: cc.importeImpuestos || 0,
-            estado: "aprobado",
-            source: "xubio",
-            xubio_id: xubioId,
-            xubio_synced_at: new Date().toISOString(),
-            descripcion: cc.descripcion || null,
-          };
-          if (cc.fechaVto) compData.fecha_vencimiento = cc.fechaVto;
-          if (cc.cotizacion && cc.cotizacion !== 1) compData.tipo_cambio = cc.cotizacion;
-
-          if (existing) {
-            await supabase.from("contable_comprobantes").update(compData).eq("id", existing.id);
-            updated++;
-          } else {
-            await supabase.from("contable_comprobantes").insert(compData);
-            imported++;
-          }
-        } catch (err) {
-          failed++;
-          errors.push(`Compra ${cc.numeroDocumento || xubioId}: ${(err as Error).message}`);
+    // Helper: upsert en batches de hasta 200 registros
+    async function upsertBatch(rows: Record<string, unknown>[], label: string) {
+      const BATCH_SIZE = 200;
+      for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+        const batch = rows.slice(i, i + BATCH_SIZE);
+        const { error, count } = await supabase
+          .from("contable_comprobantes")
+          .upsert(batch, { onConflict: "tenant_id,xubio_id", count: "exact" });
+        if (error) {
+          failed += batch.length;
+          errors.push(`${label} batch ${i}-${i + batch.length}: ${error.message}`);
+        } else {
+          imported += count || batch.length;
         }
       }
-    } catch (err) {
-      errors.push(`Error descargando compras: ${(err as Error).message}`);
+    }
+
+    // --- Fetch ventas y compras en paralelo ---
+    const [ventasResult, comprasResult] = await Promise.allSettled([
+      xubioApiRequest<any[]>(buildEndpoint("comprobanteVentaBean"), accessToken!),
+      xubioApiRequest<any[]>(buildEndpoint("comprobanteCompraBean"), accessToken!),
+    ]);
+
+    // --- Procesar Ventas ---
+    if (ventasResult.status === "fulfilled") {
+      const ventasList = Array.isArray(ventasResult.value) ? ventasResult.value : [];
+      const rows = ventasList.map((c) => mapComprobante(c, "venta")).filter(Boolean) as Record<string, unknown>[];
+      if (rows.length) await upsertBatch(rows, "Ventas");
+    } else {
+      errors.push(`Error descargando ventas: ${ventasResult.reason?.message || "Unknown"}`);
+    }
+
+    // --- Procesar Compras ---
+    if (comprasResult.status === "fulfilled") {
+      const comprasList = Array.isArray(comprasResult.value) ? comprasResult.value : [];
+      const rows = comprasList.map((c) => mapComprobante(c, "compra")).filter(Boolean) as Record<string, unknown>[];
+      if (rows.length) await upsertBatch(rows, "Compras");
+    } else {
+      errors.push(`Error descargando compras: ${comprasResult.reason?.message || "Unknown"}`);
     }
 
     // Actualizar sync_run
