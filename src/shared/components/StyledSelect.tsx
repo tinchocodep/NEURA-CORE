@@ -23,6 +23,18 @@ interface ParsedOption {
   disabled?: boolean;
 }
 
+// Extracts a string label from arbitrary React children (string, number, array, or React element).
+function nodeToText(node: React.ReactNode): string {
+  if (node == null || node === false) return '';
+  if (typeof node === 'string') return node;
+  if (typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(nodeToText).join('');
+  if (typeof node === 'object' && 'props' in (node as any)) {
+    return nodeToText((node as any).props?.children);
+  }
+  return '';
+}
+
 function parseOptions(children: React.ReactNode): ParsedOption[] {
   const opts: ParsedOption[] = [];
   const flatten = (nodes: React.ReactNode) => {
@@ -31,9 +43,10 @@ function parseOptions(children: React.ReactNode): ParsedOption[] {
     arr.forEach((child: any) => {
       if (!child) return;
       if (child.type === 'option') {
+        const label = nodeToText(child.props.children) || String(child.props.value ?? '');
         opts.push({
           value: child.props.value ?? child.props.children ?? '',
-          label: typeof child.props.children === 'string' ? child.props.children : String(child.props.value ?? ''),
+          label,
           disabled: child.props.disabled,
         });
       } else if (child.type === 'optgroup' && child.props.children) {

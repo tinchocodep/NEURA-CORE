@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../../lib/supabase';
 import { useTenant } from '../../../contexts/TenantContext';
@@ -6,6 +6,9 @@ import { useToast } from '../../../contexts/ToastContext';
 import { Plus, Search, Check } from 'lucide-react';
 import ProjectSearch from './ProjectSearch';
 import StyledSelect from '../../../shared/components/StyledSelect';
+
+interface TreasuryProject { id: string; name: string; is_global: boolean | null; }
+interface CategoriaJerarquica { id: string; nombre: string; color: string; tipo: string; parent_id: string | null; orden: number | null; }
 
 // ── Searchable expense-category picker ──────────────────────────────────────
 function ExpenseCategorySearch({ categories, selectedId, onSelect, tenant, onCreated }: {
@@ -141,9 +144,55 @@ export default function TransactionForm({
 }) {
     const { tenant } = useTenant();
     const { addToast } = useToast();
+    const esConstructora = tenant?.rubro === 'constructora';
+
+    // Solo constructora
+    const [proyectos, setProyectos] = useState<TreasuryProject[]>([]);
+    const [catContables, setCatContables] = useState<CategoriaJerarquica[]>([]);
+    const [proyectoIdSel, setProyectoIdSel] = useState('');
+    const [categoriaContableIdSel, setCategoriaContableIdSel] = useState('');
+
+    useEffect(() => {
+        if (!tenant || !esConstructora) return;
+        Promise.all([
+            supabase.from('treasury_projects').select('id, name, is_global').eq('tenant_id', tenant.id).order('is_global', { ascending: false }).order('name'),
+            supabase.from('contable_categorias').select('id, nombre, color, tipo, parent_id, orden').eq('tenant_id', tenant.id).order('orden'),
+        ]).then(([{ data: pp }, { data: cc }]) => {
+            const projs = (pp || []) as TreasuryProject[];
+            setProyectos(projs);
+            setCatContables((cc || []) as CategoriaJerarquica[]);
+            // Pre-seleccionar AFG CONST
+            const global = projs.find(p => p.is_global);
+            if (global && !proyectoIdSel) setProyectoIdSel(global.id);
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tenant, esConstructora]);
 
     // Type selection
     const [txType, setTxType] = useState<TransactionType>('expense');
+
+    // Árbol de plan de cuentas filtrado por tipo
+    const catContablesTree = useMemo(() => {
+        if (!esConstructora) return [];
+        const filtroTipo = txType === 'income' ? 'ingreso' : 'gasto';
+        const byParent = new Map<string | null, CategoriaJerarquica[]>();
+        for (const c of catContables) {
+            if (c.tipo !== filtroTipo) continue;
+            const k = c.parent_id;
+            if (!byParent.has(k)) byParent.set(k, []);
+            byParent.get(k)!.push(c);
+        }
+        const out: { cat: CategoriaJerarquica; nivel: number }[] = [];
+        function walk(parentId: string | null, nivel: number) {
+            const hijos = (byParent.get(parentId) || []).sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+            for (const h of hijos) {
+                out.push({ cat: h, nivel });
+                walk(h.id, nivel + 1);
+            }
+        }
+        walk(null, 0);
+        return out;
+    }, [catContables, esConstructora, txType]);
 
     // Common fields
     const [amount, setAmount] = useState('');
@@ -268,20 +317,36 @@ export default function TransactionForm({
 
         // ── EGRESO ──
         if (txType === 'expense') {
-            if (!categoryId) {
+            if (esConstructora) {
+                if (!categoriaContableIdSel) {
+                    addToast('error', 'Error', 'Seleccioná una categoría del plan de cuentas');
+                    setLoading(false);
+                    return;
+                }
+            } else if (!categoryId) {
                 addToast('error', 'Error', 'Seleccioná una categoría de egreso');
                 setLoading(false);
                 return;
             }
-            const { error } = await supabase.from('treasury_transactions').insert({
-                tenant_id: tenant.id, account_id: accountId, category_id: categoryId,
+            const insertPayload: any = {
+                tenant_id: tenant.id, account_id: accountId,
                 type: 'expense', amount: amountValue, description, date: effectiveDate,
                 contact_name: contactName || null, payment_method: paymentMethod,
-                status: effectiveStatus, project_name: projectName || null,
+                status: effectiveStatus,
                 invoice_number: invoiceNumber || null,
                 check_date: isCheque ? checkDate || null : null,
                 check_number: isCheque ? checkNumber || null : null,
-            });
+            };
+            if (esConstructora) {
+                insertPayload.category_id = null;
+                insertPayload.categoria_contable_id = categoriaContableIdSel;
+                insertPayload.proyecto_id = proyectoIdSel || null;
+                insertPayload.project_name = proyectoIdSel ? (proyectos.find(p => p.id === proyectoIdSel)?.name || null) : null;
+            } else {
+                insertPayload.category_id = categoryId;
+                insertPayload.project_name = projectName || null;
+            }
+            const { error } = await supabase.from('treasury_transactions').insert(insertPayload);
             if (!error) {
                 const account = accounts.find(a => a.id === accountId);
                 if (account) await supabase.from('treasury_accounts').update({ balance: account.balance - amountValue }).eq('id', account.id);
@@ -289,27 +354,44 @@ export default function TransactionForm({
                 setAmount(''); setDescription(''); setCategoryId('');
                 setContactName(''); setProjectName(''); setInvoiceNumber(''); setStatus('completado');
                 setCheckDate(''); setCheckNumber('');
+                setCategoriaContableIdSel('');
+                // proyectoIdSel queda en AFG CONST por default
                 onSuccess();
             } else { addToast('error', 'Error', error.message); }
         }
 
         // ── INGRESO ──
         if (txType === 'income') {
-            const finalCategoryId = incomeCategoryId;
-            if (!finalCategoryId) {
+            if (esConstructora) {
+                if (!categoriaContableIdSel) {
+                    addToast('error', 'Error', 'Seleccioná una categoría del plan de cuentas');
+                    setLoading(false);
+                    return;
+                }
+            } else if (!incomeCategoryId) {
                 addToast('error', 'Error', 'Seleccioná o creá una categoría de ingreso');
                 setLoading(false);
                 return;
             }
-            const { error } = await supabase.from('treasury_transactions').insert({
-                tenant_id: tenant.id, account_id: accountId, category_id: finalCategoryId,
+            const insertPayload: any = {
+                tenant_id: tenant.id, account_id: accountId,
                 type: 'income', amount: amountValue, description, date: effectiveDate,
                 contact_name: contactName || null, payment_method: paymentMethod,
-                status: effectiveStatus, project_name: projectName || null,
+                status: effectiveStatus,
                 invoice_number: invoiceNumber || null,
                 check_date: isCheque ? checkDate || null : null,
                 check_number: isCheque ? checkNumber || null : null,
-            });
+            };
+            if (esConstructora) {
+                insertPayload.category_id = null;
+                insertPayload.categoria_contable_id = categoriaContableIdSel;
+                insertPayload.proyecto_id = proyectoIdSel || null;
+                insertPayload.project_name = proyectoIdSel ? (proyectos.find(p => p.id === proyectoIdSel)?.name || null) : null;
+            } else {
+                insertPayload.category_id = incomeCategoryId;
+                insertPayload.project_name = projectName || null;
+            }
+            const { error } = await supabase.from('treasury_transactions').insert(insertPayload);
             if (!error) {
                 const account = accounts.find(a => a.id === accountId);
                 if (account) await supabase.from('treasury_accounts').update({ balance: account.balance + amountValue }).eq('id', account.id);
@@ -317,6 +399,7 @@ export default function TransactionForm({
                 setAmount(''); setDescription(''); setIncomeCategoryId('');
                 setContactName(''); setProjectName(''); setInvoiceNumber(''); setStatus('completado');
                 setCheckDate(''); setCheckNumber('');
+                setCategoriaContableIdSel('');
                 onSuccess();
             } else { addToast('error', 'Error', error.message); }
         }
@@ -415,8 +498,8 @@ export default function TransactionForm({
                     </div>
                 )}
 
-                {/* ══ EGRESO: Buscador de categorías ══ */}
-                {txType === 'expense' && (
+                {/* ══ EGRESO: Buscador de categorías (no constructora) ══ */}
+                {txType === 'expense' && !esConstructora && (
                     <div className="form-group" style={{ gridColumn: '1 / -1', position: 'relative' }}>
                         <label className="form-label">Categoría de egreso</label>
                         <ExpenseCategorySearch
@@ -431,8 +514,23 @@ export default function TransactionForm({
                     </div>
                 )}
 
-                {/* ══ INGRESO: Seleccionar o crear categoría ══ */}
-                {txType === 'income' && (
+                {/* ══ EGRESO/INGRESO constructora: Plan de cuentas (árbol) ══ */}
+                {esConstructora && txType !== 'transfer' && (
+                    <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                        <label className="form-label">Categoría / Subcategoría (Plan de cuentas)</label>
+                        <StyledSelect className="form-input" value={categoriaContableIdSel} onChange={e => setCategoriaContableIdSel(e.target.value)} required>
+                            <option value="">Seleccionar...</option>
+                            {catContablesTree.map(({ cat, nivel }) => (
+                                <option key={cat.id} value={cat.id}>
+                                    {'\u00A0\u00A0'.repeat(nivel)}{nivel > 0 ? '└ ' : ''}{cat.nombre}
+                                </option>
+                            ))}
+                        </StyledSelect>
+                    </div>
+                )}
+
+                {/* ══ INGRESO: Seleccionar o crear categoría (no constructora) ══ */}
+                {txType === 'income' && !esConstructora && (
                     <motion.div style={{ gridColumn: '1 / -1' }}
                         initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                         transition={{ duration: 0.2, ease: 'easeOut' }}
@@ -562,12 +660,27 @@ export default function TransactionForm({
                         )}
 
                         <div className="form-group">
-                            <label className="form-label">Obra / Proyecto (Opcional)</label>
-                            <ProjectSearch
-                                value={projectName}
-                                onChange={setProjectName}
-                                tenant={tenant}
-                            />
+                            <label className="form-label">{esConstructora ? 'Centro de Costo (Obra)' : 'Obra / Proyecto (Opcional)'}</label>
+                            {esConstructora ? (
+                                <>
+                                    <StyledSelect className="form-input" value={proyectoIdSel} onChange={e => setProyectoIdSel(e.target.value)}>
+                                        {proyectos.map(p => (
+                                            <option key={p.id} value={p.id}>
+                                                {p.is_global ? '★ ' : ''}{p.name}
+                                            </option>
+                                        ))}
+                                    </StyledSelect>
+                                    <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
+                                        Si no sabés a qué obra va, dejalo en AFG CONSTRUCTORA. Después podés prorratearlo.
+                                    </p>
+                                </>
+                            ) : (
+                                <ProjectSearch
+                                    value={projectName}
+                                    onChange={setProjectName}
+                                    tenant={tenant}
+                                />
+                            )}
                         </div>
 
                         <div className="form-group">

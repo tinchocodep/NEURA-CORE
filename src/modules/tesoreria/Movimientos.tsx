@@ -2,10 +2,13 @@ import { useState, useEffect, useMemo } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { Pencil, LayoutList, CalendarDays, ChevronLeft, ChevronRight, Search, Plus, ArrowUpRight, ArrowDownRight, X, Check } from 'lucide-react';
+import { Pencil, LayoutList, CalendarDays, ChevronLeft, ChevronRight, Search, Plus, ArrowUpRight, ArrowDownRight, X, Check, Building2 } from 'lucide-react';
 import EditTransactionModal from './components/EditTransactionModal';
 import CustomSelect from '../../shared/components/CustomSelect';
 import StyledSelect from '../../shared/components/StyledSelect';
+
+interface TreasuryProject { id: string; name: string; is_global: boolean | null; status: string | null; }
+interface CategoriaJerarquica { id: string; nombre: string; color: string; tipo: string; parent_id: string | null; orden: number | null; }
 
 const fmt = (n: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n);
 
@@ -36,6 +39,13 @@ export default function Movimientos() {
     const [newAccName, setNewAccName] = useState('');
     const [newAccType, setNewAccType] = useState('bank');
 
+    // Solo para constructora
+    const esConstructora = tenant?.rubro === 'constructora';
+    const [proyectos, setProyectos] = useState<TreasuryProject[]>([]);
+    const [catContables, setCatContables] = useState<CategoriaJerarquica[]>([]);
+    const [formProyectoId, setFormProyectoId] = useState('');
+    const [formCategoriaContableId, setFormCategoriaContableId] = useState('');
+
     const createAccount = async () => {
         if (!newAccName.trim()) return;
         const { data } = await supabase.from('treasury_accounts').insert({
@@ -53,13 +63,21 @@ export default function Movimientos() {
         if (!tenant) return;
         setLoading(true);
         const isBasic = role === 'basic';
-        const [txRes, accRes, catRes] = await Promise.all([
+        const baseQueries: Promise<any>[] = [
             supabase.from('treasury_transactions').select('*, treasury_categories(*), treasury_accounts(*)').eq('tenant_id', tenant.id).order('date', { ascending: false }).limit(200),
             isBasic ? supabase.from('treasury_accounts').select('*').eq('tenant_id', tenant.id).eq('assigned_user_id', user?.id).order('name')
                 : supabase.from('treasury_accounts').select('*').eq('tenant_id', tenant.id).order('name'),
             isBasic ? supabase.from('treasury_categories').select('*').eq('tenant_id', tenant.id).eq('group', 'Caja Chica').order('name')
                 : supabase.from('treasury_categories').select('*').eq('tenant_id', tenant.id).order('name'),
-        ]);
+        ];
+        if (esConstructora) {
+            baseQueries.push(
+                supabase.from('treasury_projects').select('id, name, is_global, status').eq('tenant_id', tenant.id).order('is_global', { ascending: false }).order('name'),
+                supabase.from('contable_categorias').select('id, nombre, color, tipo, parent_id, orden').eq('tenant_id', tenant.id).order('orden')
+            );
+        }
+        const results = await Promise.all(baseQueries);
+        const [txRes, accRes, catRes] = results;
         if (txRes.data) {
             if (isBasic && accRes.data?.length) {
                 const assignedId = accRes.data[0].id;
@@ -68,10 +86,45 @@ export default function Movimientos() {
         }
         if (accRes.data) setAccounts(accRes.data);
         if (catRes.data) setCategories(catRes.data);
+        if (esConstructora) {
+            setProyectos((results[3]?.data || []) as TreasuryProject[]);
+            setCatContables((results[4]?.data || []) as CategoriaJerarquica[]);
+        }
         setLoading(false);
     };
 
     useEffect(() => { fetchData(); }, [tenant]);
+
+    // Árbol jerárquico para constructora
+    const catContablesTree = useMemo(() => {
+        if (!esConstructora) return [];
+        const filtroTipo = formType === 'income' ? 'ingreso' : 'gasto';
+        const byParent = new Map<string | null, CategoriaJerarquica[]>();
+        for (const c of catContables) {
+            if (c.tipo !== filtroTipo) continue;
+            const k = c.parent_id;
+            if (!byParent.has(k)) byParent.set(k, []);
+            byParent.get(k)!.push(c);
+        }
+        const out: { cat: CategoriaJerarquica; nivel: number }[] = [];
+        function walk(parentId: string | null, nivel: number) {
+            const hijos = (byParent.get(parentId) || []).sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+            for (const h of hijos) {
+                out.push({ cat: h, nivel });
+                walk(h.id, nivel + 1);
+            }
+        }
+        walk(null, 0);
+        return out;
+    }, [catContables, esConstructora, formType]);
+
+    // Pre-seleccionar AFG CONST por default cuando se abre el form en constructora
+    useEffect(() => {
+        if (esConstructora && showForm && !formProyectoId && proyectos.length > 0) {
+            const global = proyectos.find(p => p.is_global);
+            if (global) setFormProyectoId(global.id);
+        }
+    }, [esConstructora, showForm, proyectos, formProyectoId]);
 
     const filtered = transactions.filter(tx => {
         if (statusFilter && tx.status !== statusFilter) return false;
@@ -287,13 +340,32 @@ export default function Movimientos() {
 
             const handleSave = async () => {
                 if (!formAccount || !formAmount || !formDesc.trim()) return;
-                await supabase.from('treasury_transactions').insert({
-                    tenant_id: tenant!.id, account_id: formAccount, category_id: formCategory || null,
-                    date: formDate, type: formType, amount: formAmount,
-                    description: formDesc.trim(), status: 'completado',
-                    payment_method: formMethod, contact_name: formContact || null,
-                });
-                setShowForm(false); fetchData();
+                const payload: any = {
+                    tenant_id: tenant!.id,
+                    account_id: formAccount,
+                    date: formDate,
+                    type: formType,
+                    amount: formAmount,
+                    description: formDesc.trim(),
+                    status: 'completado',
+                    payment_method: formMethod,
+                    contact_name: formContact || null,
+                };
+                if (esConstructora) {
+                    // Para constructora: usar plan de cuentas y treasury_projects
+                    payload.category_id = null; // ya no usamos caja chica
+                    payload.categoria_contable_id = formCategoriaContableId || null;
+                    payload.proyecto_id = formProyectoId || null;
+                } else {
+                    payload.category_id = formCategory || null;
+                }
+                await supabase.from('treasury_transactions').insert(payload);
+                // Reset
+                setFormProyectoId('');
+                setFormCategoriaContableId('');
+                setFormCategory('');
+                setShowForm(false);
+                fetchData();
             };
 
             return (
@@ -380,7 +452,7 @@ export default function Movimientos() {
                         {formStep === 1 && (<>
                             <div className="wizard-field">
                                 <label className="form-label">Concepto *</label>
-                                <input className="form-input" value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Ej: Cobro alquiler Av. Santa Fe" />
+                                <input className="form-input" value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder={esConstructora ? 'Ej: Compra de hormigón para columnas' : 'Ej: Cobro alquiler Av. Santa Fe'} />
                             </div>
                             <div className="wizard-row">
                                 <div className="wizard-field">
@@ -392,7 +464,41 @@ export default function Movimientos() {
                                     <input className="form-input" value={formContact} onChange={e => setFormContact(e.target.value)} placeholder="Nombre del contacto" />
                                 </div>
                             </div>
-                            {filteredCats.length > 0 && (
+
+                            {/* ── Constructora: Centro de Costo (obra) + Plan de cuentas ── */}
+                            {esConstructora && (
+                                <>
+                                    <div className="wizard-field">
+                                        <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                            <Building2 size={13} /> Centro de Costos
+                                        </label>
+                                        <StyledSelect className="form-input" value={formProyectoId} onChange={e => setFormProyectoId(e.target.value)}>
+                                            {proyectos.map(p => (
+                                                <option key={p.id} value={p.id}>
+                                                    {p.is_global ? '★ ' : ''}{p.name}
+                                                </option>
+                                            ))}
+                                        </StyledSelect>
+                                        <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>
+                                            Si no sabés a qué obra va, dejalo en AFG CONSTRUCTORA. Después podés prorratearlo entre varias obras.
+                                        </span>
+                                    </div>
+                                    <div className="wizard-field">
+                                        <label className="form-label">Categoría / Subcategoría</label>
+                                        <StyledSelect className="form-input" value={formCategoriaContableId} onChange={e => setFormCategoriaContableId(e.target.value)}>
+                                            <option value="">Sin categoría</option>
+                                            {catContablesTree.map(({ cat, nivel }) => (
+                                                <option key={cat.id} value={cat.id}>
+                                                    {'\u00A0\u00A0'.repeat(nivel)}{nivel > 0 ? '└ ' : ''}{cat.nombre}
+                                                </option>
+                                            ))}
+                                        </StyledSelect>
+                                    </div>
+                                </>
+                            )}
+
+                            {/* ── Resto de tenants: dropdown de caja chica original ── */}
+                            {!esConstructora && filteredCats.length > 0 && (
                                 <div className="wizard-field">
                                     <label className="form-label">Categoría</label>
                                     <CustomSelect

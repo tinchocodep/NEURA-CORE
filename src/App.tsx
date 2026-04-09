@@ -16,6 +16,7 @@ import Monitor from './modules/tesoreria/Monitor';
 import Equipo from './modules/tesoreria/Equipo';
 import ProyeccionesTesoreria from './modules/tesoreria/Proyecciones';
 import CentroCostos from './modules/tesoreria/CentroCostos';
+import CentroCostosCons from './modules/construccion/CentroCostosCons';
 import SuperAdminDashboard from './modules/superadmin/Dashboard';
 import ContableDashboard from './modules/contable/Dashboard';
 
@@ -98,6 +99,12 @@ function TesoreriaIndexRoute() {
   if (role === 'admin' || role === 'superadmin') return <TesoreriaDashboard />;
   return <Navigate to="/tesoreria/movimientos" replace />;
 }
+
+function CentroCostosByRubro() {
+  const { tenant } = useTenant();
+  if (tenant?.rubro === 'constructora') return <CentroCostosCons />;
+  return <CentroCostos />;
+}
 export default function App() {
   return (
     <ThemeProvider>
@@ -130,7 +137,7 @@ export default function App() {
               <Route path="equipo" element={<Equipo />} />
               <Route path="monitor" element={<Monitor />} />
               <Route path="proyecciones" element={<ProyeccionesTesoreria />} />
-              <Route path="centro-costos" element={<CentroCostos />} />
+              <Route path="centro-costos" element={<CentroCostosByRubro />} />
             </Route>
             {/* Modulo Contable */}
             <Route path="contable">
