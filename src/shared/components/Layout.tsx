@@ -5,7 +5,7 @@ import {
     Briefcase, Users, BookOpen, Tag, Building2, Settings, ClipboardList,
     Receipt, TrendingUp, HardHat,
     Columns3, Contact, BarChart3, Car,
-    Home, FileSignature, Wallet, CalendarClock, UserPlus, Banknote, Plug, GitCompare
+    Home, FileSignature, Wallet, CalendarClock, Banknote, Plug, GitCompare
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
@@ -254,51 +254,46 @@ export default function Layout() {
             ? ''
             : (isCRM ? 'CRM' : isTesoreria ? 'Tesorería' : (isContable && !isConfiguracion) ? 'Contable' : isComercial ? 'Comercial' : '');
 
-    // Mobile items — NO finanzas, proveedores goes to /inmobiliaria/proveedores
+    // Mobile items — NO finanzas
     const mobileOperacionesItems = [
         { name: 'Propiedades', path: '/inmobiliaria/propiedades', icon: Home },
         { name: 'Contratos', path: '/inmobiliaria/contratos', icon: FileSignature },
-        { name: 'Órdenes', path: '/inmobiliaria/ordenes', icon: ClipboardList },
-        { name: 'Liquidaciones', path: '/inmobiliaria/liquidaciones', icon: Wallet },
         { name: 'Proveedores', path: '/inmobiliaria/proveedores', icon: Building2 },
+        { name: 'Clientes', path: '/contable/clientes', icon: Users },
+        { name: 'Órdenes', path: '/inmobiliaria/ordenes', icon: ClipboardList },
     ];
     const mobileGestionItems = [
         { name: 'Cuentas', path: '/inmobiliaria/cuentas', icon: Receipt },
         { name: 'Expensas', path: '/inmobiliaria/expensas', icon: Banknote },
         { name: 'Servicios', path: '/inmobiliaria/servicios', icon: Plug },
-        ...(hasModuleAccess('crm') ? [
-            { name: 'Contactos', path: '/crm/contactos', icon: UserPlus },
-        ] : []),
-        { name: 'Comprobantes', path: '/inmobiliaria/facturar', icon: Receipt },
+        { name: 'Liquidaciones', path: '/inmobiliaria/liquidaciones', icon: Wallet },
+        { name: 'Comprobantes', path: '/contable/comprobantes', icon: FileText },
     ];
 
-    // Desktop items
+    // Desktop items — orden fijo para Gestor según pedido del cliente
     const operacionesItems = [
         { name: 'Propiedades', path: '/inmobiliaria/propiedades', icon: Home },
         { name: 'Contratos', path: '/inmobiliaria/contratos', icon: FileSignature },
-        { name: 'Órdenes', path: '/inmobiliaria/ordenes', icon: ClipboardList },
-        { name: 'Liquidaciones', path: '/inmobiliaria/liquidaciones', icon: Wallet },
         { name: 'Proveedores', path: '/inmobiliaria/proveedores', icon: Building2 },
+        { name: 'Clientes', path: '/contable/clientes', icon: Users },
+        { name: 'Órdenes', path: '/inmobiliaria/ordenes', icon: ClipboardList },
     ];
     const gestionItems = [
         { name: 'Cuentas', path: '/inmobiliaria/cuentas', icon: Receipt },
         { name: 'Expensas', path: '/inmobiliaria/expensas', icon: Banknote },
         { name: 'Servicios', path: '/inmobiliaria/servicios', icon: Plug },
-        ...(hasModuleAccess('crm') ? [
-            { name: 'Contactos', path: '/crm/contactos', icon: UserPlus },
-        ] : []),
-        { name: 'Comprobantes', path: '/inmobiliaria/facturar', icon: Receipt },
+        { name: 'Liquidaciones', path: '/inmobiliaria/liquidaciones', icon: Wallet },
+        { name: 'Comprobantes', path: '/contable/comprobantes', icon: FileText },
     ];
-    // Finanzas subtab items (for when navigating within Tesorería/Contable advanced)
-    // Finanzas: flat list merging tesorería + contable items (excluding promoted ones)
+    // Finanzas: orden Cta Cte → Movimientos → Bancos → Concil. Bancaria → Concil. Cbtes → Facturación → OP
     const finanzasItems = [
-        ...(hasModuleAccess('tesoreria') ? tesoreriaItems.filter(i => i.path === '/tesoreria') : []),
-        ...(hasModuleAccess('tesoreria') ? tesoreriaItems.filter(i => i.path === '/tesoreria/ordenes-pago') : []),
-        ...(hasModuleAccess('tesoreria') ? tesoreriaItems.filter(i => i.path === '/tesoreria/movimientos') : []),
-        ...(hasModuleAccess('tesoreria') ? tesoreriaItems.filter(i => i.path === '/tesoreria/bancos') : []),
-        ...(hasModuleAccess('tesoreria') ? [{ name: 'Conciliación Bancaria', path: '/tesoreria/conciliacion-bancaria', icon: GitCompare }] : []),
-        ...(hasModuleAccess('contable') ? [{ name: 'Conciliación Comprobantes', path: '/contable/conciliacion-comprobantes', icon: GitCompare }] : []),
-        ...contableItems.filter(i => i.path === '/contable/catalogos'),
+        { name: 'Cta Cte', path: '/tesoreria', icon: LayoutDashboard },
+        { name: 'Movimientos', path: '/tesoreria/movimientos', icon: ArrowRightLeft },
+        { name: 'Bancos', path: '/tesoreria/bancos', icon: Landmark },
+        { name: 'Conciliación Bancaria', path: '/tesoreria/conciliacion-bancaria', icon: GitCompare },
+        { name: 'Conciliación Comprobantes', path: '/contable/conciliacion-comprobantes', icon: GitCompare },
+        { name: 'Facturación', path: '/inmobiliaria/facturar', icon: Receipt },
+        { name: 'Órdenes de Pago', path: '/tesoreria/ordenes-pago', icon: ClipboardList },
     ];
 
     const effectiveSectionItems = hasInmob
