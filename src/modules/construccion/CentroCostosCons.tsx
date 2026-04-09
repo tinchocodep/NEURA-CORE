@@ -303,7 +303,6 @@ export default function CentroCostosCons() {
             <>
                 <DetalleCentro
                     centro={centroDetalle}
-                    centros={centros}
                     gastos={gastos}
                     categorias={categorias}
                     periodo={periodo}
@@ -576,10 +575,9 @@ interface NodoArbol {
 }
 
 function DetalleCentro({
-    centro, centros, gastos, categorias, periodo, onBack, onChangePeriodo, onProrratear,
+    centro, gastos, categorias, periodo, onBack, onChangePeriodo, onProrratear,
 }: {
     centro: Centro;
-    centros: Centro[];
     gastos: Gasto[];
     categorias: Categoria[];
     periodo: string;

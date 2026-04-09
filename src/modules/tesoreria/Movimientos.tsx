@@ -63,7 +63,7 @@ export default function Movimientos() {
         if (!tenant) return;
         setLoading(true);
         const isBasic = role === 'basic';
-        const baseQueries: Promise<any>[] = [
+        const baseQueries: any[] = [
             supabase.from('treasury_transactions').select('*, treasury_categories(*), treasury_accounts(*)').eq('tenant_id', tenant.id).order('date', { ascending: false }).limit(200),
             isBasic ? supabase.from('treasury_accounts').select('*').eq('tenant_id', tenant.id).eq('assigned_user_id', user?.id).order('name')
                 : supabase.from('treasury_accounts').select('*').eq('tenant_id', tenant.id).order('name'),

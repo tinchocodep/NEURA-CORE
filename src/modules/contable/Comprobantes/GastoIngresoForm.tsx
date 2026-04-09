@@ -79,7 +79,7 @@ export default function GastoIngresoForm({ tipo, onSuccess }: Props) {
 
     useEffect(() => {
         if (!tenant) return;
-        const queries: Promise<any>[] = [
+        const queries: any[] = [
             supabase.from('contable_proveedores').select('id, razon_social, cuit, condicion_fiscal, producto_servicio_default_id').eq('tenant_id', tenant.id).eq('activo', true).order('razon_social'),
             supabase.from('contable_clientes').select('id, razon_social, cuit').eq('tenant_id', tenant.id).eq('activo', true).order('razon_social'),
             supabase.from('contable_productos_servicio').select('id, nombre, grupo').eq('tenant_id', tenant.id).eq('activo', true).order('nombre'),
