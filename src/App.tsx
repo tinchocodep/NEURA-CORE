@@ -73,11 +73,10 @@ import ObrasCartasOferta from './modules/obras/CartasOferta';
 import { useAuth } from './contexts/AuthContext';
 import { useTenant } from './contexts/TenantContext';
 
-/* Route-level component that picks Facturar based on rubro */
+/* Route-level component. Uses FacturarAgro (the full desktop form) for all
+   tenants. FacturarMobile remains available via /inmobiliaria/facturar for
+   the mobile-first wizard flow used from Home/shortcuts. */
 function FacturarRouter() {
-  const { tenant } = useTenant();
-  const rubro = (tenant as any)?.rubro || 'general';
-  if (rubro === 'inmobiliaria') return <FacturarMobile />;
   return <FacturarAgro />;
 }
 import { ThemeProvider } from './contexts/ThemeContext';

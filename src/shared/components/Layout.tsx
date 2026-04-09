@@ -239,11 +239,10 @@ export default function Layout() {
         || (hasInmob && location.pathname.startsWith('/contable/clientes'));
     const isMapa = location.pathname === '/inmobiliaria/mapa';
     const isGestion = (!isMapa && isInmobiliaria && !isOperaciones) ||
-        (hasInmob && isCRM && location.pathname.startsWith('/crm/contactos')) ||
-        (hasInmob && location.pathname.startsWith('/contable/comprobantes'));
+        (hasInmob && isCRM && location.pathname.startsWith('/crm/contactos'));
     const isFinanzas = hasInmob && !isOperaciones && !isGestion && (
         isTesoreria ||
-        ((isContable && !isConfiguracion) && !location.pathname.startsWith('/contable/proveedores') && !location.pathname.startsWith('/contable/comprobantes') && !location.pathname.startsWith('/contable/clientes')) ||
+        ((isContable && !isConfiguracion) && !location.pathname.startsWith('/contable/proveedores') && !location.pathname.startsWith('/contable/clientes')) ||
         (isCRM && !location.pathname.startsWith('/crm/contactos'))
     );
     const isMobileGestion = isMobile && isGestion;
@@ -269,7 +268,7 @@ export default function Layout() {
         { name: 'Expensas', path: '/inmobiliaria/expensas', icon: Banknote },
         { name: 'Servicios', path: '/inmobiliaria/servicios', icon: Plug },
         { name: 'Liquidaciones', path: '/inmobiliaria/liquidaciones', icon: Wallet },
-        { name: 'Comprobantes', path: '/contable/comprobantes', icon: FileText },
+        { name: 'Comprobantes', path: '/inmobiliaria/facturar', icon: FileText },
     ];
 
     // Desktop items — orden fijo para Gestor según pedido del cliente
@@ -285,7 +284,7 @@ export default function Layout() {
         { name: 'Expensas', path: '/inmobiliaria/expensas', icon: Banknote },
         { name: 'Servicios', path: '/inmobiliaria/servicios', icon: Plug },
         { name: 'Liquidaciones', path: '/inmobiliaria/liquidaciones', icon: Wallet },
-        { name: 'Comprobantes', path: '/contable/comprobantes', icon: FileText },
+        { name: 'Comprobantes', path: '/inmobiliaria/facturar', icon: FileText },
     ];
     // Finanzas: orden Cta Cte → Movimientos → Bancos → Concil. Bancaria → Concil. Cbtes → Facturación → OP
     const finanzasItems = [
@@ -294,7 +293,7 @@ export default function Layout() {
         { name: 'Bancos', path: '/tesoreria/bancos', icon: Landmark },
         { name: 'Conciliación Bancaria', path: '/tesoreria/conciliacion-bancaria', icon: GitCompare },
         { name: 'Conciliación Comprobantes', path: '/contable/conciliacion-comprobantes', icon: GitCompare },
-        { name: 'Facturación', path: '/inmobiliaria/facturar', icon: Receipt },
+        { name: 'Facturación', path: '/contable/comprobantes', icon: Receipt },
         { name: 'Órdenes de Pago', path: '/tesoreria/ordenes-pago', icon: ClipboardList },
     ];
 
