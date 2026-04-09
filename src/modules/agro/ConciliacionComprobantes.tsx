@@ -113,6 +113,85 @@ export default function ConciliacionComprobantes() {
     }, [tenant?.id]);
 
     const isConfigured = config?.arca_cuit && config?.arca_username && config?.arca_password;
+    // Demo mode: activo si el tenant no tiene credenciales ARCA. Simula la respuesta de AFIP
+    // mutando los comprobantes locales para generar diferentes estados de conciliación.
+    const isDemoMode = !isConfigured;
+
+    function generateDemoAfip(localList: ComprobanteLocal[]): ComprobanteAFIP[] {
+        const afip: ComprobanteAFIP[] = [];
+        const tipoAfipCode: Record<string, string> = {
+            'Factura A': '1', 'Factura B': '6', 'Factura C': '11',
+            'Nota de Crédito A': '3', 'Nota de Crédito B': '8', 'Nota de Crédito C': '13',
+            'Nota de Débito A': '2', 'Nota de Débito B': '7', 'Nota de Débito C': '12',
+        };
+
+        // 85% de los locales se matchean en AFIP (pueden tener diferencias o no)
+        localList.forEach((loc, idx) => {
+            // Skip ~15% para simular "solo sistema" (comprobante local que no está en AFIP)
+            if (idx % 7 === 3) return;
+
+            const totalLocal = Number(loc.monto_original) || 0;
+            const netoLocal = Number(loc.neto_gravado) || totalLocal * 0.826;
+            const ivaLocal = Number(loc.total_iva) || totalLocal * 0.174;
+
+            // Cada 5to con diferencia pequeña en monto (simulando error de carga)
+            const hasDiff = idx % 5 === 2;
+            const factorDiff = hasDiff ? 1.02 : 1; // 2% más en AFIP
+
+            const [pv, num] = (loc.numero_comprobante || '00001-00000000').split('-');
+            const tipoCode = tipoAfipCode[loc.tipo_comprobante] || '6';
+
+            afip.push({
+                fechaEmision: loc.fecha.split('-').reverse().join('/'),
+                tipoComprobante: tipoCode,
+                puntoVenta: (pv || '00001').replace(/^0+/, '') || '1',
+                numeroDesde: (num || '00000001').replace(/^0+/, '') || '1',
+                numeroHasta: (num || '00000001').replace(/^0+/, '') || '1',
+                codAutorizacion: String(70000000000000 + idx * 137),
+                tipoDocReceptor: '80',
+                nroDocReceptor: loc.cuit_receptor || loc.cuit_emisor || '20000000000',
+                denominacionReceptor: loc.cliente_nombre || loc.proveedor_nombre || '',
+                tipoCambio: '1,00',
+                moneda: 'PES',
+                netoGravado: Math.round(netoLocal * factorDiff * 100) / 100,
+                netoNoGravado: 0,
+                exentas: 0,
+                otrosTributos: 0,
+                iva: Math.round(ivaLocal * factorDiff * 100) / 100,
+                total: Math.round(totalLocal * factorDiff * 100) / 100,
+            });
+        });
+
+        // Agregar 3 comprobantes "fantasma" que solo están en AFIP (no en el sistema)
+        const base = new Date();
+        for (let i = 0; i < 3; i++) {
+            const d = new Date(base);
+            d.setDate(d.getDate() - (i * 3 + 2));
+            const monto = 45000 + i * 23000;
+            const neto = Math.round(monto / 1.21 * 100) / 100;
+            afip.push({
+                fechaEmision: `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`,
+                tipoComprobante: '6',
+                puntoVenta: '1',
+                numeroDesde: String(9900 + i),
+                numeroHasta: String(9900 + i),
+                codAutorizacion: String(70999990000000 + i),
+                tipoDocReceptor: '80',
+                nroDocReceptor: '20123456789',
+                denominacionReceptor: ['Proveedor AFIP sin carga', 'Factura extra AFIP', 'Consumidor Final AFIP'][i],
+                tipoCambio: '1,00',
+                moneda: 'PES',
+                netoGravado: neto,
+                netoNoGravado: 0,
+                exentas: 0,
+                otrosTributos: 0,
+                iva: Math.round((monto - neto) * 100) / 100,
+                total: monto,
+            });
+        }
+
+        return afip;
+    }
 
     async function executeAfipAutomation(params: Record<string, any>): Promise<any[]> {
         const createRes = await fetch('/api/afipsdk', {
@@ -278,18 +357,25 @@ export default function ConciliacionComprobantes() {
     }
 
     async function handleConciliar() {
-        if (!isConfigured) {
-            addToast('error', 'Configurá las credenciales de ARCA en Configuración → Integraciones');
-            return;
-        }
         setLoading(true);
         setConsulted(false);
         try {
-            const [afipList, localList] = await Promise.all([fetchAFIP(), fetchLocal()]);
+            const localList = await fetchLocal();
+            let afipList: ComprobanteAFIP[];
+
+            if (isDemoMode) {
+                // Modo demo: simula respuesta de AFIP a partir de los comprobantes locales
+                await new Promise(r => setTimeout(r, 800)); // simular latencia
+                afipList = generateDemoAfip(localList);
+            } else {
+                afipList = await fetchAFIP();
+            }
+
             const result = conciliar(afipList, localList);
             setMatches(result);
             setConsulted(true);
-            addToast('success', 'Conciliación completada', `${afipList.length} de AFIP, ${localList.length} del sistema`);
+            const msg = isDemoMode ? 'Modo demo' : 'Conciliación completada';
+            addToast('success', msg, `${afipList.length} de AFIP, ${localList.length} del sistema`);
         } catch (err: any) {
             addToast('error', 'Error AFIP', err.message || 'Error al consultar AFIP');
         } finally {
@@ -318,14 +404,14 @@ export default function ConciliacionComprobantes() {
                 </div>
             </div>
 
-            {/* Config warning */}
-            {!isConfigured && (
-                <div className="card" style={{ padding: '1.25rem', marginBottom: '1.5rem', borderLeft: '4px solid var(--warning)', background: 'rgba(245, 158, 11, 0.05)' }}>
+            {/* Config warning / Demo mode banner */}
+            {isDemoMode && (
+                <div className="card" style={{ padding: '1.25rem', marginBottom: '1.5rem', borderLeft: '4px solid #3B82F6', background: 'rgba(59, 130, 246, 0.06)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <AlertTriangle size={20} color="var(--warning)" />
+                        <AlertTriangle size={20} color="#3B82F6" />
                         <div>
-                            <p style={{ fontWeight: 600 }}>Credenciales ARCA no configuradas</p>
-                            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Andá a Configuración → Integraciones → ARCA y completá CUIT, clave fiscal y API Key de AFIP SDK</p>
+                            <p style={{ fontWeight: 600 }}>Modo demo activo</p>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Los datos de ARCA se simulan a partir de los comprobantes del sistema para mostrar distintos estados de conciliación (conciliado, diferencia, solo ARCA, solo sistema).</p>
                         </div>
                     </div>
                 </div>
@@ -349,9 +435,9 @@ export default function ConciliacionComprobantes() {
                         <label className="form-label" style={{ fontSize: '0.75rem' }}>Hasta</label>
                         <input className="form-input" type="date" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)} />
                     </div>
-                    <button className="btn btn-primary" onClick={handleConciliar} disabled={loading || !isConfigured} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <button className="btn btn-primary" onClick={handleConciliar} disabled={loading} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         {loading ? <RefreshCw size={14} className="spinning" /> : <Search size={14} />}
-                        {loading ? 'Consultando AFIP...' : 'Conciliar'}
+                        {loading ? (isDemoMode ? 'Procesando...' : 'Consultando AFIP...') : 'Conciliar'}
                     </button>
                 </div>
             </div>

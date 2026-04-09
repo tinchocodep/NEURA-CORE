@@ -193,7 +193,7 @@ export default function OrdenesPagoList({ onNueva }: { onNueva?: () => void } = 
 
             {/* Grid table */}
             <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 90px 90px 80px 120px', padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', alignItems: 'center' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 130px 110px 130px 100px 120px', columnGap: 12, padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', alignItems: 'center' }}>
                     <span>OP / Proveedor</span><span style={{ textAlign: 'right' }}>Bruto</span><span style={{ textAlign: 'right' }}>Retenc.</span><span style={{ textAlign: 'right' }}>Neto</span><span>Estado</span><span style={{ textAlign: 'right' }}>Acciones</span>
                 </div>
                 {loading ? (
@@ -205,7 +205,7 @@ export default function OrdenesPagoList({ onNueva }: { onNueva?: () => void } = 
                     const estadoLabel = op.estado === 'pagada' ? 'Liquidada' : op.estado === 'anulada' ? 'Anulada' : 'Pendiente';
                     return (
                         <div key={op.id}
-                            style={{ display: 'grid', gridTemplateColumns: '1fr 90px 90px 90px 80px 120px', padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', alignItems: 'center', transition: 'background 0.1s' }}
+                            style={{ display: 'grid', gridTemplateColumns: '1fr 130px 110px 130px 100px 120px', columnGap: 12, padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', alignItems: 'center', transition: 'background 0.1s' }}
                             onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
                             onMouseLeave={e => (e.currentTarget.style.background = '')}>
                             {/* OP + Proveedor + fecha */}
