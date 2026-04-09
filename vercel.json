@@ -21,6 +21,10 @@
             "destination": "https://n8n.neuracall.net/webhook/ordenes%20de%20pago"
         },
         {
+            "source": "/api/afipsdk",
+            "destination": "https://app.afipsdk.com/api/v1/automations"
+        },
+        {
             "source": "/(.*)",
             "destination": "/index.html"
         }
