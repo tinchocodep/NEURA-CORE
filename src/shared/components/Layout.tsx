@@ -239,10 +239,11 @@ export default function Layout() {
         || (hasInmob && location.pathname.startsWith('/contable/clientes'));
     const isMapa = location.pathname === '/inmobiliaria/mapa';
     const isGestion = (!isMapa && isInmobiliaria && !isOperaciones) ||
-        (hasInmob && isCRM && location.pathname.startsWith('/crm/contactos'));
+        (hasInmob && isCRM && location.pathname.startsWith('/crm/contactos')) ||
+        (hasInmob && location.pathname.startsWith('/contable/comprobantes'));
     const isFinanzas = hasInmob && !isOperaciones && !isGestion && (
         isTesoreria ||
-        ((isContable && !isConfiguracion) && !location.pathname.startsWith('/contable/proveedores')) ||
+        ((isContable && !isConfiguracion) && !location.pathname.startsWith('/contable/proveedores') && !location.pathname.startsWith('/contable/comprobantes') && !location.pathname.startsWith('/contable/clientes')) ||
         (isCRM && !location.pathname.startsWith('/crm/contactos'))
     );
     const isMobileGestion = isMobile && isGestion;
