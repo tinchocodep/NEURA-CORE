@@ -10,6 +10,7 @@ import Comprobantes from './modules/tesoreria/Comprobantes';
 import Cajas from './modules/tesoreria/Cajas';
 import CajaDetalle from './modules/tesoreria/CajaDetalle';
 import Bancos from './modules/tesoreria/Bancos';
+import ConciliacionBancaria from './modules/tesoreria/ConciliacionBancaria';
 import OrdenesPago from './modules/tesoreria/OrdenesPago/index';
 import Monitor from './modules/tesoreria/Monitor';
 import Equipo from './modules/tesoreria/Equipo';
@@ -125,6 +126,7 @@ export default function App() {
               <Route path="cajas" element={<Cajas />} />
               <Route path="cajas/:id" element={<CajaDetalle />} />
               <Route path="bancos" element={<Bancos />} />
+              <Route path="conciliacion-bancaria" element={<ConciliacionBancaria />} />
               <Route path="ordenes-pago" element={<OrdenesPago />} />
               <Route path="equipo" element={<Equipo />} />
               <Route path="monitor" element={<Monitor />} />

@@ -5,7 +5,7 @@ import {
     Briefcase, Users, BookOpen, Tag, Building2, Settings, ClipboardList,
     Receipt, TrendingUp, HardHat,
     Columns3, Contact, BarChart3, Car,
-    Home, FileSignature, Wallet, CalendarClock, UserPlus, Banknote, Plug
+    Home, FileSignature, Wallet, CalendarClock, UserPlus, Banknote, Plug, GitCompare
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
@@ -296,6 +296,8 @@ export default function Layout() {
         ...(hasModuleAccess('tesoreria') ? tesoreriaItems.filter(i => i.path === '/tesoreria/ordenes-pago') : []),
         ...(hasModuleAccess('tesoreria') ? tesoreriaItems.filter(i => i.path === '/tesoreria/movimientos') : []),
         ...(hasModuleAccess('tesoreria') ? tesoreriaItems.filter(i => i.path === '/tesoreria/bancos') : []),
+        ...(hasModuleAccess('tesoreria') ? [{ name: 'Conciliación Bancaria', path: '/tesoreria/conciliacion-bancaria', icon: GitCompare }] : []),
+        ...(hasModuleAccess('contable') ? [{ name: 'Conciliación Comprobantes', path: '/contable/conciliacion-comprobantes', icon: GitCompare }] : []),
         ...contableItems.filter(i => i.path === '/contable/catalogos'),
     ];
 
