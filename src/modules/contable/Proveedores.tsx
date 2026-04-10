@@ -3,10 +3,12 @@ import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
-import { Search, Plus, Edit2, AlertTriangle, X, Save, Trash2, Loader, Globe, ChevronDown, ChevronRight, Download, Clock, FileText, Filter, Eye, Send, Star, MoreVertical, RefreshCw } from 'lucide-react';
+import { Search, Plus, Edit2, AlertTriangle, X, Save, Trash2, Loader, Globe, ChevronDown, ChevronRight, Download, Upload, Clock, FileText, Filter, Eye, Send, Star, MoreVertical, RefreshCw, Building2, Sparkles, Check } from 'lucide-react';
 import { SkeletonTable } from '../../shared/components/SkeletonKit';
 import { DocumentViewer } from '../../shared/components/DocumentViewer';
 import StyledSelect from '../../shared/components/StyledSelect';
+import HierarchicalCategorySelect from '../construccion/HierarchicalCategorySelect';
+import * as XLSX from 'xlsx';
 
 // --- Types ---
 
@@ -22,8 +24,26 @@ interface Proveedor {
     telefono: string | null;
     email: string | null;
     direccion: string | null;
+    provincia: string | null;
     observaciones: string | null;
     categoria_default: { id: string; nombre: string; color: string; tipo: string; } | null;
+    categoria_default_id: string | null;
+    centro_costo_default_id: string | null;
+}
+
+interface CategoriaJerarquica {
+    id: string;
+    nombre: string;
+    color: string;
+    tipo: string;
+    parent_id: string | null;
+    orden: number | null;
+}
+
+interface TreasuryProject {
+    id: string;
+    name: string;
+    is_global: boolean | null;
 }
 
 interface ProductoServicio {
@@ -67,12 +87,52 @@ interface ComprobanteResumen {
     op_monto_bruto?: number;
 }
 
-/** Shape returned by the ARCA n8n webhook */
+/** Shape returned by the ARCA n8n webhook (raw) */
+interface ArcaPersonaRaw {
+    name?: string;
+    // Address pieces
+    address?: string;
+    calle?: string;
+    numero?: string | number;
+    localidad?: string;
+    codigoPostal?: string;
+    // Jurisdiction
+    jurisdiction?: string;
+    provincia?: string;
+    // Tax
+    taxCondition?: string;
+    // Other
+    tipoPersona?: string;
+    estado?: string;
+    cuit?: string | number;
+}
+
+/** Normalized ARCA persona (lo que usa el resto del código) */
 interface ArcaPersona {
     name: string;
     address: string;
     taxCondition: string;
     jurisdiction: string;
+}
+
+/** Convierte la respuesta cruda del webhook al shape interno */
+function normalizeArcaResponse(raw: ArcaPersonaRaw): ArcaPersona {
+    // Dirección: si no viene `address`, armarla desde calle + numero + localidad
+    let address = raw.address || '';
+    if (!address) {
+        const parts: string[] = [];
+        if (raw.calle) parts.push(String(raw.calle));
+        if (raw.numero) parts.push(String(raw.numero));
+        const street = parts.join(' ');
+        const loc = raw.localidad ? String(raw.localidad) : '';
+        address = [street, loc].filter(Boolean).join(', ');
+    }
+    return {
+        name: raw.name || '',
+        address,
+        taxCondition: raw.taxCondition || '',
+        jurisdiction: raw.jurisdiction || raw.provincia || '',
+    };
 }
 
 interface ProveedorForm {
@@ -84,8 +144,10 @@ interface ProveedorForm {
     telefono: string;
     email: string;
     direccion: string;
+    provincia: string;
     observaciones: string;
     categoria_default_id: string;
+    centro_costo_default_id: string;
 }
 
 // --- Constants ---
@@ -109,8 +171,10 @@ const INITIAL_FORM: ProveedorForm = {
     telefono: '',
     email: '',
     direccion: '',
+    provincia: '',
     observaciones: '',
     categoria_default_id: '',
+    centro_costo_default_id: '',
 };
 
 /** Invoice type suggestion based on fiscal conditions */
@@ -136,6 +200,10 @@ export default function Proveedores() {
     const [proveedores, setProveedores] = useState<Proveedor[]>([]);
     const [productos, setProductos] = useState<ProductoServicio[]>([]);
     const [categorias, setCategorias] = useState<Categoria[]>([]);
+    // Solo constructora
+    const esConstructora = tenant?.rubro === 'constructora';
+    const [categoriasJerarquicas, setCategoriasJerarquicas] = useState<CategoriaJerarquica[]>([]);
+    const [proyectos, setProyectos] = useState<TreasuryProject[]>([]);
     const [loading, setLoading] = useState(true);
     const [busqueda, setBusqueda] = useState('');
     const [showModal, setShowModal] = useState(false);
@@ -158,6 +226,17 @@ export default function Proveedores() {
     const [detailLoading, setDetailLoading] = useState(false);
     const [detailContactos, setDetailContactos] = useState<{ id: string; nombre: string; apellido: string | null; email: string | null; telefono: string | null; cargo: string | null }[]>([]);
     const [syncingProveedores, setSyncingProveedores] = useState(false);
+    // ARCA en panel de detalle
+    const [detailArcaSearching, setDetailArcaSearching] = useState(false);
+    const [detailArcaResult, setDetailArcaResult] = useState<ArcaPersona | null>(null);
+    const [detailArcaError, setDetailArcaError] = useState<string | null>(null);
+    const [detailArcaApplying, setDetailArcaApplying] = useState(false);
+    // Enriquecimiento masivo ARCA
+    const [bulkArcaRunning, setBulkArcaRunning] = useState(false);
+    const [bulkArcaProgress, setBulkArcaProgress] = useState({ done: 0, total: 0, ok: 0, fail: 0 });
+    const [showBulkArcaConfirm, setShowBulkArcaConfirm] = useState(false);
+    // Importador Excel
+    const [showImportModal, setShowImportModal] = useState(false);
     const tenantModules = (tenant?.enabled_modules as string[]) || [];
     const hasErpModule = tenantModules.includes('erp_colppy') || tenantModules.includes('erp_xubio');
     const [expandedComprobante, setExpandedComprobante] = useState<string | null>(null);
@@ -204,9 +283,9 @@ export default function Proveedores() {
 
     async function load() {
         setLoading(true);
-        const [{ data: provs }, { data: prods }, { data: cats }] = await Promise.all([
+        const baseQueries: any[] = [
             supabase.from('contable_proveedores')
-                .select('id, cuit, razon_social, es_caso_rojo, es_favorito, activo, condicion_fiscal, telefono, email, direccion, observaciones, producto_servicio_default:contable_productos_servicio(id, nombre, grupo), categoria_default:contable_categorias(id, nombre, color, tipo)')
+                .select('id, cuit, razon_social, es_caso_rojo, es_favorito, activo, condicion_fiscal, telefono, email, direccion, provincia, observaciones, categoria_default_id, centro_costo_default_id, producto_servicio_default:producto_servicio_default_id(id, nombre, grupo), categoria_default:categoria_default_id(id, nombre, color, tipo)')
                 .eq('tenant_id', tenant!.id)
                 .eq('activo', true)
                 .order('es_favorito', { ascending: false })
@@ -220,11 +299,31 @@ export default function Proveedores() {
             supabase.from('contable_categorias')
                 .select('id, nombre, tipo, color')
                 .eq('tenant_id', tenant!.id)
-                .order('nombre')
-        ]);
+                .order('nombre'),
+        ];
+        if (esConstructora) {
+            baseQueries.push(
+                supabase.from('contable_categorias')
+                    .select('id, nombre, color, tipo, parent_id, orden')
+                    .eq('tenant_id', tenant!.id)
+                    .order('orden'),
+                supabase.from('treasury_projects')
+                    .select('id, name, is_global')
+                    .eq('tenant_id', tenant!.id)
+                    .order('is_global', { ascending: false })
+                    .order('name'),
+            );
+        }
+        const results = await Promise.all(baseQueries);
+        const [{ data: provs, error: provErr }, { data: prods }, { data: cats }] = results;
+        if (provErr) console.error('[Proveedores] Error cargando proveedores:', provErr);
         setProveedores((provs || []) as unknown as Proveedor[]);
         setProductos((prods || []) as ProductoServicio[]);
         setCategorias((cats || []) as Categoria[]);
+        if (esConstructora) {
+            setCategoriasJerarquicas((results[3]?.data || []) as CategoriaJerarquica[]);
+            setProyectos((results[4]?.data || []) as TreasuryProject[]);
+        }
 
         // Load activity stats
         if (provs && provs.length > 0) {
@@ -379,8 +478,10 @@ export default function Proveedores() {
             telefono: p.telefono || '',
             email: p.email || '',
             direccion: p.direccion || '',
+            provincia: p.provincia || '',
             observaciones: p.observaciones || '',
-            categoria_default_id: p.categoria_default?.id || '',
+            categoria_default_id: p.categoria_default_id || p.categoria_default?.id || '',
+            centro_costo_default_id: p.centro_costo_default_id || '',
         });
         resetArcaState();
         setProdFilter('');
@@ -435,14 +536,14 @@ export default function Proveedores() {
             }
 
             // Normalize: webhook may return a single object or an array
-            const items: ArcaPersona[] = Array.isArray(parsed) ? parsed : [parsed as ArcaPersona];
+            const rawItems: ArcaPersonaRaw[] = Array.isArray(parsed) ? parsed : [parsed as ArcaPersonaRaw];
 
-            if (items.length === 0 || !items[0]?.name) {
+            if (rawItems.length === 0 || !rawItems[0]?.name) {
                 setArcaError('No se encontró información para ese CUIT en ARCA');
                 return;
             }
 
-            const persona = items[0];
+            const persona = normalizeArcaResponse(rawItems[0]);
             setArcaResult(persona);
 
             // Auto-fill razon_social only if the field is empty (don't overwrite user edits)
@@ -455,6 +556,136 @@ export default function Proveedores() {
         } finally {
             setArcaSearching(false);
         }
+    }
+
+    /** Helper: llamar ARCA con un CUIT y devolver ArcaPersona normalizada o null */
+    async function fetchArcaByCuit(cuit: string): Promise<ArcaPersona | null> {
+        const cuitClean = cuit.replace(/[-\s]/g, '').trim();
+        if (!cuitClean) return null;
+        try {
+            const response = await fetch(ARCA_WEBHOOK_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cuit: cuitClean }),
+            });
+            if (!response.ok) return null;
+            const raw = await response.text();
+            let parsed: unknown;
+            try { parsed = JSON.parse(raw); } catch { return null; }
+            const rawItems: ArcaPersonaRaw[] = Array.isArray(parsed) ? parsed : [parsed as ArcaPersonaRaw];
+            if (rawItems.length === 0 || !rawItems[0]?.name) return null;
+            return normalizeArcaResponse(rawItems[0]);
+        } catch {
+            return null;
+        }
+    }
+
+    /** Mapear condición fiscal de ARCA al formato interno */
+    function mapCondFiscal(arcaCond: string | undefined | null): string | null {
+        if (!arcaCond) return null;
+        const m: Record<string, string> = {
+            'IVA Responsable Inscripto': 'Responsable Inscripto',
+            'Responsable Inscripto': 'Responsable Inscripto',
+            'IVA Responsable No Inscripto': 'No Responsable',
+            'IVA Sujeto Exento': 'Exento',
+            'Responsable Monotributo': 'Monotributista',
+            'Monotributista Social': 'Monotributista',
+            'Consumidor Final': 'Consumidor Final',
+        };
+        return m[arcaCond] || arcaCond;
+    }
+
+    /** Buscar ARCA para el proveedor del panel de detalle */
+    async function searchArcaForDetail() {
+        if (!selectedProvider?.cuit) {
+            setDetailArcaError('Este proveedor no tiene CUIT cargado.');
+            return;
+        }
+        setDetailArcaSearching(true);
+        setDetailArcaError(null);
+        setDetailArcaResult(null);
+        const result = await fetchArcaByCuit(selectedProvider.cuit);
+        if (!result) {
+            setDetailArcaError('No se encontró información en ARCA.');
+        } else {
+            setDetailArcaResult(result);
+        }
+        setDetailArcaSearching(false);
+    }
+
+    /** Aplicar los datos de ARCA al proveedor seleccionado */
+    async function applyDetailArcaData() {
+        if (!selectedProvider || !detailArcaResult) return;
+        setDetailArcaApplying(true);
+        const updates: any = {
+            razon_social: detailArcaResult.name || selectedProvider.razon_social,
+            direccion: detailArcaResult.address || selectedProvider.direccion,
+            provincia: detailArcaResult.jurisdiction || selectedProvider.provincia,
+            condicion_fiscal: mapCondFiscal(detailArcaResult.taxCondition) || selectedProvider.condicion_fiscal,
+        };
+        const { error } = await supabase.from('contable_proveedores').update(updates).eq('id', selectedProvider.id);
+        setDetailArcaApplying(false);
+        if (error) {
+            setDetailArcaError('Error al guardar: ' + error.message);
+            return;
+        }
+        // Actualizar UI: lista + panel
+        setProveedores(prev => prev.map(p => p.id === selectedProvider.id ? { ...p, ...updates } : p));
+        setSelectedProvider(prev => prev ? { ...prev, ...updates } : prev);
+        setDetailArcaResult(null);
+    }
+
+    /** Enriquecer todos los proveedores con CUIT que les falta jurisdicción o condición fiscal */
+    async function bulkEnrichArca() {
+        const candidatos = proveedores.filter(p =>
+            p.cuit && p.cuit.trim() !== '' && (!p.provincia || !p.condicion_fiscal)
+        );
+        if (candidatos.length === 0) {
+            alert('No hay proveedores que necesiten enriquecimiento. Todos los que tienen CUIT ya tienen jurisdicción y condición fiscal.');
+            setShowBulkArcaConfirm(false);
+            return;
+        }
+        setBulkArcaRunning(true);
+        setBulkArcaProgress({ done: 0, total: candidatos.length, ok: 0, fail: 0 });
+        setShowBulkArcaConfirm(false);
+
+        // Procesar en lotes de 5 con un pequeño delay entre cada lote
+        const BATCH_SIZE = 5;
+        const updates: { id: string; data: any }[] = [];
+        for (let i = 0; i < candidatos.length; i += BATCH_SIZE) {
+            const batch = candidatos.slice(i, i + BATCH_SIZE);
+            const results = await Promise.all(batch.map(p => fetchArcaByCuit(p.cuit!)));
+            for (let j = 0; j < batch.length; j++) {
+                const p = batch[j];
+                const r = results[j];
+                if (r && r.name) {
+                    updates.push({
+                        id: p.id,
+                        data: {
+                            razon_social: p.razon_social, // mantener el actual
+                            direccion: r.address || p.direccion,
+                            provincia: r.jurisdiction || p.provincia,
+                            condicion_fiscal: mapCondFiscal(r.taxCondition) || p.condicion_fiscal,
+                        }
+                    });
+                    setBulkArcaProgress(prev => ({ ...prev, done: prev.done + 1, ok: prev.ok + 1 }));
+                } else {
+                    setBulkArcaProgress(prev => ({ ...prev, done: prev.done + 1, fail: prev.fail + 1 }));
+                }
+            }
+            // Pequeña pausa entre lotes para no saturar el webhook
+            if (i + BATCH_SIZE < candidatos.length) {
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+        }
+
+        // Persistir en DB en lote (uno por uno, son updates dirigidos a IDs distintos)
+        for (const u of updates) {
+            await supabase.from('contable_proveedores').update(u.data).eq('id', u.id);
+        }
+
+        setBulkArcaRunning(false);
+        await load();
     }
 
     function applyArcaData() {
@@ -472,6 +703,7 @@ export default function Proveedores() {
             ...prev,
             razon_social: arcaResult.name,
             direccion: arcaResult.address || prev.direccion,
+            provincia: arcaResult.jurisdiction || prev.provincia,
             condicion_fiscal: condMap[arcaResult.taxCondition] || arcaResult.taxCondition || prev.condicion_fiscal,
         }));
     }
@@ -479,7 +711,7 @@ export default function Proveedores() {
     // --- Save / Delete ---
 
     async function handleSave() {
-        const payload = {
+        const payload: any = {
             tenant_id: tenant!.id,
             razon_social: form.razon_social.trim(),
             cuit: form.cuit.trim() || null,
@@ -489,8 +721,10 @@ export default function Proveedores() {
             telefono: form.telefono.trim() || null,
             email: form.email.trim() || null,
             direccion: form.direccion.trim() || null,
+            provincia: form.provincia.trim() || null,
             observaciones: form.observaciones.trim() || null,
             categoria_default_id: form.categoria_default_id || null,
+            centro_costo_default_id: form.centro_costo_default_id || null,
         };
         if (editando) {
             await supabase.from('contable_proveedores').update(payload).eq('id', editando.id);
@@ -684,6 +918,25 @@ export default function Proveedores() {
                             )}
                         </div>
                     )}
+                    {esConstructora && (
+                        <button
+                            className="btn btn-ghost"
+                            onClick={() => setShowBulkArcaConfirm(true)}
+                            disabled={bulkArcaRunning}
+                            title="Buscar en ARCA todos los proveedores que tienen CUIT pero les falta jurisdicción o condición fiscal"
+                            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', fontSize: '0.8rem', borderRadius: 10 }}
+                        >
+                            <Sparkles size={14} />
+                            {bulkArcaRunning ? `Enriqueciendo ${bulkArcaProgress.done}/${bulkArcaProgress.total}...` : 'Enriquecer ARCA'}
+                        </button>
+                    )}
+                    <button
+                        className="btn btn-secondary"
+                        onClick={() => setShowImportModal(true)}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', fontSize: '0.8rem', borderRadius: 10 }}
+                    >
+                        <Upload size={14} /> Importar Excel
+                    </button>
                     <button className="btn btn-secondary" onClick={exportCSV} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', fontSize: '0.8rem', borderRadius: 10 }}>
                         <Download size={14} /> CSV
                     </button>
@@ -1287,6 +1540,15 @@ export default function Proveedores() {
                                                 })()}
                                             </div>
                                         </div>
+                                        <div className="form-group" style={{ marginBottom: 0 }}>
+                                            <label className="form-label">Jurisdicción</label>
+                                            <input
+                                                className="form-input"
+                                                value={form.provincia}
+                                                onChange={e => setForm({ ...form, provincia: e.target.value })}
+                                                placeholder="Ej: Buenos Aires"
+                                            />
+                                        </div>
                                         <div className="form-group" style={{ marginBottom: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                             <input type="checkbox" id="caso-rojo-modal" checked={form.es_caso_rojo} onChange={e => setForm({ ...form, es_caso_rojo: e.target.checked })} />
                                             <label htmlFor="caso-rojo-modal" style={{ fontSize: '0.8rem', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}>
@@ -1303,17 +1565,53 @@ export default function Proveedores() {
                                     </div>
                                     <div className="form-group" style={{ marginBottom: '1rem' }}>
                                         <label className="form-label">Categoría Default</label>
-                                        <StyledSelect
-                                            className="form-input"
-                                            value={form.categoria_default_id}
-                                            onChange={e => setForm({ ...form, categoria_default_id: e.target.value })}
-                                        >
-                                            <option value="">Seleccione una categoría</option>
-                                            {categorias.filter(c => c.tipo !== 'ingreso').map(c => (
-                                                <option key={c.id} value={c.id}>{c.nombre}</option>
-                                            ))}
-                                        </StyledSelect>
+                                        {esConstructora ? (
+                                            <HierarchicalCategorySelect
+                                                categorias={categoriasJerarquicas}
+                                                value={form.categoria_default_id}
+                                                onChange={(id) => setForm({ ...form, categoria_default_id: id })}
+                                                tipoFiltro="gasto"
+                                                placeholder="Seleccione una categoría..."
+                                                emptyLabel="Sin categoría"
+                                            />
+                                        ) : (
+                                            <StyledSelect
+                                                className="form-input"
+                                                value={form.categoria_default_id}
+                                                onChange={e => setForm({ ...form, categoria_default_id: e.target.value })}
+                                            >
+                                                <option value="">Seleccione una categoría</option>
+                                                {categorias.filter(c => c.tipo !== 'ingreso').map(c => (
+                                                    <option key={c.id} value={c.id}>{c.nombre}</option>
+                                                ))}
+                                            </StyledSelect>
+                                        )}
+                                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4, display: 'block' }}>
+                                            Se va a sugerir automáticamente cuando cargues un gasto de este proveedor.
+                                        </span>
                                     </div>
+                                    {esConstructora && (
+                                        <div className="form-group" style={{ marginBottom: '1rem' }}>
+                                            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                <Building2 size={13} /> Centro de Costos Default
+                                            </label>
+                                            <StyledSelect
+                                                className="form-input"
+                                                value={form.centro_costo_default_id}
+                                                onChange={e => setForm({ ...form, centro_costo_default_id: e.target.value })}
+                                            >
+                                                <option value="">Sin asignar</option>
+                                                {proyectos.map(p => (
+                                                    <option key={p.id} value={p.id}>
+                                                        {p.is_global ? '★ ' : ''}{p.name}
+                                                    </option>
+                                                ))}
+                                            </StyledSelect>
+                                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4, display: 'block' }}>
+                                                Si la mayoría de los gastos de este proveedor van a una obra puntual, asignala acá.
+                                            </span>
+                                        </div>
+                                    )}
                                     <div className="form-group" style={{ marginBottom: 0 }}>
                                         <label className="form-label">Producto/Servicio Default</label>
                                         <div style={{ position: 'relative', marginBottom: '0.4rem' }}>
@@ -1498,7 +1796,7 @@ export default function Proveedores() {
                     <div style={{
                         position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(2px)',
                         display: 'flex', justifyContent: 'flex-end', zIndex: 1000,
-                    }} onClick={() => setSelectedProvider(null)}>
+                    }} onClick={() => { setSelectedProvider(null); setDetailArcaResult(null); setDetailArcaError(null); }}>
                         <div style={{
                             width: 480, maxWidth: '90vw', height: '100vh', background: 'var(--color-bg-surface)',
                             boxShadow: 'var(--shadow-lg)', overflowY: 'auto',
@@ -1532,17 +1830,66 @@ export default function Proveedores() {
                                             </div>
                                         );
                                     })()}
-                                    {(selectedProvider.telefono || selectedProvider.email || selectedProvider.direccion) && (
+                                    {(selectedProvider.telefono || selectedProvider.email || selectedProvider.provincia) && (
                                         <div style={{ marginTop: 8, fontSize: '0.75rem', color: '#64748b', display: 'flex', flexDirection: 'column', gap: 2 }}>
                                             {selectedProvider.telefono && <span style={{ cursor: 'pointer' }} onClick={() => { navigator.clipboard.writeText(selectedProvider!.telefono!); }} title="Click para copiar">📞 {selectedProvider.telefono}</span>}
                                             {selectedProvider.email && <span style={{ cursor: 'pointer' }} onClick={() => { navigator.clipboard.writeText(selectedProvider!.email!); }} title="Click para copiar">✉️ {selectedProvider.email}</span>}
-                                            {selectedProvider.direccion && <span>📍 {selectedProvider.direccion}</span>}
+                                            {selectedProvider.provincia && <span>🏛️ Jurisdicción: {selectedProvider.provincia}</span>}
                                         </div>
                                     )}
                                 </div>
-                                <button onClick={() => setSelectedProvider(null)} className="btn btn-secondary" style={{ padding: '0.3rem' }}>
+                                <button onClick={() => { setSelectedProvider(null); setDetailArcaResult(null); setDetailArcaError(null); }} className="btn btn-secondary" style={{ padding: '0.3rem' }}>
                                     <X size={16} />
                                 </button>
+                            </div>
+
+                            {/* ── Banda ARCA en panel ── */}
+                            <div style={{ padding: '0.75rem 1.5rem 0' }}>
+                                <div style={{
+                                    background: 'linear-gradient(135deg, rgba(99,102,241,0.04), rgba(59,130,246,0.06))',
+                                    border: '1px solid rgba(99,102,241,0.18)', borderRadius: 10,
+                                    padding: '0.75rem 1rem',
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: detailArcaResult || detailArcaError ? 8 : 0 }}>
+                                        <Globe size={14} color="#6366f1" />
+                                        <span style={{ fontWeight: 700, fontSize: '0.78rem', color: '#6366f1' }}>Buscar en ARCA</span>
+                                        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>traer datos fiscales actualizados</span>
+                                        <button
+                                            className="btn btn-primary"
+                                            onClick={searchArcaForDetail}
+                                            disabled={detailArcaSearching || !selectedProvider.cuit}
+                                            style={{ marginLeft: 'auto', fontSize: '0.72rem', padding: '0.35rem 0.7rem', gap: 4 }}
+                                            title={!selectedProvider.cuit ? 'Este proveedor no tiene CUIT' : 'Buscar en ARCA'}
+                                        >
+                                            {detailArcaSearching
+                                                ? <><Loader size={12} style={{ animation: 'spin 1s linear infinite' }} /> Buscando...</>
+                                                : <><Search size={12} /> Buscar</>}
+                                        </button>
+                                    </div>
+                                    {detailArcaError && (
+                                        <div style={{ padding: '0.4rem 0.6rem', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, fontSize: '0.7rem', color: '#dc2626' }}>
+                                            {detailArcaError}
+                                        </div>
+                                    )}
+                                    {detailArcaResult && (
+                                        <div style={{ padding: '0.6rem 0.7rem', background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 6 }}>
+                                            <div style={{ fontWeight: 700, fontSize: '0.78rem', marginBottom: '0.3rem', color: 'var(--text-main)' }}>{detailArcaResult.name}</div>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.2rem', fontSize: '0.7rem', color: 'var(--text-sub)', marginBottom: '0.5rem' }}>
+                                                {detailArcaResult.address && <div>📍 {detailArcaResult.address}</div>}
+                                                {detailArcaResult.jurisdiction && <div>🏛️ {detailArcaResult.jurisdiction}</div>}
+                                                {detailArcaResult.taxCondition && <div style={{ gridColumn: '1 / -1' }}>📋 {detailArcaResult.taxCondition}</div>}
+                                            </div>
+                                            <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                                                <button onClick={() => setDetailArcaResult(null)} style={{ fontSize: '0.7rem', padding: '0.25rem 0.6rem', borderRadius: 6, border: '1px solid var(--color-border-subtle)', background: 'transparent', cursor: 'pointer', color: 'var(--text-sub)' }}>
+                                                    Descartar
+                                                </button>
+                                                <button onClick={applyDetailArcaData} disabled={detailArcaApplying} className="btn btn-primary" style={{ fontSize: '0.7rem', padding: '0.25rem 0.7rem', gap: 4 }}>
+                                                    <Check size={11} /> {detailArcaApplying ? 'Guardando...' : 'Aplicar a este proveedor'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
                             {/* Stats cards */}
@@ -1847,6 +2194,410 @@ export default function Proveedores() {
                     </div>
                 )
             }
+
+            {/* ── Modal: confirmar enriquecimiento masivo ARCA ── */}
+            {showBulkArcaConfirm && (() => {
+                const candidatos = proveedores.filter(p => p.cuit && p.cuit.trim() !== '' && (!p.provincia || !p.condicion_fiscal));
+                return (
+                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }} onClick={() => setShowBulkArcaConfirm(false)}>
+                        <div style={{ background: 'var(--color-bg-surface)', borderRadius: 14, padding: '1.5rem', maxWidth: 480, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }} onClick={e => e.stopPropagation()}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1rem' }}>
+                                <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Sparkles size={22} color="#6366f1" />
+                                </div>
+                                <div>
+                                    <div style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Enriquecer con ARCA</div>
+                                    <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>Buscar datos fiscales en lote</div>
+                                </div>
+                            </div>
+                            <div style={{ background: 'rgba(99,102,241,0.04)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: 10, padding: '0.85rem 1rem', marginBottom: '1rem' }}>
+                                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-primary)', lineHeight: 1.5 }}>
+                                    Se van a procesar <strong>{candidatos.length} proveedores</strong> que tienen CUIT pero les falta jurisdicción o condición fiscal.
+                                </div>
+                                <div style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', marginTop: 6 }}>
+                                    Cada uno se busca en ARCA y se actualiza con los datos que devuelve. Lleva ~1 minuto cada 100 proveedores. Razón social no se sobreescribe.
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                                <button onClick={() => setShowBulkArcaConfirm(false)} className="btn btn-secondary">Cancelar</button>
+                                <button onClick={bulkEnrichArca} className="btn btn-primary" disabled={candidatos.length === 0}>
+                                    <Sparkles size={14} /> Enriquecer {candidatos.length}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
+
+            {/* ── Modal de progreso del enriquecimiento masivo ── */}
+            {bulkArcaRunning && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
+                    <div style={{ background: 'var(--color-bg-surface)', borderRadius: 14, padding: '1.75rem', maxWidth: 420, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1rem' }}>
+                            <Loader size={20} style={{ animation: 'spin 1s linear infinite', color: '#6366f1' }} />
+                            <div style={{ fontWeight: 700, fontSize: '1rem' }}>Enriqueciendo con ARCA</div>
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--color-text-primary)', marginBottom: 12 }}>
+                            Procesando <strong>{bulkArcaProgress.done}</strong> de <strong>{bulkArcaProgress.total}</strong>
+                        </div>
+                        <div style={{ height: 8, borderRadius: 99, background: 'var(--color-bg-surface-2, #e5e7eb)', overflow: 'hidden', marginBottom: 12 }}>
+                            <div style={{
+                                height: '100%',
+                                width: `${bulkArcaProgress.total > 0 ? (bulkArcaProgress.done / bulkArcaProgress.total) * 100 : 0}%`,
+                                background: 'linear-gradient(90deg, #6366f1, #3b82f6)',
+                                transition: 'width 0.3s',
+                            }} />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                            <span>✓ {bulkArcaProgress.ok} encontrados</span>
+                            <span>✗ {bulkArcaProgress.fail} sin datos</span>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Modal: importador de Excel ── */}
+            {showImportModal && (
+                <ImportExcelModal
+                    tenant={tenant}
+                    categoriasJerarquicas={categoriasJerarquicas}
+                    proyectos={proyectos}
+                    esConstructora={esConstructora}
+                    onClose={() => setShowImportModal(false)}
+                    onImported={() => { setShowImportModal(false); load(); }}
+                />
+            )}
         </>
+    );
+}
+
+// ─── Importador de Excel ──────────────────────────────────────────────
+
+interface ImportRow {
+    razon_social: string;
+    cuit: string | null;
+    condicion_fiscal: string | null;
+    email: string | null;
+    telefono: string | null;
+    provincia: string | null;
+    observaciones: string | null;
+    categoria_nombre: string | null;
+    centro_nombre: string | null;
+    // Resolved
+    categoria_id: string | null;
+    centro_costo_id: string | null;
+    // Status
+    status: 'ok' | 'duplicate' | 'invalid' | 'warning';
+    statusMsg?: string;
+}
+
+function ImportExcelModal({
+    tenant, categoriasJerarquicas, proyectos, esConstructora, onClose, onImported,
+}: {
+    tenant: any;
+    categoriasJerarquicas: CategoriaJerarquica[];
+    proyectos: TreasuryProject[];
+    esConstructora: boolean;
+    onClose: () => void;
+    onImported: () => void;
+}) {
+    const [step, setStep] = useState<'upload' | 'preview' | 'importing' | 'done'>('upload');
+    const [rows, setRows] = useState<ImportRow[]>([]);
+    const [fileName, setFileName] = useState('');
+    const [parseError, setParseError] = useState<string | null>(null);
+    const [importResult, setImportResult] = useState({ ok: 0, skipped: 0, error: 0 });
+
+    function downloadTemplate() {
+        const headers = ['Razón Social', 'CUIT', 'Condición Fiscal', 'Email', 'Teléfono', 'Jurisdicción', 'Categoría', 'Centro de Costos', 'Observaciones'];
+        const example = [
+            ['HORMIGONERA DEL SUR S.A.', '30-12345678-9', 'Responsable Inscripto', 'ventas@hormigonera.com', '011-4444-5555', 'Buenos Aires', 'Hormigón', 'TUCUMAN', ''],
+            ['JUAN PEREZ', '20-12345678-9', 'Monotributista', '', '11-5555-6666', 'CABA', 'Pintores', '', 'Pintor de la obra Pilar'],
+        ];
+        const ws = XLSX.utils.aoa_to_sheet([headers, ...example]);
+        ws['!cols'] = headers.map(() => ({ wch: 24 }));
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Proveedores');
+        XLSX.writeFile(wb, 'plantilla_proveedores.xlsx');
+    }
+
+    async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setFileName(file.name);
+        setParseError(null);
+        try {
+            const data = await file.arrayBuffer();
+            const wb = XLSX.read(data, { type: 'array' });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            const json: any[] = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false });
+
+            if (json.length === 0) {
+                setParseError('El archivo está vacío.');
+                return;
+            }
+
+            // Helper para encontrar valor con varios alias de header
+            function pick(row: any, ...keys: string[]): string | null {
+                for (const k of keys) {
+                    for (const rowKey of Object.keys(row)) {
+                        if (rowKey.toLowerCase().trim().replace(/[áéíóúñ\s]/g, m =>
+                            ({'á':'a','é':'e','í':'i','ó':'o','ú':'u','ñ':'n',' ':''} as any)[m] || m
+                        ) === k.toLowerCase().replace(/[áéíóúñ\s]/g, m =>
+                            ({'á':'a','é':'e','í':'i','ó':'o','ú':'u','ñ':'n',' ':''} as any)[m] || m
+                        )) {
+                            const v = String(row[rowKey] ?? '').trim();
+                            if (v) return v;
+                        }
+                    }
+                }
+                return null;
+            }
+
+            // Cargar CUITs existentes para detectar duplicados
+            const { data: existingProvs } = await supabase
+                .from('contable_proveedores')
+                .select('cuit')
+                .eq('tenant_id', tenant.id);
+            const existingCuits = new Set((existingProvs || []).map((p: any) =>
+                (p.cuit || '').replace(/[-\s]/g, '').trim()
+            ));
+
+            // Resolver categorías y centros por nombre (case insensitive)
+            const catByName = new Map<string, string>();
+            for (const c of categoriasJerarquicas) {
+                catByName.set(c.nombre.toLowerCase().trim(), c.id);
+            }
+            const projByName = new Map<string, string>();
+            for (const p of proyectos) {
+                projByName.set(p.name.toLowerCase().trim(), p.id);
+            }
+
+            const parsed: ImportRow[] = json.map((r: any) => {
+                const razon = pick(r, 'razon social', 'razonsocial', 'razón social', 'nombre');
+                const cuit = pick(r, 'cuit');
+                const cuitClean = (cuit || '').replace(/[-\s]/g, '').trim();
+                const catNombre = pick(r, 'categoria', 'categoría');
+                const ccNombre = pick(r, 'centro de costos', 'centro costos', 'obra');
+                const cat_id = catNombre ? (catByName.get(catNombre.toLowerCase().trim()) || null) : null;
+                const cc_id = ccNombre ? (projByName.get(ccNombre.toLowerCase().trim()) || null) : null;
+
+                let status: ImportRow['status'] = 'ok';
+                let statusMsg: string | undefined;
+                if (!razon) {
+                    status = 'invalid';
+                    statusMsg = 'Falta razón social';
+                } else if (cuitClean && existingCuits.has(cuitClean)) {
+                    status = 'duplicate';
+                    statusMsg = 'Ya existe (mismo CUIT)';
+                } else if (catNombre && !cat_id) {
+                    status = 'warning';
+                    statusMsg = `Categoría "${catNombre}" no encontrada — se creará sin categoría`;
+                } else if (ccNombre && !cc_id) {
+                    status = 'warning';
+                    statusMsg = `Obra "${ccNombre}" no encontrada — se creará sin centro de costos`;
+                }
+
+                return {
+                    razon_social: razon || '',
+                    cuit: cuit || null,
+                    condicion_fiscal: pick(r, 'condicion fiscal', 'condición fiscal', 'cond fiscal'),
+                    email: pick(r, 'email', 'mail', 'correo'),
+                    telefono: pick(r, 'telefono', 'teléfono', 'tel'),
+                    provincia: pick(r, 'jurisdiccion', 'jurisdicción', 'provincia'),
+                    observaciones: pick(r, 'observaciones', 'observacion', 'notas'),
+                    categoria_nombre: catNombre,
+                    centro_nombre: ccNombre,
+                    categoria_id: cat_id,
+                    centro_costo_id: cc_id,
+                    status,
+                    statusMsg,
+                };
+            });
+
+            setRows(parsed);
+            setStep('preview');
+        } catch (err: any) {
+            setParseError('Error al leer el archivo: ' + (err.message || 'desconocido'));
+        }
+    }
+
+    async function handleImport() {
+        const importables = rows.filter(r => r.status !== 'invalid' && r.status !== 'duplicate');
+        setStep('importing');
+        let ok = 0;
+        let error = 0;
+        const skipped = rows.length - importables.length;
+
+        const BATCH = 50;
+        for (let i = 0; i < importables.length; i += BATCH) {
+            const batch = importables.slice(i, i + BATCH);
+            const payload = batch.map(r => ({
+                tenant_id: tenant.id,
+                razon_social: r.razon_social.trim(),
+                cuit: r.cuit?.trim() || null,
+                condicion_fiscal: r.condicion_fiscal,
+                email: r.email,
+                telefono: r.telefono,
+                provincia: r.provincia,
+                observaciones: r.observaciones,
+                categoria_default_id: r.categoria_id,
+                centro_costo_default_id: r.centro_costo_id,
+                activo: true,
+                es_caso_rojo: false,
+                es_favorito: false,
+            }));
+            const { error: e } = await supabase.from('contable_proveedores').insert(payload);
+            if (e) {
+                console.error('[ImportProveedores] Error en lote:', e);
+                error += batch.length;
+            } else {
+                ok += batch.length;
+            }
+        }
+        setImportResult({ ok, skipped, error });
+        setStep('done');
+    }
+
+    const okCount = rows.filter(r => r.status === 'ok' || r.status === 'warning').length;
+    const dupCount = rows.filter(r => r.status === 'duplicate').length;
+    const invalidCount = rows.filter(r => r.status === 'invalid').length;
+
+    return (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '1rem' }} onClick={onClose}>
+            <div style={{ background: 'var(--color-bg-surface)', borderRadius: 14, maxWidth: 900, width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }} onClick={e => e.stopPropagation()}>
+                <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <Upload size={18} />
+                        <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>Importar proveedores desde Excel</h3>
+                    </div>
+                    <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: 4 }}>
+                        <X size={18} />
+                    </button>
+                </div>
+
+                <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 1.5rem' }}>
+                    {step === 'upload' && (
+                        <div>
+                            <div style={{ background: 'rgba(99,102,241,0.04)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: 10, padding: '1rem', marginBottom: '1rem' }}>
+                                <div style={{ fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 600 }}>📄 Plantilla</div>
+                                <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', marginBottom: '0.75rem', lineHeight: 1.5 }}>
+                                    Descargá la plantilla con las columnas correctas, llenala con tus proveedores y subila acá.
+                                    Las columnas son: <strong>Razón Social</strong> (obligatoria), CUIT, Condición Fiscal, Email, Teléfono, Jurisdicción, Categoría, Centro de Costos, Observaciones.
+                                </div>
+                                <button onClick={downloadTemplate} className="btn btn-secondary" style={{ fontSize: '0.78rem', gap: 6 }}>
+                                    <Download size={13} /> Descargar plantilla Excel
+                                </button>
+                            </div>
+                            <label style={{
+                                display: 'block', padding: '2.5rem 1.5rem', textAlign: 'center',
+                                border: '2px dashed var(--color-border-subtle)', borderRadius: 12,
+                                cursor: 'pointer', background: 'var(--color-bg-surface-2, rgba(0,0,0,0.02))',
+                                transition: 'all 0.15s',
+                            }}>
+                                <Upload size={32} color="var(--color-text-muted)" style={{ marginBottom: 10 }} />
+                                <div style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: 4 }}>Click para seleccionar archivo</div>
+                                <div style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>Acepta .xlsx y .xls</div>
+                                <input type="file" accept=".xlsx,.xls" onChange={handleFileChange} style={{ display: 'none' }} />
+                            </label>
+                            {parseError && (
+                                <div style={{ marginTop: 12, padding: '0.75rem', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, fontSize: '0.78rem', color: '#dc2626' }}>
+                                    {parseError}
+                                </div>
+                            )}
+                            {!esConstructora && (
+                                <div style={{ marginTop: 12, padding: '0.6rem 0.85rem', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 8, fontSize: '0.74rem', color: '#92400e' }}>
+                                    Las columnas Categoría y Centro de Costos solo se procesan en tenants de rubro constructora.
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {step === 'preview' && (
+                        <div>
+                            <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                                <div style={{ fontSize: '0.85rem' }}>
+                                    Archivo: <strong>{fileName}</strong> · {rows.length} filas leídas
+                                </div>
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                    <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '3px 8px', borderRadius: 99, background: 'rgba(16,185,129,0.12)', color: '#10b981' }}>✓ {okCount} a importar</span>
+                                    {dupCount > 0 && <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '3px 8px', borderRadius: 99, background: 'rgba(245,158,11,0.12)', color: '#d97706' }}>⚠ {dupCount} duplicados</span>}
+                                    {invalidCount > 0 && <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '3px 8px', borderRadius: 99, background: 'rgba(239,68,68,0.12)', color: '#dc2626' }}>✗ {invalidCount} inválidas</span>}
+                                </div>
+                            </div>
+                            <div style={{ border: '1px solid var(--color-border-subtle)', borderRadius: 10, overflow: 'hidden' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '32px 2fr 110px 1fr 90px 90px 1fr', gap: 0, padding: '8px 12px', background: 'var(--color-bg-surface-2, rgba(0,0,0,0.02))', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-text-muted)', letterSpacing: '0.04em' }}>
+                                    <span></span>
+                                    <span>Razón Social</span>
+                                    <span>CUIT</span>
+                                    <span>Cond. Fiscal</span>
+                                    <span>Jurisd.</span>
+                                    <span>Cat.</span>
+                                    <span>Estado</span>
+                                </div>
+                                <div style={{ maxHeight: 360, overflowY: 'auto' }}>
+                                    {rows.map((r, idx) => {
+                                        const statusColor = r.status === 'ok' ? '#10b981' : r.status === 'duplicate' ? '#d97706' : r.status === 'invalid' ? '#dc2626' : '#f59e0b';
+                                        const statusBg = r.status === 'ok' ? undefined : r.status === 'duplicate' ? 'rgba(245,158,11,0.04)' : r.status === 'invalid' ? 'rgba(239,68,68,0.04)' : 'rgba(245,158,11,0.04)';
+                                        return (
+                                            <div key={idx} style={{ display: 'grid', gridTemplateColumns: '32px 2fr 110px 1fr 90px 90px 1fr', gap: 0, padding: '7px 12px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '0.72rem', alignItems: 'center', background: statusBg }}>
+                                                <span style={{ color: statusColor, fontWeight: 700 }}>
+                                                    {r.status === 'ok' ? '✓' : r.status === 'duplicate' ? '⚠' : r.status === 'invalid' ? '✗' : '!'}
+                                                </span>
+                                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.razon_social || <em style={{ color: '#dc2626' }}>(vacío)</em>}</span>
+                                                <span style={{ fontFamily: 'monospace', color: 'var(--color-text-muted)' }}>{r.cuit || '—'}</span>
+                                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-muted)' }}>{r.condicion_fiscal || '—'}</span>
+                                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-muted)' }}>{r.provincia || '—'}</span>
+                                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: r.categoria_id ? '#10b981' : 'var(--color-text-muted)' }}>{r.categoria_nombre || '—'}</span>
+                                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: statusColor, fontSize: '0.68rem' }}>
+                                                    {r.statusMsg || 'OK'}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {step === 'importing' && (
+                        <div style={{ padding: '3rem', textAlign: 'center' }}>
+                            <Loader size={32} style={{ animation: 'spin 1s linear infinite', color: '#6366f1', marginBottom: 12 }} />
+                            <div style={{ fontSize: '0.95rem', fontWeight: 600 }}>Importando proveedores...</div>
+                        </div>
+                    )}
+
+                    {step === 'done' && (
+                        <div style={{ padding: '2rem 1rem', textAlign: 'center' }}>
+                            <div style={{ width: 60, height: 60, borderRadius: 99, background: 'rgba(16,185,129,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                                <Check size={32} color="#10b981" />
+                            </div>
+                            <div style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: 6 }}>¡Importación completa!</div>
+                            <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: 16 }}>
+                                <strong style={{ color: '#10b981' }}>{importResult.ok}</strong> proveedores importados ·{' '}
+                                <strong style={{ color: '#d97706' }}>{importResult.skipped}</strong> salteados ·{' '}
+                                {importResult.error > 0 && <><strong style={{ color: '#dc2626' }}>{importResult.error}</strong> errores</>}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--color-border-subtle)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                    {step === 'preview' && (
+                        <>
+                            <button onClick={() => { setStep('upload'); setRows([]); }} className="btn btn-secondary">← Volver</button>
+                            <button onClick={handleImport} className="btn btn-primary" disabled={okCount === 0}>
+                                <Upload size={14} /> Importar {okCount} proveedores
+                            </button>
+                        </>
+                    )}
+                    {step === 'done' && (
+                        <button onClick={onImported} className="btn btn-primary">Cerrar y refrescar</button>
+                    )}
+                    {(step === 'upload' || step === 'importing') && (
+                        <button onClick={onClose} className="btn btn-secondary" disabled={step === 'importing'}>Cerrar</button>
+                    )}
+                </div>
+            </div>
+        </div>
     );
 }
