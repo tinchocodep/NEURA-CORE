@@ -247,11 +247,36 @@ export default function Comprobantes() {
             const fromDate = fechaDesdeStr.split('-').reverse().join('/');
             const toDate = fechaHastaStr.split('-').reverse().join('/');
 
+            const cuitEmpresa = arcaConfig.arca_cuit.replace(/-/g, '');
+
+            // Pre-cargar proveedores y clientes del tenant para matchear por CUIT
+            const cleanCuit = (s: string | null | undefined) => (s || '').replace(/[-\s]/g, '').trim();
+            const [{ data: provsData }, { data: clisData }] = await Promise.all([
+                supabase.from('contable_proveedores')
+                    .select('id, cuit, categoria_default_id, centro_costo_default_id')
+                    .eq('tenant_id', tenant.id),
+                supabase.from('contable_clientes')
+                    .select('id, cuit')
+                    .eq('tenant_id', tenant.id),
+            ]);
+            const proveedoresMap = new Map<string, { id: string; categoria_default_id: string | null; centro_costo_default_id: string | null }>();
+            for (const p of (provsData || []) as any[]) {
+                const c = cleanCuit(p.cuit);
+                if (c) proveedoresMap.set(c, { id: p.id, categoria_default_id: p.categoria_default_id, centro_costo_default_id: p.centro_costo_default_id });
+            }
+            const clientesMap = new Map<string, { id: string }>();
+            for (const c of (clisData || []) as any[]) {
+                const cu = cleanCuit(c.cuit);
+                if (cu) clientesMap.set(cu, { id: c.id });
+            }
+
             let importados = 0;
+            let proveedoresCreados = 0;
+            let clientesCreados = 0;
 
             for (const tipoConsulta of ['E', 'R'] as const) {
                 const data = await executeAfipAutomation({
-                    cuit: arcaConfig.arca_cuit.replace(/-/g, ''),
+                    cuit: cuitEmpresa,
                     username: arcaConfig.arca_username.replace(/-/g, ''),
                     password: arcaConfig.arca_password,
                     filters: {
@@ -279,15 +304,28 @@ export default function Comprobantes() {
                     }
 
                     const total = parseAFIPNumber(r['Imp. Total'] || '0');
-                    const netoGravado = parseAFIPNumber(r['Imp. Neto Gravado'] || '0');
+                    // AFIP SDK puede devolver "Imp. Neto Gravado" o "Imp. Neto Gravado Total" (cuando hay alícuotas múltiples)
+                    const netoGravado = parseAFIPNumber(r['Imp. Neto Gravado Total'] || r['Imp. Neto Gravado'] || '0');
                     const netoNoGravado = parseAFIPNumber(r['Imp. Neto No Gravado'] || '0');
-                    const iva = parseAFIPNumber(r['IVA'] || '0');
+                    // AFIP SDK puede devolver "IVA" o "Total IVA" (cuando hay alícuotas múltiples)
+                    const iva = parseAFIPNumber(r['Total IVA'] || r['IVA'] || '0');
                     const otrosTributos = parseAFIPNumber(r['Otros Tributos'] || '0');
                     const codAutorizacion = r['Cód. Autorización'] || '';
-                    const nroDocReceptor = r['Nro. Doc. Receptor'] || '';
-                    const denominacion = r['Denominación Receptor'] || '';
                     const monedaRaw = r['Moneda'] || 'PES';
-                    const moneda = monedaRaw === 'PES' ? 'ARS' : monedaRaw === 'DOL' ? 'USD' : monedaRaw;
+                    const moneda = (monedaRaw === 'PES' || monedaRaw === '$') ? 'ARS' : monedaRaw === 'DOL' ? 'USD' : monedaRaw;
+
+                    // ── Datos del receptor (siempre vienen) ──
+                    const nroDocReceptor = r['Nro. Doc. Receptor'] || '';
+                    const denomReceptor = r['Denominación Receptor'] || '';
+                    // ── Datos del emisor (vienen en compras, NO en ventas) ──
+                    const nroDocEmisor = r['Nro. Doc. Emisor'] || '';
+                    const denomEmisor = r['Denominación Emisor'] || '';
+
+                    // En ventas: emisor = AFG, receptor = cliente
+                    // En compras: emisor = proveedor, receptor = AFG
+                    const cuitContraparte = isVenta ? nroDocReceptor : nroDocEmisor;
+                    const denomContraparte = isVenta ? denomReceptor : denomEmisor;
+                    const cuitContraparteClean = cleanCuit(cuitContraparte);
 
                     const { data: existe } = await supabase
                         .from('contable_comprobantes')
@@ -299,6 +337,66 @@ export default function Comprobantes() {
                         .maybeSingle();
 
                     if (!existe) {
+                        // ── Resolver/crear proveedor o cliente y aplicar defaults ──
+                        let proveedorId: string | null = null;
+                        let clienteId: string | null = null;
+                        let categoriaIdDefault: string | null = null;
+                        let proyectoIdDefault: string | null = null;
+
+                        if (cuitContraparteClean && denomContraparte) {
+                            if (isVenta) {
+                                let cli = clientesMap.get(cuitContraparteClean);
+                                if (!cli) {
+                                    const { data: nuevo } = await supabase
+                                        .from('contable_clientes')
+                                        .insert({
+                                            tenant_id: tenant.id,
+                                            razon_social: denomContraparte,
+                                            cuit: cuitContraparteClean,
+                                            activo: true,
+                                        })
+                                        .select('id')
+                                        .single();
+                                    if (nuevo) {
+                                        cli = { id: nuevo.id };
+                                        clientesMap.set(cuitContraparteClean, cli);
+                                        clientesCreados++;
+                                    }
+                                }
+                                if (cli) clienteId = cli.id;
+                            } else {
+                                let prov = proveedoresMap.get(cuitContraparteClean);
+                                if (!prov) {
+                                    const { data: nuevo } = await supabase
+                                        .from('contable_proveedores')
+                                        .insert({
+                                            tenant_id: tenant.id,
+                                            razon_social: denomContraparte,
+                                            cuit: cuitContraparteClean,
+                                            activo: true,
+                                            es_caso_rojo: false,
+                                            es_favorito: false,
+                                        })
+                                        .select('id, categoria_default_id, centro_costo_default_id')
+                                        .single();
+                                    if (nuevo) {
+                                        prov = {
+                                            id: nuevo.id,
+                                            categoria_default_id: nuevo.categoria_default_id,
+                                            centro_costo_default_id: nuevo.centro_costo_default_id,
+                                        };
+                                        proveedoresMap.set(cuitContraparteClean, prov);
+                                        proveedoresCreados++;
+                                    }
+                                }
+                                if (prov) {
+                                    proveedorId = prov.id;
+                                    categoriaIdDefault = prov.categoria_default_id;
+                                    proyectoIdDefault = prov.centro_costo_default_id;
+                                }
+                            }
+                        }
+
                         const { error } = await supabase.from('contable_comprobantes').insert({
                             tenant_id: tenant.id,
                             tipo: isVenta ? 'venta' : 'compra',
@@ -314,9 +412,16 @@ export default function Comprobantes() {
                             estado: 'aprobado',
                             source: 'arca',
                             origen: 'arca',
-                            cuit_receptor: isVenta ? nroDocReceptor : arcaConfig.arca_cuit.replace(/-/g, ''),
-                            cuit_emisor: isVenta ? arcaConfig.arca_cuit.replace(/-/g, '') : nroDocReceptor,
-                            descripcion: `${denominacion}${codAutorizacion ? ` | CAE: ${codAutorizacion}` : ''}${otrosTributos ? ` | Otros tributos: ${otrosTributos}` : ''}`,
+                            // En ventas: receptor = cliente real (de AFIP), emisor = AFG
+                            // En compras: receptor = AFG, emisor = proveedor real (de AFIP)
+                            cuit_receptor: isVenta ? nroDocReceptor : cuitEmpresa,
+                            cuit_emisor: isVenta ? cuitEmpresa : nroDocEmisor,
+                            descripcion: `${denomContraparte}${codAutorizacion ? ` | CAE: ${codAutorizacion}` : ''}${otrosTributos ? ` | Otros tributos: ${otrosTributos}` : ''}`,
+                            // Vinculación + defaults
+                            proveedor_id: proveedorId,
+                            cliente_id: clienteId,
+                            categoria_id: categoriaIdDefault,
+                            proyecto_id: proyectoIdDefault,
                         });
                         if (error) console.error('[ARCA sync] Insert error:', error);
                         else importados++;
@@ -324,8 +429,15 @@ export default function Comprobantes() {
                 }
             }
 
-            if (importados === 0) addToast('info', 'Al Día', 'No se encontraron comprobantes nuevos en ARCA.');
-            else addToast('success', 'Completado', `Importados ${importados} comprobantes desde ARCA.`);
+            if (importados === 0) {
+                addToast('info', 'Al Día', 'No se encontraron comprobantes nuevos en ARCA.');
+            } else {
+                const extras: string[] = [];
+                if (proveedoresCreados > 0) extras.push(`${proveedoresCreados} proveedor(es) nuevo(s)`);
+                if (clientesCreados > 0) extras.push(`${clientesCreados} cliente(s) nuevo(s)`);
+                const suffix = extras.length > 0 ? ` (${extras.join(', ')})` : '';
+                addToast('success', 'Completado', `Importados ${importados} comprobantes desde ARCA${suffix}.`);
+            }
             reset();
         } catch (e: any) {
             addToast('error', 'Error ARCA', e.message);
