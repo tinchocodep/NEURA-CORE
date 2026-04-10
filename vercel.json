@@ -25,6 +25,10 @@
             "destination": "https://app.afipsdk.com/api/v1/automations"
         },
         {
+            "source": "/api/afipsdk/:path*",
+            "destination": "https://app.afipsdk.com/api/v1/automations/:path*"
+        },
+        {
             "source": "/(.*)",
             "destination": "/index.html"
         }
