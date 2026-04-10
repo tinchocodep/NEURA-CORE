@@ -6,9 +6,10 @@ import { Pencil, LayoutList, CalendarDays, ChevronLeft, ChevronRight, Search, Pl
 import EditTransactionModal from './components/EditTransactionModal';
 import CustomSelect from '../../shared/components/CustomSelect';
 import StyledSelect from '../../shared/components/StyledSelect';
+import HierarchicalCategorySelect, { type CategoriaJerarquica } from '../construccion/HierarchicalCategorySelect';
+import ProveedorSearch, { type ProveedorBasic } from '../construccion/ProveedorSearch';
 
 interface TreasuryProject { id: string; name: string; is_global: boolean | null; status: string | null; }
-interface CategoriaJerarquica { id: string; nombre: string; color: string; tipo: string; parent_id: string | null; orden: number | null; }
 
 const fmt = (n: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n);
 
@@ -43,6 +44,7 @@ export default function Movimientos() {
     const esConstructora = tenant?.rubro === 'constructora';
     const [proyectos, setProyectos] = useState<TreasuryProject[]>([]);
     const [catContables, setCatContables] = useState<CategoriaJerarquica[]>([]);
+    const [proveedoresLista, setProveedoresLista] = useState<ProveedorBasic[]>([]);
     const [formProyectoId, setFormProyectoId] = useState('');
     const [formCategoriaContableId, setFormCategoriaContableId] = useState('');
 
@@ -73,7 +75,8 @@ export default function Movimientos() {
         if (esConstructora) {
             baseQueries.push(
                 supabase.from('treasury_projects').select('id, name, is_global, status').eq('tenant_id', tenant.id).order('is_global', { ascending: false }).order('name'),
-                supabase.from('contable_categorias').select('id, nombre, color, tipo, parent_id, orden').eq('tenant_id', tenant.id).order('orden')
+                supabase.from('contable_categorias').select('id, nombre, color, tipo, parent_id, orden').eq('tenant_id', tenant.id).order('orden'),
+                supabase.from('contable_proveedores').select('id, razon_social, cuit, categoria_default_id, centro_costo_default_id').eq('tenant_id', tenant.id).eq('activo', true).order('razon_social'),
             );
         }
         const results = await Promise.all(baseQueries);
@@ -89,34 +92,12 @@ export default function Movimientos() {
         if (esConstructora) {
             setProyectos((results[3]?.data || []) as TreasuryProject[]);
             setCatContables((results[4]?.data || []) as CategoriaJerarquica[]);
+            setProveedoresLista((results[5]?.data || []) as ProveedorBasic[]);
         }
         setLoading(false);
     };
 
     useEffect(() => { fetchData(); }, [tenant]);
-
-    // Árbol jerárquico para constructora
-    const catContablesTree = useMemo(() => {
-        if (!esConstructora) return [];
-        const filtroTipo = formType === 'income' ? 'ingreso' : 'gasto';
-        const byParent = new Map<string | null, CategoriaJerarquica[]>();
-        for (const c of catContables) {
-            if (c.tipo !== filtroTipo) continue;
-            const k = c.parent_id;
-            if (!byParent.has(k)) byParent.set(k, []);
-            byParent.get(k)!.push(c);
-        }
-        const out: { cat: CategoriaJerarquica; nivel: number }[] = [];
-        function walk(parentId: string | null, nivel: number) {
-            const hijos = (byParent.get(parentId) || []).sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
-            for (const h of hijos) {
-                out.push({ cat: h, nivel });
-                walk(h.id, nivel + 1);
-            }
-        }
-        walk(null, 0);
-        return out;
-    }, [catContables, esConstructora, formType]);
 
     // Pre-seleccionar AFG CONST por default cuando se abre el form en constructora
     useEffect(() => {
@@ -460,8 +441,28 @@ export default function Movimientos() {
                                     <input type="number" className="form-input" value={formAmount || ''} onChange={e => setFormAmount(Number(e.target.value))} placeholder="0" />
                                 </div>
                                 <div className="wizard-field">
-                                    <label className="form-label">Contacto</label>
-                                    <input className="form-input" value={formContact} onChange={e => setFormContact(e.target.value)} placeholder="Nombre del contacto" />
+                                    <label className="form-label">{esConstructora ? 'Proveedor / Contacto' : 'Contacto'}</label>
+                                    {esConstructora ? (
+                                        <ProveedorSearch
+                                            proveedores={proveedoresLista}
+                                            value={formContact}
+                                            onChange={(texto, prov) => {
+                                                setFormContact(texto);
+                                                if (prov) {
+                                                    // Auto-llenar defaults solo si están vacíos
+                                                    if (prov.categoria_default_id && !formCategoriaContableId) {
+                                                        setFormCategoriaContableId(prov.categoria_default_id);
+                                                    }
+                                                    if (prov.centro_costo_default_id && !formProyectoId) {
+                                                        setFormProyectoId(prov.centro_costo_default_id);
+                                                    }
+                                                }
+                                            }}
+                                            placeholder="Buscar proveedor..."
+                                        />
+                                    ) : (
+                                        <input className="form-input" value={formContact} onChange={e => setFormContact(e.target.value)} placeholder="Nombre del contacto" />
+                                    )}
                                 </div>
                             </div>
 
@@ -485,14 +486,12 @@ export default function Movimientos() {
                                     </div>
                                     <div className="wizard-field">
                                         <label className="form-label">Categoría / Subcategoría</label>
-                                        <StyledSelect className="form-input" value={formCategoriaContableId} onChange={e => setFormCategoriaContableId(e.target.value)}>
-                                            <option value="">Sin categoría</option>
-                                            {catContablesTree.map(({ cat, nivel }) => (
-                                                <option key={cat.id} value={cat.id}>
-                                                    {'\u00A0\u00A0'.repeat(nivel)}{nivel > 0 ? '└ ' : ''}{cat.nombre}
-                                                </option>
-                                            ))}
-                                        </StyledSelect>
+                                        <HierarchicalCategorySelect
+                                            categorias={catContables}
+                                            value={formCategoriaContableId}
+                                            onChange={setFormCategoriaContableId}
+                                            tipoFiltro={formType === 'income' ? 'ingreso' : 'gasto'}
+                                        />
                                     </div>
                                 </>
                             )}

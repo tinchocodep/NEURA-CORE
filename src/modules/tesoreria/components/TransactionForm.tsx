@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../../lib/supabase';
 import { useTenant } from '../../../contexts/TenantContext';
@@ -6,9 +6,10 @@ import { useToast } from '../../../contexts/ToastContext';
 import { Plus, Search, Check } from 'lucide-react';
 import ProjectSearch from './ProjectSearch';
 import StyledSelect from '../../../shared/components/StyledSelect';
+import HierarchicalCategorySelect, { type CategoriaJerarquica } from '../../construccion/HierarchicalCategorySelect';
+import ProveedorSearch, { type ProveedorBasic } from '../../construccion/ProveedorSearch';
 
 interface TreasuryProject { id: string; name: string; is_global: boolean | null; }
-interface CategoriaJerarquica { id: string; nombre: string; color: string; tipo: string; parent_id: string | null; orden: number | null; }
 
 // ── Searchable expense-category picker ──────────────────────────────────────
 function ExpenseCategorySearch({ categories, selectedId, onSelect, tenant, onCreated }: {
@@ -149,6 +150,7 @@ export default function TransactionForm({
     // Solo constructora
     const [proyectos, setProyectos] = useState<TreasuryProject[]>([]);
     const [catContables, setCatContables] = useState<CategoriaJerarquica[]>([]);
+    const [proveedoresLista, setProveedoresLista] = useState<ProveedorBasic[]>([]);
     const [proyectoIdSel, setProyectoIdSel] = useState('');
     const [categoriaContableIdSel, setCategoriaContableIdSel] = useState('');
 
@@ -157,10 +159,12 @@ export default function TransactionForm({
         Promise.all([
             supabase.from('treasury_projects').select('id, name, is_global').eq('tenant_id', tenant.id).order('is_global', { ascending: false }).order('name'),
             supabase.from('contable_categorias').select('id, nombre, color, tipo, parent_id, orden').eq('tenant_id', tenant.id).order('orden'),
-        ]).then(([{ data: pp }, { data: cc }]) => {
+            supabase.from('contable_proveedores').select('id, razon_social, cuit, categoria_default_id, centro_costo_default_id').eq('tenant_id', tenant.id).eq('activo', true).order('razon_social'),
+        ]).then(([{ data: pp }, { data: cc }, { data: provs }]) => {
             const projs = (pp || []) as TreasuryProject[];
             setProyectos(projs);
             setCatContables((cc || []) as CategoriaJerarquica[]);
+            setProveedoresLista((provs || []) as ProveedorBasic[]);
             // Pre-seleccionar AFG CONST
             const global = projs.find(p => p.is_global);
             if (global && !proyectoIdSel) setProyectoIdSel(global.id);
@@ -170,29 +174,6 @@ export default function TransactionForm({
 
     // Type selection
     const [txType, setTxType] = useState<TransactionType>('expense');
-
-    // Árbol de plan de cuentas filtrado por tipo
-    const catContablesTree = useMemo(() => {
-        if (!esConstructora) return [];
-        const filtroTipo = txType === 'income' ? 'ingreso' : 'gasto';
-        const byParent = new Map<string | null, CategoriaJerarquica[]>();
-        for (const c of catContables) {
-            if (c.tipo !== filtroTipo) continue;
-            const k = c.parent_id;
-            if (!byParent.has(k)) byParent.set(k, []);
-            byParent.get(k)!.push(c);
-        }
-        const out: { cat: CategoriaJerarquica; nivel: number }[] = [];
-        function walk(parentId: string | null, nivel: number) {
-            const hijos = (byParent.get(parentId) || []).sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
-            for (const h of hijos) {
-                out.push({ cat: h, nivel });
-                walk(h.id, nivel + 1);
-            }
-        }
-        walk(null, 0);
-        return out;
-    }, [catContables, esConstructora, txType]);
 
     // Common fields
     const [amount, setAmount] = useState('');
@@ -514,18 +495,18 @@ export default function TransactionForm({
                     </div>
                 )}
 
-                {/* ══ EGRESO/INGRESO constructora: Plan de cuentas (árbol) ══ */}
+                {/* ══ EGRESO/INGRESO constructora: Plan de cuentas (árbol jerárquico) ══ */}
                 {esConstructora && txType !== 'transfer' && (
                     <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                         <label className="form-label">Categoría / Subcategoría (Plan de cuentas)</label>
-                        <StyledSelect className="form-input" value={categoriaContableIdSel} onChange={e => setCategoriaContableIdSel(e.target.value)} required>
-                            <option value="">Seleccionar...</option>
-                            {catContablesTree.map(({ cat, nivel }) => (
-                                <option key={cat.id} value={cat.id}>
-                                    {'\u00A0\u00A0'.repeat(nivel)}{nivel > 0 ? '└ ' : ''}{cat.nombre}
-                                </option>
-                            ))}
-                        </StyledSelect>
+                        <HierarchicalCategorySelect
+                            categorias={catContables}
+                            value={categoriaContableIdSel}
+                            onChange={setCategoriaContableIdSel}
+                            tipoFiltro={txType === 'income' ? 'ingreso' : 'gasto'}
+                            allowEmpty={false}
+                            placeholder="Seleccionar..."
+                        />
                     </div>
                 )}
 
@@ -598,9 +579,28 @@ export default function TransactionForm({
                 {txType !== 'transfer' && (
                     <>
                         <div className="form-group">
-                            <label className="form-label">Contacto / Entidad (Opcional)</label>
-                            <input type="text" className="form-input" placeholder="Ej: Proveedor S.A."
-                                value={contactName} onChange={e => setContactName(e.target.value)} />
+                            <label className="form-label">{esConstructora ? 'Proveedor / Contacto' : 'Contacto / Entidad (Opcional)'}</label>
+                            {esConstructora ? (
+                                <ProveedorSearch
+                                    proveedores={proveedoresLista}
+                                    value={contactName}
+                                    onChange={(texto, prov) => {
+                                        setContactName(texto);
+                                        if (prov) {
+                                            if (prov.categoria_default_id && !categoriaContableIdSel) {
+                                                setCategoriaContableIdSel(prov.categoria_default_id);
+                                            }
+                                            if (prov.centro_costo_default_id && !proyectoIdSel) {
+                                                setProyectoIdSel(prov.centro_costo_default_id);
+                                            }
+                                        }
+                                    }}
+                                    placeholder="Buscar proveedor..."
+                                />
+                            ) : (
+                                <input type="text" className="form-input" placeholder="Ej: Proveedor S.A."
+                                    value={contactName} onChange={e => setContactName(e.target.value)} />
+                            )}
                         </div>
 
                         <div className="form-group">

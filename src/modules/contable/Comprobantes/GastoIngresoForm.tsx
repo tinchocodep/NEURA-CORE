@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Save, CheckCircle, Loader, RefreshCw, AlertTriangle, Plus, X, Check } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useTenant } from '../../../contexts/TenantContext';
 import { DolarService } from '../../../services/DolarService';
 import StyledSelect from '../../../shared/components/StyledSelect';
+import HierarchicalCategorySelect from '../../construccion/HierarchicalCategorySelect';
 
 /* ─── Types ─────────────────────────────────────────── */
 
-interface Proveedor { id: string; razon_social: string; cuit: string | null; condicion_fiscal: string | null; producto_servicio_default_id: string | null; }
+interface Proveedor { id: string; razon_social: string; cuit: string | null; condicion_fiscal: string | null; producto_servicio_default_id: string | null; categoria_default_id: string | null; centro_costo_default_id: string | null; }
 interface Cliente { id: string; razon_social: string; cuit: string | null; }
 interface ProductoServicio { id: string; nombre: string; grupo: string; }
 interface CentroCosto { id: string; nombre: string; }
@@ -80,7 +81,7 @@ export default function GastoIngresoForm({ tipo, onSuccess }: Props) {
     useEffect(() => {
         if (!tenant) return;
         const queries: any[] = [
-            supabase.from('contable_proveedores').select('id, razon_social, cuit, condicion_fiscal, producto_servicio_default_id').eq('tenant_id', tenant.id).eq('activo', true).order('razon_social'),
+            supabase.from('contable_proveedores').select('id, razon_social, cuit, condicion_fiscal, producto_servicio_default_id, categoria_default_id, centro_costo_default_id').eq('tenant_id', tenant.id).eq('activo', true).order('razon_social'),
             supabase.from('contable_clientes').select('id, razon_social, cuit').eq('tenant_id', tenant.id).eq('activo', true).order('razon_social'),
             supabase.from('contable_productos_servicio').select('id, nombre, grupo').eq('tenant_id', tenant.id).eq('activo', true).order('nombre'),
             supabase.from('contable_centros_costo').select('id, nombre').eq('tenant_id', tenant.id).eq('activo', true).order('nombre'),
@@ -123,29 +124,6 @@ export default function GastoIngresoForm({ tipo, onSuccess }: Props) {
         });
     }, [tenant, isGasto, searchParams, setSearchParams, esConstructora]);
 
-    /* ─── Solo constructora: árbol jerárquico para el dropdown de categoría ─── */
-    const categoriasTree = useMemo(() => {
-        if (!esConstructora) return [];
-        const filtroTipo = isGasto ? 'gasto' : 'ingreso';
-        const byParent = new Map<string | null, CategoriaJerarquica[]>();
-        for (const cat of categorias) {
-            if (cat.tipo !== filtroTipo) continue;
-            const k = cat.parent_id;
-            if (!byParent.has(k)) byParent.set(k, []);
-            byParent.get(k)!.push(cat);
-        }
-        const out: { cat: CategoriaJerarquica; nivel: number }[] = [];
-        function walk(parentId: string | null, nivel: number) {
-            const hijos = (byParent.get(parentId) || []).sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
-            for (const h of hijos) {
-                out.push({ cat: h, nivel });
-                walk(h.id, nivel + 1);
-            }
-        }
-        walk(null, 0);
-        return out;
-    }, [categorias, esConstructora, isGasto]);
-
     /* ─── Solo constructora: crear categoría inline ─── */
     const saveQuickCat = async () => {
         if (!tenant || !quickCatNombre.trim()) return;
@@ -176,11 +154,25 @@ export default function GastoIngresoForm({ tipo, onSuccess }: Props) {
     useEffect(() => {
         if (isGasto && entityId) {
             const prov = proveedores.find(p => p.id === entityId);
-            if (prov?.producto_servicio_default_id && !productoId) {
+            if (!prov) return;
+            if (prov.producto_servicio_default_id && !productoId) {
                 setProductoId(prov.producto_servicio_default_id);
             }
+            // Auto-llenar categoría y centro de costo (solo si están vacíos, para no pisar la elección manual)
+            if (esConstructora) {
+                if (prov.categoria_default_id && !categoriaId) {
+                    setCategoriaId(prov.categoria_default_id);
+                }
+                if (prov.centro_costo_default_id && !proyectoId) {
+                    setProyectoId(prov.centro_costo_default_id);
+                }
+            } else {
+                if (prov.categoria_default_id && !categoriaId) {
+                    setCategoriaId(prov.categoria_default_id);
+                }
+            }
         }
-    }, [entityId, isGasto]);
+    }, [entityId, isGasto, esConstructora]);
 
     useEffect(() => {
         if (moneda === 'USD') {
@@ -474,18 +466,23 @@ export default function GastoIngresoForm({ tipo, onSuccess }: Props) {
                                     </button>
                                 )}
                             </label>
-                            <StyledSelect className="form-input" value={categoriaId} onChange={e => setCategoriaId(e.target.value)}>
-                                <option value="">Sin categoría...</option>
-                                {esConstructora
-                                    ? categoriasTree.map(({ cat, nivel }) => (
-                                        <option key={cat.id} value={cat.id}>
-                                            {'\u00A0\u00A0'.repeat(nivel)}{nivel > 0 ? '└ ' : ''}{cat.nombre}
-                                        </option>
-                                    ))
-                                    : categorias
+                            {esConstructora ? (
+                                <HierarchicalCategorySelect
+                                    categorias={categorias}
+                                    value={categoriaId}
+                                    onChange={setCategoriaId}
+                                    tipoFiltro={isGasto ? 'gasto' : 'ingreso'}
+                                    placeholder="Sin categoría..."
+                                    emptyLabel="Sin categoría"
+                                />
+                            ) : (
+                                <StyledSelect className="form-input" value={categoriaId} onChange={e => setCategoriaId(e.target.value)}>
+                                    <option value="">Sin categoría...</option>
+                                    {categorias
                                         .filter(c => c.tipo === 'ambos' || c.tipo === (isGasto ? 'gasto' : 'ingreso'))
                                         .map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                            </StyledSelect>
+                                </StyledSelect>
+                            )}
                         </div>
                         <div className="form-group">
                             <label className="form-label">Concepto Facturable (Rubro)</label>
@@ -642,16 +639,15 @@ export default function GastoIngresoForm({ tipo, onSuccess }: Props) {
                             </div>
                             <div className="wizard-field">
                                 <label className="form-label">Dentro de (opcional)</label>
-                                <StyledSelect className="form-input" value={quickCatParent} onChange={e => setQuickCatParent(e.target.value)}>
-                                    <option value="">— Categoría raíz —</option>
-                                    {categoriasTree
-                                        .filter(({ nivel }) => nivel < 2) // No permitir agregar más allá del nivel 3
-                                        .map(({ cat, nivel }) => (
-                                            <option key={cat.id} value={cat.id}>
-                                                {'\u00A0\u00A0'.repeat(nivel)}{nivel > 0 ? '└ ' : ''}{cat.nombre}
-                                            </option>
-                                        ))}
-                                </StyledSelect>
+                                <HierarchicalCategorySelect
+                                    categorias={categorias}
+                                    value={quickCatParent}
+                                    onChange={setQuickCatParent}
+                                    tipoFiltro={isGasto ? 'gasto' : 'ingreso'}
+                                    placeholder="— Categoría raíz —"
+                                    emptyLabel="— Categoría raíz —"
+                                    maxNivel={1}
+                                />
                                 <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>
                                     Se hereda el tipo (gasto / ingreso) del padre.
                                 </span>
