@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NeuraOrkesta</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#0a0a0a;overflow:hidden;height:100vh;width:100vw}
+.s{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;
+   opacity:0;pointer-events:none;transition:opacity .6s ease}.s.on{opacity:1;pointer-events:all}
+
+/* ── S1: COVER ── */
+#s1{background:#fff;align-items:center;text-align:center}
+#s1 .logo{width:100px;margin-bottom:48px;opacity:.85}
+#s1 h1{font-size:48px;font-weight:900;letter-spacing:-1.5px;color:#111}
+#s1 h1 span{color:#2563eb}
+#s1 .tag{font-size:15px;color:#94a3b8;margin-top:16px;letter-spacing:5px;text-transform:uppercase;font-weight:300}
+#s1 .date{font-size:12px;color:#cbd5e1;margin-top:60px;letter-spacing:1px}
+
+/* ── S2: TRILOGÍA ── */
+#s2{background:#fff;padding:60px 100px;align-items:center;justify-content:center}
+#s2 h2{font-size:32px;font-weight:800;color:#111;letter-spacing:-0.5px;margin-bottom:6px;text-align:center}
+#s2 .sub{font-size:14px;color:#94a3b8;margin-bottom:36px;font-weight:400;text-align:center}
+.trio{display:flex;gap:20px;align-items:stretch;max-width:960px;width:100%}
+.trio-card{flex:1;border-radius:14px;padding:32px 28px;display:flex;flex-direction:column}
+.trio-card.sync{background:#059669;color:#fff}
+.trio-card.core{background:#1e40af;color:#fff}
+.trio-card.insight{background:#d97706;color:#fff}
+.trio-card .pill{font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;opacity:.6;margin-bottom:20px}
+.trio-card h3{font-size:18px;font-weight:700;margin-bottom:20px}
+.trio-card ul{list-style:none;padding:0;margin:0}
+.trio-card li{font-size:13px;line-height:2;opacity:.85;padding-left:14px;position:relative}
+.trio-card li::before{content:'';position:absolute;left:0;top:10px;width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,.4)}
+
+/* ── S3: VALUE ── */
+#s3{background:#fafafa;padding:40px 100px;align-items:center;justify-content:center}
+#s3 h2{font-size:32px;font-weight:800;color:#111;letter-spacing:-0.5px;margin-bottom:24px;text-align:center}
+.vgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:900px;width:100%}
+.vc{background:#fff;border:1px solid #f1f5f9;border-radius:12px;padding:24px 28px}
+.vc h3{font-size:13px;font-weight:700;color:#1e40af;margin-bottom:8px;letter-spacing:-0.2px}
+.vc p{font-size:12px;color:#64748b;line-height:1.65}
+.vc.w{grid-column:span 2}
+.foot{text-align:center;margin-top:24px;font-size:14px;font-weight:500;color:#1e40af;letter-spacing:-0.2px;max-width:900px;width:100%}
+
+/* ── S4: TIMELINE ── */
+#s4{background:#111827;padding:40px 100px;color:#fff;align-items:center;justify-content:center}
+#s4 h2{font-size:36px;font-weight:800;margin-bottom:40px;color:#fff;text-align:center}
+#s4 h2 span{color:#60a5fa}
+.tl{display:flex;gap:20px;max-width:900px;width:100%}
+
+.ti{flex:1;border-radius:14px;padding:32px 28px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03)}
+.ti .wk{font-size:10px;font-weight:700;color:#60a5fa;letter-spacing:2px;text-transform:uppercase;margin-bottom:16px}
+.ti .tt{font-size:18px;font-weight:700;color:#f1f5f9;margin-bottom:12px}
+.ti .td{font-size:13px;color:#94a3b8;line-height:1.7}
+
+/* ── S5: PRICING ── */
+#s5{background:#fff;align-items:center;text-align:center;padding:80px}
+#s5 h2{font-size:36px;font-weight:800;color:#111;margin-bottom:56px}
+.prs{display:flex;gap:24px;max-width:760px;width:100%}
+.pr{flex:1;padding:40px 32px;border-radius:16px;text-align:center}
+.pr.a{background:#111827;color:#fff}
+.pr.b{background:#2563eb;color:#fff}
+.pr .lab{font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;opacity:.5;margin-bottom:20px}
+.pr .amt{font-size:38px;font-weight:900;letter-spacing:-1.5px}
+.pr .amt small{font-size:16px;font-weight:400;opacity:.5}
+.pr .det{font-size:12px;margin-top:24px;line-height:2;opacity:.7}
+
+/* ── S6: CLOSE ── */
+#s6{background:#111827;align-items:center;text-align:center}
+#s6 .logo{width:56px;margin-bottom:32px;opacity:.5}
+#s6 .msg{font-size:32px;font-weight:600;color:#e2e8f0;line-height:1.5;max-width:550px;letter-spacing:-0.5px}
+#s6 .msg span{color:#60a5fa}
+
+/* ── NAV ── */
+.dots{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);display:flex;gap:10px;z-index:99}
+.dt{width:6px;height:6px;border-radius:50%;background:rgba(150,150,150,.2);cursor:pointer;transition:all .25s}
+.dt.on{background:#2563eb;width:24px;border-radius:3px}
+.ar{position:fixed;top:50%;transform:translateY(-50%);width:36px;height:36px;border-radius:50%;
+    border:none;font-size:16px;cursor:pointer;z-index:99;transition:all .15s;
+    display:flex;align-items:center;justify-content:center;opacity:.4}
+.ar:hover{opacity:.8}
+.ar.l{left:20px}.ar.r{right:20px}
+
+@media(max-width:600px){
+  .s{overflow-y:auto;-webkit-overflow-scrolling:touch;justify-content:flex-start;padding-top:40px;padding-bottom:50px}
+  #s1,#s6{justify-content:center;padding-top:0;padding-bottom:0}
+
+  #s1 h1{font-size:30px}
+  #s1 .logo{width:60px;margin-bottom:24px}
+  #s1 .tag{font-size:10px;letter-spacing:2px}
+  #s1 .date{margin-top:32px}
+
+  #s2{padding:32px 24px}
+  #s2 h2{font-size:22px;margin-bottom:4px}
+  #s2 .sub{font-size:11px;margin-bottom:20px}
+  .trio{flex-direction:column;gap:10px}
+  .trio-card{padding:18px 16px;border-radius:10px}
+  .trio-card .pill{font-size:9px;margin-bottom:8px}
+  .trio-card h3{font-size:14px;margin-bottom:8px}
+  .trio-card li{font-size:11px;line-height:1.6;padding:1px 0;padding-left:12px}
+  .trio-card li::before{top:8px;width:3px;height:3px}
+
+  #s3{padding:32px 24px}
+  #s3 h2{font-size:22px;margin-bottom:16px}
+  .vgrid{grid-template-columns:1fr;gap:8px}
+  .vc{padding:14px 16px;border-radius:8px}
+  .vc.w{grid-column:span 1}
+  .vc h3{font-size:11px;margin-bottom:4px}
+  .vc p{font-size:10.5px;line-height:1.5}
+  .foot{font-size:11px;margin-top:12px;padding:8px}
+
+  #s4{padding:32px 24px}
+  #s4 h2{font-size:24px;margin-bottom:20px}
+  .tl{flex-direction:column;gap:10px}
+  .ti{padding:18px 16px;border-radius:10px}
+  .ti .wk{font-size:9px;margin-bottom:8px}
+  .ti .tt{font-size:15px;margin-bottom:6px}
+  .ti .td{font-size:11px}
+
+  #s5{padding:32px 24px}
+  #s5 h2{font-size:26px;margin-bottom:24px}
+  .prs{flex-direction:column;gap:12px}
+  .pr{padding:24px 20px;border-radius:12px}
+  .pr .amt{font-size:30px}
+  .pr .amt small{font-size:14px}
+  .pr .det{font-size:11px;line-height:1.7;margin-top:14px}
+  .pr.b{transform:none}
+
+  #s6 .logo{width:40px;margin-bottom:20px}
+  #s6 .msg{font-size:20px;padding:0 20px}
+
+  .ar{display:none}
+  .dots{bottom:16px}
+}
+</style>
+</head>
+<body>
+
+<div id="s1" class="s on">
+  <img src="neura-logo.png" class="logo">
+  <h1>NEURA<span>ORKESTA</span></h1>
+  <div class="tag">Gestión integral de propiedades</div>
+  <div class="date" style="margin-top:20px;font-size:13px;color:#94a3b8">Tu empresa, operando en tiempo real</div>
+  <div class="date">Abril 2026</div>
+</div>
+
+<div id="s2" class="s">
+  <h2>Una plataforma, tres motores</h2>
+  <div class="sub">Todo lo que necesitás para gestionar tus propiedades, alquileres y operación inmobiliaria.</div>
+  <div class="trio">
+    <div class="trio-card sync">
+      <div class="pill">Neura Sync</div>
+      <h3>Conexiones automáticas</h3>
+      <ul>
+        <li>Conciliación con AFIP</li>
+        <li>Conciliación bancaria</li>
+        <li>Índices de alquiler ICL / IPC</li>
+        <li>Cotización del dólar en tiempo real</li>
+        <li>Actualización automática de contratos</li>
+      </ul>
+    </div>
+    <div class="trio-card core">
+      <div class="pill">Neura Core</div>
+      <h3>Operación diaria</h3>
+      <ul>
+        <li>Propiedades y contratos</li>
+        <li>Liquidaciones a propietarios</li>
+        <li>Cobranzas y morosidad</li>
+        <li>Expensas y servicios</li>
+        <li>Facturación electrónica</li>
+        <li>Tesorería y órdenes de pago</li>
+      </ul>
+    </div>
+    <div class="trio-card insight">
+      <div class="pill">Neura Insight</div>
+      <h3>Visibilidad total</h3>
+      <ul>
+        <li>Tablero personalizable</li>
+        <li>Mapa de propiedades</li>
+        <li>Alertas inteligentes</li>
+        <li>Pipeline de prospectos</li>
+        <li>Búsqueda global</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div id="s3" class="s">
+  <h2>Todo tu negocio en un solo lugar</h2>
+  <div class="vgrid">
+    <div class="vc"><h3>Propiedades y contratos</h3><p>Toda tu cartera en un mapa. Cuando un contrato está por vencer, te avisa. Cuando cargás uno nuevo, todo se actualiza solo.</p></div>
+    <div class="vc"><h3>Cobranzas y morosidad</h3><p>Sabés al instante quién te debe, cuánto y hace cuánto. Generás las liquidaciones con un clic.</p></div>
+    <div class="vc"><h3>Facturación multientidad</h3><p>Elegís con cuál razón social facturás. Se conecta a AFIP, obtiene el CAE, genera el PDF con QR.</p></div>
+    <div class="vc"><h3>Tu plata bajo control</h3><p>Cajas, bancos, conciliación, órdenes de pago. Cruza tus registros con ARCA y con el banco.</p></div>
+    <div class="vc w"><h3>No perdés ningún prospecto</h3><p>Cada contacto queda registrado. Lo movés por un pipeline visual hasta que cierra. Agenda integrada.</p></div>
+  </div>
+  <div class="foot">Cargás un dato una sola vez. El sistema genera todo lo demás.</div>
+</div>
+
+<div id="s4" class="s">
+  <h2>Operando en <span>3 semanas</span></h2>
+  <div class="tl">
+    <div class="ti"><div class="wk">Semana 1–3</div><div class="tt">Empezás a operar</div><div class="td">Propiedades, contratos, cobranzas, morosidad, dashboard con los números de tu negocio.</div></div>
+    <div class="ti"><div class="wk">Semana 4–6</div><div class="tt">Controlás tu plata</div><div class="td">Tesorería, contabilidad, facturación electrónica, expensas.</div></div>
+    <div class="ti"><div class="wk">Semana 7–8</div><div class="tt">Todo listo</div><div class="td">CRM, agenda, órdenes de trabajo, manual de usuario, capacitación.</div></div>
+  </div>
+</div>
+
+<div id="s5" class="s">
+  <h2>Inversión</h2>
+  <div class="prs">
+    <div class="pr a">
+      <div class="lab">Instalación</div>
+      <div class="amt">USD 10.000</div>
+      <div class="det">50% al firmar — 50% al completar<br>12 módulos · migración · 5 usuarios<br>capacitación · manual</div>
+    </div>
+    <div class="pr b">
+      <div class="lab">Licencia mensual</div>
+      <div class="amt">$200.000<small> +IVA</small></div>
+      <div class="det">Hosting · soporte · backups<br>Contrato mínimo 6 meses<br>Comienza con la primera entrega</div>
+    </div>
+  </div>
+</div>
+
+<div id="s6" class="s">
+  <img src="neura-logo.png" class="logo">
+  <div class="msg">Firmamos, arrancamos,<br>y en <span>3 semanas</span> ya estás operando.</div>
+</div>
+
+<button class="ar l" onclick="go(cur-1)">&#8249;</button>
+<button class="ar r" onclick="go(cur+1)">&#8250;</button>
+<div class="dots" id="dots"></div>
+
+<script>
+const ss=[...document.querySelectorAll('.s')],n=ss.length;let cur=0;
+const dots=document.getElementById('dots');
+ss.forEach((_,i)=>{const d=document.createElement('div');d.className='dt'+(i===0?' on':'');d.onclick=()=>go(i);dots.appendChild(d)});
+function go(i){
+  if(i<0||i>=n)return;
+  ss[cur].classList.remove('on');cur=i;ss[cur].classList.add('on');
+  document.querySelectorAll('.dt').forEach((d,j)=>d.classList.toggle('on',j===cur));
+  const dark=ss[cur].id==='s4'||ss[cur].id==='s6';
+  document.querySelectorAll('.ar').forEach(a=>{a.style.background=dark?'rgba(255,255,255,.06)':'rgba(0,0,0,.04)';a.style.color=dark?'#64748b':'#94a3b8'});
+  document.querySelectorAll('.dt:not(.on)').forEach(d=>d.style.background=dark?'rgba(255,255,255,.12)':'rgba(0,0,0,.08)');
+}
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();go(cur+1)}
+  if(e.key==='ArrowLeft'){e.preventDefault();go(cur-1)}
+  if(e.key==='f')document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
+});
+let tx=0;
+document.addEventListener('touchstart',e=>tx=e.touches[0].clientX);
+document.addEventListener('touchend',e=>{const d=tx-e.changedTouches[0].clientX;if(Math.abs(d)>50)d>0?go(cur+1):go(cur-1)});
+go(0);
+</script>
+</body>
+</html>
