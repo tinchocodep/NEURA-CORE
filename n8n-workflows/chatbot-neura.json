@@ -1,0 +1,1823 @@
+{
+  "name": "NCR - Chatbot Neura",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "=https://fuytejvnwihghxymyayw.supabase.co/rest/v1/tenants?id=eq.{{ $(\"Webhook\").first().json.body.tenant_id }}&select=rubro",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        3104,
+        704
+      ],
+      "id": "fee0ec38-e855-4d76-9af5-1befba270479",
+      "name": "Leer rubro",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "cond-inmobiliaria",
+                    "leftValue": "={{ $json.rubro }}",
+                    "rightValue": "inmobiliaria",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "inmobiliaria"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        3296,
+        704
+      ],
+      "id": "c2abe90f-d53b-40dc-a331-ca62a90cf463",
+      "name": "Switch rubro"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $(\"Cargar memoria1\").all().length > 0 ? \"Conversación previa:\\n\" + $(\"Cargar memoria1\").all().map(i => i.json.role + \": \" + i.json.content.substring(0, 150)).reverse().join(\"\\n\") + \"\\n\\nPregunta actual:\\n\" : \"\" }}{{ $(\"Webhook\").first().json.body.chatInput }}",
+        "options": {
+          "systemMessage": "Sos Neura, la asistente de NeuraCore para gestión inmobiliaria. Hablás en español rioplatense, profesional pero cercana. Usás \"vos\" en vez de \"tú\". Sos concisa y vas al grano.\n\n## Tus herramientas\n\n### buscar_propiedades\nBusca propiedades por dirección, tipo o estado. Tipos: departamento, casa, local, oficina, terreno, cochera, deposito. Estados: disponible, alquilada, en_venta, reservada, en_refaccion.\n\n### buscar_contratos\nBusca contratos de alquiler/venta con datos de propiedad, inquilino y propietario. Filtra por estado (vigente, vencido, rescindido, borrador).\n\n### buscar_inquilino\nBusca inquilino o propietario por nombre parcial.\n\n### cuenta_corriente\nSaldo y movimientos de cuenta corriente de un inquilino o propietario.\n\n### vencimientos_proximos\nPróximos vencimientos pendientes: contratos, pagos, ajustes de alquiler.\n\n### ordenes_trabajo\nÓrdenes de trabajo/mantenimiento. Devuelve título, estado, prioridad, propiedad, proveedor.\n\n### resumen_cartera\nResumen de la cartera: total propiedades, % ocupación, ingreso mensual, contratos vigentes, vencimientos próximos. Para \"cómo estamos\" o \"resumen\".\n\n### deudores\nRanking de inquilinos con deuda. Devuelve: inquilino, cuit, saldo_deuda, ultimo_movimiento. Para \"quién me debe más\".\n\n### buscar_liquidaciones\nLiquidaciones a propietarios. Devuelve período, ingreso, neto, estado, propiedad, propietario.\n\n### buscar_expensas\nExpensas por propiedad y período. Devuelve monto, estado, vencimiento.\n\n## Formato de CUITs\nLos CUITs están en formato XX-XXXXXXXX-X (con guiones). SIEMPRE pasá el CUIT con guiones.\n\n## Reglas estrictas\n0. ANTES de ejecutar cualquier herramienta, analizá cuál es la más adecuada. Resumen general → resumen_cartera. Deudas → deudores. Propiedades → buscar_propiedades. Contratos → buscar_contratos.\n1. NUNCA inventes datos. Si no hay resultados, decilo.\n2. Formateá montos como \"$ 1.234.567,89\" (formato argentino).\n3. Formateá resultados como listas con emojis, NO tablas Markdown (Telegram no las renderiza bien).\n4. Nunca menciones IDs internos, tenant_id, ni detalles técnicos.\n5. NUNCA llames la misma herramienta más de 2 veces. Respondé con lo que tengas.\n6. Si piden \"todos\", usá limit=100.\n7. Si una herramienta devuelve 0 resultados, decilo. No busques con otra para compensar.\n8. Si te preguntan por facturas, comprobantes de compra/venta, proveedores contables u OPs, respondé: \"Esas funciones están disponibles para cuentas contables.\"\n\n## Ayuda (respondé sin herramientas)\n- Saludo → \"¡Hola! Soy Neura, tu asistente inmobiliaria. Podés preguntarme por propiedades, contratos, inquilinos, vencimientos, órdenes de trabajo, liquidaciones, expensas o cuentas corrientes. ¿En qué te ayudo?\"\n- Crear contrato → \"Desde Inmobiliaria > Contratos en la plataforma.\"\n\n## Ejemplos\n- \"Propiedades disponibles\" → buscar_propiedades(estado=disponible)\n- \"Contratos que vencen pronto\" → vencimientos_proximos()\n- \"Saldo de García\" → buscar_inquilino(García) → cuenta_corriente(cliente_id)\n- \"Órdenes pendientes\" → ordenes_trabajo(estado=reportado)\n- \"Cómo estamos\" → resumen_cartera()\n- \"Quién me debe más\" → deudores()\n- \"Liquidaciones del mes\" → buscar_liquidaciones(limit=10)\n- \"Expensas pendientes\" → buscar_expensas(estado=pendiente)\n- \"Departamentos alquilados\" → buscar_propiedades(tipo=departamento, estado=alquilada)",
+          "maxIterations": 15
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        3504,
+        160
+      ],
+      "id": "6e3ab55a-a0b9-4561-9462-a3dc0e4b3d82",
+      "name": "AI Agent Inmobiliaria",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        3472,
+        528
+      ],
+      "id": "27180cb3-99ba-4e75-9ea8-62cce431699f",
+      "name": "Google Gemini Inmobiliaria",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ckp67BViTFwefxtq",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/inmobiliaria_propiedades",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "id,direccion,tipo,estado,precio_alquiler,precio_venta,moneda,superficie_m2,ambientes,piso,localidad,provincia"
+            },
+            {
+              "name": "tenant_id",
+              "value": "=eq.{{ $(\"Webhook\").item.json.body.tenant_id }}"
+            },
+            {
+              "name": "order",
+              "value": "created_at.desc"
+            },
+            {
+              "name": "limit",
+              "value": "={{ $fromAI(\"limit\", \"máximo resultados, default 10\", \"number\") || 10 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        3760,
+        432
+      ],
+      "id": "f40883d1-cf57-4bfd-8ce9-2e8381bc87ec",
+      "name": "buscar_propiedades",
+      "description": "Busca propiedades por dirección, tipo o estado. Devuelve dirección, tipo, estado, precio, superficie, ambientes.",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/inmobiliaria_contratos",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "id,tipo,fecha_inicio,fecha_fin,monto_mensual,moneda,estado,indice_ajuste,inmobiliaria_propiedades(direccion,tipo),inquilino:contable_clientes!inquilino_id(razon_social,cuit),propietario:contable_clientes!propietario_id(razon_social)"
+            },
+            {
+              "name": "tenant_id",
+              "value": "=eq.{{ $(\"Webhook\").item.json.body.tenant_id }}"
+            },
+            {
+              "name": "order",
+              "value": "created_at.desc"
+            },
+            {
+              "name": "limit",
+              "value": "={{ $fromAI(\"limit\", \"máximo resultados, default 10\", \"number\") || 10 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        3584,
+        432
+      ],
+      "id": "c301caac-83fa-4041-8414-39f433f8e83d",
+      "name": "buscar_contratos",
+      "description": "Busca contratos de alquiler/venta con datos de propiedad, inquilino y propietario.",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/contable_clientes",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "id,razon_social,cuit,email,telefono,direccion"
+            },
+            {
+              "name": "tenant_id",
+              "value": "=eq.{{ $(\"Webhook\").item.json.body.tenant_id }}"
+            },
+            {
+              "name": "razon_social",
+              "value": "=ilike.*{{ $fromAI(\"nombre\", \"nombre parcial del inquilino o propietario\", \"string\") }}*"
+            },
+            {
+              "name": "order",
+              "value": "created_at.desc"
+            },
+            {
+              "name": "limit",
+              "value": "5"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        3952,
+        432
+      ],
+      "id": "52637668-2e32-425a-a056-0f9d816d5956",
+      "name": "buscar_inquilino",
+      "description": "Busca inquilino o propietario por nombre parcial. Devuelve razón social, CUIT, email, teléfono.",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/inmobiliaria_cuentas_corrientes",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "id,tipo,concepto,monto,saldo_acumulado,fecha,contable_clientes(razon_social)"
+            },
+            {
+              "name": "tenant_id",
+              "value": "=eq.{{ $(\"Webhook\").item.json.body.tenant_id }}"
+            },
+            {
+              "name": "order",
+              "value": "created_at.desc"
+            },
+            {
+              "name": "limit",
+              "value": "={{ $fromAI(\"limit\", \"máximo resultados, default 10\", \"number\") || 10 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        4112,
+        432
+      ],
+      "id": "be8a796d-d54c-4136-9f2d-9d2817d6797c",
+      "name": "cuenta_corriente",
+      "description": "Saldo y movimientos de cuenta corriente de un inquilino o propietario.",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/inmobiliaria_vencimientos",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "id,tipo,fecha,descripcion,completado,inmobiliaria_propiedades(direccion)"
+            },
+            {
+              "name": "tenant_id",
+              "value": "=eq.{{ $(\"Webhook\").item.json.body.tenant_id }}"
+            },
+            {
+              "name": "completado",
+              "value": "eq.false"
+            },
+            {
+              "name": "order",
+              "value": "fecha.asc"
+            },
+            {
+              "name": "limit",
+              "value": "={{ $fromAI(\"limit\", \"máximo resultados, default 10\", \"number\") || 10 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        4288,
+        432
+      ],
+      "id": "eff701f7-aa06-4117-bf1c-c08ebb9cee54",
+      "name": "vencimientos_proximos",
+      "description": "Próximos vencimientos pendientes: contratos, pagos, ajustes de alquiler.",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/inmobiliaria_ordenes_trabajo",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "id,titulo,descripcion,estado,prioridad,fecha_reporte,monto_presupuesto,monto_final,inmobiliaria_propiedades(direccion),inmobiliaria_proveedores(nombre)"
+            },
+            {
+              "name": "tenant_id",
+              "value": "=eq.{{ $(\"Webhook\").item.json.body.tenant_id }}"
+            },
+            {
+              "name": "order",
+              "value": "created_at.desc"
+            },
+            {
+              "name": "limit",
+              "value": "={{ $fromAI(\"limit\", \"máximo resultados, default 10\", \"number\") || 10 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        4464,
+        448
+      ],
+      "id": "464c7d88-51c7-4873-ad33-b9b08f1cd980",
+      "name": "ordenes_trabajo",
+      "description": "Órdenes de trabajo/mantenimiento. Devuelve título, estado, prioridad, propiedad, proveedor, presupuesto.",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "neuracore-chat",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        2704,
+        704
+      ],
+      "id": "8582165a-80ac-4630-beff-308f90b5a876",
+      "name": "Webhook",
+      "webhookId": "50218a36-5411-4b52-a128-0158712f0dda"
+    },
+    {
+      "parameters": {
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/contable_proveedores",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "id,razon_social,cuit,email,telefono,direccion,condicion_fiscal,activo"
+            },
+            {
+              "name": "tenant_id",
+              "value": "=eq.{{ $('Webhook').item.json.body.tenant_id }}"
+            },
+            {
+              "name": "razon_social",
+              "value": "=ilike.*{{ $fromAI('nombre', 'nombre parcial del proveedor a buscar', 'string') }}*"
+            },
+            {
+              "name": "limit",
+              "value": "5"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        4176,
+        1248
+      ],
+      "id": "dc9d4c85-727b-4cb3-aebb-f75928e1d5ea",
+      "name": "buscar_proveedor1",
+      "description": "Busca proveedores por nombre parcial. Devuelve razón social, CUIT, email, teléfono, condición fiscal.",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/contable_clientes",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "id,razon_social,cuit,email,telefono,direccion,localidad,provincia,condicion_fiscal,activo"
+            },
+            {
+              "name": "tenant_id",
+              "value": "=eq.{{ $('Webhook').item.json.body.tenant_id }}"
+            },
+            {
+              "name": "razon_social",
+              "value": "=ilike.*{{ $fromAI('nombre', 'nombre parcial del cliente a buscar', 'string') }}*"
+            },
+            {
+              "name": "limit",
+              "value": "5"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        4000,
+        1248
+      ],
+      "id": "6e8a1364-1f80-4d93-809e-59d5234ad528",
+      "name": "buscar_cliente1",
+      "description": "Busca clientes por nombre parcial. Devuelve razón social, CUIT, email, teléfono.",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/contable_proveedores",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "id,razon_social,cuit,email,telefono,direccion,condicion_fiscal"
+            },
+            {
+              "name": "tenant_id",
+              "value": "=eq.{{ $('Webhook').item.json.body.tenant_id }}"
+            },
+            {
+              "name": "cuit",
+              "value": "=eq.{{ $fromAI('cuit', 'CUIT del proveedor (solo números, 11 dígitos)', 'string') }}"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        3840,
+        1456
+      ],
+      "id": "91bc723b-9502-4b10-809e-e1af21a12dcb",
+      "name": "buscar_por_cuit1",
+      "description": "Busca un proveedor por CUIT exacto (11 dígitos sin guiones).",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/contable_clientes",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "id,razon_social,cuit,email,telefono,direccion,condicion_fiscal"
+            },
+            {
+              "name": "tenant_id",
+              "value": "=eq.{{ $('Webhook').item.json.body.tenant_id }}"
+            },
+            {
+              "name": "cuit",
+              "value": "=eq.{{ $fromAI('cuit', 'CUIT del cliente (solo números, 11 dígitos)', 'string') }}"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        4368,
+        1232
+      ],
+      "id": "0a386215-3ae8-4889-816e-120f246c2296",
+      "name": "buscar_cliente_por_cuit1",
+      "description": "Busca un cliente por CUIT exacto (11 dígitos sin guiones).",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/contable_comprobantes",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "id,tipo,tipo_comprobante,fecha,numero_comprobante,monto_original,monto_ars,moneda,estado,descripcion,fecha_vencimiento,pdf_url,contable_categorias(nombre)"
+            },
+            {
+              "name": "tenant_id",
+              "value": "=eq.{{ $('Webhook').item.json.body.tenant_id }}"
+            },
+            {
+              "name": "cuit_emisor",
+              "value": "=eq.{{ $fromAI('cuit', 'CUIT del proveedor emisor (11 dígitos)', 'string') }}"
+            },
+            {
+              "name": "tipo",
+              "value": "eq.compra"
+            },
+            {
+              "name": "order",
+              "value": "fecha.desc"
+            },
+            {
+              "name": "limit",
+              "value": "={{ $fromAI('limit', 'máximo resultados, default 10', 'number') || 10 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        3440,
+        1456
+      ],
+      "id": "8d3696f5-fa43-4c63-a660-782bb6584a30",
+      "name": "comprobantes_de_proveedor1",
+      "description": "Trae las últimas facturas de compra de un proveedor específico filtrando por su CUIT emisor. Primero usá buscar_proveedor para obtener el CUIT.",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/contable_comprobantes",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "id,tipo,tipo_comprobante,fecha,numero_comprobante,monto_original,monto_ars,moneda,estado,descripcion,fecha_vencimiento,pdf_url,contable_categorias(nombre)"
+            },
+            {
+              "name": "tenant_id",
+              "value": "=eq.{{ $('Webhook').item.json.body.tenant_id }}"
+            },
+            {
+              "name": "cuit_receptor",
+              "value": "=eq.{{ $fromAI('cuit', 'CUIT del cliente receptor (11 dígitos)', 'string') }}"
+            },
+            {
+              "name": "tipo",
+              "value": "eq.venta"
+            },
+            {
+              "name": "order",
+              "value": "fecha.desc"
+            },
+            {
+              "name": "limit",
+              "value": "={{ $fromAI('limit', 'máximo resultados, default 10', 'number') || 10 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        3632,
+        1456
+      ],
+      "id": "8f42f31e-75e1-4150-b3d0-e061077ff526",
+      "name": "comprobantes_de_cliente1",
+      "description": "Trae las últimas facturas de venta a un cliente específico filtrando por su CUIT receptor. Primero usá buscar_cliente para obtener el CUIT.",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Cargar memoria1').all().length > 0 ? 'Conversación previa:\\n' + $('Cargar memoria1').all().map(i => i.json.role + ': ' + i.json.content.substring(0, 150)).reverse().join('\\n') + '\\n\\nPregunta actual:\\n' : '' }}{{ $('Webhook').first().json.body.chatInput }}\n\n",
+        "options": {
+          "systemMessage": "Sos Neura, la asistente inteligente de NeuraCore. Hablás en español rioplatense, profesional pero cercana. Usás \"vos\" en vez de \"tú\". Sos concisa y vas al grano.\n\n## Tus herramientas\n\n### buscar_comprobantes\nBusca facturas, notas de crédito/débito, tickets. Filtra por proveedor (nombre parcial), estado, rango de fechas, tipo (compra/venta), source (xubio/arca/manual/pdf_upload).\n\n### buscar_proveedor\nBusca proveedores por nombre parcial. Devuelve razón social, CUIT, email, teléfono, condición fiscal.\n\n### buscar_cliente\nBusca clientes por nombre parcial. Devuelve razón social, CUIT, email, teléfono.\n\n### buscar_por_cuit\nBusca un proveedor por CUIT exacto.\n\n### buscar_cliente_por_cuit\nBusca un cliente por CUIT exacto.\n\n### comprobantes_de_proveedor\nTrae facturas de compra de un proveedor filtrando por su CUIT. Primero usá buscar_proveedor para obtener el CUIT.\n\n### comprobantes_de_cliente\nTrae facturas de venta a un cliente filtrando por su CUIT. Primero usá buscar_cliente para obtener el CUIT.\n\n### buscar_ordenes_pago\nConsulta órdenes de pago. Filtra por estado.\n\n### ranking_proveedores\nRanking de proveedores por cantidad de comprobantes o monto. Parámetro orden: 'cantidad', 'total', 'fecha'.\n\n### ranking_clientes\nRanking de clientes por cantidad de facturas de venta o monto total. Mismo formato que ranking_proveedores.\n\n### resumen_contable\nResumen rápido del mes: total comprobantes, compras/ventas, montos, pendientes, último sync. Para \"cómo estamos\" o \"resumen\".\n\n### deuda_proveedor\nCalcula deuda pendiente con un proveedor por CUIT. Usá buscar_proveedor primero para obtener el CUIT, después esta tool.\n\n### exportar_csv\nExporta datos a CSV por Telegram. Tipos: comprobantes, proveedores, clientes, ordenes_pago. Llamá UNA SOLA VEZ.\n\n### sincronizar_erp\nSincroniza comprobantes desde Xubio. Devuelve {imported, updated, failed}. Llamá UNA SOLA VEZ.\n\n### sincronizar_arca\nSincroniza comprobantes desde ARCA (AFIP). Puede tardar unos minutos. Llamá UNA SOLA VEZ.\n\n### ejecutar_conciliacion\nEjecuta conciliación completa. Tarda varios minutos. Llamá UNA SOLA VEZ.\n\n### estado_sincronizacion\nEstado de las últimas sincronizaciones y conciliaciones.\n\n## Formato de CUITs\nLos CUITs están en formato XX-XXXXXXXX-X (con guiones). SIEMPRE pasá el CUIT con guiones a las herramientas.\n\n## Reglas estrictas\n0. ANTES de ejecutar cualquier herramienta, analizá cuál es la más adecuada. Rankings/totales → ranking_proveedores o ranking_clientes. Comprobantes de UN proveedor → buscar_proveedor + comprobantes_de_proveedor. Deuda → buscar_proveedor + deuda_proveedor. Resumen general → resumen_contable.\n1. NUNCA inventes datos. Si no hay resultados, decilo.\n2. Cuánto se debe a un proveedor: buscar_proveedor → deuda_proveedor(cuit). NO sumes manualmente.\n3. \"Facturas de marzo\" → fecha_desde=2026-03-01, fecha_hasta=2026-03-31.\n4. Formateá montos como \"$ 1.234.567,89\" (formato argentino).\n5. Formateá resultados como listas con emojis, NO tablas Markdown (Telegram no las renderiza bien).\n6. Si hay pdf_url, incluí \"[Ver PDF](url)\".\n7. Si no hay resultados, sugerí otra búsqueda.\n8. Nunca menciones IDs internos, tenant_id, ni detalles técnicos.\n9. NUNCA llames la misma herramienta más de 2 veces. Respondé con lo que tengas.\n10. Máximo 1 llamada para: sincronizar_erp, ejecutar_conciliacion, exportar_csv.\n11. Si piden \"todos\", usá limit=100. Si hay más, sugerí CSV.\n12. Para comprobantes de un proveedor/cliente: SIEMPRE usá buscar_proveedor/buscar_cliente primero → después comprobantes_de_proveedor/comprobantes_de_cliente con el CUIT exacto.\n13. Si una herramienta devuelve 0 resultados, decí \"No hay datos para [nombre]\". NUNCA busques con otra herramienta para compensar.\n14. Si te preguntan por propiedades, contratos de alquiler, inquilinos u órdenes de trabajo, respondé: \"Esas funciones están disponibles para cuentas inmobiliarias.\"\n\n## Ayuda (respondé sin herramientas)\n- Saludo → \"¡Hola! Soy Neura. Podés preguntarme por facturas, proveedores, clientes, deudas, OPs, rankings, exportar CSV o conciliación. También podés mandarme fotos o PDFs de facturas. ¿En qué te ayudo?\"\n\n## Ejemplos\n- \"Cuánto le debo a Bonelli\" → buscar_proveedor(Bonelli) → deuda_proveedor(cuit)\n- \"Facturas de marzo\" → buscar_comprobantes(fecha_desde=2026-03-01, fecha_hasta=2026-03-31)\n- \"Últimas 10 facturas\" → buscar_comprobantes(limit=10)\n- \"Todos los comprobantes de Olivera\" → buscar_proveedor(Olivera) → comprobantes_de_proveedor(cuit, limit=100)\n- \"Quién tiene más facturas\" → ranking_proveedores(orden=cantidad)\n- \"Top clientes por monto\" → ranking_clientes(orden=total)\n- \"Cómo estamos este mes\" → resumen_contable()\n- \"Sincronizá con Xubio\" → sincronizar_erp()\n- \"Exportame los comprobantes\" → exportar_csv(comprobantes)",
+          "maxIterations": 15
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        3472,
+        800
+      ],
+      "id": "f57e25a0-70eb-47b9-829c-241c45dcbfae",
+      "name": "AI Agent",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        3168,
+        928
+      ],
+      "id": "1af7fb73-3b14-40f7-9889-24614306ee98",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ckp67BViTFwefxtq",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $(\"AI Agent\").isExecuted ? ($(\"AI Agent\").first().json.error ? \"Perdón, no pude completar tu consulta. Probá con algo más específico.\" : $(\"AI Agent\").first().json.output) : ($(\"AI Agent Inmobiliaria\").isExecuted ? ($(\"AI Agent Inmobiliaria\").first().json.error ? \"Perdón, no pude completar tu consulta. Probá con algo más específico.\" : $(\"AI Agent Inmobiliaria\").first().json.output) : \"No pude procesar tu consulta.\") }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        5424,
+        576
+      ],
+      "id": "0c52ca49-399c-4bd2-b21c-7d23e65a3c47",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/contable_comprobantes",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "id,tipo,tipo_comprobante,fecha,numero_comprobante,monto_original,monto_ars,moneda,estado,descripcion,fecha_vencimiento,source,pdf_url,contable_proveedores(razon_social,cuit),contable_clientes(razon_social),contable_categorias(nombre)"
+            },
+            {
+              "name": "tenant_id",
+              "value": "=eq.{{ $('Webhook').item.json.body.tenant_id }}"
+            },
+            {
+              "name": "contable_proveedores.razon_social",
+              "value": "=ilike.*{{ $fromAI('proveedor', 'nombre parcial del proveedor (dejar vacío si no aplica)', 'string') }}*"
+            },
+            {
+              "name": "order",
+              "value": "fecha.desc"
+            },
+            {
+              "name": "limit",
+              "value": "={{ $fromAI('limit', 'máximo resultados, default 10', 'number') || 10 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        3456,
+        1248
+      ],
+      "id": "802fd9ef-be57-4c78-8f33-a0262adc12c3",
+      "name": "buscar_comprobantes",
+      "description": "Busca comprobantes (facturas) filtrando por nombre de proveedor. Usa inner join con proveedores.",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/tesoreria_ordenes_pago",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "id,numero_op,fecha,estado,monto_bruto,monto_retenciones,monto_neto,archivo_url,contable_proveedores(razon_social,cuit)"
+            },
+            {
+              "name": "tenant_id",
+              "value": "=eq.{{ $('Webhook').item.json.body.tenant_id }}"
+            },
+            {
+              "name": "order",
+              "value": "fecha.desc"
+            },
+            {
+              "name": "limit",
+              "value": "={{ $fromAI('limit', 'máximo resultados, default 10', 'number') || 10 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        4560,
+        1232
+      ],
+      "id": "f74821ae-3527-4571-af5e-8a721e31790b",
+      "name": "buscar_ordenes_pago",
+      "description": "Busca órdenes de pago con datos del proveedor.",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/sync_runs",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "run_type,status,fecha_desde,fecha_hasta,records_imported,records_updated,records_failed,triggered_by,created_at,completed_at"
+            },
+            {
+              "name": "tenant_id",
+              "value": "=eq.{{ $('Webhook').item.json.body.tenant_id }}"
+            },
+            {
+              "name": "order",
+              "value": "created_at.desc"
+            },
+            {
+              "name": "limit",
+              "value": "={{ $fromAI('limit', 'máximo resultados, default 5', 'number') || 5 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        4016,
+        1456
+      ],
+      "id": "98926216-4e82-4208-87a9-bc77068c50ce",
+      "name": "estado_sincronizacion",
+      "description": "Consulta el estado de las últimas sincronizaciones y conciliaciones automáticas.",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/contable_comprobantes",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "id,tipo,tipo_comprobante,fecha,numero_comprobante,monto_original,monto_ars,moneda,estado,descripcion,cuit_emisor,cuit_receptor,source,pdf_url,proveedor_id,cliente_id"
+            },
+            {
+              "name": "tenant_id\t",
+              "value": "=eq.{{ $('Webhook').item.json.body.tenant_id }}"
+            },
+            {
+              "name": "numero_comprobante",
+              "value": "=ilike.*{{ $fromAI('numero', 'número de comprobante completo o parcial', 'string') }}*"
+            },
+            {
+              "name": "limit",
+              "value": "5"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        4192,
+        1472
+      ],
+      "id": "09c27b1c-da52-4b74-9fd5-96c8f630f5c9",
+      "name": "buscar_por_numero1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n.neuracall.net/webhook/ejecutar-conciliacion",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"chat_id\": \"{{ $('Webhook').first().json.body.chat_id }}\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        3840,
+        1248
+      ],
+      "id": "bd82b9b7-bee1-4dce-9efa-58fc672b4656",
+      "name": "ejecutar-conciliacion1"
+    },
+    {
+      "parameters": {
+        "url": "=https://fuytejvnwihghxymyayw.supabase.co/rest/v1/chatbot_memory?tenant_id=eq.{{ $('Webhook').first().json.body.tenant_id }}&chat_id=eq.{{ $('Webhook').first().json.body.chat_id }}&select=role,content&order=created_at.desc&limit=4",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2912,
+        704
+      ],
+      "id": "bfa5d928-36a3-4d67-b53d-42c87df54f7b",
+      "name": "Cargar memoria1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/chatbot_memory",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "=[\n  {\n    \"tenant_id\": \"{{ $(\"Webhook\").first().json.body.tenant_id }}\",\n    \"chat_id\": \"{{ $(\"Webhook\").first().json.body.chat_id }}\",\n    \"role\": \"user\",\n    \"content\": {{ JSON.stringify($(\"Webhook\").first().json.body.chatInput) }}\n  },\n  {\n    \"tenant_id\": \"{{ $(\"Webhook\").first().json.body.tenant_id }}\",\n    \"chat_id\": \"{{ $(\"Webhook\").first().json.body.chat_id }}\",\n    \"role\": \"assistant\",\n    \"content\": {{ JSON.stringify($(\"AI Agent\").isExecuted ? $(\"AI Agent\").first().json.output : ($(\"AI Agent Inmobiliaria\").isExecuted ? $(\"AI Agent Inmobiliaria\").first().json.output : \"Sin respuesta\")) }}\n  }\n]",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        5184,
+        560
+      ],
+      "id": "946abd16-f5d1-4db8-a355-73b0b3945604",
+      "name": "Guardar mensaje usuario1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Exporta datos a CSV y lo envía como archivo por Telegram. Tipos: comprobantes, proveedores, clientes, ordenes_pago. Acepta filtros de fecha y estado. Respondé: \"Te mandé el archivo por Telegram.\"\n",
+        "method": "POST",
+        "url": "https://n8n.neuracall.net/webhook/exportar-csv-telegram",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjE0MzEsImV4cCI6MjA4NzEzNzQzMX0.DpQeHA--4qG8hjudz4fMBhnYwlpKcsZ9wuKgTzxpKsw"
+            },
+            {
+              "name": "Content-Type\t",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "tenantId",
+              "value": "={{ $('Webhook').first().json.body.tenant_id }}"
+            },
+            {
+              "name": "tipo",
+              "value": "={{ $fromAI('tipo', 'comprobantes o proveedores o clientes o ordenes_pago') }}"
+            },
+            {
+              "name": "fechaDesde",
+              "value": "={{ $fromAI('fechaDesde', 'fecha inicio YYYY-MM-DD opcional') }}"
+            },
+            {
+              "name": "fechaHasta",
+              "value": "={{ $fromAI('fechaHasta', 'fecha fin YYYY-MM-DD opcional') }}"
+            },
+            {
+              "name": "estado",
+              "value": "={{ $fromAI('estado', 'estado del comprobante opcional') }}"
+            },
+            {
+              "name": "filename",
+              "value": "={{ $fromAI('filename', 'nombre del archivo CSV') }}"
+            },
+            {
+              "name": "chat_id",
+              "value": "={{ $('Webhook').first().json.body.chat_id }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        4384,
+        1472
+      ],
+      "id": "e91ea817-8f9d-42c9-9a9e-82a3f7f63242",
+      "name": "exportar_csv1"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Sincroniza comprobantes desde Xubio ERP. Devuelve cuántos se importaron/actualizaron. Después de llamar esta tool, usá buscar_comprobantes con source xubio y fecha de hoy para mostrar los que se importaron.",
+        "method": "POST",
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/functions/v1/sync-xubio",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjE0MzEsImV4cCI6MjA4NzEzNzQzMX0.DpQeHA--4qG8hjudz4fMBhnYwlpKcsZ9wuKgTzxpKsw"
+            },
+            {
+              "name": "Content-Type\t",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTU2MTQzMSwiZXhwIjoyMDg3MTM3NDMxfQ.N9AhuM2sPXcXJmTiM1lux4weZI94ltNw0B4oHwxWecU"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "tenantId",
+              "value": "={{ $('Webhook').first().json.body.tenant_id }}"
+            },
+            {
+              "name": "triggeredBy",
+              "value": "chat"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        4576,
+        1472
+      ],
+      "id": "69b8af4e-7a43-4f1f-8239-71ba48c9646b",
+      "name": "sincronizar_ERP1"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Sincroniza comprobantes desde ARCA (AFIP). Trae facturas emitidas y recibidas registradas en AFIP. Llamá UNA SOLA VEZ. Puede tardar unos minutos.",
+        "method": "POST",
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/functions/v1/sync-arca-iniciar",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjE0MzEsImV4cCI6MjA4NzEzNzQzMX0.DpQeHA--4qG8hjudz4fMBhnYwlpKcsZ9wuKgTzxpKsw"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "tenantId",
+              "value": "={{ $('Webhook').first().json.body.tenant_id }}"
+            },
+            {
+              "name": "fechaDesde",
+              "value": "={{ $fromAI('fechaDesde', 'fecha inicio YYYY-MM-DD, default último mes') }}"
+            },
+            {
+              "name": "fechaHasta",
+              "value": "={{ $fromAI('fechaHasta', 'fecha fin YYYY-MM-DD, default hoy') }}"
+            },
+            {
+              "name": "triggeredBy",
+              "value": "chat"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        3632,
+        1248
+      ],
+      "id": "a3c15790-a3da-4ac0-a5d5-a03fa6d1042c",
+      "name": "sincronizar_ARCA1"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Ranking de proveedores por cantidad de comprobantes o monto total. Úsalo cuando pregunten: \"quién tiene más facturas\", \"top proveedores\", \"proveedor con más gasto\", \"ranking\". Parámetro orden: 'cantidad' (por nro de comprobantes), 'total' (por monto ARS), 'fecha' (más reciente).\n",
+        "method": "POST",
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/rpc/chatbot_resumen_proveedores",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_tenant_id\": \"{{ $('Webhook').first().json.body.tenant_id }}\",\n  \"p_orden\": \"{{ $fromAI('orden', 'cantidad o total o fecha, default cantidad', 'string') || 'cantidad' }}\",\n  \"p_limit\": {{ $fromAI('limit', 'máximo resultados, default 10', 'number') || 10 }}\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        4816,
+        1232
+      ],
+      "id": "50e8ffbc-271c-4966-a83d-6fe002461560",
+      "name": "ranking_proveedores1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/rpc/chatbot_resumen_clientes",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_tenant_id\": \"{{ $(\"Webhook\").first().json.body.tenant_id }}\",\n  \"p_orden\": \"{{ $fromAI('orden', 'cantidad o total o fecha, default cantidad', 'string') || 'cantidad' }}\",\n  \"p_limit\": {{ $fromAI('limit', 'máximo resultados, default 10', 'number') || 10 }}\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        4000,
+        -400
+      ],
+      "id": "bbb00001-rank-cli-0001",
+      "name": "ranking_clientes",
+      "description": "Ranking de clientes por cantidad de facturas de venta o monto total. Devuelve: cliente, cuit, cantidad, total_ars, ultima_fecha.",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/rpc/chatbot_resumen_contable",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_tenant_id\": \"{{ $(\"Webhook\").first().json.body.tenant_id }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        4000,
+        -240
+      ],
+      "id": "bbb00002-resumen-cont-0002",
+      "name": "resumen_contable",
+      "description": "Resumen rápido del mes: total comprobantes, compras/ventas del mes, monto total, pendientes, último sync. Usá cuando pregunten \"cómo estamos\", \"resumen\", \"dashboard\".",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/rpc/chatbot_deuda_proveedor",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_tenant_id\": \"{{ $(\"Webhook\").first().json.body.tenant_id }}\",\n  \"p_cuit\": \"{{ $fromAI('cuit', 'CUIT del proveedor con guiones XX-XXXXXXXX-X', 'string') }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        4000,
+        -80
+      ],
+      "id": "bbb00003-deuda-prov-0003",
+      "name": "deuda_proveedor",
+      "description": "Calcula la deuda pendiente con un proveedor específico. Pasá el CUIT con guiones. Usá buscar_proveedor primero para obtener el CUIT.",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/rpc/chatbot_resumen_inmobiliaria",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_tenant_id\": \"{{ $(\"Webhook\").first().json.body.tenant_id }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        3800,
+        -160
+      ],
+      "id": "bbb00004-resumen-inmo-0004",
+      "name": "resumen_cartera",
+      "description": "Resumen de la cartera inmobiliaria: total propiedades, % ocupación, ingreso mensual, contratos vigentes, vencimientos próximos. Usá cuando pregunten \"cómo estamos\", \"resumen\", \"dashboard\".",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/rpc/chatbot_deudores",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_tenant_id\": \"{{ $(\"Webhook\").first().json.body.tenant_id }}\",\n  \"p_limit\": {{ $fromAI('limit', 'máximo resultados, default 10', 'number') || 10 }}\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        3800,
+        0
+      ],
+      "id": "bbb00005-deudores-0005",
+      "name": "deudores",
+      "description": "Ranking de inquilinos con deuda. Devuelve: inquilino, cuit, saldo_deuda, ultimo_movimiento. Para \"quién me debe más\".",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/inmobiliaria_liquidaciones",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "id,periodo,ingreso_alquiler,neto_propietario,estado,fecha_pago,inmobiliaria_contratos(inmobiliaria_propiedades(direccion)),propietario:contable_clientes!propietario_id(razon_social)"
+            },
+            {
+              "name": "tenant_id",
+              "value": "=eq.{{ $(\"Webhook\").item.json.body.tenant_id }}"
+            },
+            {
+              "name": "order",
+              "value": "periodo.desc"
+            },
+            {
+              "name": "limit",
+              "value": "={{ $fromAI(\"limit\", \"máximo resultados, default 10\", \"number\") || 10 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        3800,
+        160
+      ],
+      "id": "bbb00006-liquidaciones-0006",
+      "name": "buscar_liquidaciones",
+      "description": "Busca liquidaciones a propietarios. Devuelve período, ingreso, neto, estado, propiedad, propietario.",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/inmobiliaria_expensas",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "id,periodo,monto,monto_extraordinaria,estado,fecha_vencimiento,fecha_pago,observaciones,inmobiliaria_propiedades(direccion)"
+            },
+            {
+              "name": "tenant_id",
+              "value": "=eq.{{ $(\"Webhook\").item.json.body.tenant_id }}"
+            },
+            {
+              "name": "order",
+              "value": "periodo.desc"
+            },
+            {
+              "name": "limit",
+              "value": "={{ $fromAI(\"limit\", \"máximo resultados, default 10\", \"number\") || 10 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        3800,
+        320
+      ],
+      "id": "bbb00007-expensas-0007",
+      "name": "buscar_expensas",
+      "description": "Busca expensas por propiedad y período. Devuelve monto, estado, vencimiento, propiedad.",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Leer rubro": {
+      "main": [
+        [
+          {
+            "node": "Switch rubro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch rubro": {
+      "main": [
+        [
+          {
+            "node": "AI Agent Inmobiliaria",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent Inmobiliaria": {
+      "main": [
+        [
+          {
+            "node": "Guardar mensaje usuario1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Inmobiliaria": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent Inmobiliaria",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar_propiedades": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Inmobiliaria",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar_contratos": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Inmobiliaria",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar_inquilino": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Inmobiliaria",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cuenta_corriente": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Inmobiliaria",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "vencimientos_proximos": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Inmobiliaria",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ordenes_trabajo": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Inmobiliaria",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Cargar memoria1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar_proveedor1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar_cliente1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar_por_cuit1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar_cliente_por_cuit1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "comprobantes_de_proveedor1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "comprobantes_de_cliente1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Guardar mensaje usuario1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar_comprobantes": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar_ordenes_pago": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "estado_sincronizacion": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar_por_numero1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ejecutar-conciliacion1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cargar memoria1": {
+      "main": [
+        [
+          {
+            "node": "Leer rubro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar mensaje usuario1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "exportar_csv1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "sincronizar_ERP1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "sincronizar_ARCA1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ranking_proveedores1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ranking_clientes": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "resumen_contable": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "deuda_proveedor": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "resumen_cartera": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Inmobiliaria",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "deudores": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Inmobiliaria",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar_liquidaciones": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Inmobiliaria",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar_expensas": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Inmobiliaria",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": true
+  },
+  "versionId": "00c3b785-b67b-4ab0-84c2-281d25f6c6e8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "389bc4a833b9a53a284e411ec17b72e882bb1083c0e92907792c004c331457ab"
+  },
+  "id": "fsK9VLjyQ5p3TYvC",
+  "tags": []
+}

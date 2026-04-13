@@ -1,0 +1,788 @@
+{
+  "name": "NCR - Bot Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "cond-vincular",
+              "leftValue": "={{ $json.message.text }}",
+              "rightValue": "/vincular",
+              "operator": {
+                "type": "string",
+                "operation": "startsWith"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1280,
+        880
+      ],
+      "id": "0cf3b89c-7f6a-4215-a3e9-027bb24d830e",
+      "name": "Es vincular?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $json.message.text;\nconst code = text.split(' ')[1]?.trim().toUpperCase();\nconst chat_id = String($json.message.chat.id);\nconst username = $json.message.from?.username \n  ? '@' + $json.message.from.username \n  : $json.message.from?.first_name || '';\n\nreturn [{ json: { code, chat_id, username } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        752
+      ],
+      "id": "86d29591-1ecc-4f8c-8bff-2ae8bd0b2e33",
+      "name": "Extraer codigo"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fuytejvnwihghxymyayw.supabase.co/rest/v1/rpc/activate_messaging_connection",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjE0MzEsImV4cCI6MjA4NzEzNzQzMX0.DpQeHA--4qG8hjudz4fMBhnYwlpKcsZ7wuKgTzxpKsw"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTU2MTQzMSwiZXhwIjoyMDg3MTM3NDMxfQ.N9AhuM2sPXcXJmTiM1lux4weZI94ltNw0B4oHwxWecU"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_code\": \"{{ $json.code }}\",\n  \"p_external_id\": \"{{ $json.chat_id }}\",\n  \"p_external_name\": \"{{ $json.username }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1760,
+        752
+      ],
+      "id": "ddb38995-08b1-4974-85b2-1911797d849c",
+      "name": "Activar conexion"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Extraer codigo').item.json.chat_id }}",
+        "text": "={{ $json.success ? '✅ Conexión activada correctamente.' : '❌ Código inválido o expirado. Generá uno nuevo desde la app.' }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2000,
+        752
+      ],
+      "id": "bdea7db2-1616-468b-9532-82b860f1d9e3",
+      "name": "Confirmar vinculacion",
+      "webhookId": "b14ee66b-92ff-423b-a6bb-d4abf34e7d8a",
+      "credentials": {
+        "telegramApi": {
+          "id": "7S6oXZM7j1LN9Hd9",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "cond-media",
+              "leftValue": "={{ $json.message.photo || $json.message.document ? 'archivo' : 'texto' }}",
+              "rightValue": "archivo",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1520,
+        992
+      ],
+      "id": "90e1f133-0007-4670-a047-7d51bd0e22ab",
+      "name": "Tiene archivo?"
+    },
+    {
+      "parameters": {
+        "url": "=https://fuytejvnwihghxymyayw.supabase.co/rest/v1/messaging_connections?external_id=eq.{{ $('Telegram Trigger1').item.json.message.chat.id }}&status=eq.active&select=tenant_id",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjE0MzEsImV4cCI6MjA4NzEzNzQzMX0.DpQeHA--4qG8hjudz4fMBhnYwlpKcsZ7wuKgTzxpKsw"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTU2MTQzMSwiZXhwIjoyMDg3MTM3NDMxfQ.N9AhuM2sPXcXJmTiM1lux4weZI94ltNw0B4oHwxWecU"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1760,
+        1120
+      ],
+      "id": "72a8c33f-a70b-4347-83a7-0fac81d3f890",
+      "name": "Resolver tenant (texto)"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n.neuracall.net/webhook/neuracore-chat",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"chatInput\": \"{{ $('Telegram Trigger1').first().json.message.text }}\",\n  \"tenant_id\": \"{{ $('Resolver tenant (texto)').first().json.tenant_id }}\",\n  \"chat_id\": \"{{ $('Telegram Trigger1').first().json.message.chat.id }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 120000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2000,
+        1120
+      ],
+      "id": "fe7928ba-3685-4dae-bbd9-c651f8c760ab",
+      "name": "Llamar a Neura"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger1').first().json.message.chat.id }}",
+        "text": "={{ $json.data || 'No pude procesar tu consulta.' }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2240,
+        1120
+      ],
+      "id": "7d5c2562-c146-43ca-9249-6cc8bd9a011f",
+      "name": "Responder chat",
+      "webhookId": "48d94153-3c0f-49b3-b72e-042a4ca040ae",
+      "credentials": {
+        "telegramApi": {
+          "id": "7S6oXZM7j1LN9Hd9",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "cond-foto",
+              "leftValue": "={{ $('Telegram Trigger1').first().json.message.photo ? 'foto' : 'doc' }}",
+              "rightValue": "foto",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1760,
+        880
+      ],
+      "id": "792ae533-81cc-42e5-8a2b-39ca68e9475e",
+      "name": "Foto o Doc?"
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $('Telegram Trigger1').first().json.message.photo.last().file_id }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2000,
+        832
+      ],
+      "id": "584b4ffa-bbf0-47ea-9c38-fffaf9a2b7d7",
+      "name": "Get file FOTO",
+      "webhookId": "d7d51012-16f7-4261-b0a9-2575519a3c94",
+      "credentials": {
+        "telegramApi": {
+          "id": "7S6oXZM7j1LN9Hd9",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $('Telegram Trigger1').first().json.message.document.file_id }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2000,
+        960
+      ],
+      "id": "7119af47-9819-487d-ae85-b107ae0cf58e",
+      "name": "Get file DOC",
+      "webhookId": "46939576-d7dc-459b-9fba-30f4e6c7e8a8",
+      "credentials": {
+        "telegramApi": {
+          "id": "7S6oXZM7j1LN9Hd9",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://fuytejvnwihghxymyayw.supabase.co/rest/v1/messaging_connections?external_id=eq.{{ $('Telegram Trigger1').item.json.message.chat.id }}&status=eq.active&select=tenant_id",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjE0MzEsImV4cCI6MjA4NzEzNzQzMX0.DpQeHA--4qG8hjudz4fMBhnYwlpKcsZ7wuKgTzxpKsw"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTU2MTQzMSwiZXhwIjoyMDg3MTM3NDMxfQ.N9AhuM2sPXcXJmTiM1lux4weZI94ltNw0B4oHwxWecU"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2240,
+        832
+      ],
+      "id": "d25be316-fbf9-482b-8151-27066eb6a2ae",
+      "name": "Resolver tenant (foto)"
+    },
+    {
+      "parameters": {
+        "url": "=https://fuytejvnwihghxymyayw.supabase.co/rest/v1/messaging_connections?external_id=eq.{{ $('Telegram Trigger1').item.json.message.chat.id }}&status=eq.active&select=tenant_id",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjE0MzEsImV4cCI6MjA4NzEzNzQzMX0.DpQeHA--4qG8hjudz4fMBhnYwlpKcsZ7wuKgTzxpKsw"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTU2MTQzMSwiZXhwIjoyMDg3MTM3NDMxfQ.N9AhuM2sPXcXJmTiM1lux4weZI94ltNw0B4oHwxWecU"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2240,
+        960
+      ],
+      "id": "dc5fa2d3-c92d-4b98-bd76-3efde99c46ea",
+      "name": "Resolver tenant (doc)"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/file/bot8637236671:AAHZOQqGO4T2kAbKDWS6byrXOVeFLYWy6Sk/{{ $('Get file FOTO').item.json.result.file_path }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data0"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2480,
+        832
+      ],
+      "id": "8d50c967-6889-47da-9dde-f5e677300e88",
+      "name": "Descargar foto"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/file/bot8637236671:AAHZOQqGO4T2kAbKDWS6byrXOVeFLYWy6Sk/{{ $('Get file DOC').item.json.result.file_path }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data0"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2480,
+        960
+      ],
+      "id": "e8295057-30c4-4822-bfbd-cac75360baab",
+      "name": "Descargar doc"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst binary = item.binary.data0;\n\nif (binary.fileName && binary.fileName.endsWith('.pdf')) {\n  binary.mimeType = 'application/pdf';\n} else {\n  binary.mimeType = 'image/jpeg';\n}\n\nreturn [{\n  json: item.json,\n  binary: { data0: binary }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2720,
+        896
+      ],
+      "id": "505b5e12-4818-4506-9a1b-d3b882ea900d",
+      "name": "Fix MIME type"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n.neuracall.net/webhook/CargaDeComprobantes",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "data0",
+              "inputDataFieldName": "data0"
+            },
+            {
+              "name": "tenant_id",
+              "value": "={{ $if($('Resolver tenant (foto)').isExecuted, $('Resolver tenant (foto)').first().json.tenant_id, $('Resolver tenant (doc)').first().json.tenant_id) }}"
+            },
+            {
+              "name": "filename",
+              "value": "={{ $if($('Descargar foto').isExecuted, 'foto_telegram.jpg', 'documento_telegram.pdf') }}"
+            },
+            {
+              "name": "chat_id",
+              "value": "={{ $('Telegram Trigger1').first().json.message.chat.id }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2960,
+        832
+      ],
+      "id": "7e16a867-17dc-4d2a-97fb-d26a520ddb8b",
+      "name": "Enviar a OCR"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger1').first().json.message.chat.id }}",
+        "text": "✅ Factura recibida, la estamos procesando.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2960,
+        976
+      ],
+      "id": "41e95a58-10cd-4877-bc36-4621bdbc9c0c",
+      "name": "Confirmar OCR",
+      "webhookId": "fd438db2-f914-421f-b2d2-94f9bdc3e39e",
+      "credentials": {
+        "telegramApi": {
+          "id": "7S6oXZM7j1LN9Hd9",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger1').first().json.message.chat.id }}",
+        "text": "No tenés una cuenta vinculada. Usá /vincular CODIGO desde la app para conectar tu Telegram.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2000,
+        1264
+      ],
+      "id": "d97430ee-f059-4410-9633-96f55b508c44",
+      "name": "No vinculado",
+      "webhookId": "ddc22ea3-0169-4b6e-8f8f-ba54250f7bfa",
+      "credentials": {
+        "telegramApi": {
+          "id": "7S6oXZM7j1LN9Hd9",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "cond-tenant-exists",
+              "leftValue": "={{ $json.tenant_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1760,
+        1232
+      ],
+      "id": "38ec8aa5-d4a6-4baa-af7d-c6017f204784",
+      "name": "Tiene tenant?"
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        1136,
+        928
+      ],
+      "id": "6df560a1-e3ac-4d91-a972-e69ea9ab4c7d",
+      "name": "Telegram Trigger1",
+      "webhookId": "c6a2e6d3-67fb-488f-8525-d738c61837f2",
+      "credentials": {
+        "telegramApi": {
+          "id": "7S6oXZM7j1LN9Hd9",
+          "name": "Telegram account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Es vincular?": {
+      "main": [
+        [
+          {
+            "node": "Extraer codigo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Tiene archivo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer codigo": {
+      "main": [
+        [
+          {
+            "node": "Activar conexion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Activar conexion": {
+      "main": [
+        [
+          {
+            "node": "Confirmar vinculacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tiene archivo?": {
+      "main": [
+        [
+          {
+            "node": "Foto o Doc?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resolver tenant (texto)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolver tenant (texto)": {
+      "main": [
+        [
+          {
+            "node": "Tiene tenant?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tiene tenant?": {
+      "main": [
+        [
+          {
+            "node": "Llamar a Neura",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No vinculado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Llamar a Neura": {
+      "main": [
+        [
+          {
+            "node": "Responder chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Foto o Doc?": {
+      "main": [
+        [
+          {
+            "node": "Get file FOTO",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get file DOC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get file FOTO": {
+      "main": [
+        [
+          {
+            "node": "Resolver tenant (foto)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get file DOC": {
+      "main": [
+        [
+          {
+            "node": "Resolver tenant (doc)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolver tenant (foto)": {
+      "main": [
+        [
+          {
+            "node": "Descargar foto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolver tenant (doc)": {
+      "main": [
+        [
+          {
+            "node": "Descargar doc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Descargar foto": {
+      "main": [
+        [
+          {
+            "node": "Fix MIME type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Descargar doc": {
+      "main": [
+        [
+          {
+            "node": "Fix MIME type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fix MIME type": {
+      "main": [
+        [
+          {
+            "node": "Enviar a OCR",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Confirmar OCR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger1": {
+      "main": [
+        [
+          {
+            "node": "Es vincular?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "54c7e49c-7178-451e-a7c8-204ccc41ab8d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "389bc4a833b9a53a284e411ec17b72e882bb1083c0e92907792c004c331457ab"
+  },
+  "id": "qldF1rwfLdAvAzCH",
+  "tags": []
+}
