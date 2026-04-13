@@ -33,6 +33,10 @@
             "destination": "/presentacion/index.html"
         },
         {
+            "source": "/presentacion-constructora",
+            "destination": "/presentacion-constructora/index.html"
+        },
+        {
             "source": "/((?!presentacion).*)",
             "destination": "/index.html"
         }

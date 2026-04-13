@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NeuraOrkesta — Propuesta Comercial</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#0a0a0a;overflow:hidden;height:100vh;width:100vw}
+.s{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;
+   opacity:0;pointer-events:none;transition:opacity .6s ease;padding:60px 90px}.s.on{opacity:1;pointer-events:all}
+
+/* ── S1: COVER ── */
+#s1{background:#fff;text-align:center}
+#s1 .logo{width:100px;margin-bottom:40px;opacity:.9}
+#s1 h1{font-size:48px;font-weight:900;letter-spacing:-1.5px;color:#0f172a}
+#s1 h1 span{color:#2563eb}
+#s1 .tag{font-size:14px;color:#94a3b8;margin-top:14px;letter-spacing:4px;text-transform:uppercase;font-weight:400}
+#s1 .sub{font-size:13px;color:#64748b;margin-top:24px;font-weight:400}
+#s1 .date{font-size:12px;color:#cbd5e1;margin-top:48px;letter-spacing:1px}
+
+/* ── S2: TRILOGÍA ── */
+#s2{background:#fff;padding:60px 90px}
+#s2 h2{font-size:32px;font-weight:800;color:#0f172a;letter-spacing:-0.5px;margin-bottom:6px;text-align:center}
+#s2 .sub{font-size:14px;color:#94a3b8;margin-bottom:36px;font-weight:400;text-align:center}
+.trio{display:flex;gap:20px;align-items:stretch;max-width:960px;width:100%}
+.trio-card{flex:1;border-radius:14px;padding:32px 28px;display:flex;flex-direction:column}
+.trio-card.sync{background:#059669;color:#fff}
+.trio-card.core{background:#1e40af;color:#fff}
+.trio-card.insight{background:#d97706;color:#fff}
+.trio-card .pill{font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;opacity:.6;margin-bottom:20px}
+.trio-card h3{font-size:18px;font-weight:700;margin-bottom:20px}
+.trio-card ul{list-style:none;padding:0;margin:0}
+.trio-card li{font-size:13px;line-height:2;opacity:.85;padding-left:14px;position:relative}
+.trio-card li::before{content:'';position:absolute;left:0;top:10px;width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,.4)}
+
+/* ── S3: ALCANCE FUNCIONAL ── */
+#s3{background:#fafafa;padding:50px 80px}
+#s3 h2{font-size:30px;font-weight:800;color:#0f172a;letter-spacing:-0.5px;margin-bottom:24px;text-align:center}
+.vgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:900px;width:100%}
+.vc{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px 22px}
+.vc h3{font-size:13px;font-weight:700;color:#1e40af;margin-bottom:6px}
+.vc p{font-size:12px;color:#475569;line-height:1.6}
+.vc.w{grid-column:span 2}
+
+/* ── S4: CONDICIONES TÉCNICAS ── */
+#s4{background:#fff;padding:60px 90px}
+#s4 h2{font-size:30px;font-weight:800;color:#0f172a;letter-spacing:-0.5px;margin-bottom:32px;text-align:center}
+.tech{max-width:720px;width:100%;display:flex;flex-direction:column;gap:14px}
+.tech-item{display:flex;gap:14px;padding:16px 20px;background:#f8fafc;border-radius:10px;border-left:3px solid #2563eb}
+.tech-item .num{font-size:11px;font-weight:800;color:#2563eb;min-width:20px}
+.tech-item .txt{font-size:14px;color:#1e293b;line-height:1.5}
+.tech-item .txt strong{color:#0f172a;font-weight:700}
+
+/* ── S5: IMPLEMENTACIÓN ── */
+#s5{background:#0f172a;color:#fff;padding:50px 80px}
+#s5 h2{font-size:32px;font-weight:800;margin-bottom:28px;color:#fff;text-align:center}
+.impl-wrap{max-width:950px;width:100%;display:flex;gap:32px}
+.impl-col{flex:1}
+.impl-col h3{font-size:12px;font-weight:700;color:#60a5fa;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px}
+.impl-col ul{list-style:none;padding:0;margin:0}
+.impl-col li{font-size:13px;line-height:1.65;color:#cbd5e1;padding:6px 0 6px 22px;position:relative;border-bottom:1px solid rgba(255,255,255,.05)}
+.impl-col li:last-child{border:none}
+.impl-col li::before{content:'';position:absolute;left:0;top:13px;width:6px;height:6px;border-radius:50%;background:#3b82f6}
+.impl-col li strong{color:#fff;font-weight:700;display:inline-block;min-width:72px}
+
+/* ── S6: PROPUESTA ECONÓMICA ── */
+#s6{background:#fff;padding:50px 80px}
+#s6 h2{font-size:30px;font-weight:800;color:#0f172a;margin-bottom:28px;text-align:center}
+.econ{display:flex;gap:24px;max-width:940px;width:100%;align-items:stretch}
+.econ-card{flex:1;border-radius:16px;padding:28px 26px;display:flex;flex-direction:column}
+.econ-card.a{background:#0f172a;color:#fff}
+.econ-card.b{background:#2563eb;color:#fff}
+.econ-card .title{font-size:11px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;opacity:.6;margin-bottom:18px}
+.econ-card h3{font-size:20px;font-weight:800;margin-bottom:16px}
+.econ-card ul{list-style:none;padding:0;margin:0 0 18px 0;flex:1}
+.econ-card li{font-size:12px;line-height:1.9;opacity:.85;padding-left:14px;position:relative}
+.econ-card li::before{content:'';position:absolute;left:0;top:9px;width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,.5)}
+.econ-card .price{font-size:18px;font-weight:700;letter-spacing:-0.3px;margin-top:8px;padding-top:14px;border-top:1px solid rgba(255,255,255,.15);opacity:.95}
+.econ-card .price small{font-size:12px;font-weight:400;opacity:.6}
+.econ-card .pay{font-size:11px;opacity:.7;line-height:1.7;margin-top:6px}
+
+/* ── S7: CIERRE ── */
+#s7{background:#0f172a;color:#fff;text-align:center}
+#s7 .logo{width:56px;margin-bottom:28px;opacity:.6}
+#s7 .msg{font-size:32px;font-weight:600;color:#e2e8f0;line-height:1.5;max-width:600px;letter-spacing:-0.5px}
+#s7 .msg span{color:#3b82f6}
+
+/* ── NAV ── */
+.dots{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:99}
+.dt{width:6px;height:6px;border-radius:50%;background:rgba(150,150,150,.25);cursor:pointer;transition:all .25s}
+.dt.on{background:#2563eb;width:22px;border-radius:3px}
+.ar{position:fixed;top:50%;transform:translateY(-50%);width:36px;height:36px;border-radius:50%;
+    border:none;font-size:16px;cursor:pointer;z-index:99;transition:all .15s;
+    display:flex;align-items:center;justify-content:center;opacity:.35}
+.ar:hover{opacity:.8}
+.ar.l{left:20px}.ar.r{right:20px}
+
+@media(max-width:600px){
+  .s{overflow-y:auto;-webkit-overflow-scrolling:touch;justify-content:flex-start;padding:36px 24px 48px}
+  #s1,#s7{justify-content:center;padding:32px 24px}
+
+  #s1 h1{font-size:30px}
+  #s1 .logo{width:60px;margin-bottom:24px}
+  #s1 .tag{font-size:10px;letter-spacing:2px}
+  #s1 .sub{font-size:12px;margin-top:16px}
+  #s1 .date{margin-top:32px}
+
+  #s2 h2,#s3 h2,#s4 h2,#s5 h2,#s6 h2{font-size:22px}
+  #s2 .sub{font-size:11px;margin-bottom:20px}
+  .trio{flex-direction:column;gap:10px}
+  .trio-card{padding:18px 16px;border-radius:10px}
+  .trio-card .pill{font-size:9px;margin-bottom:8px}
+  .trio-card h3{font-size:14px;margin-bottom:8px}
+  .trio-card li{font-size:11px;line-height:1.6;padding:1px 0 1px 12px}
+  .trio-card li::before{top:8px;width:3px;height:3px}
+
+  .vgrid{grid-template-columns:1fr;gap:8px}
+  .vc{padding:14px 16px;border-radius:8px}
+  .vc.w{grid-column:span 1}
+  .vc h3{font-size:11px}
+  .vc p{font-size:10.5px}
+
+  .tech-item{padding:12px 14px;border-radius:8px}
+  .tech-item .txt{font-size:12px}
+
+  .impl-wrap{flex-direction:column;gap:20px}
+  .impl-col h3{font-size:10px}
+  .impl-col li{font-size:11.5px;padding:5px 0 5px 18px}
+  .impl-col li::before{top:11px;width:5px;height:5px}
+
+  .econ{flex-direction:column;gap:12px}
+  .econ-card{padding:22px 20px;border-radius:12px}
+  .econ-card h3{font-size:16px}
+  .econ-card li{font-size:11px}
+  .econ-card .price{font-size:22px}
+
+  #s7 .logo{width:40px;margin-bottom:20px}
+  #s7 .msg{font-size:20px;padding:0 10px}
+
+  .ar{display:none}
+  .dots{bottom:14px}
+}
+</style>
+</head>
+<body>
+
+<div id="s1" class="s on">
+  <img src="neura-logo.png" class="logo">
+  <h1>NEURA<span>ORKESTA</span></h1>
+  <div class="tag">Gestión integral de obras</div>
+  <div class="sub">Propuesta comercial</div>
+  <div class="date">Abril 2026</div>
+</div>
+
+<div id="s2" class="s">
+  <h2>Alcance funcional</h2>
+  <div class="sub">Una plataforma, tres motores. Todo lo que necesitás para gestionar obra, administración y finanzas.</div>
+  <div class="trio">
+    <div class="trio-card sync">
+      <div class="pill">Neura Sync</div>
+      <h3>Conexiones automáticas</h3>
+      <ul>
+        <li>Importación de extractos bancarios</li>
+        <li>Conciliación bancaria y de comprobantes</li>
+        <li>Integración con Colppy y Xubio</li>
+        <li>Facturación electrónica vía ARCA</li>
+        <li>Fichajes que alimentan el costo por obra</li>
+        <li>OCR de comprobantes: PDF a datos estructurados</li>
+      </ul>
+    </div>
+    <div class="trio-card core">
+      <div class="pill">Neura Core</div>
+      <h3>Operación diaria</h3>
+      <ul>
+        <li>Tesorería: movimientos, órdenes de pago, cajas y bancos</li>
+        <li>Facturación, comprobantes, clientes y proveedores</li>
+        <li>Liquidaciones con cálculo de cargas sociales, F931 y aumentos masivos</li>
+        <li>Obras: fichas, presupuesto y certificados de avance</li>
+        <li>Contratistas con cartas oferta en PDF</li>
+        <li>Partes diarios, materiales y documentación de obra</li>
+        <li>CRM: contactos, prospectos y pipeline de obras</li>
+      </ul>
+    </div>
+    <div class="trio-card insight">
+      <div class="pill">Neura Insight</div>
+      <h3>Visibilidad y control</h3>
+      <ul>
+        <li>Dashboard con KPIs de obras y tesorería</li>
+        <li>Proyecciones financieras y centro de costos</li>
+        <li>Presupuesto vs. real y rentabilidad por obra</li>
+        <li>Vencimientos de documentación de obra</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div id="s4" class="s">
+  <h2>Condiciones técnicas</h2>
+  <div class="tech">
+    <div class="tech-item"><div class="num">01</div><div class="txt"><strong>Modalidad:</strong> el servicio se ofrece como plataforma SaaS (Software as a Service).</div></div>
+    <div class="tech-item"><div class="num">02</div><div class="txt"><strong>Hosting y mantenimiento</strong> a cargo de Neura.</div></div>
+    <div class="tech-item"><div class="num">03</div><div class="txt"><strong>Soporte a usuarios</strong> por mail y WhatsApp de lunes a viernes de 8 a 20 hs.</div></div>
+    <div class="tech-item"><div class="num">04</div><div class="txt"><strong>Entrega de manuales</strong> de usuario.</div></div>
+    <div class="tech-item"><div class="num">05</div><div class="txt"><strong>Contrato de servicios</strong> por 2 años, renovable.</div></div>
+    <div class="tech-item"><div class="num">06</div><div class="txt"><strong>Posibilidad de entrega de código fuente</strong> al terminar el contrato.</div></div>
+  </div>
+</div>
+
+<div id="s5" class="s">
+  <h2>Plan de implementación</h2>
+  <div class="impl-wrap">
+    <div class="impl-col">
+      <h3>Cronograma</h3>
+      <ul>
+        <li><strong>Kick off</strong> Reunión de arranque</li>
+        <li><strong>Semana 1</strong> Re-confirmación de gaps</li>
+        <li><strong>Semana 3</strong> Capacitación inicial al equipo</li>
+        <li><strong>Semana 4</strong> Inicio del uso productivo</li>
+        <li><strong>Semana 5</strong> Conciliaciones, controles automáticos y notificaciones</li>
+        <li><strong>Semana 7</strong> Tableros</li>
+        <li><strong>Semana 8</strong> Cierre del proyecto</li>
+      </ul>
+    </div>
+    <div class="impl-col">
+      <h3>Claves del proceso</h3>
+      <ul>
+        <li>Referente responsable del cliente</li>
+        <li>Reunión semanal de seguimiento</li>
+        <li>Documento compartido con temas abiertos y estado</li>
+        <li>Mantener el alcance inicial del proyecto</li>
+        <li>Nuevas necesidades u oportunidades se listan para una posible fase 2</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div id="s6" class="s">
+  <h2>Propuesta económica</h2>
+  <div class="econ">
+    <div class="econ-card a">
+      <div class="title">Desarrollo inicial</div>
+      <h3>Puesta en marcha</h3>
+      <ul>
+        <li>Código fuente</li>
+        <li>Customizaciones iniciales</li>
+        <li>Integración ARCA para facturación electrónica</li>
+        <li>Despliegue en entorno cliente</li>
+        <li>Implementación</li>
+        <li>Manuales de usuario</li>
+      </ul>
+      <div class="price">USD 10.000<small> + IVA</small></div>
+      <div class="pay">30% a la confirmación · 30% en semana 4 · 40% al cierre (semana 8)</div>
+    </div>
+    <div class="econ-card b">
+      <div class="title">Soporte y mantenimiento</div>
+      <h3>Abono mensual</h3>
+      <ul>
+        <li>Atención al usuario</li>
+        <li>Mantenimiento del código fuente</li>
+        <li>Actualizaciones de versiones tecnológicas</li>
+        <li>Pequeños ajustes en tableros</li>
+      </ul>
+      <div class="price">$200.000<small> /mes + IVA</small></div>
+      <div class="pay">Facturación primer día hábil del mes · Pago a 15 días · Ajuste trimestral por IPC</div>
+    </div>
+  </div>
+</div>
+
+<div id="s7" class="s">
+  <img src="neura-logo.png" class="logo">
+  <div class="msg">Firmamos, arrancamos,<br>y en <span>8 semanas</span> el proyecto está cerrado.</div>
+</div>
+
+<button class="ar l" onclick="go(cur-1)">&#8249;</button>
+<button class="ar r" onclick="go(cur+1)">&#8250;</button>
+<div class="dots" id="dots"></div>
+
+<script>
+const ss=[...document.querySelectorAll('.s')],n=ss.length;let cur=0;
+const dots=document.getElementById('dots');
+ss.forEach((_,i)=>{const d=document.createElement('div');d.className='dt'+(i===0?' on':'');d.onclick=()=>go(i);dots.appendChild(d)});
+function go(i){
+  if(i<0||i>=n)return;
+  ss[cur].classList.remove('on');cur=i;ss[cur].classList.add('on');
+  document.querySelectorAll('.dt').forEach((d,j)=>d.classList.toggle('on',j===cur));
+  const dark=['s5','s7'].includes(ss[cur].id);
+  document.querySelectorAll('.ar').forEach(a=>{a.style.background=dark?'rgba(255,255,255,.06)':'rgba(0,0,0,.04)';a.style.color=dark?'#64748b':'#94a3b8'});
+  document.querySelectorAll('.dt:not(.on)').forEach(d=>d.style.background=dark?'rgba(255,255,255,.12)':'rgba(0,0,0,.08)');
+}
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();go(cur+1)}
+  if(e.key==='ArrowLeft'){e.preventDefault();go(cur-1)}
+  if(e.key==='f')document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
+});
+let tx=0;
+document.addEventListener('touchstart',e=>tx=e.touches[0].clientX);
+document.addEventListener('touchend',e=>{const d=tx-e.changedTouches[0].clientX;if(Math.abs(d)>50)d>0?go(cur+1):go(cur-1)});
+go(0);
+</script>
+</body>
+</html>
