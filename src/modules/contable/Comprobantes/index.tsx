@@ -104,8 +104,23 @@ export default function ComprobantesIndex({ defaultTipo }: ComprobantesIndexProp
 
     const [pageSize, setPageSize] = useState(25);
 
-    const { data, totalCount, isLoading, hasMore, currentPage, totalPages, goToPage, reset, updateEstado, eliminarComprobante } =
+    const { data, totalCount, isLoading, hasMore, currentPage, totalPages, goToPage, reset, updateEstado, eliminarComprobante, updateClasificacion } =
         useComprobantes({ tipo: filtroTipo, estado: filtroEstado, busqueda, fechaDesde, fechaHasta, sortCol, sortDir, pageSize });
+
+    // Opciones de clasificación (centro de costos + categorías) — solo se cargan para constructora
+    const esConstructora = tenant?.rubro === 'constructora';
+    const [proyectoOpts, setProyectoOpts] = useState<{ id: string; name: string }[]>([]);
+    const [categoriaOpts, setCategoriaOpts] = useState<{ id: string; nombre: string; color: string }[]>([]);
+    useEffect(() => {
+        if (!tenant?.id || !esConstructora) return;
+        Promise.all([
+            supabase.from('treasury_projects').select('id, name').eq('tenant_id', tenant.id).order('name'),
+            supabase.from('contable_categorias').select('id, nombre, color').eq('tenant_id', tenant.id).order('nombre'),
+        ]).then(([p, c]) => {
+            if (p.data) setProyectoOpts(p.data);
+            if (c.data) setCategoriaOpts(c.data);
+        });
+    }, [tenant?.id, esConstructora]);
 
     // Load on mount, when filters change, or when tenant is available
     useEffect(() => { reset(); setSelectedIds(new Set()); }, [tenant?.id, filtroTipo, filtroEstado, busqueda, fechaDesde, fechaHasta, sortCol, sortDir, pageSize]);
@@ -1404,6 +1419,10 @@ export default function ComprobantesIndex({ defaultTipo }: ComprobantesIndexProp
                         sortDir={sortDir}
                         onAttachInvoice={handleAttachInvoiceClick}
                         hasErp={hasErp}
+                        esConstructora={esConstructora}
+                        proyectoOpts={proyectoOpts}
+                        categoriaOpts={categoriaOpts}
+                        onUpdateClasificacion={updateClasificacion}
                     />
                 </>
             )}

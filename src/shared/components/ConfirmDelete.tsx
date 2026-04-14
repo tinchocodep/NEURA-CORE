@@ -1,16 +1,28 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 
 interface Props {
   message: string;
-  confirmText?: string;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
-export default function ConfirmDelete({ message, confirmText = 'ELIMINAR', onConfirm, onCancel }: Props) {
-  const [typed, setTyped] = useState('');
-  const match = typed.toUpperCase() === confirmText.toUpperCase();
+export default function ConfirmDelete({ message, onConfirm, onCancel }: Props) {
+  const [armed, setArmed] = useState(false);
+
+  useEffect(() => {
+    if (!armed) return;
+    const t = setTimeout(() => setArmed(false), 5000);
+    return () => clearTimeout(t);
+  }, [armed]);
+
+  const handleClick = () => {
+    if (!armed) {
+      setArmed(true);
+      return;
+    }
+    onConfirm();
+  };
 
   return (
     <div className="wizard-overlay" onClick={onCancel} style={{ zIndex: 300 }}>
@@ -19,7 +31,6 @@ export default function ConfirmDelete({ message, confirmText = 'ELIMINAR', onCon
         boxShadow: '0 12px 40px rgba(0,0,0,0.2)', border: '1px solid var(--color-border-subtle)',
         overflow: 'hidden',
       }}>
-        {/* Header */}
         <div style={{ padding: '1.25rem 1.5rem 0', display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ width: 40, height: 40, borderRadius: 12, background: '#EF44440f', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <AlertTriangle size={20} color="#EF4444" />
@@ -31,33 +42,23 @@ export default function ConfirmDelete({ message, confirmText = 'ELIMINAR', onCon
           <button onClick={onCancel} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: 4 }}><X size={18} /></button>
         </div>
 
-        {/* Body */}
-        <div style={{ padding: '1.25rem 1.5rem' }}>
-          <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', marginBottom: 8 }}>
-            Escribí <span style={{ fontWeight: 700, color: '#EF4444', fontFamily: 'var(--font-mono)' }}>{confirmText}</span> para confirmar:
-          </div>
-          <input
-            type="text"
-            className="form-input"
-            value={typed}
-            onChange={e => setTyped(e.target.value)}
-            placeholder={confirmText}
-            style={{ borderRadius: 12, borderColor: match ? '#10B981' : typed ? '#EF4444' : undefined }}
-            autoFocus
-          />
+        <div style={{ padding: '1.25rem 1.5rem', fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
+          {armed
+            ? <>Hacé click en <strong style={{ color: '#EF4444' }}>Confirmar eliminación</strong> para confirmar. Se cancela en 5 segundos.</>
+            : <>Esta acción no se puede deshacer. Tenés que hacer click dos veces en el botón rojo.</>}
         </div>
 
-        {/* Footer */}
         <div style={{ padding: '0 1.5rem 1.25rem', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button onClick={onCancel} className="wizard-btn-back" style={{ padding: '8px 20px' }}>Cancelar</button>
-          <button onClick={onConfirm} disabled={!match}
+          <button onClick={handleClick}
             style={{
               padding: '8px 20px', borderRadius: 12, border: 'none',
-              background: match ? '#EF4444' : '#EF444440', color: '#fff',
-              fontSize: '0.875rem', fontWeight: 600, cursor: match ? 'pointer' : 'not-allowed',
+              background: '#EF4444', color: '#fff',
+              fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer',
               fontFamily: 'var(--font-sans)', transition: 'background 0.12s',
+              boxShadow: armed ? '0 0 0 3px rgba(239, 68, 68, 0.35)' : 'none',
             }}>
-            Eliminar
+            {armed ? 'Confirmar eliminación' : 'Eliminar'}
           </button>
         </div>
       </div>
@@ -65,7 +66,6 @@ export default function ConfirmDelete({ message, confirmText = 'ELIMINAR', onCon
   );
 }
 
-// Hook for easy usage
 export function useConfirmDelete() {
   const [state, setState] = useState<{ message: string; onConfirm: () => void } | null>(null);
 

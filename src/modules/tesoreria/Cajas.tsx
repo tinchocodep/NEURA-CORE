@@ -21,17 +21,20 @@ export default function Cajas() {
     const [categories, setCategories] = useState<any[]>([]);
     const [pendingMap, setPendingMap] = useState<Set<string>>(new Set());
 
+    const esConstructora = tenant?.rubro === 'constructora';
+
     const fetchData = async () => {
         if (!tenant) return;
         const ws = weekStartISO();
+        const accQuery = supabase.from('treasury_accounts')
+            .select('*, assigned_user:users!treasury_accounts_assigned_user_id_fkey(email)')
+            .eq('tenant_id', tenant.id)
+            .order('name');
         const [accRes, catRes, settleRes] = await Promise.all([
-            supabase.from('treasury_accounts')
-                .select('*, assigned_user:users!treasury_accounts_assigned_user_id_fkey(email)')
-                .eq('tenant_id', tenant.id)
-                .not('assigned_user_id', 'is', null)
-                .order('name'),
-            supabase.from('treasury_categories').select('*').eq('tenant_id', tenant.id).order('name'),
-            // fetch all settlements for this week
+            esConstructora ? accQuery : accQuery.not('assigned_user_id', 'is', null),
+            esConstructora
+                ? Promise.resolve({ data: [] as any[] })
+                : supabase.from('treasury_categories').select('*').eq('tenant_id', tenant.id).order('name'),
             supabase.from('cash_settlements')
                 .select('account_id')
                 .eq('tenant_id', tenant.id)
@@ -39,7 +42,6 @@ export default function Cajas() {
         ]);
         if (accRes.data) setAccounts(accRes.data);
         if (catRes.data) setCategories(catRes.data);
-        // Build set of account_ids that already settled this week
         if (settleRes.data) {
             setPendingMap(new Set(settleRes.data.map((s: any) => s.account_id)));
         }
@@ -47,7 +49,9 @@ export default function Cajas() {
 
     useEffect(() => { fetchData(); }, [tenant]);
 
-    const pendingAccounts = accounts.filter(a => !pendingMap.has(a.id));
+    const accountsActivas = accounts.filter(a => a.assigned_user_id);
+    const accountsInactivas = accounts.filter(a => !a.assigned_user_id);
+    const pendingAccounts = accountsActivas.filter(a => !pendingMap.has(a.id));
 
     return (
         <div>
@@ -81,8 +85,8 @@ export default function Cajas() {
                 <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>No hay cajas de empleados registradas aún.</p>
             )}
 
-            {/* ── Cajas list ── */}
-            {accounts.length > 0 && (
+            {/* ── Cajas activas ── */}
+            {accountsActivas.length > 0 && (
                 <div className="card" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
                         <div className="metric-icon primary" style={{ width: '40px', height: '40px' }}>
@@ -91,7 +95,7 @@ export default function Cajas() {
                         <h3 className="card-title" style={{ margin: 0 }}>Cajas activas</h3>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
-                        {accounts.map(acc => {
+                        {accountsActivas.map(acc => {
                             const settled = pendingMap.has(acc.id);
                             return (
                                 <div key={acc.id} onClick={() => navigate(`/tesoreria/cajas/${acc.id}`)}
@@ -132,6 +136,44 @@ export default function Cajas() {
                 </div>
             )}
 
+            {/* ── Cajas inactivas (sin empleado asignado) — solo constructora ── */}
+            {esConstructora && accountsInactivas.length > 0 && (
+                <div className="card" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                        <div className="metric-icon" style={{ width: '40px', height: '40px', background: 'rgba(148,163,184,0.15)', color: 'var(--text-muted)' }}>
+                            <Landmark size={20} />
+                        </div>
+                        <h3 className="card-title" style={{ margin: 0 }}>Cajas inactivas</h3>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+                        {accountsInactivas.map(acc => (
+                            <div key={acc.id} onClick={() => navigate(`/tesoreria/cajas/${acc.id}`)}
+                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', cursor: 'pointer', transition: 'background 0.15s', opacity: 0.85 }}
+                                onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+                                onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                                <div>
+                                    <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        {acc.name}
+                                        <span className="badge" style={{ fontSize: '0.7rem', textTransform: 'none', background: 'rgba(148,163,184,0.15)', color: 'var(--text-muted)', border: '1px solid var(--border-color)' }}>
+                                            Sin empleado asignado
+                                        </span>
+                                    </div>
+                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+                                        {acc.type === 'bank' ? 'Banco / Billetera' : 'Efectivo'}
+                                    </div>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                                        ${Number(acc.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                    </div>
+                                    <ChevronRight size={16} color="var(--text-muted)" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* If no accounts yet, show AccountForm */}
             {accounts.length === 0 && (
                 <div className="card" style={{ padding: '2rem', marginBottom: '2rem' }}>
@@ -140,32 +182,34 @@ export default function Cajas() {
                 </div>
             )}
 
-            {/* Categories */}
-            <div className="card" style={{ padding: '2rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-                    <div className="metric-icon" style={{ width: '40px', height: '40px', background: 'rgba(14,165,233,0.1)', color: 'var(--tenant-secondary)' }}>
-                        <List size={20} />
+            {/* Categorías de Caja Chica — oculto para constructora */}
+            {!esConstructora && (
+                <div className="card" style={{ padding: '2rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                        <div className="metric-icon" style={{ width: '40px', height: '40px', background: 'rgba(14,165,233,0.1)', color: 'var(--tenant-secondary)' }}>
+                            <List size={20} />
+                        </div>
+                        <h3 className="card-title" style={{ margin: 0 }}>Categorías de Caja Chica</h3>
                     </div>
-                    <h3 className="card-title" style={{ margin: 0 }}>Categorías de Caja Chica</h3>
+                    <div style={{ marginBottom: '2rem' }}>
+                        <CategoryForm onSuccess={fetchData} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {categories.filter(c => c.group === 'Caja Chica').length === 0
+                            ? <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>No hay categorías de caja chica.</p>
+                            : categories.filter(c => c.group === 'Caja Chica').map(cat => (
+                                <div key={cat.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                                    <span style={{ fontWeight: 500 }}>{cat.name}</span>
+                                    <span className={`badge ${cat.type === 'income' ? 'badge-success' : 'badge-danger'}`}
+                                        style={{ opacity: 0.8, background: 'transparent', border: '1px solid currentColor' }}>
+                                        {cat.type === 'income' ? 'Ingreso' : 'Egreso'}
+                                    </span>
+                                </div>
+                            ))
+                        }
+                    </div>
                 </div>
-                <div style={{ marginBottom: '2rem' }}>
-                    <CategoryForm onSuccess={fetchData} />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {categories.filter(c => c.group === 'Caja Chica').length === 0
-                        ? <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>No hay categorías de caja chica.</p>
-                        : categories.filter(c => c.group === 'Caja Chica').map(cat => (
-                            <div key={cat.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
-                                <span style={{ fontWeight: 500 }}>{cat.name}</span>
-                                <span className={`badge ${cat.type === 'income' ? 'badge-success' : 'badge-danger'}`}
-                                    style={{ opacity: 0.8, background: 'transparent', border: '1px solid currentColor' }}>
-                                    {cat.type === 'income' ? 'Ingreso' : 'Egreso'}
-                                </span>
-                            </div>
-                        ))
-                    }
-                </div>
-            </div>
+            )}
         </div>
     );
 }

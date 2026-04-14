@@ -42,6 +42,11 @@ interface Props {
     sortDir?: 'asc' | 'desc';
     onAttachInvoice?: (id: string) => void;
     hasErp?: boolean;
+    // Constructora-only: editar centro de costos (proyecto) y categoría desde la card expandida
+    esConstructora?: boolean;
+    proyectoOpts?: { id: string; name: string }[];
+    categoriaOpts?: { id: string; nombre: string; color: string }[];
+    onUpdateClasificacion?: (id: string, changes: { proyecto_id?: string | null; categoria_id?: string | null }) => Promise<boolean>;
 }
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
@@ -49,7 +54,8 @@ const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 export default function ComprobantesGrid({
     data, totalCount, isLoading, hasMore, currentPage, totalPages, pageSize,
     onPageChange, onPageSizeChange, onAction, onDocPreview,
-    selectedIds, onSelectionChange, onSort, sortCol, sortDir, onAttachInvoice, hasErp
+    selectedIds, onSelectionChange, onSort, sortCol, sortDir, onAttachInvoice, hasErp,
+    esConstructora = false, proyectoOpts = [], categoriaOpts = [], onUpdateClasificacion
 }: Props) {
     const navigate = useNavigate();
     const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -237,6 +243,35 @@ export default function ComprobantesGrid({
                 );
             },
         },
+        ...(esConstructora ? [{
+            id: 'clasificacion',
+            header: 'Clasificación',
+            minWidth: 160,
+            accessor: (c: Comprobante) => {
+                const proy = (c as any).proyecto;
+                const cat = c.categoria as any;
+                if (!proy && !cat) return <span style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem' }}>—</span>;
+                return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {proy && (
+                            <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.75rem' }}>{proy.name}</span>
+                        )}
+                        {cat && (
+                            <span style={{
+                                backgroundColor: `${cat.color}20`,
+                                color: cat.color,
+                                padding: '2px 6px',
+                                borderRadius: 4,
+                                fontSize: '0.65rem',
+                                fontWeight: 600,
+                                width: 'fit-content',
+                                whiteSpace: 'nowrap',
+                            }}>{cat.nombre}</span>
+                        )}
+                    </div>
+                );
+            },
+        } as ColumnDef<Comprobante>] : []),
         {
             id: 'monto',
             header: 'Monto',
@@ -399,6 +434,43 @@ export default function ComprobantesGrid({
                     }}>{f.value}</div>
                 </div>
             ))}
+            {/* Constructora-only: editar centro de costos (proyecto) y categoría */}
+            {esConstructora && onUpdateClasificacion && (
+                <>
+                    <div>
+                        <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Centro de Costos</div>
+                        <select
+                            value={(c as any).proyecto_id || ''}
+                            onClick={e => e.stopPropagation()}
+                            onChange={e => onUpdateClasificacion(c.id, { proyecto_id: e.target.value || null })}
+                            style={{
+                                width: '100%', padding: '4px 8px', fontSize: '0.8125rem',
+                                background: 'var(--color-bg-surface)', color: 'var(--color-text-primary)',
+                                border: '1px solid var(--color-border-subtle)', borderRadius: 6, cursor: 'pointer',
+                            }}
+                        >
+                            <option value="">— sin asignar —</option>
+                            {proyectoOpts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Clasificación</div>
+                        <select
+                            value={(c as any).categoria_id || ''}
+                            onClick={e => e.stopPropagation()}
+                            onChange={e => onUpdateClasificacion(c.id, { categoria_id: e.target.value || null })}
+                            style={{
+                                width: '100%', padding: '4px 8px', fontSize: '0.8125rem',
+                                background: 'var(--color-bg-surface)', color: 'var(--color-text-primary)',
+                                border: '1px solid var(--color-border-subtle)', borderRadius: 6, cursor: 'pointer',
+                            }}
+                        >
+                            <option value="">— sin asignar —</option>
+                            {categoriaOpts.map(cat => <option key={cat.id} value={cat.id}>{cat.nombre}</option>)}
+                        </select>
+                    </div>
+                </>
+            )}
             {/* Tags — flows after data fields, next to Fecha de Carga */}
             <div>
                 <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Etiquetas</div>

@@ -286,14 +286,14 @@ export default function Layout() {
         { name: 'Liquidaciones', path: '/inmobiliaria/liquidaciones', icon: Wallet },
         { name: 'Comprobantes', path: '/inmobiliaria/facturar', icon: FileText },
     ];
-    // Finanzas: orden Cta Cte → Movimientos → Bancos → Concil. Bancaria → Concil. Cbtes → Facturación → OP
+    // Finanzas: orden Cta Cte → Movimientos → Bancos → Concil. Bancaria → Concil. Cbtes → Facturar → OP
     const finanzasItems = [
         { name: 'Cta Cte', path: '/tesoreria', icon: LayoutDashboard },
         { name: 'Movimientos', path: '/tesoreria/movimientos', icon: ArrowRightLeft },
         { name: 'Bancos', path: '/tesoreria/bancos', icon: Landmark },
         { name: 'Conciliación Bancaria', path: '/tesoreria/conciliacion-bancaria', icon: GitCompare },
         { name: 'Conciliación Comprobantes', path: '/contable/conciliacion-comprobantes', icon: GitCompare },
-        { name: 'Facturación', path: '/contable/comprobantes', icon: Receipt },
+        { name: 'Facturar', path: '/contable/comprobantes', icon: Receipt },
         { name: 'Órdenes de Pago', path: '/tesoreria/ordenes-pago', icon: ClipboardList },
     ];
 

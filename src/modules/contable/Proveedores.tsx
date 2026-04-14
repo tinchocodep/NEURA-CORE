@@ -237,6 +237,9 @@ export default function Proveedores() {
     const [showBulkArcaConfirm, setShowBulkArcaConfirm] = useState(false);
     // Importador Excel
     const [showImportModal, setShowImportModal] = useState(false);
+    // Eliminar todos (doble confirmación por botón)
+    const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
+    const [deletingAll, setDeletingAll] = useState(false);
     const tenantModules = (tenant?.enabled_modules as string[]) || [];
     const hasErpModule = tenantModules.includes('erp_colppy') || tenantModules.includes('erp_xubio');
     const [expandedComprobante, setExpandedComprobante] = useState<string | null>(null);
@@ -539,7 +542,7 @@ export default function Proveedores() {
             const rawItems: ArcaPersonaRaw[] = Array.isArray(parsed) ? parsed : [parsed as ArcaPersonaRaw];
 
             if (rawItems.length === 0 || !rawItems[0]?.name) {
-                setArcaError('No se encontró información para ese CUIT en ARCA');
+                setArcaError(`El CUIT ${formatCuit(cuitClean)} no figura en el padrón de ARCA. Verificá que esté bien escrito.`);
                 return;
             }
 
@@ -560,8 +563,8 @@ export default function Proveedores() {
 
     /** Helper: llamar ARCA con un CUIT y devolver ArcaPersona normalizada o null */
     async function fetchArcaByCuit(cuit: string): Promise<ArcaPersona | null> {
-        const cuitClean = cuit.replace(/[-\s]/g, '').trim();
-        if (!cuitClean) return null;
+        const cuitClean = (cuit || '').replace(/\D/g, '');
+        if (cuitClean.length !== 11) return null;
         try {
             const response = await fetch(ARCA_WEBHOOK_URL, {
                 method: 'POST',
@@ -578,6 +581,13 @@ export default function Proveedores() {
         } catch {
             return null;
         }
+    }
+
+    /** Formatear CUIT para mostrar: 30546689979 → 30-54668997-9 */
+    function formatCuit(cuit: string | null | undefined): string {
+        const c = (cuit || '').replace(/\D/g, '');
+        if (c.length !== 11) return cuit || '';
+        return `${c.slice(0, 2)}-${c.slice(2, 10)}-${c.slice(10)}`;
     }
 
     /** Mapear condición fiscal de ARCA al formato interno */
@@ -601,12 +611,17 @@ export default function Proveedores() {
             setDetailArcaError('Este proveedor no tiene CUIT cargado.');
             return;
         }
+        const cuitClean = selectedProvider.cuit.replace(/\D/g, '');
+        if (cuitClean.length !== 11) {
+            setDetailArcaError(`El CUIT cargado (${selectedProvider.cuit}) no tiene 11 dígitos. Revisalo y volvé a intentar.`);
+            return;
+        }
         setDetailArcaSearching(true);
         setDetailArcaError(null);
         setDetailArcaResult(null);
         const result = await fetchArcaByCuit(selectedProvider.cuit);
         if (!result) {
-            setDetailArcaError('No se encontró información en ARCA.');
+            setDetailArcaError(`El CUIT ${formatCuit(selectedProvider.cuit)} no figura en el padrón de ARCA. Verificá que esté bien cargado — puede ser un error de tipeo.`);
         } else {
             setDetailArcaResult(result);
         }
@@ -738,6 +753,28 @@ export default function Proveedores() {
     async function handleDelete(id: string) {
         if (!confirm('¿Desactivar este proveedor?')) return;
         await supabase.from('contable_proveedores').update({ activo: false }).eq('id', id);
+        load();
+    }
+
+    async function handleDeleteAll() {
+        if (!tenant?.id) return;
+        if (!confirmDeleteAll) {
+            setConfirmDeleteAll(true);
+            setTimeout(() => setConfirmDeleteAll(false), 5000);
+            return;
+        }
+        setDeletingAll(true);
+        const { error } = await supabase
+            .from('contable_proveedores')
+            .update({ activo: false })
+            .eq('tenant_id', tenant.id)
+            .eq('activo', true);
+        setDeletingAll(false);
+        setConfirmDeleteAll(false);
+        if (error) {
+            alert('Error al eliminar proveedores: ' + error.message);
+            return;
+        }
         load();
     }
 
@@ -939,6 +976,22 @@ export default function Proveedores() {
                     </button>
                     <button className="btn btn-secondary" onClick={exportCSV} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', fontSize: '0.8rem', borderRadius: 10 }}>
                         <Download size={14} /> CSV
+                    </button>
+                    <button
+                        className="btn btn-ghost"
+                        onClick={handleDeleteAll}
+                        disabled={deletingAll || proveedores.length === 0}
+                        title="Eliminar todos los proveedores del tenant"
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            padding: '8px 14px', fontSize: '0.8rem', borderRadius: 10,
+                            color: confirmDeleteAll ? '#fff' : '#dc2626',
+                            background: confirmDeleteAll ? '#dc2626' : 'transparent',
+                            border: '1px solid ' + (confirmDeleteAll ? '#dc2626' : 'rgba(220, 38, 38, 0.3)'),
+                        }}
+                    >
+                        <Trash2 size={14} />
+                        {deletingAll ? 'Eliminando...' : confirmDeleteAll ? '¿Confirmar? Click otra vez' : 'Eliminar todos'}
                     </button>
                     <button className="btn btn-primary" onClick={openNew} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 18px', fontSize: '0.8rem', borderRadius: 10 }}>
                         <Plus size={16} /> Nuevo proveedor

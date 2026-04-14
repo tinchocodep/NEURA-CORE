@@ -33,11 +33,15 @@ export interface Comprobante {
     colpy_synced_at?: string | null;
     proveedor_id: string | null;
     cliente_id: string | null;
+    categoria_id?: string | null;
+    centro_costo_id?: string | null;
+    proyecto_id?: string | null;
     proveedor: { razon_social: string; producto_servicio_default_id: string | null; colpy_id?: string | null; xubio_id?: string | null; cuit?: string | null } | null;
     cliente: { razon_social: string; xubio_id?: string | null } | null;
     producto_servicio: { nombre: string; grupo: string } | null;
     categoria: { nombre: string; color: string } | null;
     centro_costo: { nombre: string } | null;
+    proyecto: { name: string } | null;
 }
 
 const SELECT_FIELDS = `
@@ -47,12 +51,13 @@ const SELECT_FIELDS = `
   pdf_url, source, cuit_emisor, cuit_receptor, created_at,
   fecha_vencimiento, neto_gravado, neto_no_gravado, total_iva,
   percepciones_iibb, percepciones_iva, colpy_synced_at,
-  proveedor_id, cliente_id,
+  proveedor_id, cliente_id, categoria_id, centro_costo_id, proyecto_id,
   proveedor:contable_proveedores(razon_social, producto_servicio_default_id, colpy_id, xubio_id, cuit),
   cliente:contable_clientes(razon_social),
   producto_servicio:contable_productos_servicio(nombre, grupo),
   categoria:contable_categorias(nombre, color),
-  centro_costo:contable_centros_costo(nombre)
+  centro_costo:contable_centros_costo(nombre),
+  proyecto:treasury_projects(name)
 `;
 
 const DEFAULT_PAGE_SIZE = 25;
@@ -200,6 +205,21 @@ export function useComprobantes(filters: ComprobantesFilters) {
         return true;
     }, []);
 
+    const updateClasificacion = useCallback(async (
+        id: string,
+        changes: { proyecto_id?: string | null; centro_costo_id?: string | null; categoria_id?: string | null }
+    ) => {
+        const { error } = await supabase.from('contable_comprobantes').update(changes).eq('id', id);
+        if (error) { console.error('updateClasificacion:', error); return false; }
+        const page = currentPageRef.current;
+        const q = await buildQuery(page);
+        if (q) {
+            const { data: refreshed } = await q;
+            if (refreshed) setData(refreshed as unknown as Comprobante[]);
+        }
+        return true;
+    }, [buildQuery]);
+
     const eliminarComprobante = useCallback(async (id: string) => {
         const { error } = await supabase.from('contable_comprobantes').delete().eq('id', id);
         if (error) { console.error('eliminarComprobante:', error); return false; }
@@ -232,5 +252,5 @@ export function useComprobantes(filters: ComprobantesFilters) {
         };
     }, [tenant?.id]);
 
-    return { data, totalCount, isLoading, hasMore, currentPage, totalPages, pageSize, goToPage, reset, updateEstado, eliminarComprobante };
+    return { data, totalCount, isLoading, hasMore, currentPage, totalPages, pageSize, goToPage, reset, updateEstado, eliminarComprobante, updateClasificacion };
 }

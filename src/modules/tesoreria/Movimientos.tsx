@@ -8,6 +8,7 @@ import CustomSelect from '../../shared/components/CustomSelect';
 import StyledSelect from '../../shared/components/StyledSelect';
 import HierarchicalCategorySelect, { type CategoriaJerarquica } from '../construccion/HierarchicalCategorySelect';
 import ProveedorSearch, { type ProveedorBasic } from '../construccion/ProveedorSearch';
+import { DolarService, type DolarResumen } from '../../services/DolarService';
 
 interface TreasuryProject { id: string; name: string; is_global: boolean | null; status: string | null; }
 
@@ -47,6 +48,29 @@ export default function Movimientos() {
     const [proveedoresLista, setProveedoresLista] = useState<ProveedorBasic[]>([]);
     const [formProyectoId, setFormProyectoId] = useState('');
     const [formCategoriaContableId, setFormCategoriaContableId] = useState('');
+    // USD toggle (constructora) — convierte USD * tipo de cambio a pesos en formAmount
+    const [showUsdInput, setShowUsdInput] = useState(false);
+    const [formUsdAmount, setFormUsdAmount] = useState(0);
+    const [formTipoCambio, setFormTipoCambio] = useState(0);
+    const [dolarData, setDolarData] = useState<DolarResumen | null>(null);
+    const [tcSource, setTcSource] = useState<'oficial' | 'blue' | 'mep' | 'ccl' | 'manual'>('blue');
+    // Cargar cotizaciones del dólar al abrir el form (solo constructora)
+    useEffect(() => {
+        if (esConstructora && showForm && !dolarData) {
+            DolarService.getCotizaciones().then(setDolarData).catch(() => {});
+        }
+    }, [esConstructora, showForm, dolarData]);
+    // Cuando se activa USD y hay cotización, prefijar TC con la fuente seleccionada
+    useEffect(() => {
+        if (!showUsdInput || !dolarData || tcSource === 'manual') return;
+        const cot = dolarData[tcSource];
+        if (cot && cot.venta > 0 && formTipoCambio !== cot.venta) {
+            setFormTipoCambio(cot.venta);
+            if (formUsdAmount > 0) {
+                setFormAmount(Math.round(formUsdAmount * cot.venta * 100) / 100);
+            }
+        }
+    }, [showUsdInput, dolarData, tcSource]);
 
     const createAccount = async () => {
         if (!newAccName.trim()) return;
@@ -345,6 +369,10 @@ export default function Movimientos() {
                 setFormProyectoId('');
                 setFormCategoriaContableId('');
                 setFormCategory('');
+                setShowUsdInput(false);
+                setFormUsdAmount(0);
+                setFormTipoCambio(0);
+                setTcSource('blue');
                 setShowForm(false);
                 fetchData();
             };
@@ -437,8 +465,122 @@ export default function Movimientos() {
                             </div>
                             <div className="wizard-row">
                                 <div className="wizard-field">
-                                    <label className="form-label">Monto *</label>
-                                    <input type="number" className="form-input" value={formAmount || ''} onChange={e => setFormAmount(Number(e.target.value))} placeholder="0" />
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <label className="form-label">Monto en pesos *</label>
+                                        {esConstructora && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setShowUsdInput(prev => {
+                                                        const next = !prev;
+                                                        if (!next) { setFormUsdAmount(0); setFormTipoCambio(0); }
+                                                        return next;
+                                                    });
+                                                }}
+                                                style={{
+                                                    fontSize: '0.72rem', fontWeight: 600,
+                                                    color: showUsdInput ? '#fff' : 'var(--color-cta, #2563EB)',
+                                                    background: showUsdInput ? 'var(--color-cta, #2563EB)' : 'none',
+                                                    border: '1px solid var(--color-cta, #2563EB)',
+                                                    borderRadius: 8, padding: '3px 10px', cursor: 'pointer',
+                                                }}
+                                            >
+                                                {showUsdInput ? 'USD ✓' : 'Cargar en USD'}
+                                            </button>
+                                        )}
+                                    </div>
+                                    <input
+                                        type="number"
+                                        className="form-input"
+                                        value={formAmount || ''}
+                                        onChange={e => setFormAmount(Number(e.target.value))}
+                                        placeholder="0"
+                                        readOnly={showUsdInput}
+                                        style={showUsdInput ? { background: 'var(--color-bg-surface-2)', cursor: 'not-allowed' } : undefined}
+                                    />
+                                    {formAmount > 0 && (
+                                        <div style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
+                                            = ${formAmount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </div>
+                                    )}
+                                    {esConstructora && showUsdInput && (
+                                        <div style={{ marginTop: 8, padding: 10, borderRadius: 10, background: 'var(--color-bg-surface-2)', border: '1px solid var(--color-border-subtle)' }}>
+                                            {/* Selector de fuente del tipo de cambio */}
+                                            <div style={{ display: 'flex', gap: 4, marginBottom: 10, flexWrap: 'wrap' }}>
+                                                {(['oficial', 'blue', 'mep', 'ccl'] as const).map(src => {
+                                                    const cot = dolarData?.[src];
+                                                    const disabled = !cot || cot.venta === 0;
+                                                    return (
+                                                        <button
+                                                            key={src}
+                                                            type="button"
+                                                            disabled={disabled}
+                                                            onClick={() => setTcSource(src)}
+                                                            style={{
+                                                                fontSize: '0.7rem', fontWeight: 600,
+                                                                padding: '4px 10px', borderRadius: 6,
+                                                                border: '1px solid ' + (tcSource === src ? 'var(--color-cta, #2563EB)' : 'var(--color-border-subtle)'),
+                                                                background: tcSource === src ? 'var(--color-cta, #2563EB)' : 'transparent',
+                                                                color: tcSource === src ? '#fff' : disabled ? 'var(--color-text-muted)' : 'var(--color-text-primary)',
+                                                                cursor: disabled ? 'not-allowed' : 'pointer',
+                                                                opacity: disabled ? 0.5 : 1,
+                                                                textTransform: 'capitalize',
+                                                            }}
+                                                        >
+                                                            {src} {cot?.venta ? `$${cot.venta.toLocaleString('es-AR')}` : ''}
+                                                        </button>
+                                                    );
+                                                })}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setTcSource('manual')}
+                                                    style={{
+                                                        fontSize: '0.7rem', fontWeight: 600,
+                                                        padding: '4px 10px', borderRadius: 6,
+                                                        border: '1px solid ' + (tcSource === 'manual' ? 'var(--color-cta, #2563EB)' : 'var(--color-border-subtle)'),
+                                                        background: tcSource === 'manual' ? 'var(--color-cta, #2563EB)' : 'transparent',
+                                                        color: tcSource === 'manual' ? '#fff' : 'var(--color-text-primary)',
+                                                        cursor: 'pointer',
+                                                    }}
+                                                >
+                                                    Manual
+                                                </button>
+                                            </div>
+                                            <div style={{ display: 'flex', gap: 8 }}>
+                                                <div style={{ flex: 1 }}>
+                                                    <label className="form-label" style={{ fontSize: '0.7rem' }}>USD</label>
+                                                    <input
+                                                        type="number"
+                                                        className="form-input"
+                                                        value={formUsdAmount || ''}
+                                                        onChange={e => {
+                                                            const usd = Number(e.target.value);
+                                                            setFormUsdAmount(usd);
+                                                            if (formTipoCambio > 0) setFormAmount(Math.round(usd * formTipoCambio * 100) / 100);
+                                                        }}
+                                                        placeholder="0"
+                                                    />
+                                                </div>
+                                                <div style={{ flex: 1 }}>
+                                                    <label className="form-label" style={{ fontSize: '0.7rem' }}>
+                                                        Tipo de cambio {tcSource !== 'manual' && <span style={{ color: 'var(--color-text-muted)', fontWeight: 400 }}>({tcSource} auto)</span>}
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        className="form-input"
+                                                        value={formTipoCambio || ''}
+                                                        onChange={e => {
+                                                            const tc = Number(e.target.value);
+                                                            setFormTipoCambio(tc);
+                                                            setTcSource('manual');
+                                                            if (formUsdAmount > 0) setFormAmount(Math.round(formUsdAmount * tc * 100) / 100);
+                                                        }}
+                                                        placeholder="Ej: 1050"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="wizard-field">
                                     <label className="form-label">{esConstructora ? 'Proveedor / Contacto' : 'Contacto'}</label>
