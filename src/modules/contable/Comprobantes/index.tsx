@@ -75,11 +75,15 @@ export default function ComprobantesIndex({ defaultTipo }: ComprobantesIndexProp
     const [showSyncSourceMenu, setShowSyncSourceMenu] = useState(false);
     useEffect(() => {
         if (!tenant?.id) return;
-        supabase.from('contable_config').select('arca_cuit, arca_username, arca_password, punto_venta, xubio_client_id, xubio_client_secret, colpy_username, colpy_password').eq('tenant_id', tenant.id).maybeSingle()
+        supabase.from('contable_config').select('arca_cuit, arca_username, arca_password, punto_venta, xubio_client_id, xubio_client_secret, colpy_username, colpy_password, erp_type').eq('tenant_id', tenant.id).maybeSingle()
             .then(({ data }) => {
                 if (data?.arca_cuit) setEmpresaCuit(data.arca_cuit);
-                const xubio = !!(data?.xubio_client_id && data?.xubio_client_secret);
-                const colppy = !!(data?.colpy_username && data?.colpy_password);
+                const erpType = (data as any)?.erp_type || null;
+                const hasXubioCreds = !!(data?.xubio_client_id && data?.xubio_client_secret);
+                const hasColpyCreds = !!(data?.colpy_username && data?.colpy_password);
+                // Solo mostrar el ERP que coincide con erp_type del tenant. Si no hay erp_type definido, mostrar lo que tenga credenciales.
+                const xubio = hasXubioCreds && (!erpType || erpType === 'xubio');
+                const colppy = hasColpyCreds && (!erpType || erpType === 'colppy');
                 const arca = !!(data?.arca_cuit && data?.arca_username && data?.arca_password);
                 setHasXubio(xubio);
                 setHasColppy(colppy);
@@ -1005,12 +1009,15 @@ export default function ComprobantesIndex({ defaultTipo }: ComprobantesIndexProp
     };
 
     const handleSync = (desde: string, hasta: string) => {
+        console.log('[Sync] Source elegido:', syncSource);
         if (syncSource === 'xubio') {
             handleSyncXubio(desde, hasta);
         } else if (syncSource === 'arca') {
             handleSyncArca(desde, hasta);
-        } else {
+        } else if (syncSource === 'colppy') {
             handleSyncColpy(desde, hasta);
+        } else {
+            addToast('error', 'Error', `Fuente de sincronización no válida (${syncSource}). Reabrí el menú y elegí de nuevo.`);
         }
     };
 

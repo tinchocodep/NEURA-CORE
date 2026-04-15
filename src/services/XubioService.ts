@@ -617,22 +617,22 @@ export class XubioService {
         let updated = 0;
         const errors: string[] = [];
 
-        // Build lookup maps: xubio_id → our uuid for clientes and proveedores
+        // Build lookup maps: xubio_id → {uuid, cuit} for clientes and proveedores
         const { data: clientes } = await supabase
             .from('contable_clientes')
-            .select('id, xubio_id')
+            .select('id, xubio_id, cuit')
             .eq('tenant_id', this.tenantId)
             .not('xubio_id', 'is', null);
-        const clienteMap = new Map<string, string>();
-        clientes?.forEach((c: any) => clienteMap.set(String(c.xubio_id), c.id));
+        const clienteMap = new Map<string, { id: string; cuit: string | null }>();
+        clientes?.forEach((c: any) => clienteMap.set(String(c.xubio_id), { id: c.id, cuit: c.cuit }));
 
         const { data: proveedores } = await supabase
             .from('contable_proveedores')
-            .select('id, xubio_id')
+            .select('id, xubio_id, cuit')
             .eq('tenant_id', this.tenantId)
             .not('xubio_id', 'is', null);
-        const proveedorMap = new Map<string, string>();
-        proveedores?.forEach((p: any) => proveedorMap.set(String(p.xubio_id), p.id));
+        const proveedorMap = new Map<string, { id: string; cuit: string | null }>();
+        proveedores?.forEach((p: any) => proveedorMap.set(String(p.xubio_id), { id: p.id, cuit: p.cuit }));
 
         // 1. Comprobantes de Venta
         onProgress?.('Descargando comprobantes de venta...');
@@ -662,7 +662,8 @@ export class XubioService {
                     const tipoComprobante = letra ? `${tipoNombre} ${letra}` : tipoNombre;
 
                     const clienteXubioId = cv.cliente?.ID || cv.cliente?.id;
-                    const clienteUuid = clienteXubioId ? clienteMap.get(String(clienteXubioId)) : null;
+                    const clienteData = clienteXubioId ? clienteMap.get(String(clienteXubioId)) : null;
+                    const clienteCuit = clienteData?.cuit || cv.cliente?.CUIT || cv.cliente?.cuit || cv.cliente?.documento || null;
 
                     const compData: Record<string, unknown> = {
                         tenant_id: this.tenantId,
@@ -670,7 +671,8 @@ export class XubioService {
                         tipo_comprobante: tipoComprobante,
                         fecha: cv.fecha,
                         numero_comprobante: cv.numeroDocumento || null,
-                        cliente_id: clienteUuid || null,
+                        cliente_id: clienteData?.id || null,
+                        cuit_receptor: clienteCuit,
                         moneda: 'ARS',
                         monto_original: cv.importetotal || 0,
                         monto_ars: cv.importetotal || 0,
@@ -729,7 +731,8 @@ export class XubioService {
                     const tipoComprobante = letra ? `${tipoNombre} ${letra}` : tipoNombre;
 
                     const provXubioId = cc.proveedor?.ID || cc.proveedor?.id;
-                    const provUuid = provXubioId ? proveedorMap.get(String(provXubioId)) : null;
+                    const provData = provXubioId ? proveedorMap.get(String(provXubioId)) : null;
+                    const provCuit = provData?.cuit || cc.proveedor?.CUIT || cc.proveedor?.cuit || cc.proveedor?.documento || null;
 
                     const compData: Record<string, unknown> = {
                         tenant_id: this.tenantId,
@@ -737,7 +740,8 @@ export class XubioService {
                         tipo_comprobante: tipoComprobante,
                         fecha: cc.fecha,
                         numero_comprobante: cc.numeroDocumento || null,
-                        proveedor_id: provUuid || null,
+                        proveedor_id: provData?.id || null,
+                        cuit_emisor: provCuit,
                         moneda: 'ARS',
                         monto_original: cc.importetotal || 0,
                         monto_ars: cc.importetotal || 0,

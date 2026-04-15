@@ -1,0 +1,768 @@
+{
+  "name": "NCR - Carga de Comprobantes v2",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "CargaDeComprobantesV2",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-1600, 0],
+      "id": "webhook-1",
+      "name": "Webhook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "a1", "name": "tenant_id", "value": "={{ $json.body.tenant_id }}", "type": "string" },
+            { "id": "a2", "name": "filename", "value": "={{ $json.body.filename }}", "type": "string" },
+            { "id": "a3", "name": "cuit_empresa", "value": "={{ ($json.body.cuit_empresa || '').toString().replace(/\\D/g,'') }}", "type": "string" },
+            { "id": "a4", "name": "chat_id", "value": "={{ $json.body.chat_id || '' }}", "type": "string" },
+            { "id": "a5", "name": "origen", "value": "={{ $json.body.origen || 'pdf_upload' }}", "type": "string" }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-1376, 0],
+      "id": "ef-in",
+      "name": "Edit Fields Inputs"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://fuytejvnwihghxymyayw.supabase.co/storage/v1/object/comprobantes/{{ $('Webhook').first().binary.data0.fileName.trim().replaceAll(' ','_') }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTU2MTQzMSwiZXhwIjoyMDg3MTM3NDMxfQ.N9AhuM2sPXcXJmTiM1lux4weZI94ltNw0B4oHwxWecU" },
+            { "name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTU2MTQzMSwiZXhwIjoyMDg3MTM3NDMxfQ.N9AhuM2sPXcXJmTiM1lux4weZI94ltNw0B4oHwxWecU" },
+            { "name": "x-upsert", "value": "true" },
+            { "name": "Content-Type", "value": "=application/octet-stream" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data0",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [-1152, 192],
+      "id": "storage-upload",
+      "name": "Storage Upload",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false, "typeValidation": "loose", "version": 3 },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ ($('Edit Fields Inputs').first().json.filename || '').toLowerCase() }}",
+              "rightValue": ".pdf",
+              "operator": { "type": "string", "operation": "endsWith" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [-1152, 0],
+      "id": "if-pdf",
+      "name": "If PDF"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "data0",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [-928, -96],
+      "id": "extract-pdf",
+      "name": "Extract from PDF"
+    },
+    {
+      "parameters": {
+        "modelId": { "__rl": true, "value": "models/gemini-2.5-flash", "mode": "list" },
+        "messages": {
+          "values": [
+            {
+              "content": "=Analiza el siguiente texto extraido de un comprobante y devuelve SOLO un JSON valido con las claves:\nfecha (YYYY-MM-DD), numero_comprobante, tipo_comprobante (Factura A/B/C/Ticket/Remito/Nota de Credito/Nota de Debito), moneda (ARS/USD), monto_original (numero, punto decimal, sin separadores de miles), descripcion (max 5 palabras), cuit_emisor (solo digitos), cuit_receptor (solo digitos), razon_social (nombre del emisor), neto_gravado (numero), total_iva (numero).\nSi un campo no esta, devolve null. No uses markdown ni bloques de codigo.\n\nTEXTO:\n{{ $json.text }}"
+            }
+          ]
+        },
+        "options": {
+          "systemMessage": "Eres un asistente contable experto en OCR de comprobantes AFIP. Respondes SOLO con JSON valido, sin texto adicional, sin bloques de codigo markdown."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [-704, -96],
+      "id": "ocr-text",
+      "name": "OCR Texto",
+      "credentials": {
+        "googlePalmApi": { "id": "ckp67BViTFwefxtq", "name": "Google Gemini(PaLM) Api account" }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": { "__rl": true, "value": "models/gemini-2.5-pro", "mode": "list" },
+        "text": "=Analiza la imagen adjunta del comprobante y devuelve SOLO un JSON valido con las claves:\nfecha (YYYY-MM-DD), numero_comprobante, tipo_comprobante (Factura A/B/C/Ticket/Remito/Nota de Credito/Nota de Debito), moneda (ARS/USD), monto_original (numero, punto decimal), descripcion (max 5 palabras), cuit_emisor (solo digitos), cuit_receptor (solo digitos), razon_social (nombre del emisor), neto_gravado (numero), total_iva (numero).\nSi un campo no esta, devolve null. No uses markdown ni bloques de codigo.",
+        "inputType": "binary",
+        "binaryPropertyName": "data0",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [-704, 96],
+      "id": "ocr-image",
+      "name": "OCR Imagen",
+      "credentials": {
+        "googlePalmApi": { "id": "ckp67BViTFwefxtq", "name": "Google Gemini(PaLM) Api account" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const it = items[0].json;\nlet raw = '';\nif (it.content && it.content.parts && it.content.parts[0] && it.content.parts[0].text) raw = it.content.parts[0].text;\nelse raw = it.text || it.output || (typeof it.content === 'string' ? it.content : JSON.stringify(it));\nlet parsed = {};\nlet ocrOk = true;\ntry {\n  const clean = raw.replace(/```json/gi,'').replace(/```/g,'').trim();\n  parsed = JSON.parse(clean);\n} catch(e) { ocrOk = false; parsed = { _raw: raw }; }\nconst onlyDigits = (v) => (v == null ? '' : String(v).replace(/\\D/g,''));\nconst fmtCuit = (v) => { const d = onlyDigits(v); if (d.length !== 11) return d; return `${d.slice(0,2)}-${d.slice(2,10)}-${d.slice(10)}`; };\nreturn [{ json: {\n  ocr_ok: ocrOk,\n  fecha: parsed.fecha || null,\n  numero_comprobante: parsed.numero_comprobante || null,\n  tipo_comprobante: parsed.tipo_comprobante || null,\n  moneda: (parsed.moneda || 'ARS').toUpperCase(),\n  monto_original: parsed.monto_original != null ? Number(String(parsed.monto_original).replace(/[^0-9.\\-]/g,'')) : 0,\n  descripcion: parsed.descripcion || null,\n  cuit_emisor: fmtCuit(parsed.cuit_emisor),\n  cuit_receptor: fmtCuit(parsed.cuit_receptor),\n  razon_social: parsed.razon_social || parsed['Razon social'] || null,\n  neto_gravado: parsed.neto_gravado != null ? Number(parsed.neto_gravado) : 0,\n  total_iva: parsed.total_iva != null ? Number(parsed.total_iva) : 0\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-480, 0],
+      "id": "parse-ocr",
+      "name": "Parse OCR"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "tenants",
+        "returnAll": false,
+        "limit": 1,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            { "keyName": "id", "condition": "eq", "keyValue": "={{ $('Edit Fields Inputs').first().json.tenant_id }}" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [-256, 0],
+      "id": "get-tenant",
+      "name": "Get Tenant",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": { "id": "ot7tTJCG3GENX2kF", "name": "Supabase account 6" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ocr = $('Parse OCR').first().json;\nconst tenant = items[0].json || {};\nconst inp = $('Edit Fields Inputs').first().json;\nconst rawEmpresa = (tenant.cuit || inp.cuit_empresa || '').toString().replace(/\\D/g,'');\nconst empresaCuit = rawEmpresa.length === 11 ? `${rawEmpresa.slice(0,2)}-${rawEmpresa.slice(2,10)}-${rawEmpresa.slice(10)}` : rawEmpresa;\nconst ce = (ocr.cuit_emisor || '').toString();\nconst cr = (ocr.cuit_receptor || '').toString();\nlet tipo = 'ajeno';\nif (empresaCuit && cr && cr === empresaCuit) tipo = 'compra';\nelse if (empresaCuit && ce && ce === empresaCuit) tipo = 'venta';\nelse if (!empresaCuit) tipo = 'compra';\nreturn [{ json: { ...ocr, empresa_cuit: empresaCuit, tipo, tenant_id: inp.tenant_id, chat_id: inp.chat_id, filename: inp.filename, origen: inp.origen } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-32, 0],
+      "id": "decide-tipo",
+      "name": "Decide Tipo"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "typeValidation": "loose", "version": 3 },
+                "conditions": [
+                  { "id": "s1", "leftValue": "={{ $json.tipo }}", "rightValue": "compra", "operator": { "type": "string", "operation": "equals" } }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "compra"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "typeValidation": "loose", "version": 3 },
+                "conditions": [
+                  { "id": "s2", "leftValue": "={{ $json.tipo }}", "rightValue": "venta", "operator": { "type": "string", "operation": "equals" } }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "venta"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "typeValidation": "loose", "version": 3 },
+                "conditions": [
+                  { "id": "s3", "leftValue": "={{ $json.tipo }}", "rightValue": "ajeno", "operator": { "type": "string", "operation": "equals" } }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ajeno"
+            }
+          ]
+        },
+        "options": { "allMatchingOutputs": false, "fallbackOutput": "extra", "renameFallbackOutput": "ajeno2" }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [192, 0],
+      "id": "switch-tipo",
+      "name": "Switch Tipo"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "contable_proveedores",
+        "returnAll": false,
+        "limit": 1,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            { "keyName": "cuit", "condition": "eq", "keyValue": "={{ $json.cuit_emisor }}" },
+            { "keyName": "tenant_id", "condition": "eq", "keyValue": "={{ $json.tenant_id }}" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [416, -192],
+      "id": "get-prov",
+      "name": "Get Proveedor",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": { "id": "ot7tTJCG3GENX2kF", "name": "Supabase account 6" }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "loose", "version": 3 },
+          "conditions": [
+            { "id": "pe1", "leftValue": "={{ $json.id }}", "rightValue": "", "operator": { "type": "string", "operation": "exists", "singleValue": true } }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [640, -192],
+      "id": "if-prov-exists",
+      "name": "If Prov Exists"
+    },
+    {
+      "parameters": {
+        "tableId": "contable_proveedores",
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "cuit", "fieldValue": "={{ $('Decide Tipo').first().json.cuit_emisor }}" },
+            { "fieldId": "razon_social", "fieldValue": "={{ $('Decide Tipo').first().json.razon_social || $('Decide Tipo').first().json.cuit_emisor }}" },
+            { "fieldId": "tenant_id", "fieldValue": "={{ $('Decide Tipo').first().json.tenant_id }}" },
+            { "fieldId": "activo", "fieldValue": true }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [864, -128],
+      "id": "create-prov",
+      "name": "Create Proveedor",
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "supabaseApi": { "id": "ot7tTJCG3GENX2kF", "name": "Supabase account 6" }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "sp1", "name": "partner_id", "value": "={{ $json.id }}", "type": "string" },
+            { "id": "sp2", "name": "partner_field", "value": "proveedor_id", "type": "string" },
+            { "id": "sp3", "name": "tipo", "value": "compra", "type": "string" }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1088, -192],
+      "id": "set-partner-prov",
+      "name": "Set Partner Prov"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "contable_clientes",
+        "returnAll": false,
+        "limit": 1,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            { "keyName": "cuit", "condition": "eq", "keyValue": "={{ $json.cuit_receptor }}" },
+            { "keyName": "tenant_id", "condition": "eq", "keyValue": "={{ $json.tenant_id }}" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [416, 32],
+      "id": "get-cli",
+      "name": "Get Cliente",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": { "id": "ot7tTJCG3GENX2kF", "name": "Supabase account 6" }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "loose", "version": 3 },
+          "conditions": [
+            { "id": "ce1", "leftValue": "={{ $json.id }}", "rightValue": "", "operator": { "type": "string", "operation": "exists", "singleValue": true } }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [640, 32],
+      "id": "if-cli-exists",
+      "name": "If Cli Exists"
+    },
+    {
+      "parameters": {
+        "tableId": "contable_clientes",
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "cuit", "fieldValue": "={{ $('Decide Tipo').first().json.cuit_receptor }}" },
+            { "fieldId": "razon_social", "fieldValue": "={{ $('Decide Tipo').first().json.razon_social || $('Decide Tipo').first().json.cuit_receptor }}" },
+            { "fieldId": "tenant_id", "fieldValue": "={{ $('Decide Tipo').first().json.tenant_id }}" },
+            { "fieldId": "activo", "fieldValue": true }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [864, 96],
+      "id": "create-cli",
+      "name": "Create Cliente",
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "supabaseApi": { "id": "ot7tTJCG3GENX2kF", "name": "Supabase account 6" }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "sc1", "name": "partner_id", "value": "={{ $json.id }}", "type": "string" },
+            { "id": "sc2", "name": "partner_field", "value": "cliente_id", "type": "string" },
+            { "id": "sc3", "name": "tipo", "value": "venta", "type": "string" }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1088, 32],
+      "id": "set-partner-cli",
+      "name": "Set Partner Cli"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "contable_comprobantes",
+        "returnAll": false,
+        "limit": 1,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            { "keyName": "tenant_id", "condition": "eq", "keyValue": "={{ $('Decide Tipo').first().json.tenant_id }}" },
+            { "keyName": "cuit_emisor", "condition": "eq", "keyValue": "={{ $('Decide Tipo').first().json.cuit_emisor }}" },
+            { "keyName": "numero_comprobante", "condition": "eq", "keyValue": "={{ $('Decide Tipo').first().json.numero_comprobante }}" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1312, -64],
+      "id": "check-dup",
+      "name": "Check Duplicado",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": { "id": "ot7tTJCG3GENX2kF", "name": "Supabase account 6" }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "loose", "version": 3 },
+          "conditions": [
+            { "id": "d1", "leftValue": "={{ $json.id }}", "rightValue": "", "operator": { "type": "string", "operation": "exists", "singleValue": true } },
+            { "id": "d2", "leftValue": "={{ $('Decide Tipo').first().json.numero_comprobante }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty", "singleValue": true } }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [1536, -64],
+      "id": "if-dup",
+      "name": "If Duplicado"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "contable_categorias",
+        "returnAll": true,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            { "keyName": "tenant_id", "condition": "eq", "keyValue": "={{ $('Decide Tipo').first().json.tenant_id }}" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1760, 32],
+      "id": "get-cats",
+      "name": "Get Categorias",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": { "id": "ot7tTJCG3GENX2kF", "name": "Supabase account 6" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $('Decide Tipo').first().json;\nconst tipoDeseado = d.tipo === 'venta' ? 'ingreso' : 'gasto';\nconst cats = items.map(i => i.json).filter(c => c.tipo === tipoDeseado || c.tipo === 'ambos');\nconst listText = cats.map(c => `- ID: ${c.id} | Nombre: ${c.nombre} | Tipo: ${c.tipo}`).join('\\n') || '(sin categorias)';\nreturn [{ json: { categorias_texto: listText, descripcion: d.descripcion, tipo_comprobante: d.tipo_comprobante, cuit_emisor: d.cuit_emisor, monto: d.monto_original, tipo_doc: tipoDeseado } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1984, 32],
+      "id": "prep-cats",
+      "name": "Prep Categorias"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Clasifica este comprobante:\n- Descripcion: {{ $json.descripcion }}\n- Tipo comprobante: {{ $json.tipo_comprobante }}\n- CUIT emisor: {{ $json.cuit_emisor }}\n- Monto: {{ $json.monto }}\n- Tipo contable: {{ $json.tipo_doc }}\n\nCategorias disponibles:\n{{ $json.categorias_texto }}\n\nResponde SOLO con el UUID de la categoria que mejor aplica, o la palabra null si ninguna aplica.",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "Eres un clasificador contable. Respondes SOLO con el UUID exacto de una categoria de la lista o la palabra null. Sin texto adicional, sin comillas, sin markdown."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [2208, 32],
+      "id": "llm-cat",
+      "name": "LLM Categoria"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
+        "options": { "temperature": 0.1 }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [2208, 240],
+      "id": "gemini-chat",
+      "name": "Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": { "id": "ckp67BViTFwefxtq", "name": "Google Gemini(PaLM) Api account" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = (items[0].json.text || items[0].json.output || '').toString().replace(/[\\n\\r`\"']/g,'').trim();\nconst isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw);\nconst validIds = $('Get Categorias').all().map(i => i.json.id);\nconst categoria_id = (isUuid && validIds.includes(raw)) ? raw : null;\nreturn [{ json: { categoria_id } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2432, 32],
+      "id": "parse-cat",
+      "name": "Parse Categoria"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "loose", "version": 3 },
+          "conditions": [
+            { "id": "cn1", "leftValue": "={{ $json.categoria_id }}", "rightValue": "", "operator": { "type": "string", "operation": "empty", "singleValue": true } }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [2656, 32],
+      "id": "if-cat-null",
+      "name": "If Cat Null"
+    },
+    {
+      "parameters": {
+        "tableId": "contable_categorias",
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "tenant_id", "fieldValue": "={{ $('Decide Tipo').first().json.tenant_id }}" },
+            { "fieldId": "nombre", "fieldValue": "Sin categorizar" },
+            { "fieldId": "tipo", "fieldValue": "={{ $('Decide Tipo').first().json.tipo === 'venta' ? 'ingreso' : 'gasto' }}" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [2880, -32],
+      "id": "create-cat",
+      "name": "Create Sin Categorizar",
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "supabaseApi": { "id": "ot7tTJCG3GENX2kF", "name": "Supabase account 6" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $('Decide Tipo').first().json;\nconst partner = $('Set Partner Prov').isExecuted ? $('Set Partner Prov').first().json : $('Set Partner Cli').first().json;\nconst catFromLlm = $('Parse Categoria').first().json.categoria_id;\nconst catCreated = $('Create Sin Categorizar').isExecuted ? $('Create Sin Categorizar').first().json.id : null;\nconst categoria_id = catFromLlm || catCreated || null;\nconst filename = (d.filename || '').replaceAll(' ','_').replace(/[\\n\\r]/g,'').trim();\nconst pdf_url = filename ? `https://fuytejvnwihghxymyayw.supabase.co/storage/v1/object/public/comprobantes/${filename}` : null;\nconst ocrOk = d.ocr_ok !== false && d.monto_original > 0;\nconst numero = d.numero_comprobante && String(d.numero_comprobante).trim() !== '' ? d.numero_comprobante : 'SIN_NUMERO';\nconst fecha = d.fecha || new Date().toISOString().slice(0,10);\nconst monto = Number(d.monto_original || 0);\nconst estado = (ocrOk && numero !== 'SIN_NUMERO') ? 'pendiente' : 'revisar';\nreturn [{ json: {\n  tenant_id: d.tenant_id,\n  tipo: partner.tipo,\n  fecha,\n  numero_comprobante: numero,\n  tipo_comprobante: d.tipo_comprobante,\n  [partner.partner_field]: partner.partner_id,\n  moneda: d.moneda || 'ARS',\n  monto_original: monto,\n  monto_ars: monto,\n  cuit_emisor: d.cuit_emisor || null,\n  cuit_receptor: d.cuit_receptor || null,\n  descripcion: d.descripcion || null,\n  neto_gravado: Number(d.neto_gravado || 0),\n  total_iva: Number(d.total_iva || 0),\n  pdf_url,\n  origen: d.origen || 'pdf_upload',\n  source: 'pdf_upload',\n  estado,\n  categoria_id,\n  chat_id: d.chat_id,\n  ocr_ok: ocrOk\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3104, 32],
+      "id": "prep-row",
+      "name": "Prep Row"
+    },
+    {
+      "parameters": {
+        "tableId": "contable_comprobantes",
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "tenant_id", "fieldValue": "={{ $json.tenant_id }}" },
+            { "fieldId": "tipo", "fieldValue": "={{ $json.tipo }}" },
+            { "fieldId": "fecha", "fieldValue": "={{ $json.fecha }}" },
+            { "fieldId": "numero_comprobante", "fieldValue": "={{ $json.numero_comprobante }}" },
+            { "fieldId": "tipo_comprobante", "fieldValue": "={{ $json.tipo_comprobante }}" },
+            { "fieldId": "proveedor_id", "fieldValue": "={{ $json.proveedor_id }}" },
+            { "fieldId": "cliente_id", "fieldValue": "={{ $json.cliente_id }}" },
+            { "fieldId": "moneda", "fieldValue": "={{ $json.moneda }}" },
+            { "fieldId": "monto_original", "fieldValue": "={{ $json.monto_original }}" },
+            { "fieldId": "monto_ars", "fieldValue": "={{ $json.monto_ars }}" },
+            { "fieldId": "cuit_emisor", "fieldValue": "={{ $json.cuit_emisor }}" },
+            { "fieldId": "cuit_receptor", "fieldValue": "={{ $json.cuit_receptor }}" },
+            { "fieldId": "descripcion", "fieldValue": "={{ $json.descripcion }}" },
+            { "fieldId": "neto_gravado", "fieldValue": "={{ $json.neto_gravado }}" },
+            { "fieldId": "total_iva", "fieldValue": "={{ $json.total_iva }}" },
+            { "fieldId": "pdf_url", "fieldValue": "={{ $json.pdf_url }}" },
+            { "fieldId": "origen", "fieldValue": "={{ $json.origen }}" },
+            { "fieldId": "source", "fieldValue": "={{ $json.source }}" },
+            { "fieldId": "estado", "fieldValue": "={{ $json.estado }}" },
+            { "fieldId": "categoria_id", "fieldValue": "={{ $json.categoria_id }}" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [3328, 32],
+      "id": "insert-comprobante",
+      "name": "Insert Comprobante",
+      "credentials": {
+        "supabaseApi": { "id": "ot7tTJCG3GENX2kF", "name": "Supabase account 6" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ins = items[0].json;\nconst prep = $('Prep Row').first().json;\nreturn [{ json: {\n  ok: true,\n  comprobante_id: ins.id,\n  tipo: prep.tipo,\n  numero_comprobante: prep.numero_comprobante,\n  monto_original: prep.monto_original,\n  moneda: prep.moneda,\n  fecha: prep.fecha,\n  estado: prep.estado,\n  cuit_emisor: prep.cuit_emisor,\n  pdf_url: prep.pdf_url,\n  chat_id: prep.chat_id,\n  ocr_ok: prep.ocr_ok\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3552, 32],
+      "id": "build-response-ok",
+      "name": "Build Response OK"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [3776, 32],
+      "id": "respond-ok",
+      "name": "Respond OK"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "loose", "version": 3 },
+          "conditions": [
+            { "id": "ch1", "leftValue": "={{ $json.chat_id }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty", "singleValue": true } }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [4000, 32],
+      "id": "if-chatid-ok",
+      "name": "If ChatId OK"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "=🧾 *{{ $json.tipo === 'venta' ? 'Venta' : 'Compra' }} registrada*\n\n*{{ $json.tipo_comprobante || 'Comprobante' }}* N° {{ $json.numero_comprobante }}\n📅 {{ $json.fecha }}\n💰 ${{ $json.monto_original }} ({{ $json.moneda }})\n🏢 CUIT emisor: {{ $json.cuit_emisor }}\n📌 Estado: {{ $json.estado }}\n{{ $json.ocr_ok ? '' : '\\n⚠️ OCR incompleto, revisar comprobante.' }}\n{{ $json.pdf_url ? '📎 [Ver PDF](' + $json.pdf_url + ')' : '' }}",
+        "additionalFields": { "appendAttribution": false, "parse_mode": "Markdown" }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [4224, -64],
+      "id": "telegram-ok",
+      "name": "Telegram OK",
+      "credentials": {
+        "telegramApi": { "id": "7S6oXZM7j1LN9Hd9", "name": "Telegram account 2" }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Decide Tipo').first().json.chat_id }}",
+        "text": "=⚠️ *Comprobante duplicado*\n\nYa existe un comprobante con CUIT {{ $('Decide Tipo').first().json.cuit_emisor }} y N° {{ $('Decide Tipo').first().json.numero_comprobante }}. No se volvio a cargar.",
+        "additionalFields": { "appendAttribution": false, "parse_mode": "Markdown" }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1760, -192],
+      "id": "telegram-dup",
+      "name": "Telegram Duplicado",
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "telegramApi": { "id": "7S6oXZM7j1LN9Hd9", "name": "Telegram account 2" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, reason: 'duplicado', comprobante_id: $('Check Duplicado').first().json.id, numero_comprobante: $('Decide Tipo').first().json.numero_comprobante, cuit_emisor: $('Decide Tipo').first().json.cuit_emisor }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1984, -192],
+      "id": "respond-dup",
+      "name": "Respond Duplicado"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Decide Tipo').first().json.chat_id }}",
+        "text": "=⚠️ *Comprobante ajeno*\n\nEl CUIT emisor ({{ $('Decide Tipo').first().json.cuit_emisor }}) ni el receptor ({{ $('Decide Tipo').first().json.cuit_receptor }}) coinciden con el CUIT de la empresa. No se cargo.",
+        "additionalFields": { "appendAttribution": false, "parse_mode": "Markdown" }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [416, 256],
+      "id": "telegram-ajeno",
+      "name": "Telegram Ajeno",
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "telegramApi": { "id": "7S6oXZM7j1LN9Hd9", "name": "Telegram account 2" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, reason: 'ajeno', cuit_emisor: $('Decide Tipo').first().json.cuit_emisor, cuit_receptor: $('Decide Tipo').first().json.cuit_receptor }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [640, 256],
+      "id": "respond-ajeno",
+      "name": "Respond Ajeno"
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[ { "node": "Edit Fields Inputs", "type": "main", "index": 0 }, { "node": "Storage Upload", "type": "main", "index": 0 } ]] },
+    "Edit Fields Inputs": { "main": [[ { "node": "If PDF", "type": "main", "index": 0 } ]] },
+    "If PDF": { "main": [
+      [ { "node": "Extract from PDF", "type": "main", "index": 0 } ],
+      [ { "node": "OCR Imagen", "type": "main", "index": 0 } ]
+    ]},
+    "Extract from PDF": { "main": [[ { "node": "OCR Texto", "type": "main", "index": 0 } ]] },
+    "OCR Texto": { "main": [[ { "node": "Parse OCR", "type": "main", "index": 0 } ]] },
+    "OCR Imagen": { "main": [[ { "node": "Parse OCR", "type": "main", "index": 0 } ]] },
+    "Parse OCR": { "main": [[ { "node": "Get Tenant", "type": "main", "index": 0 } ]] },
+    "Get Tenant": { "main": [[ { "node": "Decide Tipo", "type": "main", "index": 0 } ]] },
+    "Decide Tipo": { "main": [[ { "node": "Switch Tipo", "type": "main", "index": 0 } ]] },
+    "Switch Tipo": { "main": [
+      [ { "node": "Get Proveedor", "type": "main", "index": 0 } ],
+      [ { "node": "Get Cliente", "type": "main", "index": 0 } ],
+      [ { "node": "Telegram Ajeno", "type": "main", "index": 0 } ]
+    ]},
+    "Get Proveedor": { "main": [[ { "node": "If Prov Exists", "type": "main", "index": 0 } ]] },
+    "If Prov Exists": { "main": [
+      [ { "node": "Set Partner Prov", "type": "main", "index": 0 } ],
+      [ { "node": "Create Proveedor", "type": "main", "index": 0 } ]
+    ]},
+    "Create Proveedor": { "main": [[ { "node": "Set Partner Prov", "type": "main", "index": 0 } ]] },
+    "Set Partner Prov": { "main": [[ { "node": "Check Duplicado", "type": "main", "index": 0 } ]] },
+    "Get Cliente": { "main": [[ { "node": "If Cli Exists", "type": "main", "index": 0 } ]] },
+    "If Cli Exists": { "main": [
+      [ { "node": "Set Partner Cli", "type": "main", "index": 0 } ],
+      [ { "node": "Create Cliente", "type": "main", "index": 0 } ]
+    ]},
+    "Create Cliente": { "main": [[ { "node": "Set Partner Cli", "type": "main", "index": 0 } ]] },
+    "Set Partner Cli": { "main": [[ { "node": "Check Duplicado", "type": "main", "index": 0 } ]] },
+    "Check Duplicado": { "main": [[ { "node": "If Duplicado", "type": "main", "index": 0 } ]] },
+    "If Duplicado": { "main": [
+      [ { "node": "Telegram Duplicado", "type": "main", "index": 0 } ],
+      [ { "node": "Get Categorias", "type": "main", "index": 0 } ]
+    ]},
+    "Telegram Duplicado": { "main": [[ { "node": "Respond Duplicado", "type": "main", "index": 0 } ]] },
+    "Get Categorias": { "main": [[ { "node": "Prep Categorias", "type": "main", "index": 0 } ]] },
+    "Prep Categorias": { "main": [[ { "node": "LLM Categoria", "type": "main", "index": 0 } ]] },
+    "Gemini Chat Model": { "ai_languageModel": [[ { "node": "LLM Categoria", "type": "ai_languageModel", "index": 0 } ]] },
+    "LLM Categoria": { "main": [[ { "node": "Parse Categoria", "type": "main", "index": 0 } ]] },
+    "Parse Categoria": { "main": [[ { "node": "If Cat Null", "type": "main", "index": 0 } ]] },
+    "If Cat Null": { "main": [
+      [ { "node": "Create Sin Categorizar", "type": "main", "index": 0 } ],
+      [ { "node": "Prep Row", "type": "main", "index": 0 } ]
+    ]},
+    "Create Sin Categorizar": { "main": [[ { "node": "Prep Row", "type": "main", "index": 0 } ]] },
+    "Prep Row": { "main": [[ { "node": "Insert Comprobante", "type": "main", "index": 0 } ]] },
+    "Insert Comprobante": { "main": [[ { "node": "Build Response OK", "type": "main", "index": 0 } ]] },
+    "Build Response OK": { "main": [[ { "node": "Respond OK", "type": "main", "index": 0 } ]] },
+    "Respond OK": { "main": [[ { "node": "If ChatId OK", "type": "main", "index": 0 } ]] },
+    "If ChatId OK": { "main": [
+      [ { "node": "Telegram OK", "type": "main", "index": 0 } ],
+      []
+    ]},
+    "Telegram Ajeno": { "main": [[ { "node": "Respond Ajeno", "type": "main", "index": 0 } ]] }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": []
+}

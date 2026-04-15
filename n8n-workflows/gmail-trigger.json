@@ -1,0 +1,265 @@
+{
+  "name": "NCR - Gmail Trigger (SAILO)",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": { "item": [ { "mode": "everyMinute", "minute": 2 } ] },
+        "simple": false,
+        "filters": {
+          "q": "has:attachment -label:\"Neura - Procesado\" -label:\"Neura - Duplicado\" -label:\"Neura - Revisar\""
+        },
+        "options": {
+          "downloadAttachments": true,
+          "attachmentsPrefix": "attachment_"
+        }
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [-1200, 0],
+      "id": "gmail-trigger",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": { "id": "__REPLACE_WITH_GMAIL_CRED_ID__", "name": "Gmail Martin" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const mail = items[0].json;\nconst bin = items[0].binary || {};\nconst tenantId = '9444a5fb-e8ed-4702-ba89-539bee71f4c2';\nconst validMime = (m) => /^(application\\/pdf|image\\/(jpeg|jpg|png|webp))$/i.test(m || '');\nconst out = [];\nlet idx = 0;\nfor (const key of Object.keys(bin)) {\n  const b = bin[key];\n  if (!b) continue;\n  const mime = b.mimeType || '';\n  const name = b.fileName || `attach_${idx}.bin`;\n  if (!validMime(mime)) continue;\n  const newBin = {};\n  newBin['data'] = b;\n  out.push({\n    json: {\n      tenant_id: tenantId,\n      gmail_message_id: mail.id,\n      thread_id: mail.threadId || null,\n      from_email: (mail.from && (mail.from.value?.[0]?.address || mail.from.text)) || mail.fromEmail || null,\n      subject: mail.subject || null,\n      attachment_name: name,\n      received_at: mail.internalDate ? new Date(Number(mail.internalDate)).toISOString() : (mail.date || null),\n      filename: name\n    },\n    binary: newBin\n  });\n  idx++;\n}\nif (out.length === 0) {\n  return [{ json: {\n    tenant_id: tenantId,\n    gmail_message_id: mail.id,\n    thread_id: mail.threadId || null,\n    from_email: (mail.from && (mail.from.value?.[0]?.address || mail.from.text)) || null,\n    subject: mail.subject || null,\n    attachment_name: null,\n    received_at: mail.internalDate ? new Date(Number(mail.internalDate)).toISOString() : null,\n    no_attachment: true\n  }}];\n}\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-976, 0],
+      "id": "split-attachments",
+      "name": "Split Attachments"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "loose", "version": 3 },
+          "conditions": [
+            { "id": "na1", "leftValue": "={{ $json.no_attachment }}", "rightValue": true, "operator": { "type": "boolean", "operation": "true", "singleValue": true } }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [-752, 0],
+      "id": "if-no-attachment",
+      "name": "If Sin Adjunto"
+    },
+    {
+      "parameters": {
+        "tableId": "mail_log",
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "tenant_id", "fieldValue": "={{ $json.tenant_id }}" },
+            { "fieldId": "gmail_message_id", "fieldValue": "={{ $json.gmail_message_id }}" },
+            { "fieldId": "thread_id", "fieldValue": "={{ $json.thread_id }}" },
+            { "fieldId": "from_email", "fieldValue": "={{ $json.from_email }}" },
+            { "fieldId": "subject", "fieldValue": "={{ $json.subject }}" },
+            { "fieldId": "attachment_name", "fieldValue": "={{ $json.attachment_name }}" },
+            { "fieldId": "received_at", "fieldValue": "={{ $json.received_at }}" },
+            { "fieldId": "status", "fieldValue": "no_attachment" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [-528, -112],
+      "id": "log-no-attach",
+      "name": "Log Sin Adjunto",
+      "credentials": {
+        "supabaseApi": { "id": "ot7tTJCG3GENX2kF", "name": "Supabase account 6" }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('Split Attachments').first().json.gmail_message_id }}",
+        "labelIds": []
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [-304, -112],
+      "id": "label-na-revisar",
+      "name": "Label Revisar (sin adjunto)",
+      "credentials": {
+        "gmailOAuth2": { "id": "__REPLACE_WITH_GMAIL_CRED_ID__", "name": "Gmail Martin" }
+      },
+      "notes": "Reemplazar labelIds con el ID real de 'Neura - Revisar'"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n.neuracall.net/webhook/CargaDeComprobantesV2",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "data", "parameterType": "formBinaryData", "inputDataFieldName": "data" },
+            { "name": "filename", "value": "={{ $('Split Attachments').item.json.filename }}" },
+            { "name": "tenant_id", "value": "={{ $('Split Attachments').item.json.tenant_id }}" },
+            { "name": "origen", "value": "mail" }
+          ]
+        },
+        "options": {
+          "timeout": 120000,
+          "response": {
+            "response": {
+              "responseFormat": "autodetect",
+              "neverError": true,
+              "fullResponse": false
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [-304, 112],
+      "id": "post-v2",
+      "name": "POST CargaDeComprobantesV2",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = items[0].json || {};\nlet resp = raw;\nif (typeof raw === 'string') { try { resp = JSON.parse(raw); } catch(e) { resp = { _raw: raw }; } }\nif (raw && typeof raw.body === 'string') { try { resp = JSON.parse(raw.body); } catch(e) { resp = { _raw: raw.body }; } }\nconst src = $('Split Attachments').item.json;\nlet status = 'error';\nlet comprobante_id = null;\nlet error_msg = null;\nif (resp && resp.ok === true) { status = 'ok'; comprobante_id = resp.comprobante_id || null; }\nelse if (resp && resp.reason === 'duplicado') { status = 'duplicado'; comprobante_id = resp.comprobante_id || null; }\nelse if (resp && resp.reason === 'ajeno') { status = 'ajeno'; }\nelse { status = 'error'; error_msg = JSON.stringify(resp).slice(0, 500); }\nreturn [{ json: {\n  tenant_id: src.tenant_id,\n  gmail_message_id: src.gmail_message_id,\n  thread_id: src.thread_id,\n  from_email: src.from_email,\n  subject: src.subject,\n  attachment_name: src.attachment_name,\n  received_at: src.received_at,\n  status, comprobante_id, error_msg\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-80, 112],
+      "id": "map-result",
+      "name": "Map Result"
+    },
+    {
+      "parameters": {
+        "tableId": "mail_log",
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "tenant_id", "fieldValue": "={{ $json.tenant_id }}" },
+            { "fieldId": "gmail_message_id", "fieldValue": "={{ $json.gmail_message_id }}" },
+            { "fieldId": "thread_id", "fieldValue": "={{ $json.thread_id }}" },
+            { "fieldId": "from_email", "fieldValue": "={{ $json.from_email }}" },
+            { "fieldId": "subject", "fieldValue": "={{ $json.subject }}" },
+            { "fieldId": "attachment_name", "fieldValue": "={{ $json.attachment_name }}" },
+            { "fieldId": "received_at", "fieldValue": "={{ $json.received_at }}" },
+            { "fieldId": "status", "fieldValue": "={{ $json.status }}" },
+            { "fieldId": "comprobante_id", "fieldValue": "={{ $json.comprobante_id }}" },
+            { "fieldId": "error_msg", "fieldValue": "={{ $json.error_msg }}" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [144, 112],
+      "id": "insert-log-final",
+      "name": "Insert Mail Log",
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "supabaseApi": { "id": "ot7tTJCG3GENX2kF", "name": "Supabase account 6" }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "typeValidation": "loose", "version": 3 },
+                "conditions": [ { "id": "r1", "leftValue": "={{ $('Map Result').item.json.status }}", "rightValue": "ok", "operator": { "type": "string", "operation": "equals" } } ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ok"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "typeValidation": "loose", "version": 3 },
+                "conditions": [ { "id": "r2", "leftValue": "={{ $('Map Result').item.json.status }}", "rightValue": "duplicado", "operator": { "type": "string", "operation": "equals" } } ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "duplicado"
+            }
+          ]
+        },
+        "options": { "fallbackOutput": "extra", "renameFallbackOutput": "revisar" }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [368, 112],
+      "id": "switch-status",
+      "name": "Switch Status"
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('Map Result').item.json.gmail_message_id }}",
+        "labelIds": []
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [592, 0],
+      "id": "label-ok",
+      "name": "Label Procesado",
+      "credentials": {
+        "gmailOAuth2": { "id": "__REPLACE_WITH_GMAIL_CRED_ID__", "name": "Gmail Martin" }
+      },
+      "notes": "Reemplazar labelIds con el ID real de 'Neura - Procesado'"
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('Map Result').item.json.gmail_message_id }}",
+        "labelIds": []
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [592, 112],
+      "id": "label-dup",
+      "name": "Label Duplicado",
+      "credentials": {
+        "gmailOAuth2": { "id": "__REPLACE_WITH_GMAIL_CRED_ID__", "name": "Gmail Martin" }
+      },
+      "notes": "Reemplazar labelIds con el ID real de 'Neura - Duplicado'"
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('Map Result').item.json.gmail_message_id }}",
+        "labelIds": []
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [592, 224],
+      "id": "label-revisar",
+      "name": "Label Revisar",
+      "credentials": {
+        "gmailOAuth2": { "id": "__REPLACE_WITH_GMAIL_CRED_ID__", "name": "Gmail Martin" }
+      },
+      "notes": "Reemplazar labelIds con el ID real de 'Neura - Revisar'"
+    }
+  ],
+  "connections": {
+    "Gmail Trigger": { "main": [[ { "node": "Split Attachments", "type": "main", "index": 0 } ]] },
+    "Split Attachments": { "main": [[ { "node": "If Sin Adjunto", "type": "main", "index": 0 } ]] },
+    "If Sin Adjunto": { "main": [
+      [ { "node": "Log Sin Adjunto", "type": "main", "index": 0 } ],
+      [ { "node": "POST CargaDeComprobantesV2", "type": "main", "index": 0 } ]
+    ]},
+    "Log Sin Adjunto": { "main": [[ { "node": "Label Revisar (sin adjunto)", "type": "main", "index": 0 } ]] },
+    "POST CargaDeComprobantesV2": { "main": [[ { "node": "Map Result", "type": "main", "index": 0 } ]] },
+    "Map Result": { "main": [[ { "node": "Insert Mail Log", "type": "main", "index": 0 } ]] },
+    "Insert Mail Log": { "main": [[ { "node": "Switch Status", "type": "main", "index": 0 } ]] },
+    "Switch Status": { "main": [
+      [ { "node": "Label Procesado", "type": "main", "index": 0 } ],
+      [ { "node": "Label Duplicado", "type": "main", "index": 0 } ],
+      [ { "node": "Label Revisar", "type": "main", "index": 0 } ]
+    ]}
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": []
+}

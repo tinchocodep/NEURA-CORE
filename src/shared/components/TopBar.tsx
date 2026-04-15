@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Search, Bell, AlertTriangle, FileText, Clock } from 'lucide-react';
+import { Search, Bell, AlertTriangle, FileText, Clock, RefreshCw, CheckCircle2, XCircle } from 'lucide-react';
 import { DolarService } from '../../services/DolarService';
 import type { DolarResumen } from '../../services/DolarService';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
+import { useSync } from '../../contexts/SyncContext';
 import { supabase } from '../../lib/supabase';
 import GlobalSearch from './GlobalSearch';
 
@@ -108,6 +109,37 @@ export default function TopBar() {
     const [searchQuery, setSearchQuery] = useState('');
 
     const notifCount = notifs.length;
+    const sync = useSync();
+
+    const SyncIndicator = () => {
+        if (sync.status === 'idle') return null;
+        const isRunning = sync.status === 'running';
+        const isSuccess = sync.status === 'success';
+        const isError = sync.status === 'error';
+        const color = isRunning ? '#3B82F6' : isSuccess ? '#10B981' : '#EF4444';
+        const label = isRunning ? (sync.step || 'Procesando...') : isSuccess ? 'Listo' : (sync.error || 'Error');
+        const Icon = isRunning ? RefreshCw : isSuccess ? CheckCircle2 : XCircle;
+        const dest = sync.kind === 'conciliacion' ? '/agro/conciliacion' : null;
+        return (
+            <button
+                onClick={() => {
+                    if (dest) navigate(dest);
+                    if (!isRunning) setTimeout(() => sync.reset(), 100);
+                }}
+                title={label}
+                style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '6px 12px', borderRadius: 99,
+                    border: `1px solid ${color}40`, background: `${color}10`, color,
+                    fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer',
+                    maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                }}
+            >
+                <Icon size={14} className={isRunning ? 'spinning' : ''} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+            </button>
+        );
+    };
 
     const NotifPanel = ({ style }: { style?: React.CSSProperties }) => (
         <>
@@ -218,6 +250,7 @@ export default function TopBar() {
 
             {/* Right: Notification + Avatar dropdown */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                <SyncIndicator />
                 <div style={{ position: 'relative' }}>
                     <button onClick={() => setShowNotifs(p => !p)} title="Notificaciones"
                         style={{ width: 36, height: 36, borderRadius: '50%', border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-text-muted)', position: 'relative' }}>

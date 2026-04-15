@@ -13,11 +13,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/arca/, '/webhook/BuscarPersonas'),
       },
-      // Proxy comprobantes PDF upload to n8n
+      // Proxy comprobantes PDF upload to n8n (v2 del workflow OCR)
       '/api/n8n-comprobantes': {
         target: 'https://n8n.neuracall.net',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/n8n-comprobantes/, '/webhook/CargaDeComprobantes'),
+        rewrite: (path) => path.replace(/^\/api\/n8n-comprobantes/, '/webhook/CargaDeComprobantesV2'),
       },
 
       // Proxy email sending to n8n

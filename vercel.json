@@ -6,7 +6,7 @@
         },
         {
             "source": "/api/n8n-comprobantes",
-            "destination": "https://n8n.neuracall.net/webhook/CargaDeComprobantes"
+            "destination": "https://n8n.neuracall.net/webhook/CargaDeComprobantesV2"
         },
         {
             "source": "/api/n8n-send-email",

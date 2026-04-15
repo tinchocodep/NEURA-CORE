@@ -15,6 +15,8 @@ export default function Comprobantes() {
     const [statusFilter, setStatusFilter] = useState('');
     const [tipoFilter, setTipoFilter] = useState('');
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [sortCol, setSortCol] = useState<string | null>('fecha');
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [hasErp, setHasErp] = useState(false);
     const [hasColppy, setHasColppy] = useState(false);
@@ -70,13 +72,18 @@ export default function Comprobantes() {
     useEffect(() => {
         if (!tenant?.id) return;
         supabase.from('contable_config')
-            .select('colpy_username, colpy_password, colpy_empresa_id, xubio_client_id, xubio_client_secret, arca_cuit, arca_username, arca_password, punto_venta')
+            .select('colpy_username, colpy_password, colpy_empresa_id, xubio_client_id, xubio_client_secret, arca_cuit, arca_username, arca_password, punto_venta, erp_type')
             .eq('tenant_id', tenant.id).maybeSingle()
             .then(({ data }) => {
                 if (!data) { setHasErp(false); return; }
                 const modules = (tenant.enabled_modules as string[]) || [];
-                const colppyOk = modules.includes('erp_colppy') && !!(data.colpy_username && data.colpy_password && data.colpy_empresa_id);
-                const xubioOk = modules.includes('erp_xubio') && !!(data.xubio_client_id && data.xubio_client_secret);
+                const erpType = (data as any).erp_type || null;
+                const hasColpyCreds = !!(data.colpy_username && data.colpy_password && data.colpy_empresa_id);
+                const hasXubioCreds = !!(data.xubio_client_id && data.xubio_client_secret);
+                // Solo habilitamos el ERP que coincide con erp_type del tenant.
+                // Fallback: si no hay erp_type seteado, usamos el module + credenciales.
+                const colppyOk = modules.includes('erp_colppy') && hasColpyCreds && (!erpType || erpType === 'colppy');
+                const xubioOk = modules.includes('erp_xubio') && hasXubioCreds && (!erpType || erpType === 'xubio');
                 const arcaOk = !!(data.arca_cuit && data.arca_username && data.arca_password);
                 setHasColppy(colppyOk);
                 setHasXubio(xubioOk);
@@ -105,13 +112,44 @@ export default function Comprobantes() {
         busqueda: searchTerm,
         fechaDesde: '',
         fechaHasta: '',
+        sortCol,
+        sortDir,
         pageSize
     });
 
     useEffect(() => {
         reset();
         setSelectedIds(new Set());
-    }, [tenant?.id, statusFilter, searchTerm, tipoFilter, pageSize]);
+    }, [tenant?.id, statusFilter, searchTerm, tipoFilter, pageSize, sortCol, sortDir]);
+
+    // ── Sync from Xubio ──
+    const handleSyncXubio = async () => {
+        if (!tenant) return;
+        setShowSyncModal(false);
+        setSyncing(true);
+        addToast('info', 'Sincronización', `Conectando con Xubio (${syncDesde || 'Histórico'} - ${syncHasta || 'Hoy'})...`);
+        try {
+            const { getXubioService } = await import('../../services/XubioService');
+            const xubio = getXubioService(tenant.id);
+            await xubio.loadConfig();
+            if (!xubio.isConfigured) {
+                addToast('error', 'Error', 'Xubio no está configurado. Ve a Configuración.');
+                setSyncing(false);
+                return;
+            }
+            const result = await xubio.syncComprobantes(syncDesde || undefined, syncHasta || undefined, (msg) => console.log('[Xubio sync]', msg));
+            if (result.imported === 0 && result.updated === 0) {
+                addToast('info', 'Al Día', 'No se encontraron comprobantes nuevos en Xubio.');
+            } else {
+                addToast('success', 'Completado', `Xubio: ${result.imported} importados, ${result.updated} actualizados${result.errors.length > 0 ? `, ${result.errors.length} errores` : ''}`);
+            }
+            reset();
+        } catch (e: any) {
+            addToast('error', 'Error Xubio', e.message);
+        } finally {
+            setSyncing(false);
+        }
+    };
 
     // ── Sync from Colppy ──
     const handleSync = async () => {
@@ -822,6 +860,9 @@ export default function Comprobantes() {
                         selectedIds={selectedIds}
                         onSelectionChange={setSelectedIds}
                         hasErp={hasErp}
+                        onSort={(col, dir) => { setSortCol(col); setSortDir(dir); }}
+                        sortCol={sortCol}
+                        sortDir={sortDir}
                     />
                 )}
             </div>
@@ -853,8 +894,11 @@ export default function Comprobantes() {
                             <div className="wizard-footer-left" />
                             <div className="wizard-footer-right">
                                 <button className="wizard-btn-next" onClick={() => {
+                                    console.log('[Sync] Source elegido:', syncSource);
                                     if (syncSource === 'arca') handleSyncArca();
-                                    else handleSync();
+                                    else if (syncSource === 'xubio') handleSyncXubio();
+                                    else if (syncSource === 'colppy') handleSync();
+                                    else addToast('error', 'Error', `Fuente inválida (${syncSource}). Reabrí el menú y elegí de nuevo.`);
                                 }}>
                                     <RefreshCw size={16} /> Sincronizar
                                 </button>
