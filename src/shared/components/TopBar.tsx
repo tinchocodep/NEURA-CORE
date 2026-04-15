@@ -115,7 +115,6 @@ export default function TopBar() {
         if (sync.status === 'idle') return null;
         const isRunning = sync.status === 'running';
         const isSuccess = sync.status === 'success';
-        const isError = sync.status === 'error';
         const color = isRunning ? '#3B82F6' : isSuccess ? '#10B981' : '#EF4444';
         const label = isRunning ? (sync.step || 'Procesando...') : isSuccess ? 'Listo' : (sync.error || 'Error');
         const Icon = isRunning ? RefreshCw : isSuccess ? CheckCircle2 : XCircle;

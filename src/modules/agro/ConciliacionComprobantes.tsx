@@ -88,13 +88,6 @@ function parseAFIPNumber(s: string): number {
     return parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
 }
 
-function formatDate(d: string): string {
-    if (!d) return '';
-    if (d.includes('-')) return d;
-    const [dd, mm, yyyy] = d.split('/');
-    return `${yyyy}-${mm}-${dd}`;
-}
-
 function formatCurrency(n: number): string {
     return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(n);
 }
@@ -167,89 +160,6 @@ export default function ConciliacionComprobantes() {
     // Demo mode: activo si el tenant no tiene credenciales ARCA. Simula la respuesta de AFIP
     // mutando los comprobantes locales para generar diferentes estados de conciliación.
     const isDemoMode = !isConfigured;
-
-    function generateDemoAfip(sistemaList: ComprobanteLocal[], xubioList: ComprobanteLocal[] = []): ComprobanteAFIP[] {
-        const afip: ComprobanteAFIP[] = [];
-        const tipoAfipCode: Record<string, string> = {
-            'Factura A': '1', 'Factura B': '6', 'Factura C': '11',
-            'Nota de Crédito A': '3', 'Nota de Crédito B': '8', 'Nota de Crédito C': '13',
-            'Nota de Débito A': '2', 'Nota de Débito B': '7', 'Nota de Débito C': '12',
-        };
-
-        // Combinamos sistema + xubio para el demo (con tag de origen para variar el patrón)
-        const combined = [
-            ...sistemaList.map((c, i) => ({ c, origin: 's' as const, i })),
-            ...xubioList.map((c, i) => ({ c, origin: 'x' as const, i: i + sistemaList.length })),
-        ];
-
-        // 85% se matchean en AFIP (algunos con diferencia)
-        combined.forEach(({ c: loc, i: idx }) => {
-            // Skip ~15% para simular "solo sistema/xubio" (no está en AFIP)
-            if (idx % 7 === 3) return;
-
-            const totalLocal = Number(loc.monto_original) || 0;
-            const netoLocal = Number(loc.neto_gravado) || totalLocal * 0.826;
-            const ivaLocal = Number(loc.total_iva) || totalLocal * 0.174;
-
-            // Cada 5to con diferencia pequeña en monto (simulando error de carga)
-            const hasDiff = idx % 5 === 2;
-            const factorDiff = hasDiff ? 1.02 : 1;
-
-            const { pv, nro, letra } = parseLocalNumero(loc.numero_comprobante);
-            const tipoCanon = canonicalizeTipoComp(loc.tipo_comprobante, letra);
-            const tipoCode = tipoAfipCode[tipoCanon] || '6';
-
-            afip.push({
-                fechaEmision: loc.fecha.split('-').reverse().join('/'),
-                tipoComprobante: tipoCode,
-                puntoVenta: pv.replace(/^0+/, '') || '1',
-                numeroDesde: nro.replace(/^0+/, '') || '1',
-                numeroHasta: nro.replace(/^0+/, '') || '1',
-                codAutorizacion: String(70000000000000 + idx * 137),
-                tipoDocReceptor: '80',
-                nroDocReceptor: loc.cuit_receptor || loc.cuit_emisor || '20000000000',
-                denominacionReceptor: loc.cliente_nombre || loc.proveedor_nombre || '',
-                tipoCambio: '1,00',
-                moneda: 'PES',
-                netoGravado: Math.round(netoLocal * factorDiff * 100) / 100,
-                netoNoGravado: 0,
-                exentas: 0,
-                otrosTributos: 0,
-                iva: Math.round(ivaLocal * factorDiff * 100) / 100,
-                total: Math.round(totalLocal * factorDiff * 100) / 100,
-            });
-        });
-
-        // Agregar 3 comprobantes "fantasma" que solo están en AFIP (no en el sistema)
-        const base = new Date();
-        for (let i = 0; i < 3; i++) {
-            const d = new Date(base);
-            d.setDate(d.getDate() - (i * 3 + 2));
-            const monto = 45000 + i * 23000;
-            const neto = Math.round(monto / 1.21 * 100) / 100;
-            afip.push({
-                fechaEmision: `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`,
-                tipoComprobante: '6',
-                puntoVenta: '1',
-                numeroDesde: String(9900 + i),
-                numeroHasta: String(9900 + i),
-                codAutorizacion: String(70999990000000 + i),
-                tipoDocReceptor: '80',
-                nroDocReceptor: '20123456789',
-                denominacionReceptor: ['Proveedor AFIP sin carga', 'Factura extra AFIP', 'Consumidor Final AFIP'][i],
-                tipoCambio: '1,00',
-                moneda: 'PES',
-                netoGravado: neto,
-                netoNoGravado: 0,
-                exentas: 0,
-                otrosTributos: 0,
-                iva: Math.round((monto - neto) * 100) / 100,
-                total: monto,
-            });
-        }
-
-        return afip;
-    }
 
     async function executeAfipAutomation(params: Record<string, any>): Promise<any[]> {
         const createRes = await fetch('/api/afipsdk', {
