@@ -17,6 +17,8 @@ interface ComprobanteAFIP {
     tipoDocReceptor: string;
     nroDocReceptor: string;
     denominacionReceptor: string;
+    nroDocEmisor: string;
+    denominacionEmisor: string;
     tipoCambio: string;
     moneda: string;
     netoGravado: number;
@@ -202,7 +204,6 @@ export default function ConciliacionComprobantes() {
             filters: {
                 t,
                 fechaEmision: `${fromDate} - ${toDate}`,
-                ...(config.punto_venta && t === 'E' ? { puntosVenta: [config.punto_venta] } : {}),
             },
         });
         return data.map((r: any) => ({
@@ -215,6 +216,8 @@ export default function ConciliacionComprobantes() {
             tipoDocReceptor: r['Tipo Doc. Receptor'] || '',
             nroDocReceptor: r['Nro. Doc. Receptor'] || '',
             denominacionReceptor: r['Denominación Receptor'] || '',
+            nroDocEmisor: r['Nro. Doc. Emisor'] || '',
+            denominacionEmisor: r['Denominación Emisor'] || '',
             tipoCambio: r['Tipo Cambio'] || '1,00',
             moneda: r['Moneda'] || 'PES',
             netoGravado: parseAFIPNumber(r['Imp. Neto Gravado'] || '0'),
@@ -300,7 +303,9 @@ export default function ConciliacionComprobantes() {
         const tipoComp = TIPOS_COMPROBANTE_AFIP[a.tipoComprobante] || `Tipo ${a.tipoComprobante}`;
         const pv = (a.puntoVenta || '').replace(/\D/g, '').padStart(5, '0');
         const nro = (a.numeroDesde || '').replace(/\D/g, '').padStart(8, '0');
-        const cuit = normalizeCuit(a.nroDocReceptor);
+        // En ventas: contraparte = receptor (cliente). En compras: contraparte = emisor (proveedor).
+        const cuitRaw = a.tipo === 'venta' ? a.nroDocReceptor : a.nroDocEmisor;
+        const cuit = normalizeCuit(cuitRaw);
         return `${a.tipo}|${tipoComp}|${pv}-${nro}|${cuit}`;
     }
 
@@ -336,6 +341,8 @@ export default function ConciliacionComprobantes() {
         }
 
         const result: ComprobanteMatch[] = [];
+        const debugSoloAfip: any[] = [];
+        const debugSoloSistema: any[] = [];
         for (const [key, { afip, sistema, xubio }] of buckets) {
             const hasA = !!afip, hasS = !!sistema, hasX = !!xubio;
 
@@ -347,6 +354,35 @@ export default function ConciliacionComprobantes() {
             else if (hasA) status = 'solo_afip';
             else if (hasS) status = 'solo_sistema';
             else status = 'solo_xubio';
+
+            if (status === 'solo_afip' && afip) {
+                debugSoloAfip.push({
+                    key,
+                    tipo: afip.tipo,
+                    tipoComp_code: afip.tipoComprobante,
+                    tipoComp_mapped: TIPOS_COMPROBANTE_AFIP[afip.tipoComprobante] || `Tipo ${afip.tipoComprobante}`,
+                    puntoVenta: afip.puntoVenta,
+                    numeroDesde: afip.numeroDesde,
+                    nroDocReceptor: afip.nroDocReceptor,
+                    denominacionReceptor: afip.denominacionReceptor,
+                    fechaEmision: afip.fechaEmision,
+                    total: afip.total,
+                });
+            }
+            if (status === 'solo_sistema' && sistema) {
+                debugSoloSistema.push({
+                    key,
+                    id: sistema.id,
+                    tipo: sistema.tipo,
+                    tipo_comprobante: sistema.tipo_comprobante,
+                    numero_comprobante: sistema.numero_comprobante,
+                    cuit_emisor: sistema.cuit_emisor,
+                    cuit_receptor: sistema.cuit_receptor,
+                    fecha: sistema.fecha,
+                    monto_original: sistema.monto_original,
+                    source: sistema.source,
+                });
+            }
 
             const difs: string[] = [];
             const totals: Array<[string, number]> = [];
@@ -371,6 +407,17 @@ export default function ConciliacionComprobantes() {
                 key,
             });
         }
+
+        console.log('[Conciliacion DEBUG] Totales:', {
+            afip: afipList.length,
+            sistema: sistemaList.length,
+            xubio: xubioList.length,
+            matches: result.length,
+            solo_afip: debugSoloAfip.length,
+            solo_sistema: debugSoloSistema.length,
+        });
+        if (debugSoloAfip.length > 0) console.table(debugSoloAfip);
+        if (debugSoloSistema.length > 0) console.table(debugSoloSistema);
 
         return result;
     }

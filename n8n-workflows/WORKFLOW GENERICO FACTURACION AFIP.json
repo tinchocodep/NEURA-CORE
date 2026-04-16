@@ -1,0 +1,1662 @@
+{
+  "name": "WORKFLOW GENERICO FACTURACION AFIP",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// ═══════════════════════════════════════\n// CONFIGURACION DEL NEGOCIO - AFIP\n// Cada negocio edita SOLO este nodo\n// ═══════════════════════════════════════\nreturn {\n  json: {\n    bearerToken: \"Bearer 3zZiVxOJP4zPQbK5mEc6FXQOa34hOPAPTSu3bl2S51LewxPc15xUb63Dm43s4BiL\",\n    authBody: {\n      environment: \"prod\",\n      tax_id: \"20435065261\",\n      alias: \"afipsdk\",\n      cert: \"-----BEGIN CERTIFICATE-----\\nMIIDQzCCAiugAwIBAgIIOeZJmGZyCw0wDQYJKoZIhvcNAQENBQAwMzEVMBMGA1UEAwwMQ29tcHV0\\nYWRvcmVzMQ0wCwYDVQQKDARBRklQMQswCQYDVQQGEwJBUjAeFw0yNjAxMDgyMzA0MTlaFw0yODAx\\nMDgyMzA0MTlaMC4xETAPBgNVBAMMCE44Tl9QUk9EMRkwFwYDVQQFExBDVUlUIDIwNDM1MDY1MjYx\\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtiAzJDgpykB75KGHaZYJj12tsskdAjhd\\nc2H16Yi0jC3pJKNUWFmrhggqxwQ6fyTJEMmVI3VKKojs61vcMKZlrzNBCakxyIKeaELqwJLedarF\\nBmehc06OyVTK1JigjTZB2s4JYMP+VcfEzElEoaYxEtM2s4lJ5p46BVL5hSD85idrqjxzQKh7N+DK\\nJJVBhXEzyrJHctkCJR3a0Ju0XQ16lD8/m1AB6QlBX6sQ29LKI0Y20dGVsNmK2zTEiRSllGNbb5FU\\nhB8Sk5QPHTzMdtRn0cg25Mgeig6BWbTSzppludDq3b98EVZ2DEBH2pdpx+ifcY459EicHLilvecE\\nWnUNBwIDAQABo2AwXjAMBgNVHRMBAf8EAjAAMB8GA1UdIwQYMBaAFCsNL8jfYf0IyU4R0DWTBG2O\\nW9BuMB0GA1UdDgQWBBSzFSH4yzlBriUqbCCCQIXKmvQaRTAOBgNVHQ8BAf8EBAMCBeAwDQYJKoZI\\nhvcNAQENBQADggEBAHe7KIFwP2NcXqZaAtdWyA+Fme4lWNGZCXDiaDpVn02ZZMaPpd+9mqBTQ3Th\\n/Fa8ZToaJGJRORXrygXHPTs94mDN4whnDrfwHPBNs4Tu23DujOKQ83C2Y+dhLVlVR1YRs/4SZ+jI\\nyZoW9ba/ImeMhY5fg5Jx92skoJYvBQwRDAgXvj9bJ4fi8LdbCXOsbaGmcLVWdJm6iUdWMpsAjFz7\\nOJP9kuT1+DVK9C1w64Dl4PQo/GIOjc2NxRAB1Uh/w4l3ptyYqmYfsCU87QWad1P+JkuYtcSRlQIU\\n62wKH7DYZYF4eqltROfbuWlUzI2pHnROoblT7V8PTUJjYmnRICkmnKU=\\n-----END CERTIFICATE-----\",\n      key: \"-----BEGIN PRIVATE KEY-----\\nMIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQC2IDMkOCnKQHvk\\noYdplgmPXa2yyR0COF1zYfXpiLSMLekko1RYWauGCCrHBDp/JMkQyZUjdUoqiOzr\\nW9wwpmWvM0EJqTHIgp5oQurAkt51qsUGZ6FzTo7JVMrUmKCNNkHazglgw/5Vx8TM\\nSUShpjES0zaziUnmnjoFUvmFIPzmJ2uqPHNAqHs34MoklUGFcTPKskdy2QIlHdrQ\\nm7RdDXqUPz+bUAHpCUFfqxDb0sojRjbR0ZWw2YrbNMSJFKWUY1tvkVSEHxKTlA8d\\nPMx21GfRyDbkyB6KDoFZtNLOmmW50Ordv3wRVnYMQEfal2nH6J9xjjn0SJwcuKW9\\n5wRadQ0HAgMBAAECggEAB9dRDqNuGAbvjpWlLY2RH4QFs3CwU3duD7RfkLo/k7RN\\nvcXuZ9fxDLGBCWgwxR4Bm84h/X5kiAyQQP3QwTW9WiTy6JiSXkUt81HD8DCQR56e\\na4QHiLl+Z/qecFvjk2MdVm9HBhWlibegg9zLHBMe78GMehILPFS5mw1ceaWNy42x\\nJVfVGxp468PmpuHeeZfU3Z4lwK+FhsprMjOO2B8V03wq/Ko5JrSgOZj4yzUR6jOc\\n1+RRTmPI/zM35MvHN7yPk02o5HiWrIx1VMoPoivKYNM8fBu+VS3/KT9oOGO4zmWW\\ndDNuSUS2fFmIIHIA7iXdSnX+dVGbWn2pSD6qeAGJMQKBgQDoMRbvPGHHBhdT+EIc\\nROwuHodSh8T9ad/39gsZaLTiU1u88zRVAlkJPsw+YNH9zF4iasE/mFDjc/YKtgNC\\nLAM+g4gM0COYH2KD/OgBuviyHwMrsKDRtB4nhbVWFDXgjm0ywQf4pDHLjMRx/lh8\\nlD4mWJTHc81clxow6XUfojSSKQKBgQDIzOemM5+ajF08N3NB3iDDYt68dfKFH9Ox\\n4Zy7pW5CCNgjqj2ZWVAhRSuYg5HqYp1ac6/BkndQvrOno2z/fmDFiSvodsl10HDH\\nqMqzuCOEi3eIVyQ21ZJthSrQQbOeXltVcYiWgcB75WxePe/Qr58Dpqe7sTkmIn00\\ngthGfb5rrwKBgQDBN1hmbFDRVXhEH+qjq5b+KdliDCkY1+nQZaaG1mLvk35bleaO\\ndw2wa9l6bwdPs6kB6uQ1D4MAQ5cTArNjdUyd0MZ+IxX7mOJaAzLtfbFGSBhTWv/4\\ngXI2YUWtA9RxsROdkJQZjEkDoXg3g/gOcy3kqwHjl7HkwrjAywTz9f7ZQQKBgQCh\\n43lbqMEjk8jTdI0q7JATlpGm9Zy6MWe2QQPg0UYsXP8M+gLBsJ0GxcKZKnIouqrM\\nMvrfIFursKQdIogNEHGqsKXCvIo9vvg+MFqEPI/+G4caV88tmlB8leFnl6DdrIsM\\nPwV0+lUaTmRpMpw27nBQPDt8+ivuD95LyLXfVx9/pwKBgQDIZRYWwgatZvuPpgzo\\nZvx0q069iE/5wkx20PdZuDrrkVRmUK785zaofehXUnVaZbPKNCh6SBSz6w/3PN+T\\nmWqRNbzRMEm6bxPHudDoPLXZGltPcnKo5iYzSIU3RMzJMEqiecNUQs2d3JH6/Fww\\nj058fq2nTVpc60iiP23fIoOolw==\\n-----END PRIVATE KEY-----\"\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2720,
+        3360
+      ],
+      "id": "ef7047ee-8257-4eb3-9eee-13e69c69d1a4",
+      "name": "Config Credenciales1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://app.afipsdk.com/api/v1/afip/auth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ $(\"Config Credenciales1\").first().json.bearerToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({...$(\"Config Credenciales1\").first().json.authBody, wsid: \"wsfe\"}) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -1760,
+        3360
+      ],
+      "id": "f4263bc1-cee7-438a-9242-be14bfa94d61",
+      "name": "get_authorization"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. TRAEMOS LOS ÍTEMS (PRODUCTOS) Y EL DESCUENTO DEL WEBHOOK\nconst itemsEntrada = $('Recibo Datos').all(); \n\n// --- RESCATE DEL DESCUENTO ---\nlet montoDescuento = 0;\ntry {\n    const webhookData = $('Webhook').first().json.body; \n    montoDescuento = parseFloat(webhookData.discountAmount || 0);\n} catch (e) {\n    montoDescuento = 0;\n}\n\n// Tomamos cabecera del primero\nconst cabecera = itemsEntrada[0].json;\n\n// --- MEJORA: Detección flexible de tipo de comprobante ---\nconst tipoOriginal = (cabecera.type || cabecera.TipoDeFactura || \"\").toString().toUpperCase();\n\nlet codigoAfip = 11; // Por defecto C\n\nif (tipoOriginal.includes(\"A\")) {\n    codigoAfip = tipoOriginal.includes(\"NOTA\") ? 3 : 1;\n} else if (tipoOriginal.includes(\"B\")) {\n    codigoAfip = tipoOriginal.includes(\"NOTA\") ? 8 : 6;\n} else if (tipoOriginal.includes(\"C\")) {\n    codigoAfip = tipoOriginal.includes(\"NOTA\") ? 13 : 11;\n}\n\n// 3. INICIALIZAMOS VARIABLES\nlet totalNeto = 0;\nlet totalIva = 0;\nlet totalComprobante = 0;\nlet detalleItemsParaAfip = [];\n\n// 4. BUCLE DE PRODUCTOS\nfor (const item of itemsEntrada) {\n    const prod = item.json;\n\n    const cantidad = parseFloat(prod.Cantidad || 0);\n    const precioUnitario = parseFloat(prod.PrecioUnitario || 0);\n    const netoLinea = parseFloat((precioUnitario * cantidad).toFixed(2));\n    \n    // --- MEJORA IVA: Forzamos ID 5 si es comprobante tipo 1, 3, 6 u 8 ---\n    let tasaIva = 0; \n    let idAlicuota = 3; \n\n    // Si el código es de los que llevan IVA (A o B), forzamos ID 5\n    if ([1, 3, 6, 8].includes(codigoAfip)) { \n        tasaIva = 0.21; \n        idAlicuota = 5; \n    }\n    \n    const ivaLinea = parseFloat((netoLinea * tasaIva).toFixed(2));\n    const totalLinea = parseFloat((netoLinea + ivaLinea).toFixed(2));\n\n    totalNeto += netoLinea;\n    totalIva += ivaLinea;\n    totalComprobante += totalLinea;\n\n    detalleItemsParaAfip.push({\n        \"Prods\": {\n            \"u_mtx\": 7, \n            \"cod_mtx\": prod.SKU_ID || \"VAR\", \n            \"ds\": prod[\"Nombre del producto\"], \n            \"qty\": cantidad,\n            \"price\": precioUnitario,\n            \"neto\": netoLinea,\n            \"iva_id\": idAlicuota, \n            \"imp_iva\": ivaLinea,\n            \"item_total\": totalLinea\n        }\n    });\n}\n\n// 5. APLICACIÓN DEL DESCUENTO\nif (montoDescuento > 0) {\n    const descuentoNeto = (parseFloat(montoDescuento) * -1);\n    let tasaIvaDesc = [1, 3, 6, 8].includes(codigoAfip) ? 0.21 : 0;\n    let idAlicuotaDesc = [1, 3, 6, 8].includes(codigoAfip) ? 5 : 3;\n    \n    const descuentoIva = parseFloat((descuentoNeto * tasaIvaDesc).toFixed(2));\n    const descuentoTotal = parseFloat((descuentoNeto + descuentoIva).toFixed(2));\n\n    totalNeto += descuentoNeto;\n    totalIva += descuentoIva;\n    totalComprobante += descuentoTotal;\n\n    detalleItemsParaAfip.push({\n        \"Prods\": {\n            \"u_mtx\": 7,\n            \"cod_mtx\": \"DESC\",\n            \"ds\": \"Descuento Aplicado\",\n            \"qty\": 1,\n            \"price\": descuentoNeto,\n            \"neto\": descuentoNeto,\n            \"iva_id\": idAlicuotaDesc,\n            \"imp_iva\": descuentoIva,\n            \"item_total\": descuentoTotal\n        }\n    });\n}\n\n// 6. REDONDEO FINAL\ntotalNeto = parseFloat(totalNeto.toFixed(2));\ntotalIva = parseFloat(totalIva.toFixed(2));\ntotalComprobante = parseFloat(totalComprobante.toFixed(2));\n\nreturn {\n    json: {\n        CbteTipo: codigoAfip,\n        cliente_doc: cabecera.Cuit_Receptor, \n        ItemsDetalle: detalleItemsParaAfip,\n        ImporteNeto: totalNeto,\n        ImporteIva: totalIva,\n        ImporteTotal: totalComprobante,\n        Fecha: new Date().toISOString().slice(0,10).replace(/-/g, ''),\n        // Debug para que veas qué detectó el código\n        debug: {\n            tipoDetectado: tipoOriginal,\n            codigoAfipAsignado: codigoAfip\n        }\n    }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1200,
+        3360
+      ],
+      "id": "438e7c3d-84a0-4f20-8b6d-13686b80ae09",
+      "name": "Code in JavaScript15"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. OBTENER TODO EL TEXTO (Convierte el JSON entero a texto para no fallar)\nconst entrada = items[0].json;\nconst texto = typeof entrada === 'string' ? entrada : JSON.stringify(entrada);\n\n// 2. BUSCAR TODOS LOS GRUPOS DE NÚMEROS POSIBLES\n// Busca secuencias de números que pueden tener puntos o guiones\nconst posibles = texto.match(/[0-9][0-9\\.\\-]{6,15}[0-9]/g);\n\nlet cuit = null;\nlet dni = null;\n\nif (posibles) {\n    for (let candidato of posibles) {\n        // Limpiamos: dejamos solo números puros\n        let numero = candidato.replace(/[^0-9]/g, \"\");\n\n        // REGLA SIMPLE: POR LONGITUD\n        if (numero.length === 11) {\n            // Si empieza con 20, 23, 27, 30, 33 o 34 es un CUIT (filtro anti-celulares)\n            const prefijo = parseInt(numero.substring(0, 2));\n            if ([20, 23, 24, 27, 30, 33, 34].includes(prefijo)) {\n                cuit = numero;\n            }\n        } \n        else if (numero.length === 7 || numero.length === 8) {\n            // Si es mayor a 2 millones, es un DNI (filtro anti-precios)\n            if (parseInt(numero) > 2000000) {\n                dni = numero;\n            }\n        }\n    }\n}\n\n// 3. PREPARAR DATOS PARA AFIP (Prioridad: CUIT mata DNI)\nlet afipNumero = 0;\nlet afipTipoDoc = 99; // Por defecto: Consumidor Final\nlet afipTipoCbte = 6; // Por defecto: Factura B\n\nif (cuit) {\n    afipNumero = parseInt(cuit);\n    afipTipoDoc = 80; // CUIT\n    afipTipoCbte = 1; // Factura A\n} else if (dni) {\n    afipNumero = parseInt(dni);\n    afipTipoDoc = 96; // DNI\n    afipTipoCbte = 6; // Factura B\n}\n\n// 4. RESULTADO\nreturn {\n    json: {\n        // LO QUE PEDISTE: Muestra los dos por separado\n        cuit_detectado: cuit|| \"NO_ENCONTRADO\",\n        dni_detectado: dni || \"NO_ENCONTRADO\",\n\n        // DATOS TÉCNICOS: Lo que usará el nodo de AFIP\n        afip_doc_nro: afipNumero,\n        afip_doc_tipo: afipTipoDoc,\n        afip_cbte_tipo: afipTipoCbte\n    }\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2112,
+        3360
+      ],
+      "id": "2c6baaa2-50d4-4ef8-846b-c4e9c76d8ea8",
+      "name": "Limpia CUIT/CUIL"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "50e93152-274c-499d-ac4e-8810f6425e9c",
+              "name": "Cuit/Cuil",
+              "value": "={{ $json.cuit_detectado }}",
+              "type": "string"
+            },
+            {
+              "id": "208acaa5-3221-421d-988e-708cf4e9db91",
+              "name": "DNI",
+              "value": "={{ $json.dni_detectado }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1952,
+        3360
+      ],
+      "id": "f4446bce-0cab-4d07-b197-fb860da363ac",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://app.afipsdk.com/api/v1/afip/auth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ $(\"Config Credenciales1\").first().json.bearerToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({...$(\"Config Credenciales1\").first().json.authBody, wsid: \"ws_sr_padron_a13\"}) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -1552,
+        3360
+      ],
+      "id": "159c845a-041e-4070-b20a-196f02bbc7eb",
+      "name": "get_authorization_PADRON"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://app.afipsdk.com/api/v1/afip/requests",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ $(\"Config Credenciales1\").first().json.bearerToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"environment\": \"prod\",\n  \"method\": \"getPersona\",\n  \"wsid\": \"ws_sr_padron_a13\",\n  \"params\": {\n    \"token\": \"{{ $('get_authorization_PADRON').item.json.token }}\",\n    \"sign\": \"{{ $('get_authorization_PADRON').item.json.sign }}\",\n    \"cuitRepresentada\": {{ Number($(\"Config Credenciales1\").first().json.authBody.tax_id) }},\n    \"idPersona\": [\n       {{ $('Edit Fields').item.json['Cuit/Cuil'] }}\n    ]\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -1344,
+        3360
+      ],
+      "id": "44b96303-ec47-4830-b396-20eacf4e2a98",
+      "name": "get_persona"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "NeuraUSUARIOPRUEBANEURAORKESTA",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -2944,
+        3360
+      ],
+      "id": "6d583ef6-996b-4bb2-90a3-99229c3a0099",
+      "name": "Webhook",
+      "webhookId": "8d752dc0-1864-4ead-b78f-af8781c4cad3"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "62e19399-f4cb-4777-a35c-d150011b9665",
+              "name": "Cuit_Receptor",
+              "value": "={{ $json.Cuit_Receptor }}",
+              "type": "string"
+            },
+            {
+              "id": "91056fd0-2fe3-4b56-a508-0e95acc5589c",
+              "name": "email_Receptor",
+              "value": "={{ $json.email_Receptor }}",
+              "type": "string"
+            },
+            {
+              "id": "89e59335-e52f-4f4a-9e9d-09cb6a374e5b",
+              "name": "TipoDeFactura",
+              "value": "={{ $json.TipoDeFactura }}",
+              "type": "string"
+            },
+            {
+              "id": "1e763ed8-68b7-4369-9664-f43a50b6c651",
+              "name": "PrecioUnitario",
+              "value": "={{ $json.PrecioUnitario }}",
+              "type": "number"
+            },
+            {
+              "id": "a5f2787e-2475-4c8a-a56c-623a76f1d3a4",
+              "name": "Descuento_porcentaje ",
+              "value": "={{ $('Webhook').item.json.body.discountAmount }}",
+              "type": "number"
+            },
+            {
+              "id": "775b6855-2495-42dc-bed7-0d5024ccc14c",
+              "name": "Cantidad",
+              "value": "={{ $json.Cantidad }}",
+              "type": "number"
+            },
+            {
+              "id": "b438a0e1-6e9b-4349-861d-e0e9f08b32e8",
+              "name": "Nombre del producto",
+              "value": "={{ $json['Nombre del producto'] }}",
+              "type": "string"
+            },
+            {
+              "id": "04d255b3-55c9-443c-beba-28277e931598",
+              "name": "Producto ID",
+              "value": "={{ $json['Producto ID'] }}",
+              "type": "string"
+            },
+            {
+              "id": "202a3097-e577-4baf-9d9d-a7072a95fc42",
+              "name": "SKU_ID",
+              "value": "={{ $json.SKU_ID }}",
+              "type": "string"
+            },
+            {
+              "id": "417c0caf-fa92-4365-8d7e-8c05a1a3145a",
+              "name": "IVA",
+              "value": "={{ $json.IVA }}",
+              "type": "number"
+            },
+            {
+              "id": "f5c22d49-491d-495b-a3c2-3d8c01801965",
+              "name": "Numero de factura Original",
+              "value": "={{ $json.NroFacturaOriginal }}",
+              "type": "string"
+            },
+            {
+              "id": "285e3fdd-7970-4667-9ac2-8167b8b3dcc7",
+              "name": "Tipo de Nota de credito",
+              "value": "={{ $('Webhook').item.json.body.type }}",
+              "type": "string"
+            },
+            {
+              "id": "08c07043-7510-4741-927d-6d280ca5a467",
+              "name": "creditNote",
+              "value": "={{ $('Webhook').item.json.body.creditNote }}",
+              "type": "boolean"
+            },
+            {
+              "id": "a33064c8-5ee5-4ae6-ad6c-090c963d115c",
+              "name": "creditNote",
+              "value": "={{ $json.creditNote }}",
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2288,
+        3360
+      ],
+      "id": "1e93c1bb-20e0-465c-a3aa-b0cbb3a89d86",
+      "name": "Recibo Datos"
+    },
+    {
+      "parameters": {
+        "jsCode": "// OBTENEMOS EL CUERPO DEL WEBHOOK (desde Webhook1, no desde items)\nconst body = $('Webhook').first().json.body;\n\n// --- LÓGICA DE FECHA PARA AFIP ---\nconst rawDate = body.date || body.invoiceDate || null;\nlet fechaAfip = \"\";\nif (rawDate) {\n    fechaAfip = rawDate.toString().substring(0, 10).replace(/-/g, '');\n} else {\n    fechaAfip = new Date().toISOString().substring(0, 10).replace(/-/g, '');\n}\n\n// OBTENEMOS LAS LISTAS\nconst listaProductos = body.items || [];\nconst cliente = body.client || {};\nconst mensaje = body.message || {};\nconst emisor = body.emisor || {};\n\nlet resultado = [];\n\n// RECORREMOS CADA PRODUCTO QUE LLEGÓ EN EL WEBHOOK\nfor (const prod of listaProductos) {\n    resultado.push({\n        json: {\n            \"Mensaje\": mensaje.text,\n            \"Cuit_Receptor\": cliente.cuit,\n            \"email_Receptor\": cliente.email,\n            \"TipoDeFactura\": body.type,\n            \"creditNote\": body.creditNote || body.creditnote || false,\n            \"FechaComprobante\": fechaAfip,\n            \"NroFacturaOriginal\": body.originalInvoiceNumber || null,\n            \"Cantidad\": prod.quantity,\n            \"Nombre del producto\": prod.productName,\n            \"Producto ID\": prod.productId,\n            \"SKU_ID\": prod.sku,\n            \"PrecioUnitario\": prod.unitPrice,\n            \"IVA\": prod.vatRate,\n            \"Numero de despacho\": prod.dispachNumber || \"\",\n            \"origen\": prod.origin || \"\",\n            \"emisor\": emisor\n        }\n    });\n}\n\nreturn resultado;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2496,
+        3360
+      ],
+      "id": "7aedd519-99fc-4420-bebd-4989b7ac6c52",
+      "name": "Code in JavaScript16"
+    },
+    {
+      "parameters": {
+        "respondWith": "binary",
+        "responseDataSource": "set",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Expose-Headers",
+                "value": "=CAE, x-invoice-id"
+              },
+              {
+                "name": "x-cae",
+                "value": "={{ $('create_voucher9').item.json.FECAESolicitarResult.FeDetResp.FECAEDetResponse[0].CAE }}"
+              },
+              {
+                "name": "x-invoice-id",
+                "value": "={{ $('Code in JavaScript6').item.json.factura.numero }}"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/pdf"
+              },
+              {
+                "name": "x-invoice-id",
+                "value": "={{ $json.id }}"
+              },
+              {
+                "name": "Access-Control-Expose-Headers",
+                "value": "x-cae, x-invoice-id"
+              },
+              {
+                "name": "x-invoice-number",
+                "value": "={{ $('Code in JavaScript6').item.json.factura.numero }}"
+              },
+              {
+                "name": "Access-Control-Expose-Headers",
+                "value": " x-invoice-number, x-cae, x-invoice-id"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2464,
+        3744
+      ],
+      "id": "9516926c-49df-49ce-99c2-5f91e219c508",
+      "name": "Respond to Webhook2"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Recibo Datos').first().json['Tipo de Nota de credito'] }}",
+                    "rightValue": "A",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "id": "6be1a2eb-8c04-463f-9344-b62a8257dd66"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "A"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "954bd323-505c-4013-bc5a-d2996223d9cb",
+                    "leftValue": "={{ $('Recibo Datos').first().json['Tipo de Nota de credito'] }}",
+                    "rightValue": "B",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "B"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "66825ae2-8a80-460a-aaac-415bb7b3451e",
+                    "leftValue": "=\n{{ $('Recibo Datos').first().json['Tipo de Nota de credito'] }}",
+                    "rightValue": "C",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "C"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -288,
+        2832
+      ],
+      "id": "562ae4f7-8beb-4c61-a08b-875c78f8fa87",
+      "name": "Switch nota de credito1",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "jsCode": "const PUNTO_VENTA = $('Webhook').first().json.body.emisor.puntoVenta || 1;\n\n// Obtenemos los datos del nodo anterior (Input directo)\nconst input = $input.first().json;\n\n// --- 1. RESCATE DE DATOS DESDE WEBHOOK (FECHA, CAE y VAT) ---\nlet vatTotalWebhook = 0;\nlet caeOriginal = \"\";\n// Por defecto usamos la fecha de hoy\nlet fechaParaAfip = new Date().toISOString().slice(0,10).replace(/-/g, ''); \n\ntry {\n    // Intentamos leer el body del Webhook\n    const webhookData = $('Webhook').first().json;\n    const body = webhookData.body || {}; \n\n    // A. Rescate de datos específicos de NC\n    vatTotalWebhook = parseFloat(body.vatTotal || 0);\n    caeOriginal = body.originalInvoiceCAE || \"\";\n\n    // B. Rescate de la fecha\n    let fechaWebhook = body.date || body.fecha || null;\n    \n    if (fechaWebhook) {\n        // Formateamos a YYYYMMDD\n        fechaParaAfip = fechaWebhook.toString().slice(0,10).replace(/-/g, '');\n    }\n\n} catch (e) {\n    // Si falla el webhook, usamos valores del input si existen o defaults\n    caeOriginal = input.cae_original || \"\";\n}\n\n// --- 1.B. RESCATE DE FECHA VENCIMIENTO ---\nlet fechaVtoParaAfip = fechaParaAfip; // Default: Vence el mismo día\n\ntry {\n    const datosRecibo = $('Recibo Datos').first().json;\n    let rawVto = datosRecibo.fechaVencimiento || datosRecibo.vencimiento || null;\n\n    if (rawVto) {\n        let vtoLimpio = rawVto.toString().slice(0,10).replace(/-/g, '');\n        // VALIDACIÓN AFIP: El vencimiento debe ser >= a la fecha de la NC\n        if (parseInt(vtoLimpio) >= parseInt(fechaParaAfip)) {\n            fechaVtoParaAfip = vtoLimpio;\n        } else {\n            fechaVtoParaAfip = fechaParaAfip;\n        }\n    }\n} catch (e) {\n    fechaVtoParaAfip = fechaParaAfip;\n}\n\n// --- 2. RESCATE DE DATOS ORIGINALES (NRO Y PTO VENTA) ---\nlet nroFacturaOriginal = 0;\nlet ptoVtaOriginal = 5; // Default usual (el 5 es tu automático)\n\ntry {\n    // Intentamos buscar datos en nodos anteriores\n    const dataNodoRef = $('Code in JavaScript16').first().json; // O el nodo que tenga la data original\n    nroFacturaOriginal = parseInt(dataNodoRef.NroFacturaOriginal || dataNodoRef.nroFacturaOriginal || 0);\n    \n    // Si tenemos el punto de venta original guardado, lo usamos. Si no, asumimos 5.\n    if (dataNodoRef.PtoVtaOriginal) {\n        ptoVtaOriginal = parseInt(dataNodoRef.PtoVtaOriginal);\n    }\n} catch (e) {\n    nroFacturaOriginal = parseInt(input.NroFacturaOriginal || input.nro_factura_original || 0);\n}\n\n// --- 3. CONFIGURACIÓN ---\nconst TIPO_COMPROBANTE = 3; // Nota de Crédito A\n\n// --- 4. IDENTIFICACIÓN DEL CLIENTE ---\nlet cuitCliente = parseFloat(input.cliente_doc || input.cuit || 0);\nconst docTipo = 80; \n\n// --- 5. CÁLCULO DE ÍTEMS ---\nlet sumaNeto = 0;\nlet ivaAccumulator = {}; \n\nconst items = input.ItemsDetalle || [];\nconst itemsParaAfip = [];\n\nitems.forEach(itemWrapper => {\n    const prod = itemWrapper.Prods || itemWrapper; \n    \n    if (prod) {\n        const netoItem = parseFloat(prod.neto || 0);\n        const ivaId = parseInt(prod.iva_id || 5); // 5 = 21%\n        const ivaItem = parseFloat(prod.imp_iva || 0);\n\n        sumaNeto += netoItem;\n\n        if (!ivaAccumulator[ivaId]) {\n            ivaAccumulator[ivaId] = { Id: ivaId, BaseImp: 0, Importe: 0 };\n        }\n        ivaAccumulator[ivaId].BaseImp += netoItem;\n        ivaAccumulator[ivaId].Importe += ivaItem;\n\n        itemsParaAfip.push({ \"Prods\": prod });\n    }\n});\n\n// --- 6. REDONDEO Y ASIGNACIÓN DE IVA ---\nconst totalNetoFinal = parseFloat(sumaNeto.toFixed(2));\nconst totalIvaFinal = vatTotalWebhook > 0 ? parseFloat(vatTotalWebhook.toFixed(2)) : parseFloat(Object.values(ivaAccumulator).reduce((a, b) => a + b.Importe, 0).toFixed(2));\nconst totalFinal = parseFloat((totalNetoFinal + totalIvaFinal).toFixed(2));\n\n// --- 7. ARRAY 'IVA' FINAL ---\nlet arrayIvaFinal = [];\nfor (const key in ivaAccumulator) {\n    if (Math.abs(ivaAccumulator[key].BaseImp) > 0.009) {\n        let importeIvaDinamico = (Object.keys(ivaAccumulator).length === 1) ? totalIvaFinal : parseFloat(ivaAccumulator[key].Importe.toFixed(2));\n\n        arrayIvaFinal.push({\n            \"Id\": ivaAccumulator[key].Id,\n            \"BaseImp\": parseFloat(ivaAccumulator[key].BaseImp.toFixed(2)),\n            \"Importe\": importeIvaDinamico\n        });\n    }\n}\n\n// --- 8. ARMADO DEL OBJETO FINAL ---\nconst detalle = {\n    \"Concepto\": 3,  // <--- CAMBIADO A 3 (PRODUCTOS Y SERVICIOS) para evitar problemas de fechas\n    \"DocTipo\": docTipo,\n    \"DocNro\": cuitCliente,\n    \"CbteFch\": fechaParaAfip,\n    \n    // --- CAMPOS OBLIGATORIOS PARA CONCEPTO 2 o 3 (AGREGADOS) ---\n    \"FchServDesde\": fechaParaAfip,\n    \"FchServHasta\": fechaParaAfip,\n    \"FchVtoPago\": fechaVtoParaAfip, \n    // -----------------------------------------------------------\n    \n    \"ImpTotal\": totalFinal,\n    \"ImpTotConc\": 0,\n    \"ImpNeto\": totalNetoFinal,\n    \"ImpOpEx\": 0,\n    \"ImpTrib\": 0,\n    \"ImpIVA\": totalIvaFinal,\n    \n    \"MonId\": \"PES\",\n    \"MonCotiz\": 1,\n    \n    \"Iva\": arrayIvaFinal,\n    \n    \"CbtesAsoc\": [\n        {\n            \"Tipo\": 1, // Factura A asociada\n            \"PtoVta\": ptoVtaOriginal, // Usamos el detectado (o 5 por defecto), NO el 4 de la NC\n            \"Nro\": nroFacturaOriginal,\n            \"Cuit\": cuitCliente,\n            \"Cae\": caeOriginal \n        }\n    ]\n};\n\nreturn {\n    json: {\n        PtoVta: PUNTO_VENTA,\n        CbteTipo: TIPO_COMPROBANTE,\n        cuit: cuitCliente,\n        detalleParaAfip: detalle,\n        ItemsDetalle: itemsParaAfip,\n        nro_factura_original: nroFacturaOriginal,\n        cae_original: caeOriginal,\n        debug_iva_webhook: vatTotalWebhook,\n        debug_fecha_usada: fechaParaAfip,\n        debug_concepto_usado: 3\n    }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        32,
+        2752
+      ],
+      "id": "e74adcf8-82ad-4ce7-bf80-d26de5abf0ea",
+      "name": "Code NOTA A1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const PUNTO_VENTA = $('Webhook').first().json.body.emisor.puntoVenta || 1;\n\n// =========================\n// NOTA DE CRÉDITO C (CbteTipo 13)\n// =========================\n\n// Obtenemos los datos del nodo anterior\nconst input = $input.first().json;\n\n// --- 1. RESCATE DE DATOS (FECHAS Y FACTURA ORIGINAL) ---\n\n// A. Lógica de Fecha Comprobante (Desde Webhook)\nlet fechaParaAfip = new Date().toISOString().slice(0, 10).replace(/-/g, '');\n\ntry {\n  const webhookData = $('Webhook').first().json.body;\n  let fechaWebhook = webhookData.date || webhookData.fecha || null;\n\n  if (fechaWebhook) {\n    // Formateamos a YYYYMMDD\n    fechaParaAfip = fechaWebhook.toString().slice(0, 10).replace(/-/g, '');\n  }\n} catch (e) {\n  // Si falla el webhook, queda la fecha de hoy definida arriba\n}\n\n// B. Lógica de Fecha de Vencimiento (Nueva lógica igual a Factura A)\nlet fechaVtoParaAfip = fechaParaAfip; // Default: Vence el mismo día\n\ntry {\n    // Buscamos los datos en \"Recibo Datos1\"\n    const datosRecibo = $('Recibo Datos').first().json;\n    \n    // Buscamos el campo \"fechaVencimiento\" (o \"vencimiento\")\n    let rawVto = datosRecibo.fechaVencimiento || datosRecibo.vencimiento || null;\n\n    if (rawVto) {\n        let vtoLimpio = rawVto.toString().slice(0,10).replace(/-/g, '');\n        // VALIDACIÓN AFIP: El vencimiento debe ser >= a la fecha de la factura\n        if (parseInt(vtoLimpio) >= parseInt(fechaParaAfip)) {\n            fechaVtoParaAfip = vtoLimpio;\n        } else {\n            fechaVtoParaAfip = fechaParaAfip;\n        }\n    }\n} catch (e) {\n    fechaVtoParaAfip = fechaParaAfip;\n}\n\n// C. Rescate del Nro Factura Original\nlet nroFacturaOriginal = 0;\ntry {\n  const dataNodoRef = $('Code in JavaScript16').first().json;\n  nroFacturaOriginal = parseInt(dataNodoRef.NroFacturaOriginal || dataNodoRef.nroFacturaOriginal || 0, 10);\n} catch (e) {\n  nroFacturaOriginal = parseInt(input.NroFacturaOriginal || input.nro_factura_original || 0, 10);\n}\n\n// --- 2. CONFIGURACIÓN ---\nconst TIPO_COMPROBANTE = 13; // 13 = NOTA DE CRÉDITO C\n\n// --- 3. IDENTIFICACIÓN DEL CLIENTE ---\nlet rawDoc = input.cliente_doc || input.cuit || 0;\nlet strDoc = String(rawDoc).replace(/\\D/g, '');\n\nlet docTipo = 99;      // 99 = Consumidor Final\nlet docNro = 0;        // en CF debe ser 0\n\nif (strDoc.length === 11) {\n  docTipo = 80;                 // 80 = CUIT\n  docNro = Number(strDoc);\n} else if (strDoc.length >= 7 && strDoc.length <= 8) {\n  docTipo = 96;                 // 96 = DNI\n  docNro = Number(strDoc);\n} else {\n  docTipo = 99;\n  docNro = 0;\n}\n\n// --- 4. CÁLCULO DE ÍTEMS (TIPO C: TOTAL = NETO) ---\nlet sumaTotal = 0;\nconst items = input.ItemsDetalle || [];\nconst itemsParaAfip = [];\n\nitems.forEach((itemWrapper) => {\n  const prod = itemWrapper.Prods || itemWrapper;\n\n  if (prod) {\n    const totalItem = parseFloat(prod.item_total || 0);\n    sumaTotal += totalItem;\n    itemsParaAfip.push({ Prods: prod });\n  }\n});\n\n// --- 5. REDONDEO ---\nconst totalFinal = parseFloat(sumaTotal.toFixed(2));\n\n// --- 6. COMPROBANTE ASOCIADO (FACTURA C = Tipo 11) ---\nconst cbteAsoc = {\n  Tipo: 11,              // 11 = FACTURA C\n  PtoVta: PUNTO_VENTA,\n  Nro: nroFacturaOriginal,\n};\n\n// Solo agregamos Cuit si realmente es CUIT (evita undefined/null en payload)\nif (docTipo === 80 && docNro > 0) {\n  cbteAsoc.Cuit = docNro;\n}\n\n// --- 7. ARMADO DEL OBJETO FINAL ---\nconst detalle = {\n  Concepto: 2, // <--- CAMBIO: Seteado en 2 (Servicios) para margen de 10 días\n  DocTipo: docTipo,\n  DocNro: docNro,\n  CbteFch: fechaParaAfip,\n  \n  FchVtoPago: fechaVtoParaAfip, // <--- AGREGADO: Nueva fecha vencimiento\n\n  // TIPO C:\n  // Neto = Total, IVA = 0, no se discrimina IVA\n  ImpTotal: totalFinal,\n  ImpTotConc: 0,\n  ImpNeto: totalFinal,\n  ImpOpEx: 0,\n  ImpTrib: 0,\n  ImpIVA: 0,\n\n  MonId: \"PES\",\n  MonCotiz: 1,\n\n  // IMPORTANTE: En Factura C esto va vacío.\n  Iva: [],\n\n  CbtesAsoc: [cbteAsoc],\n};\n\nreturn {\n  json: {\n    PtoVta: PUNTO_VENTA,\n    CbteTipo: TIPO_COMPROBANTE,\n    cuit: docNro, \n\n    detalleParaAfip: detalle,\n    ItemsDetalle: itemsParaAfip,\n\n    // Debug\n    nro_factura_original: nroFacturaOriginal,\n    tipo_doc: docTipo,\n    debug_fecha_usada: fechaParaAfip,\n    debug_vto_usado: fechaVtoParaAfip\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        32,
+        3104
+      ],
+      "id": "daa1da69-0b14-4dfa-8116-a79c8ff9e1f6",
+      "name": "Code NOTA C1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const PUNTO_VENTA = $('Webhook').first().json.body.emisor.puntoVenta || 1;\n\n// Obtenemos los datos del nodo anterior\nconst input = $input.first().json;\n\n// --- 1. RESCATE DE DATOS (FECHA Y NRO ORIGINAL) ---\n\n// A. Lógica de Fecha (Desde Webhook)\nlet fechaParaAfip = new Date().toISOString().slice(0,10).replace(/-/g, ''); \n\ntry {\n    const webhookData = $('Webhook').first().json.body; \n    let fechaWebhook = webhookData.date || webhookData.fecha || null; \n    \n    if (fechaWebhook) {\n        // Formateamos a YYYYMMDD\n        fechaParaAfip = fechaWebhook.toString().slice(0,10).replace(/-/g, '');\n    }\n} catch (e) {\n    // Si falla la lectura del webhook, queda la fecha de hoy definida arriba\n}\n\n// B. Rescate del Nro Factura Original\nlet nroFacturaOriginal = 0;\ntry {\n    const dataNodoRef = $('Code in JavaScript16').first().json;\n    nroFacturaOriginal = parseInt(dataNodoRef.NroFacturaOriginal || dataNodoRef.nroFacturaOriginal || 0);\n} catch (e) {\n    nroFacturaOriginal = parseInt(input.NroFacturaOriginal || input.nro_factura_original || 0);\n}\n\n// --- 2. CONFIGURACIÓN ---\n// const FECHA_HOY ... (Calculada arriba como 'fechaParaAfip')\nconst TIPO_COMPROBANTE = 8; // 8 es NOTA DE CRÉDITO B\n\n// --- 3. IDENTIFICACIÓN DEL CLIENTE (LÓGICA FACTURA B) ---\n// Detectamos CUIT, DNI o Consumidor Final según el largo del documento\nlet rawDoc = input.cliente_doc || input.cuit || 0;\nlet strDoc = String(rawDoc).replace(/\\D/g, ''); \nlet cuitCliente = parseFloat(strDoc);\nlet docTipo = 99; // Default: Consumidor Final\n\nif (strDoc.length === 11) {\n    docTipo = 80; // CUIT\n} else if (strDoc.length >= 7 && strDoc.length <= 8) {\n    docTipo = 96; // DNI\n} else {\n    // Si no es válido, Consumidor Final anónimo\n    cuitCliente = 0;\n    docTipo = 99; \n}\n\n// --- 4. CÁLCULO DE ÍTEMS Y ARRAY DE IVA ---\n// Mantenemos la lógica de suma precisa. Aunque en B no se muestra el IVA,\n// AFIP pide el desglose interno.\n\nlet sumaNeto = 0;\nlet sumaIva = 0;\nlet sumaTotal = 0;\nlet ivaAccumulator = {}; \n\nconst items = input.ItemsDetalle || [];\nconst itemsParaAfip = [];\n\nitems.forEach(itemWrapper => {\n    const prod = itemWrapper.Prods || itemWrapper; \n    \n    if (prod) {\n        const netoItem = parseFloat(prod.neto || 0);\n        const ivaId = parseInt(prod.iva_id || 5); // 5 = 21%\n        const ivaItem = parseFloat(prod.imp_iva || 0);\n        const totalItem = parseFloat(prod.item_total || 0);\n\n        sumaNeto += netoItem;\n        sumaIva += ivaItem;\n        sumaTotal += totalItem;\n\n        // Acumulamos alícuotas (Requisito técnico de AFIP para NC B también)\n        if (!ivaAccumulator[ivaId]) {\n            ivaAccumulator[ivaId] = { Id: ivaId, BaseImp: 0, Importe: 0 };\n        }\n        ivaAccumulator[ivaId].BaseImp += netoItem;\n        ivaAccumulator[ivaId].Importe += ivaItem;\n\n        itemsParaAfip.push({ \"Prods\": prod });\n    }\n});\n\n// --- 5. REDONDEO ---\nconst totalNetoFinal = parseFloat(sumaNeto.toFixed(2));\nconst totalIvaFinal = parseFloat(sumaIva.toFixed(2));\nconst totalFinal = parseFloat(sumaTotal.toFixed(2));\n\n// --- 6. ARRAY 'IVA' FINAL ---\nlet arrayIvaFinal = [];\nfor (const key in ivaAccumulator) {\n    if (Math.abs(ivaAccumulator[key].BaseImp) > 0.009) {\n        arrayIvaFinal.push({\n            \"Id\": ivaAccumulator[key].Id,\n            \"BaseImp\": parseFloat(ivaAccumulator[key].BaseImp.toFixed(2)),\n            \"Importe\": parseFloat(ivaAccumulator[key].Importe.toFixed(2))\n        });\n    }\n}\n\n// --- 7. ARMADO DEL OBJETO FINAL ---\nconst detalle = {\n    \"Concepto\": 1, \n    \"DocTipo\": docTipo,    // Variable (80, 96, 99)\n    \"DocNro\": cuitCliente, // Variable\n    \"CbteFch\": fechaParaAfip, // <--- CAMBIO: Usamos la fecha del Webhook\n    \n    \"ImpTotal\": totalFinal,\n    \"ImpTotConc\": 0,\n    \"ImpNeto\": totalNetoFinal,\n    \"ImpOpEx\": 0,\n    \"ImpTrib\": 0,\n    \"ImpIVA\": totalIvaFinal,\n    \n    \"MonId\": \"PES\",\n    \"MonCotiz\": 1,\n    \n    \"Iva\": arrayIvaFinal, \n    \n    // --- DATOS DE LA NOTA DE CRÉDITO ---\n    \"CbtesAsoc\": [\n        {\n            \"Tipo\": 6, // 6 = FACTURA B (Anulamos una B)\n            \"PtoVta\": PUNTO_VENTA,\n            \"Nro\": nroFacturaOriginal,\n            \"Cuit\": cuitCliente > 0 ? cuitCliente : undefined \n        }\n    ]\n};\n\nreturn {\n    json: {\n        PtoVta: PUNTO_VENTA,\n        CbteTipo: TIPO_COMPROBANTE,\n        cuit: cuitCliente,\n        \n        detalleParaAfip: detalle,\n        ItemsDetalle: itemsParaAfip,\n        \n        // Debug\n        nro_factura_original: nroFacturaOriginal,\n        tipo_doc_detectado: docTipo,\n        debug_fecha_usada: fechaParaAfip\n    }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        32,
+        2928
+      ],
+      "id": "1baaf0f9-db29-4b92-a411-3d9943dc4bb0",
+      "name": "Code NOTA B"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Obtenemos los datos del nodo anterior\nconst input = $input.first().json;\n\n// --- CONFIGURACIÓN FIJA ---\nconst FECHA_HOY = new Date().toISOString().slice(0,10).replace(/-/g, '');\n\n// --- 1. DETECCIÓN DE FUENTE ---\n// Verificamos si los nodos anteriores ya hicieron el trabajo duro.\n// Los nodos nuevos (Factura A, B, C, Notas) envían 'detalleParaAfip'.\nconst detallePrearmado = input.detalleParaAfip;\n\n// --- 2. ARMADO DEL OBJETO FINAL ---\nlet detalleFinal = {};\n\nif (detallePrearmado) {\n    // CASO A: Vienen datos listos de los nodos nuevos. USAMOS ESO.\n    // Esto respeta los arrays de IVA complejos y los CbtesAsoc que ya calculamos.\n    detalleFinal = detallePrearmado;\n} else {\n    // CASO B: Fallback (Por si entra algo viejo o simple).\n    // Aquí sí aplicamos la lógica genérica que tenías antes.\n    \n    detalleFinal = {\n        \"Concepto\": input.Concepto || 1,\n        \"DocTipo\": input.DocTipo || 80,\n        \"DocNro\": input.DocNro || input.cliente?.cuit || input.cuit,\n        \"CbteFch\": input.CbteFch || FECHA_HOY,\n        \"ImpTotal\": parseFloat(Number(input.ImpTotal).toFixed(2)),\n        \"ImpTotConc\": 0,\n        \"ImpNeto\": parseFloat(Number(input.ImpNeto).toFixed(2)),\n        \"ImpOpEx\": 0,\n        \"ImpTrib\": 0,\n        \"ImpIVA\": parseFloat(Number(input.ImpIVA || 0).toFixed(2)),\n        \"MonId\": \"PES\",\n        \"MonCotiz\": 1\n    };\n\n    // Lógica básica de IVA (Solo 21%) para casos simples\n    const tiposConIva = [1, 6, 3, 8]; \n    if (tiposConIva.includes(parseInt(input.CbteTipo)) && detalleFinal.ImpIVA > 0) {\n        detalleFinal.Iva = [\n            {\n                \"Id\": 5, // 21%\n                \"BaseImp\": detalleFinal.ImpNeto,\n                \"Importe\": detalleFinal.ImpIVA\n            }\n        ];\n    }\n    \n    // Rescate básico de comprobantes asociados\n    if (input.CbtesAsoc) {\n        detalleFinal.CbtesAsoc = input.CbtesAsoc;\n    }\n}\n\n// --- 3. RETORNO FINAL ---\nreturn {\n    json: {\n        // Datos de Ruteo (Siempre necesarios en la raíz)\n        PtoVta: input.PtoVta || PUNTO_VENTA,\n        CbteTipo: input.CbteTipo,\n        \n        // EL PAQUETE SAGRADO PARA AFIP\n        detalleParaAfip: detalleFinal,\n        \n        // Datos Visuales (Pasan de largo para PDF/HTML)\n        cliente: input.cliente || {},\n        items: input.items || input.ItemsDetalle || [], // Compatibilidad con ambos nombres\n        \n        // Metadatos\n        meta: {\n            mensaje: input.meta?.mensaje,\n            esNotaCredito: input.meta?.esNotaCredito || false,\n            descuento_aplicado: input.descuento_aplicado // Info útil para debug\n        }\n    }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        352,
+        2896
+      ],
+      "id": "091f06d9-4bb2-4bf8-a90f-574a05e0d0db",
+      "name": "Code Unificador1"
+    },
+    {
+      "parameters": {
+        "html": "<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <link href=\"https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap\" rel=\"stylesheet\">\n  <style>\n    /* --- CONFIGURACIÓN DE IMPRESIÓN MULTIPÁGINA --- */\n    @page { \n        size: A4; \n        margin: 10mm; /* Margen necesario para la impresora */\n    }\n\n    * { box-sizing: border-box; -webkit-box-sizing: border-box; }\n\n    body { \n        font-family: 'Inter', sans-serif; \n        font-size: 11px; \n        margin: 0; \n        padding: 0; \n        background-color: #525659; \n        /* IMPORTANTE: Usamos block para permitir el scroll y paginación natural */\n        display: block; \n        -webkit-print-color-adjust: exact; \n        print-color-adjust: exact; \n    }\n\n    .invoice-page { \n        background: white; \n        width: 210mm; \n        min-height: 297mm; /* Altura mínima A4 */\n        padding: 10mm 12mm; \n        position: relative; \n        margin: 0 auto;\n        /* IMPORTANTE: Quitamos flex vertical para evitar bloqueos en el salto de página */\n        display: block; \n    }\n\n    /* --- ESTILOS GENERALES --- */\n    .header-container { margin-bottom: 20px; }\n    .doc-header-strip { background-color: #f9fafb; border: 1px solid #e5e7eb; text-align: center; font-weight: 700; letter-spacing: 0.1em; padding: 5px; font-size: 10px; margin-bottom: 25px; }\n    .company-info-row { display: flex; justify-content: space-between; position: relative; padding-top: 15px; border-top: 2px solid #111827; }\n    .letter-box { position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%); background-color: #111827; color: white; width: 45px; height: 45px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 4px; z-index: 10; box-shadow: 0 0 0 5px white; }\n    .letter-char { font-size: 22px; font-weight: 800; line-height: 1; }\n    .letter-code { font-size: 7px; font-weight: 600; }\n    .col-data { flex: 1; padding-right: 30px; }\n    .col-data.right { text-align: right; padding-right: 0; padding-left: 30px; }\n    .title-main { font-size: 18px; font-weight: 900; margin-bottom: 8px; text-transform: uppercase; }\n    .data-line { margin-bottom: 3px; font-size: 10px; }\n    .label { font-weight: 600; color: #4b5563; margin-right: 4px; }\n    .value { font-weight: 700; color: #111827; }\n    \n    /* BARRA GRIS MODIFICADA */\n    .bar-gray { background-color: #f3f4f6; padding: 8px 10px; border-radius: 4px; margin-bottom: 15px; display: flex; justify-content: space-between; font-size: 10px; }\n    \n    .client-box { border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 15px; }\n    .client-field { display: flex; flex-direction: column; }\n    .client-field.wide { flex: 1; min-width: 200px; }\n    .client-field.full { width: 100%; margin-top: 5px; border-top: 1px solid #f3f4f6; padding-top: 5px;}\n    .lbl-sm { font-size: 8px; text-transform: uppercase; color: #6b7280; font-weight: 700; }\n\n    /* --- LÓGICA DE TABLA PARA QUE REPITA ENCABEZADOS --- */\n    .table-wrapper { \n        width: 100%; \n        display: block; \n    }\n    .items-table { \n        width: 100%; \n        border-collapse: collapse; \n        /* Permite romper la tabla pero mantiene estructura */\n        page-break-inside: auto; \n    }\n    .items-table thead { \n        /* ESTO HACE LA MAGIA: Repite el encabezado en cada hoja nueva */\n        display: table-header-group; \n    }\n    .items-table tr { \n        /* Evita que una fila de producto se corte a la mitad */\n        page-break-inside: avoid; \n        page-break-after: auto; \n    }\n    .items-table th { background: #111827; color: white; font-size: 9px; text-transform: uppercase; padding: 6px 4px; text-align: left; }\n    .items-table td { padding: 6px 4px; border-bottom: 1px solid #e5e7eb; font-size: 10px; color: #374151; vertical-align: top; }\n    .text-right { text-align: right; }\n    .text-center { text-align: center; }\n\n    /* --- FOOTER QUE NO SE CORTA --- */\n    .bottom-section { \n        margin-top: 20px; \n        border-top: 2px solid #111827; \n        padding-top: 10px; \n        /* Si no entra todo el bloque (Totales + QR), pasa entero a la siguiente hoja */\n        page-break-inside: avoid; \n    }\n    .totals-row { display: flex; justify-content: flex-end; margin-bottom: 10px; }\n    .totals-grid { width: 250px; }\n    .t-row { display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 10px;}\n    .t-row.final { font-size: 13px; font-weight: 800; border-top: 1px solid #e5e7eb; padding-top: 5px; margin-top: 2px; }\n    .footer-legal { display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid #e5e7eb; }\n    .afip-qr { display: flex; align-items: center; gap: 10px; }\n    .afip-qr img { width: 70px; height: 70px; }\n    .cae-container { text-align: right; background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 8px 12px; border-radius: 4px; }\n    .cae-line { color: #166534; font-size: 10px; font-weight: 600; }\n    .cae-line span { font-family: monospace; font-size: 12px; margin-left: 5px; }\n\n    .asociado-box { background-color: #fffbeb; color: #92400e; padding: 8px; font-size: 10px; font-weight: 700; border: 1px solid #fcd34d; border-radius: 4px; margin-bottom: 10px; text-align: center; }\n  </style>\n</head>\n\n<body>\n  <div class=\"invoice-page\">\n\n    <div class=\"header-container\">\n      <div class=\"doc-header-strip\">ORIGINAL</div>\n\n      <div class=\"company-info-row\">\n        <div class=\"letter-box\">\n          <span class=\"letter-char\">{{ $json.factura?.letra || \"A\" }}</span>\n          <span class=\"letter-code\">COD. {{ $json.factura?.codigo || \"—\" }}</span>\n        </div>\n\n        <div class=\"col-data\">\n          <div class=\"title-main\">{{ $json.emisor?.razonSocial || \"SIN CONFIGURAR\" }}</div>\n          <div class=\"data-line\"><span class=\"label\">Razón Social:</span> <span class=\"value\">{{ $json.emisor?.razonSocial || \"SIN CONFIGURAR\" }}</span></div>\n          <div class=\"data-line\"><span class=\"label\">Domicilio:</span> <span class=\"value\">{{ $json.emisor?.domicilio || \"—\" }}</span></div>\n          <div class=\"data-line\"><span class=\"label\">Condición IVA:</span> <span class=\"value\">{{ $json.emisor?.condicionIva || \"—\" }}</span></div>\n        </div>\n\n        <div class=\"col-data right\">\n          <div class=\"title-main\">{{ $json.f_titulo || \"NOTA DE CRÉDITO\" }}</div>\n\n          <div class=\"data-line\"><span class=\"label\">Punto de Venta:</span> <span class=\"value\">{{ $json.factura?.ptoVta || \"—\" }}</span></div>\n          <div class=\"data-line\"><span class=\"label\">Comp. Nro:</span> <span class=\"value\">{{ $json.factura?.numero || \"—\" }}</span></div>\n          <div class=\"data-line\"><span class=\"label\">Fecha de Emisión:</span> <span class=\"value\">{{ $json.factura?.fecha || \"—\" }}</span></div>\n\n          <div class=\"data-line\"><span class=\"label\">CUIT:</span> <span class=\"value\">{{ $json.emisor?.iibb || \"-\" }}</span></div>\n          <div class=\"data-line\"><span class=\"label\">Ingresos Brutos:</span> <span class=\"value\">{{ $json.emisor?.iibb || \"-\" }}</span></div>\n          <div class=\"data-line\"><span class=\"label\">Inicio Act.:</span> <span class=\"value\">{{ $json.emisor?.inicioAct || \"—\" }}</span></div>\n        </div>\n      </div>\n    </div>\n\n    <div class=\"bar-gray\">\n      <div>\n        <span class=\"label\">Período:</span> \n        {{ $json.factura?.serv_desde ? ($json.factura.serv_desde + ' al ' + $json.factura.serv_hasta) : ($json.factura?.fecha || \"—\") }}\n      </div>\n      <div>\n        <span class=\"label\">Fecha de Vencimiento:</span> \n        {{ $json.factura?.vencimiento || \"—\" }}\n      </div>\n    </div>\n    <div class=\"client-box\">\n      <div class=\"client-field\">\n        <span class=\"lbl-sm\">CUIT / DNI</span>\n        <span class=\"value\">{{ $json.cliente?.cuit || \"—\" }}</span>\n      </div>\n      <div class=\"client-field\">\n        <span class=\"lbl-sm\">Condición IVA</span>\n        <span class=\"value\">{{ $json.cliente?.condicionIva || \"—\" }}</span>\n      </div>\n      <div class=\"client-field wide\">\n        <span class=\"lbl-sm\">Razón Social / Nombre</span>\n        <span class=\"value\">{{ $json.cliente?.nombre || \"—\" }}</span>\n      </div>\n      <div class=\"client-field full\">\n        <span class=\"lbl-sm\">Domicilio Comercial</span>\n        <span class=\"value\">{{ $json.cliente?.domicilio || \"—\" }}</span>\n      </div>\n    </div>\n\n    <div class=\"asociado-box\" style=\"display: {{ $json.f_asociado ? 'block' : 'none' }};\">\n      {{ $json.f_asociado }}\n    </div>\n\n    <div class=\"table-wrapper\">\n      <table class=\"items-table\">\n        <thead>\n          <tr>\n            <th width=\"15%\" class=\"text-center\">Código</th>\n            <th width=\"45%\">Concepto / Producto</th>\n            <th width=\"10%\" class=\"text-center\">Cant.</th>\n            <th width=\"10%\" class=\"text-center\">U.M.</th>\n            <th width=\"10%\" class=\"text-right\">Precio Unit.</th>\n            <th width=\"10%\" class=\"text-right\">Subtotal</th>\n          </tr>\n        </thead>\n        <tbody>\n          {{ $json.tabla_productos || \"\" }}\n        </tbody>\n      </table>\n    </div>\n\n    <div class=\"bottom-section\">\n      <div class=\"totals-row\">\n        <div class=\"totals-grid\">\n          <div class=\"t-row\">\n            <span class=\"label\">Subtotal:</span>\n            <span class=\"value\">{{ $json.totales?.moneda || \"$\" }} {{ $json.totales?.subtotal || \"0,00\" }}</span>\n          </div>\n\n          <div class=\"t-row\">\n            <span class=\"label\">IVA:</span>\n            <span class=\"value\">{{ $json.totales?.moneda || \"$\" }} {{ $json.totales?.iva || \"0,00\" }}</span>\n          </div>\n\n          <div class=\"t-row final\">\n            <span>TOTAL:</span>\n            <span>{{ $json.totales?.moneda || \"$\" }} {{ $json.totales?.total || \"0,00\" }}</span>\n          </div>\n        </div>\n      </div>\n\n      <div class=\"footer-legal\">\n        <div class=\"afip-qr\">\n          <img src=\"{{ $json.qr?.img || 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=Sin%20QR' }}\" alt=\"QR\">\n          <div>\n            <div style=\"font-weight: 900; font-size: 16px; line-height: 1;\">ARCA</div>\n            <div style=\"font-size: 7px; font-weight: 600; color: #6b7280; text-transform: uppercase;\">Administración Federal de<br>Ingresos Públicos</div>\n            <div style=\"font-size: 9px; margin-top: 3px;\">Comprobante Autorizado</div>\n          </div>\n        </div>\n        <div class=\"cae-container\">\n          <div class=\"cae-line\">CAE Nº <span>{{ $json.qr?.cae || \"—\" }}</span></div>\n          <div class=\"cae-line\">Vto. CAE <span>{{ $json.qr?.vto || \"—\" }}</span></div>\n        </div>\n      </div>\n    </div>\n\n  </div>\n</body>\n</html>"
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        1520,
+        2896
+      ],
+      "id": "7748fb23-23b3-4b82-a070-767bd73ee2fe",
+      "name": "HTML1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const emisorWebhook = $('Webhook').first().json.body.emisor || {};\nconst emisor = {\n  razonSocial: emisorWebhook.razonSocial || \"SIN CONFIGURAR\",\n  domicilio: emisorWebhook.domicilio || \"-\",\n  condicionIva: emisorWebhook.condicionIva || \"-\",\n  iibb: emisorWebhook.iibb || \"-\",\n  inicioAct: emisorWebhook.inicioActividades || \"-\"\n};\nconst CUIT_EMISOR = Number($('Config Credenciales1').first().json.authBody.tax_id);\n\n// =========================\n// NC - DATA MODEL PARA HTML (robusto) + QR SIEMPRE\n// Nodos usados:\n// - webhook1 (o Webhook1)\n// - get_persona1\n// - generate_qr_text   (opcional: si no está, igual genera QR)\n// =========================\n\n// 1) TRAER WEBHOOK\nlet body = {};\ntry {\n  body = $('webhook1').first().json.body;\n} catch (e) {\n  try { body = $('Webhook').first().json.body; }\n  catch (e2) { throw new Error(\"❌ ERROR: No encuentro el nodo 'webhook1'.\"); }\n}\n\n// 2) TRAER GET PERSONA\nlet personaWrap = {};\ntry {\n  personaWrap = $('get_persona').first().json;\n} catch (e) {\n  personaWrap = {};\n}\n\n// 3) TRAER QR NODE (PUEDE NO HABERSE EJECUTADO)\nlet qrNode = null;\ntry {\n  qrNode = $('generate_qr_text1').first().json; // <-- SIN 4\n} catch (e) {\n  qrNode = null;\n}\n\n// 4) EMISOR\nconst CUIT_EMISOR = Number($('Config Credenciales1').first().json.authBody.tax_id);\nconst emisorWH = $('Webhook').first().json.body.emisor || {};\nconst emisor = {\n  razonSocial: emisorWH.razonSocial || \"SIN CONFIGURAR\",\n  domicilio: emisorWH.domicilio || \"-\",\n  condicionIva: emisorWH.condicionIva || \"-\",\n  iibb: emisorWH.iibb || String(CUIT_EMISOR),\n  inicioAct: emisorWH.inicioActividades || \"-\"\n};\n\n// 5) HELPERS\nconst money = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });\nconst pad = (num, size) => ('000000000' + (num ?? 0)).slice(-size);\n\nconst formatFechaQR = (f) => {\n  f = String(f || \"\");\n  // YYYYMMDD\n  if (f.length === 8 && /^\\d{8}$/.test(f)) return `${f.slice(0,4)}-${f.slice(4,6)}-${f.slice(6,8)}`;\n  // ISO o Date\n  try { return new Date(f).toISOString().slice(0, 10); } catch { return \"\"; }\n};\n\n// 6) DIRECCIÓN DEL CLIENTE DESDE get_persona1 (FISCAL > LEGAL/REAL > primero)\nconst domicilios = personaWrap?.personaReturn?.persona?.domicilio || [];\nconst domFiscal = domicilios.find(d => d.tipoDomicilio === \"FISCAL\");\nconst domLegal = domicilios.find(d => d.tipoDomicilio === \"LEGAL/REAL\");\nconst domElegido = domFiscal || domLegal || domicilios[0] || null;\n\nconst direccionCliente = (domElegido?.direccion) || (body?.client?.address) || \"-\";\n\n// 7) TABLA PRODUCTOS\nlet itemsHtml = \"\";\nlet tasaIva = \"21\";\n\nif (body.items && body.items.length) {\n  tasaIva = (body.items[0].vatRate != null) ? money.format(body.items[0].vatRate) : \"21\";\n\n  itemsHtml = body.items.map(it => `\n    <tr>\n      <td>${it.sku || '-'}</td>\n      <td>${it.productName || 'Concepto'}</td>\n      <td class=\"text-center\">${it.quantity ?? 0}</td>\n      <td class=\"text-center\">unidades</td>\n      <td class=\"text-right\">${money.format(Number(it.unitPrice || 0))}</td>\n      <td class=\"text-right\">${money.format(Number(it.subtotal || 0))}</td>\n    </tr>\n  `).join('');\n}\n\n// 8) LETRA / TIPO (si no hay qrNode, lo inferimos del texto body.type)\nlet tipoCmp = qrNode?.tipo_comprobante;\n\nif (!tipoCmp) {\n  const t = (body.type || \"\").toLowerCase();\n  if (t.includes(\"crédito a\")) tipoCmp = 3;\n  else if (t.includes(\"crédito b\")) tipoCmp = 8;\n  else if (t.includes(\"crédito c\")) tipoCmp = 13;\n  else tipoCmp = 13;\n}\n\ntipoCmp = Number(tipoCmp);\nconst letrasNC = { 3: 'A', 8: 'B', 13: 'C', 53: 'M' };\nconst letra = letrasNC[tipoCmp] || 'C';\nconst codigoComprobante = pad(tipoCmp, 3);\n\n// 9) ASOCIADO (factura original)\nconst asociadoTxt = `Factura original Nro: ${body.originalInvoiceId || body.invoiceId || '-'} · CAE: ${body.originalInvoiceCAE || '-'}`;\n\n// 10) GENERAR QR SIEMPRE (LINK AFIP + IMG)\n// Tomamos lo que venga de qrNode si está, si no usamos defaults\nconst ptoVtaQR = Number(qrNode?.punto_venta || 4);\nconst nroCmpQR = Number(qrNode?.numero_comprobante || 0);\nconst caeQR = String(qrNode?.cod_autorizacion || \"\").trim();\nconst vtoQR = String(qrNode?.vto_cae || \"\").trim();\nconst fechaCmp = qrNode?.fecha_emision || (body.date ? new Date(body.date).toISOString().slice(0, 10) : \"\");\n\n// Data QR oficial AFIP\nconst qrData = {\n  ver: 1,\n  fecha: formatFechaQR(fechaCmp),\n  cuit: CUIT_EMISOR,\n  ptoVta: ptoVtaQR,\n  tipoCmp: Number(tipoCmp),\n  nroCmp: nroCmpQR,\n  importe: Number(body.total || 0),\n  moneda: \"PES\",\n  ctz: 1,\n  tipoDocRec: 80,\n  nroDocRec: Number(body.client?.cuit || 0),\n  tipoCodAut: \"E\",\n  codAut: caeQR ? Number(caeQR) : 0\n};\n\nconst urlQrAfip = `https://www.afip.gob.ar/fe/qr/?p=${Buffer.from(JSON.stringify(qrData)).toString('base64')}`;\n\n// Imagen del QR (esto es lo que va en el <img src=\"...\">)\nconst qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(urlQrAfip)}`;\n\n// QR para HTML\nconst qr = {\n  img: qrImageUrl,\n  cae: caeQR,\n  vto: vtoQR\n};\n\n// 11) FACTURA (NC)\nconst factura = {\n  titulo: \"NOTA DE CRÉDITO\",\n  letra,\n  codigo: codigoComprobante,\n  ptoVta: pad(ptoVtaQR, 5),\n  numero: pad(nroCmpQR, 8),\n  fecha: formatFechaQR(fechaCmp),\n  vencimiento: formatFechaQR(fechaCmp),\n  asociado: asociadoTxt\n};\n\n// 12) SALIDA PARA HTML\nreturn {\n  emisor,\n\n  cliente: {\n    nombre: body.client?.name || \"Consumidor Final\",\n    cuit: body.client?.cuit || \"0\",\n    condicionIva: body.client?.taxCondition || \"Consumidor Final\",\n    domicilio: direccionCliente\n  },\n\n  factura,\n\n  totales: {\n    subtotal: money.format(Number(body.subtotal || 0)),\n    descuento: money.format(Number(body.discountAmount || 0)),\n    neto: money.format(Number(body.netTaxable || 0)),\n    iva: money.format(Number(body.vatTotal || 0)),\n    tasa_iva: tasaIva,\n    total: money.format(Number(body.total || 0)),\n    moneda: \"$\"\n  },\n\n  qr,\n  tabla_productos: itemsHtml,\n\n  // opcional para tu HTML (si querés que sea clickeable)\n  qr_link_afip: urlQrAfip\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1152,
+        2896
+      ],
+      "id": "e67f7846-73a5-4153-862d-15c3db25186c",
+      "name": "generate_qr_text1",
+      "retryOnFail": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://app.afipsdk.com/api/v1/pdfs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ $(\"Config Credenciales1\").first().json.bearerToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "html",
+              "value": "={{ $json.html }}"
+            },
+            {
+              "name": "file_name",
+              "value": "=nc_{{ $('create_voucher').item.json.FECAESolicitarResult.FeDetResp.FECAEDetResponse[0].CbteDesde }}.pdf"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1744,
+        2896
+      ],
+      "id": "3b4e3b66-0cfe-47be-8dc1-902a0a187206",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.file }}",
+        "options": {
+          "response": {
+            "response": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1952,
+        2896
+      ],
+      "id": "22e5dae4-6306-4632-ae74-edc506b6e9ab",
+      "name": "HTTP Request12",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.file }}",
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2160,
+        2896
+      ],
+      "id": "2617aad6-794b-4020-a748-da5d59e7be20",
+      "name": "generar pdf para mail1"
+    },
+    {
+      "parameters": {
+        "respondWith": "binary",
+        "responseDataSource": "set",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Expose-Headers",
+                "value": "=x-cae, x-invoice-id, x-invoice-number"
+              },
+              {
+                "name": "x-cae",
+                "value": "={{ $('create_voucher').item.json.FECAESolicitarResult.FeDetResp.FECAEDetResponse[0].CAE }}"
+              },
+              {
+                "name": "x-invoice-id",
+                "value": "={{ $json.id }} "
+              },
+              {
+                "name": "x-invoice-number",
+                "value": "={{ $('Code in JavaScript5').item.json.factura.numero }}"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/pdf"
+              },
+              {
+                "name": "Body",
+                "value": "PDF binario"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2368,
+        2896
+      ],
+      "id": "e2ed29f2-da82-4711-aeba-56c856bf7b32",
+      "name": "Respond to Webhook3"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://app.afipsdk.com/api/v1/afip/requests",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer 3zZiVxOJP4zPQbK5mEc6FXQOa34hOPAPTSu3bl2S51LewxPc15xUb63Dm43s4BiL"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"environment\": \"prod\",\n  \"method\": \"FECompUltimoAutorizado\",\n  \"wsid\": \"wsfe\",\n  \"params\": {\n    \"Auth\": {\n      \"Token\": \"{{ $('get_authorization').first().json.token }}\",\n      \"Sign\": \"{{ $('get_authorization').first().json.sign }}\",\n      \"Cuit\": {{ Number($(\"Config Credenciales1\").first().json.authBody.tax_id) }}\n    },\n    \"PtoVta\": {{ $('Code Unificador1').first().json.PtoVta }},\n    \"CbteTipo\": {{ $('Code Unificador1').first().json.CbteTipo }}\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        544,
+        2896
+      ],
+      "id": "5e8f1bc9-af05-4a12-8137-0fab0b76ab37",
+      "name": "get_last_voucher_number6"
+    },
+    {
+      "parameters": {
+        "jsCode": "const emisorWebhook = $('Webhook').first().json.body.emisor || {};\nconst emisor = {\n  razonSocial: emisorWebhook.razonSocial || \"SIN CONFIGURAR\",\n  domicilio: emisorWebhook.domicilio || \"-\",\n  condicionIva: emisorWebhook.condicionIva || \"-\",\n  iibb: emisorWebhook.iibb || \"-\",\n  inicioAct: emisorWebhook.inicioActividades || \"-\"\n};\nconst CUIT_EMISOR = Number($('Config Credenciales1').first().json.authBody.tax_id);\n\n// =========================\n// Code in JavaScript3 (Data para HTML - Nota de Crédito)\n// =========================\n\n// 1) TRAER UNIFICADOR (Fuente de verdad de importes y fechas)\nlet uni = {};\ntry {\n  uni = $('Code Unificador1').first().json;\n} catch (e) {\n  console.log(\"⚠️ No se encontró 'Code Unificador'\");\n}\n\n// 2) TRAER WEBHOOK (Para datos de cliente y productos)\nlet wb = {};\ntry {\n  wb = $('Webhook').first().json.body || {};\n} catch (e) {\n  try { wb = $('webhook1').first().json.body || {}; } catch (e2) {}\n}\n\n// 3) TRAER CREATE_VOUCHER1 (Fuente de verdad del CAE y Numero real)\nlet cabecera = {};\nlet detAfip = {};\ntry {\n  const cv = $('create_voucher').first().json; \n  \n  const r = cv.FECAESolicitarResult || {};\n  cabecera = r.FeCabResp || {};\n  \n  if (r.FeDetResp && r.FeDetResp.FECAEDetResponse && r.FeDetResp.FECAEDetResponse[0]) {\n      detAfip = r.FeDetResp.FECAEDetResponse[0];\n  }\n} catch (e) {\n  console.log(\"⚠️ No se pudo leer 'create_voucher1'\");\n}\n\n// 4) TRAER QR (Opcional)\nlet qrNode = null;\ntry {\n  qrNode = $('generate_qr_text1').first().json;\n} catch (e) { qrNode = null; }\n\n// 5) HELPERS DE FORMATO\nconst pad = (num, size) => ('000000000' + (num ?? 0)).slice(-size);\nconst formatFecha = (f) => {\n  const s = String(f || \"\");\n  if (s.length === 8 && /^\\d{8}$/.test(s)) return `${s.slice(6,8)}/${s.slice(4,6)}/${s.slice(0,4)}`;\n  return \"\"; \n};\nconst moneyStr = (n) => Number(n || 0).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2});\n\n// 6) DATOS DEL UNIFICADOR\nconst detalle = uni.detalleParaAfip || {};\nconst impNeto  = parseFloat(detalle.ImpNeto || 0);\nconst impIVA   = parseFloat(detalle.ImpIVA || 0);\nconst impTotal = parseFloat(detalle.ImpTotal || 0);\n\nconst fechaEmision = formatFecha(detalle.CbteFch);\nconst fDesde = formatFecha(detalle.FchServDesde);\nconst fHasta = formatFecha(detalle.FchServHasta);\nconst fVto   = formatFecha(detalle.FchVtoPago || detalle.CbteFch);\nconst concepto = detalle.Concepto || 1;\n\n// 7) DATOS DE AFIP (CAE y NUMERO ACTUAL)\nconst ptoVtaNum = Number(cabecera.PtoVta || uni.PtoVta || 0);\nconst nroNum    = Number(detAfip.CbteDesde || detAfip.CbteHasta || 0);\nconst caeFinal  = String(detAfip.CAE || \"\");\nconst vtoCaeFinal = formatFecha(detAfip.CAEFchVto || \"\");\n\nconst tipoCmp = Number(uni.CbteTipo || cabecera.CbteTipo || 0);\nconst letrasNC = { 1:'A', 6:'B', 11:'C', 3:'A', 8:'B', 13:'C' };\nconst letra = letrasNC[tipoCmp] || 'C'; \nconst codigo = String(tipoCmp).padStart(3, '0');\n\n// 8) TABLA PRODUCTOS --- AQUÍ ESTÁ EL CAMBIO DE FORMATO ---\nlet itemsHtml = uni.f_tabla_body || \"\";\n\nif (!itemsHtml && wb.items) {\n  itemsHtml = wb.items.map(item => {\n    \n    // Datos base\n    const nombre = item.productName || \"Concepto\";\n    const sku = item.sku || \"\";\n    const desp = item.dispatchNumber; // Puede ser null/undefined\n    const org = item.origin;          // Puede ser null/undefined\n    \n    // --- LÓGICA DE FORMATO EXACTO FOTO ---\n    // Queremos: \"Nombre (Desp: XXX Org: YYY)\"\n    let descripcionFinal = nombre;\n    \n    // Solo agregamos paréntesis si hay info de despacho u origen\n    if (desp || org) {\n        let extras = [];\n        if (desp) extras.push(`Desp: ${desp}`);\n        if (org)  extras.push(`Org: ${org}`);\n        \n        // Unimos con espacio y envolvemos en paréntesis\n        descripcionFinal += ` (${extras.join(' ')})`;\n    }\n    \n    return `\n      <tr>\n        <td>${sku}</td>\n        <td>${descripcionFinal}</td> <td class=\"text-center\">${item.quantity ?? 1}</td>\n        <td class=\"text-center\">u.</td>\n        <td class=\"text-right\">${moneyStr(item.unitPrice || 0)}</td>\n        <td class=\"text-right\">${moneyStr(item.subtotal || 0)}</td>\n      </tr>\n    `;\n  }).join('');\n}\n\n// 9) ASOCIADO (Caja Amarilla)\n// Buscamos \"originalInvoiceCae\" (minúscula) y \"originalInvoiceCAE\" (mayúscula)\nconst origNum = wb.originalInvoiceNumber || wb.originalInvoiceId || \"-\";\nconst origCae = wb.originalInvoiceCAE || wb.originalInvoiceCae || \"-\";\n\nconst f_asociado = (origNum !== \"-\" || origCae !== \"-\")\n    ? `Comprobante Asociado: ${origNum} (CAE: ${origCae})`\n    : \"\";\n\n// 10) QR\nlet qrImg = \"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=AFIP\";\nif (qrNode && qrNode.qr_url) qrImg = qrNode.qr_url;\n\n// 11) EMISOR\nconst emisorWH = $('Webhook').first().json.body.emisor || {};\nconst emisor = {\n  razonSocial: emisorWH.razonSocial || \"SIN CONFIGURAR\",\n  domicilio: emisorWH.domicilio || \"-\",\n  condicionIva: emisorWH.condicionIva || \"-\",\n  iibb: emisorWH.iibb || \"-\",\n  inicioAct: emisorWH.inicioActividades || \"-\"\n};\n\n// RETORNO FINAL\nreturn {\n  emisor,\n  cliente: {\n    nombre: wb.client?.name || \"Consumidor Final\",\n    cuit: wb.client?.cuit || \"0\",\n    condicionIva: wb.client?.tax_condition || wb.client?.taxCondition || \"Consumidor Final\",\n    domicilio: wb.client?.address || \"-\"\n  },\n  factura: {\n    letra: letra,\n    codigo: codigo,\n    ptoVta: pad(ptoVtaNum, 5),\n    numero: pad(nroNum, 8),\n    fecha: fechaEmision,\n    vencimiento: fVto,\n    concepto: concepto,\n    serv_desde: fDesde,\n    serv_hasta: fHasta\n  },\n  totales: {\n    subtotal: moneyStr(impNeto), \n    descuento: moneyStr(uni.descuento_aplicado || 0),\n    neto: moneyStr(impNeto),\n    iva: moneyStr(impIVA),\n    tasa_iva: String(wb.items?.[0]?.vatRate ?? 21),\n    total: moneyStr(impTotal),\n    moneda: \"$\"\n  },\n  qr: {\n    img: qrImg,\n    cae: caeFinal,\n    vto: vtoCaeFinal\n  },\n  f_titulo: \"NOTA DE CRÉDITO\",\n  f_asociado: f_asociado, \n  tabla_productos: itemsHtml\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1328,
+        2896
+      ],
+      "id": "83c86db5-8775-4121-b1fb-0b440338a8c8",
+      "name": "Code in JavaScript5"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://app.afipsdk.com/api/v1/afip/requests",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 3zZiVxOJP4zPQbK5mEc6FXQOa34hOPAPTSu3bl2S51LewxPc15xUb63Dm43s4BiL"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "=json",
+        "specifyBody": "json",
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "jsonBody": "={\n  \"environment\": \"prod\",\n  \"method\": \"FECAESolicitar\",\n  \"wsid\": \"wsfe\",\n  \"params\": {\n    \"Auth\": {\n      \"Token\": \"{{ $('get_authorization').first().json.token }}\",\n      \"Sign\": \"{{ $('get_authorization').first().json.sign }}\",\n      \"Cuit\": {{ Number($(\"Config Credenciales1\").first().json.authBody.tax_id) }}\n    },\n    \"FeCAEReq\": {\n      \"FeCabReq\": {\n        \"CantReg\": 1,\n        \"PtoVta\": {{ $('Code Unificador1').first().json.PtoVta }},\n        \"CbteTipo\": {{ $('Code Unificador1').first().json.CbteTipo }}\n      },\n      \"FeDetReq\": {\n        \"FECAEDetRequest\": [\n          {\n            \"Concepto\": {{ $('Code Unificador1').first().json.detalleParaAfip.Concepto }},\n            \"DocTipo\": {{ $('Code Unificador1').first().json.detalleParaAfip.DocTipo }},\n            \"DocNro\": {{ $('Code Unificador1').first().json.detalleParaAfip.DocNro }},\n            \"CbteDesde\": {{ $('get_last_voucher_number6').first().json.FECompUltimoAutorizadoResult.CbteNro + 1 }},\n            \"CbteHasta\": {{ $('get_last_voucher_number6').first().json.FECompUltimoAutorizadoResult.CbteNro + 1 }},\n            \"CbteFch\": \"{{ $('Code Unificador1').first().json.detalleParaAfip.CbteFch }}\",\n            \n            \"ImpTotal\": {{ $('Code Unificador1').first().json.detalleParaAfip.ImpTotal }},\n            \"ImpTotConc\": 0,\n            \"ImpNeto\": {{ $('Code Unificador1').first().json.detalleParaAfip.ImpNeto }},\n            \"ImpOpEx\": {{ $('Code Unificador1').first().json.detalleParaAfip.ImpOpEx }},\n            \"ImpTrib\": {{ $('Code Unificador1').first().json.detalleParaAfip.ImpTrib }},\n            \"ImpIVA\": {{ $('Code Unificador1').first().json.detalleParaAfip.ImpIVA }},\n            \n            \"MonId\": \"PES\",\n            \"MonCotiz\": 1,\n            \n            \"FchServDesde\": \"{{ $('Code Unificador1').first().json.detalleParaAfip.FchServDesde }}\",\n            \"FchServHasta\": \"{{ $('Code Unificador1').first().json.detalleParaAfip.FchServHasta }}\",\n            \"FchVtoPago\": \"{{ $('Code Unificador1').first().json.detalleParaAfip.FchVtoPago }}\",\n\n            \"Iva\": {{ $('Code Unificador1').first().json.detalleParaAfip.Iva ? JSON.stringify({ \"AlicIva\": $('Code Unificador1').first().json.detalleParaAfip.Iva }) : null }},\n\n            \"CbtesAsoc\": {{ $('Code Unificador1').first().json.detalleParaAfip.CbtesAsoc ? JSON.stringify({ \"CbteAsoc\": $('Code Unificador1').first().json.detalleParaAfip.CbtesAsoc }) : null }}\n          }\n        ]\n      }\n    }\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        848,
+        2896
+      ],
+      "id": "a14e7036-31bd-4702-8119-c9c3307116e9",
+      "name": "create_voucher",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://app.afipsdk.com/api/v1/afip/requests",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer 3zZiVxOJP4zPQbK5mEc6FXQOa34hOPAPTSu3bl2S51LewxPc15xUb63Dm43s4BiL"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"environment\": \"prod\",\n  \"method\": \"FECompUltimoAutorizado\",\n  \"wsid\": \"wsfe\",\n  \"params\": {\n    \"Auth\": {\n      \"Token\": \"{{ $('get_authorization').item.json.token }}\",\n      \"Sign\": \"{{ $('get_authorization').item.json.sign }}\",\n      \"Cuit\": {{ Number($(\"Config Credenciales1\").first().json.authBody.tax_id) }} \n    },\n    \"PtoVta\": {{ Number($(\"Webhook\").first().json.body.emisor.puntoVenta) || 1 }},\n    \"CbteTipo\": {{ $('Code Unificador4').item.json.CbteTipo }}\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        544,
+        3760
+      ],
+      "id": "27a2e03b-357f-48f0-8345-14de35242098",
+      "name": "get_last_voucher_number1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://app.afipsdk.com/api/v1/afip/requests",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 3zZiVxOJP4zPQbK5mEc6FXQOa34hOPAPTSu3bl2S51LewxPc15xUb63Dm43s4BiL"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "=json",
+        "specifyBody": "json",
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "jsonBody": "={\n  \"environment\": \"prod\",\n  \"method\": \"FECAESolicitar\",\n  \"wsid\": \"wsfe\",\n  \"params\": {\n    \"Auth\": {\n      \"Token\": \"{{ $('get_authorization').item.json.token }}\",\n      \"Sign\": \"{{ $('get_authorization').item.json.sign }}\",\n      \"Cuit\": {{ Number($(\"Config Credenciales1\").first().json.authBody.tax_id) }}\n    },\n    \"FeCAEReq\": {\n      \"FeCabReq\": {\n        \"CantReg\": 1,\n        \"PtoVta\": {{ Number($(\"Webhook\").first().json.body.emisor.puntoVenta) || 1 }},\n        \"CbteTipo\": {{ $('Code Unificador4').item.json.CbteTipo }}\n      },\n      \"FeDetReq\": {\n        \"FECAEDetRequest\": [\n          {\n            \"Concepto\": {{ $('Code Unificador4').item.json.detalleParaAfip.Concepto }},\n            \"DocTipo\": {{ $('Code Unificador4').item.json.detalleParaAfip.DocTipo }},\n            \"DocNro\": {{ $('Code Unificador4').item.json.detalleParaAfip.DocNro }},\n            \"CbteDesde\": {{ $('get_last_voucher_number1').item.json.FECompUltimoAutorizadoResult.CbteNro + 1 }},\n            \"CbteHasta\": {{ $('get_last_voucher_number1').item.json.FECompUltimoAutorizadoResult.CbteNro + 1 }},\n            \"CbteFch\": \"{{ $('Code Unificador4').item.json.detalleParaAfip.CbteFch }}\",\n            \"ImpTotal\": {{ $('Code Unificador4').item.json.detalleParaAfip.ImpTotal }},\n            \"ImpTotConc\": 0,\n            \"ImpNeto\": {{ $('Code Unificador4').item.json.detalleParaAfip.ImpNeto }},\n            \"ImpOpEx\": {{ $('Code Unificador4').item.json.detalleParaAfip.ImpOpEx }},\n            \"ImpTrib\": {{ $('Code Unificador4').item.json.detalleParaAfip.ImpTrib }},\n            \"ImpIVA\": {{ $('Code Unificador4').item.json.detalleParaAfip.ImpIVA }},\n            \"MonId\": \"PES\",\n            \"MonCotiz\": 1,\n            \"Iva\": {\n              \"AlicIva\": [\n                {\n                  \"Id\": {{ $('Code Unificador4').item.json.detalleParaAfip.Iva[0].Id }},\n                  \"BaseImp\": {{ $('Code Unificador4').item.json.detalleParaAfip.Iva[0].BaseImp }},\n                  \"Importe\":{{ $('Code Unificador4').item.json.detalleParaAfip.Iva[0].Importe }} \n                }\n              ]\n            }\n          }\n        ]\n      }\n    }\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        768,
+        3760
+      ],
+      "id": "460e654f-8276-48f4-b64f-af8ceed98d38",
+      "name": "create_voucher8",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "html": "<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <link href=\"https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap\" rel=\"stylesheet\">\n    <style>\n        /* --- CONFIGURACIÓN DE PÁGINA --- */\n        @page { \n            size: A4; \n            margin: 10mm; \n        }\n\n        * { box-sizing: border-box; -webkit-box-sizing: border-box; }\n\n        body { \n            font-family: 'Inter', sans-serif; \n            font-size: 11px; \n            margin: 0; \n            padding: 0; \n            background-color: #525659; \n            display: block; \n            -webkit-print-color-adjust: exact; \n            print-color-adjust: exact; \n        }\n\n        .invoice-page { \n            background: white; \n            width: 210mm; \n            min-height: 297mm; \n            margin: 0 auto; \n            padding: 5mm 10mm; \n            position: relative; \n            display: block; \n        }\n\n        /* --- ESTILOS GENERALES --- */\n        .header-container { margin-bottom: 20px; }\n        .doc-header-strip { background-color: #f9fafb; border: 1px solid #e5e7eb; text-align: center; font-weight: 700; letter-spacing: 0.1em; padding: 5px; font-size: 10px; margin-bottom: 25px; }\n        \n        .company-info-row { display: flex; justify-content: space-between; position: relative; padding-top: 15px; border-top: 2px solid #111827; }\n        \n        .letter-box { position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%); background-color: #111827; color: white; width: 45px; height: 45px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 4px; z-index: 10; box-shadow: 0 0 0 5px white; }\n        .letter-char { font-size: 22px; font-weight: 800; line-height: 1; }\n        .letter-code { font-size: 7px; font-weight: 600; }\n        \n        .col-data { flex: 1; padding-right: 30px; }\n        .col-data.right { text-align: right; padding-right: 0; padding-left: 30px; }\n        .title-main { font-size: 18px; font-weight: 900; margin-bottom: 8px; text-transform: uppercase; }\n        .data-line { margin-bottom: 3px; font-size: 10px; }\n        .label { font-weight: 600; color: #4b5563; margin-right: 4px; }\n        .value { font-weight: 700; color: #111827; }\n        \n        /* Estilo de la barra gris */\n        .bar-gray { background-color: #f3f4f6; padding: 8px 10px; border-radius: 4px; margin-bottom: 15px; display: flex; justify-content: space-between; font-size: 10px; }\n        \n        .client-box { border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 15px; }\n        .client-field { display: flex; flex-direction: column; }\n        .client-field.wide { flex: 1; min-width: 200px; }\n        .client-field.full { width: 100%; margin-top: 5px; border-top: 1px solid #f3f4f6; padding-top: 5px;}\n        .lbl-sm { font-size: 8px; text-transform: uppercase; color: #6b7280; font-weight: 700; }\n        \n        /* --- TABLA --- */\n        .table-wrapper { width: 100%; display: block; }\n        .items-table { width: 100%; border-collapse: collapse; page-break-inside: auto; }\n        .items-table thead { display: table-header-group; }\n        .items-table tr { page-break-inside: avoid; page-break-after: auto; }\n        .items-table th { background: #111827; color: white; font-size: 9px; text-transform: uppercase; padding: 6px 4px; text-align: left; }\n        .items-table td { padding: 6px 4px; border-bottom: 1px solid #e5e7eb; font-size: 10px; color: #374151; vertical-align: top; }\n        \n        .text-right { text-align: right; }\n        .text-center { text-align: center; }\n\n        /* --- FOOTER --- */\n        .bottom-section { margin-top: 20px; border-top: 2px solid #111827; padding-top: 10px; page-break-inside: avoid; }\n        .totals-row { display: flex; justify-content: flex-end; margin-bottom: 10px; }\n        .totals-grid { width: 250px; }\n        .t-row { display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 10px;}\n        .t-row.final { font-size: 13px; font-weight: 800; border-top: 1px solid #e5e7eb; padding-top: 5px; margin-top: 2px; }\n        \n        .footer-legal { display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid #e5e7eb; }\n        .afip-qr { display: flex; align-items: center; gap: 10px; }\n        .afip-qr img { width: 70px; height: 70px; }\n        .cae-container { text-align: right; background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 8px 12px; border-radius: 4px; }\n        .cae-line { color: #166534; font-size: 10px; font-weight: 600; }\n        .cae-line span { font-family: monospace; font-size: 12px; margin-left: 5px; }\n    </style>\n</head>\n<body>\n\n    <div class=\"invoice-page\">\n\n        <div class=\"header-container\">\n            <div class=\"doc-header-strip\">ORIGINAL</div>\n            \n            <div class=\"company-info-row\">\n                <div class=\"letter-box\">\n                    <span class=\"letter-char\">{{ $json.factura.letra }}</span>\n                    <span class=\"letter-code\">COD. {{ $json.factura.codigo }}</span>\n                </div>\n\n                <div class=\"col-data\">\n                    <div class=\"title-main\">{{ $json.emisor.razonSocial }}</div>\n                    <div class=\"data-line\"><span class=\"label\">Razón Social:</span> <span class=\"value\">{{ $json.emisor.razonSocial }}</span></div>\n                    <div class=\"data-line\"><span class=\"label\">Domicilio:</span> <span class=\"value\">{{ $json.emisor.domicilio }}</span></div>\n                    <div class=\"data-line\"><span class=\"label\">Condición IVA:</span> <span class=\"value\">{{ $json.emisor.condicionIva }}</span></div>\n                </div>\n\n                <div class=\"col-data right\">\n                    <div class=\"title-main\">FACTURA</div>\n                    <div class=\"data-line\"><span class=\"label\">Punto de Venta:</span> <span class=\"value\">{{ $json.factura.ptoVta }}</span></div>\n                    <div class=\"data-line\"><span class=\"label\">Comp. Nro:</span> <span class=\"value\">{{ $json.factura.numero }}</span></div>\n                    <div class=\"data-line\"><span class=\"label\">Fecha de Emisión:</span> <span class=\"value\">{{ $json.factura.fecha }}</span></div>\n                    <div class=\"data-line\"><span class=\"label\">CUIT:</span> <span class=\"value\">{{ $json.emisor.iibb }}</span></div>\n                    <div class=\"data-line\"><span class=\"label\">Ingresos Brutos:</span> <span class=\"value\">{{ $json.emisor.iibb }}</span></div>\n                    <div class=\"data-line\"><span class=\"label\">Inicio Act.:</span> <span class=\"value\">{{ $json.emisor.inicioAct }}</span></div>\n                </div>\n            </div>\n        </div>\n\n        <div class=\"bar-gray\">\n            <div>\n                <span class=\"label\">Período:</span> \n                {{ $json.factura.serv_desde ? ($json.factura.serv_desde + ' al ' + $json.factura.serv_hasta) : $json.factura.fecha }}\n            </div>\n            <div>\n                <span class=\"label\">Fecha de Vencimiento:</span> \n                <span class=\"value\">{{ $json.factura.vencimiento }}</span>\n            </div>\n        </div>\n        <div class=\"client-box\">\n            <div class=\"client-field\">\n                <span class=\"lbl-sm\">CUIT</span>\n                <span class=\"value\">{{ $json.cliente.cuit }}</span>\n            </div>\n            <div class=\"client-field\">\n                <span class=\"lbl-sm\">Condición IVA</span>\n                <span class=\"value\">{{ $json.cliente.condicionIva }}</span>\n            </div>\n            <div class=\"client-field wide\">\n                <span class=\"lbl-sm\">Razón Social / Nombre</span>\n                <span class=\"value\">{{ $json.cliente.nombre }}</span>\n            </div>\n            <div class=\"client-field full\">\n                <span class=\"lbl-sm\">Domicilio Comercial</span>\n                <span class=\"value\">{{ $json.cliente.domicilio }}</span>\n            </div>\n        </div>\n\n        <div class=\"table-wrapper\">\n            <table class=\"items-table\">\n                <thead>\n                    <tr>\n                        <th width=\"10%\">Código</th>\n                        <th width=\"50%\">Producto / Servicio</th>\n                        <th width=\"10%\" class=\"text-center\">Cant.</th>\n                        <th width=\"10%\" class=\"text-center\">U.M.</th>\n                        <th width=\"10%\" class=\"text-right\">Precio Unit.</th>\n                        <th width=\"10%\" class=\"text-right\">Subtotal</th>\n                    </tr>\n                </thead>\n                <tbody>\n                    {{ $json.tabla_productos }}\n                </tbody>\n            </table>\n        </div>\n\n        <div class=\"bottom-section\">\n            <div class=\"totals-row\">\n                <div class=\"totals-grid\">\n                    \n                    <div class=\"t-row\">\n                        <span class=\"label\">Subtotal:</span>\n                        <span class=\"value\">{{ $json.totales.moneda }} {{ $json.totales.subtotal }}</span>\n                    </div>\n                    \n                    <div class=\"t-row\" style=\"color: #ef4444;\">\n                        <span class=\"label\">Bonificación:</span>\n                        <span class=\"value\">- {{ $json.totales.moneda }} {{ $json.totales.descuento }}</span>\n                    </div>\n\n                    <div class=\"t-row\">\n                        <span class=\"label\">IVA ({{ $json.totales.tasa_iva }}%):</span>\n                        <span class=\"value\">{{ $json.totales.moneda }} {{ $json.totales.iva }}</span>\n                    </div>\n\n                    <div class=\"t-row\">\n                        <span class=\"label\">Otros Tributos:</span>\n                        <span class=\"value\">{{ $json.totales.moneda }} 0,00</span>\n                    </div>\n                    \n                    <div class=\"t-row final\">\n                        <span>TOTAL:</span>\n                        <span>{{ $json.totales.moneda }} {{ $json.totales.total }}</span>\n                    </div>\n                </div>\n            </div>\n\n            <div class=\"footer-legal\">\n                <div class=\"afip-qr\">\n                    <img src=\"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={{ $json.qr.img }}\" alt=\"QR\">\n                    <div>\n                        <div style=\"font-weight: 900; font-size: 16px; line-height: 1;\">ARCA</div>\n                        <div style=\"font-size: 7px; font-weight: 600; color: #6b7280; text-transform: uppercase;\">Administración Federal de<br>Ingresos Públicos</div>\n                        <div style=\"font-size: 9px; margin-top: 3px;\">Comprobante Autorizado</div>\n                    </div>\n                </div>\n                <div class=\"cae-container\">\n                    <div class=\"cae-line\">CAE Nº <span>{{ $json.qr.cae }}</span></div>\n                    <div class=\"cae-line\">Vto. CAE <span>{{ $json.qr.vto }}</span></div>\n                </div>\n            </div>\n        </div>\n\n    </div>\n</body>\n</html>"
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        1632,
+        3744
+      ],
+      "id": "6cffc1b7-aefd-43ba-8332-4b8e7c6e92d6",
+      "name": "HTML5"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. OBTENCIÓN DE DATOS\n// Estrategia Segura: Usamos 'items[0].json' para los datos de AFIP\n// (ya que este nodo recibe los datos directamente del If1 <- create_voucher4)\nlet voucherNode;\ntry {\n    voucherNode = items[0].json;\n    // Validación básica para asegurar que tenemos datos de AFIP\n    if (!voucherNode.FECAESolicitarResult) {\n        // Si no está en el input, intentamos buscarlo por nombre como respaldo\n        voucherNode = $('create_voucher8').first().json;\n    }\n} catch (e) {\n    throw new Error(\"❌ No encuentro los datos de AFIP. Asegúrate que la factura se creó correctamente (Resultado A).\");\n}\n\n// Para el Code Unificador sí necesitamos buscar por nombre.\n// ATENCIÓN: Si esto falla, verifica que el nodo se llame EXACTAMENTE \"Code Unificador1\" (sin espacios extra).\nlet unificadorNode;\ntry {\n    unificadorNode = $('Code Unificador4').first().json;\n} catch (e) {\n    throw new Error(\"❌ No encuentro el nodo 'Code Unificador1'. Por favor revisa si tiene un espacio al final del nombre.\");\n}\n\n// Asignación de variables cortas\nconst detResp = voucherNode.FECAESolicitarResult.FeDetResp.FECAEDetResponse[0];\nconst cabResp = voucherNode.FECAESolicitarResult.FeCabResp;\nconst detAfip = unificadorNode.detalleParaAfip;\n\n// 2. FORMATEO\n// Fecha: YYYYMMDD -> YYYY-MM-DD\nconst rawDate = String(detResp.CbteFch);\nconst formattedDate = `${rawDate.substring(0, 4)}-${rawDate.substring(4, 6)}-${rawDate.substring(6, 8)}`;\n\n// Número de Comprobante\n// Usamos el que devuelve AFIP en esta misma transacción (CbteDesde). Es lo más seguro.\nconst nroComprobante = detResp.CbteDesde;\n\n// 3. ARMADO DEL JSON (Formato AFIP Oficial)\nconst qrDataObj = {\n    \"ver\": 1,\n    \"fecha\": formattedDate,\n    \"cuit\": parseInt(cabResp.Cuit),\n    \"ptoVta\": parseInt(cabResp.PtoVta),\n    \"tipoCmp\": parseInt(cabResp.CbteTipo),\n    \"nroCmp\": parseInt(nroComprobante),\n    \"importe\": parseFloat(detAfip.ImpTotal),\n    \"moneda\": detAfip.MonId,\n    \"ctz\": parseFloat(detAfip.MonCotiz),\n    \"tipoDocRec\": parseInt(detAfip.DocTipo),\n    \"nroDocRec\": parseInt(detAfip.DocNro),\n    \"tipoCodAut\": \"E\",\n    \"codAut\": parseInt(detResp.CAE || 0)\n};\n\n// 4. GENERACIÓN URL\nconst jsonString = JSON.stringify(qrDataObj);\nconst base64Data = Buffer.from(jsonString).toString('base64');\nconst qrUrl = `https://www.afip.gob.ar/fe/qr/?p=${base64Data}`;\n\n// 5. RETORNO\nreturn {\n    json: {\n        // Datos formateados listos para tu HTML\n        fecha_emision: formattedDate,\n        cuit_emisor: cabResp.Cuit,\n        punto_venta: cabResp.PtoVta,\n        tipo_comprobante: cabResp.CbteTipo,\n        numero_comprobante: nroComprobante,\n        importe_total: detAfip.ImpTotal,\n        moneda: detAfip.MonId,\n        cotizacion: detAfip.MonCotiz,\n        tipo_doc_receptor: detAfip.DocTipo,\n        nro_doc_receptor: detAfip.DocNro,\n        cod_autorizacion: detResp.CAE,\n        vto_cae: detResp.CAEFchVto,\n        \n        // QR Data\n        qr_url: qrUrl,\n        f_body: qrDataObj\n    }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        3744
+      ],
+      "id": "756711fd-9649-4151-97d5-d22d5c89aa67",
+      "name": "generate_qr_text6",
+      "retryOnFail": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://app.afipsdk.com/api/v1/pdfs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ $(\"Config Credenciales1\").first().json.bearerToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "html",
+              "value": "={{ $json.html }}"
+            },
+            {
+              "name": "file_name",
+              "value": "=factura_{{ $('create_voucher9').item.json.FECAESolicitarResult.FeDetResp.FECAEDetResponse[0].CbteDesde }}.pdf"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1824,
+        3744
+      ],
+      "id": "68c2b217-8d3e-42ab-84dc-6f267a8f7b76",
+      "name": "HTTP Request13"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.file }}",
+        "options": {
+          "response": {
+            "response": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2000,
+        3744
+      ],
+      "id": "885e03fa-ffac-4bef-9372-5850edb31508",
+      "name": "HTTP Request14",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. TRAEMOS LOS ÍTEMS (PRODUCTOS) Y EL DESCUENTO DEL WEBHOOK\nconst itemsEntrada = $('Recibo Datos').all(); \n\n// --- RESCATE DEL DESCUENTO ---\nlet montoDescuento = 0;\ntry {\n    const webhookData = $('Webhook').first().json.body; \n    montoDescuento = parseFloat(webhookData.discountAmount || 0);\n} catch (e) {\n    montoDescuento = 0;\n}\n\n// Tomamos cabecera del primero\nconst cabecera = itemsEntrada[0].json;\n\n// --- MEJORA: Detección flexible de tipo de comprobante ---\nconst tipoOriginal = (cabecera.type || cabecera.TipoDeFactura || \"\").toString().toUpperCase();\n\nlet codigoAfip = 11; // Por defecto C\n\nif (tipoOriginal.includes(\"A\")) {\n    codigoAfip = tipoOriginal.includes(\"NOTA\") ? 3 : 1;\n} else if (tipoOriginal.includes(\"B\")) {\n    codigoAfip = tipoOriginal.includes(\"NOTA\") ? 8 : 6;\n} else if (tipoOriginal.includes(\"C\")) {\n    codigoAfip = tipoOriginal.includes(\"NOTA\") ? 13 : 11;\n}\n\n// 3. INICIALIZAMOS VARIABLES\nlet totalNeto = 0;\nlet totalIva = 0;\nlet totalComprobante = 0;\nlet detalleItemsParaAfip = [];\n\n// 4. BUCLE DE PRODUCTOS\nfor (const item of itemsEntrada) {\n    const prod = item.json;\n\n    const cantidad = parseFloat(prod.Cantidad || 0);\n    const precioUnitario = parseFloat(prod.PrecioUnitario || 0);\n    const netoLinea = parseFloat((precioUnitario * cantidad).toFixed(2));\n    \n    // --- MEJORA IVA: Forzamos ID 5 si es comprobante tipo 1, 3, 6 u 8 ---\n    let tasaIva = 0; \n    let idAlicuota = 3; \n\n    // Si el código es de los que llevan IVA (A o B), forzamos ID 5\n    if ([1, 3, 6, 8].includes(codigoAfip)) { \n        tasaIva = 0.21; \n        idAlicuota = 5; \n    }\n    \n    const ivaLinea = parseFloat((netoLinea * tasaIva).toFixed(2));\n    const totalLinea = parseFloat((netoLinea + ivaLinea).toFixed(2));\n\n    totalNeto += netoLinea;\n    totalIva += ivaLinea;\n    totalComprobante += totalLinea;\n\n    detalleItemsParaAfip.push({\n        \"Prods\": {\n            \"u_mtx\": 7, \n            \"cod_mtx\": prod.SKU_ID || \"VAR\", \n            \"ds\": prod[\"Nombre del producto\"], \n            \"qty\": cantidad,\n            \"price\": precioUnitario,\n            \"neto\": netoLinea,\n            \"iva_id\": idAlicuota, \n            \"imp_iva\": ivaLinea,\n            \"item_total\": totalLinea\n        }\n    });\n}\n\n// 5. APLICACIÓN DEL DESCUENTO\nif (montoDescuento > 0) {\n    const descuentoNeto = (parseFloat(montoDescuento) * -1);\n    let tasaIvaDesc = [1, 3, 6, 8].includes(codigoAfip) ? 0.21 : 0;\n    let idAlicuotaDesc = [1, 3, 6, 8].includes(codigoAfip) ? 5 : 3;\n    \n    const descuentoIva = parseFloat((descuentoNeto * tasaIvaDesc).toFixed(2));\n    const descuentoTotal = parseFloat((descuentoNeto + descuentoIva).toFixed(2));\n\n    totalNeto += descuentoNeto;\n    totalIva += descuentoIva;\n    totalComprobante += descuentoTotal;\n\n    detalleItemsParaAfip.push({\n        \"Prods\": {\n            \"u_mtx\": 7,\n            \"cod_mtx\": \"DESC\",\n            \"ds\": \"Descuento Aplicado\",\n            \"qty\": 1,\n            \"price\": descuentoNeto,\n            \"neto\": descuentoNeto,\n            \"iva_id\": idAlicuotaDesc,\n            \"imp_iva\": descuentoIva,\n            \"item_total\": descuentoTotal\n        }\n    });\n}\n\n// 6. REDONDEO FINAL\ntotalNeto = parseFloat(totalNeto.toFixed(2));\ntotalIva = parseFloat(totalIva.toFixed(2));\ntotalComprobante = parseFloat(totalComprobante.toFixed(2));\n\nreturn {\n    json: {\n        CbteTipo: codigoAfip,\n        cliente_doc: cabecera.Cuit_Receptor, \n        ItemsDetalle: detalleItemsParaAfip,\n        ImporteNeto: totalNeto,\n        ImporteIva: totalIva,\n        ImporteTotal: totalComprobante,\n        Fecha: new Date().toISOString().slice(0,10).replace(/-/g, ''),\n        // Debug para que veas qué detectó el código\n        debug: {\n            tipoDetectado: tipoOriginal,\n            codigoAfipAsignado: codigoAfip\n        }\n    }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -976,
+        3360
+      ],
+      "id": "949efa08-963e-4a86-890e-32cfe553c547",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.CbteTipo }}",
+                    "rightValue": 1,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    },
+                    "id": "66de1ab2-0e8d-474f-b789-a82a3460e46f"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Factura A"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "ce6c12f6-5bf1-4101-b284-53bb067c855d",
+                    "leftValue": "={{ $json.CbteTipo }}",
+                    "rightValue": 6,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Factura B"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c8687a3b-25b7-447c-9441-7aa06ab03462",
+                    "leftValue": "={{ $json.CbteTipo }}",
+                    "rightValue": 11,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Factura C"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -256,
+        3728
+      ],
+      "id": "b708725b-bee1-4123-b092-432492504649",
+      "name": "Switch1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "5679ec8e-2376-4763-8fd2-3419bcb561a6",
+              "leftValue": "={{ $json.FECAESolicitarResult.FeDetResp.FECAEDetResponse[0].CAE }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        976,
+        3760
+      ],
+      "id": "e80cca3f-5136-486f-a772-9336589ebc9d",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.file }}",
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2192,
+        3744
+      ],
+      "id": "a0d0008f-4ebd-4a96-bf13-f4fda58f5851",
+      "name": "generar pdf para mail3"
+    },
+    {
+      "parameters": {
+        "jsCode": "const PUNTO_VENTA = $('Webhook').first().json.body.emisor.puntoVenta || 1;\n\n// Obtenemos los datos del nodo anterior (Switch4)\nconst input = $input.first().json;\n\n// --- 1. RESCATE DE DATOS DEL WEBHOOK (DESCUENTO Y FECHA) ---\nlet montoDescuento = 0;\n// Por defecto usamos la fecha de hoy, por si falla el webhook\nlet fechaParaAfip = new Date().toISOString().slice(0,10).replace(/-/g, ''); \n\ntry {\n    const webhookData = $('Webhook').first().json.body || {}; \n    \n    // A. Rescate del descuento\n    montoDescuento = parseFloat(webhookData.discountAmount || 0);\n\n    // B. Rescate de la fecha\n    // Importante: Prioridad al input directo o al webhook\n    let fechaWebhook = input.FechaComprobante || webhookData.date || webhookData.fecha || null; \n\n    if (fechaWebhook) {\n        // Formateo YYYYMMDD\n        fechaParaAfip = fechaWebhook.toString().slice(0,10).replace(/-/g, '');\n    }\n\n} catch (e) {\n    // Si falla, intentamos ver si el descuento quedó en el input\n    montoDescuento = parseFloat(input.discountAmount || 0);\n}\n\n// --- 2. CONFIGURACIÓN ---\nconst TIPO_COMPROBANTE = 1; // Factura A\n\n// --- 3. IDENTIFICACIÓN DEL CLIENTE ---\nlet cuitCliente = parseFloat(input.cliente_doc || input.cuit || 0);\nlet docTipo = 80; // Factura A exige CUIT (80)\n\n// --- 4. CÁLCULO DE ÍTEMS Y ARRAY DE IVA (Lógica Factura A) ---\nlet sumaNeto = 0;\nlet sumaIva = 0;\nlet sumaTotal = 0;\nlet ivaAccumulator = {}; \n\nconst items = input.ItemsDetalle || [];\nconst itemsParaAfip = [];\n\nitems.forEach(itemWrapper => {\n    const prod = itemWrapper.Prods || itemWrapper; \n    \n    if (prod) {\n        const netoItem = parseFloat(prod.neto || 0);\n        const ivaId = parseInt(prod.iva_id || 5); \n        const ivaItem = parseFloat(prod.imp_iva || 0);\n        const totalItem = parseFloat(prod.item_total || 0);\n\n        sumaNeto += netoItem;\n        sumaIva += ivaItem;\n        sumaTotal += totalItem;\n\n        if (!ivaAccumulator[ivaId]) {\n            ivaAccumulator[ivaId] = { Id: ivaId, BaseImp: 0, Importe: 0 };\n        }\n        ivaAccumulator[ivaId].BaseImp += netoItem;\n        ivaAccumulator[ivaId].Importe += ivaItem;\n\n        itemsParaAfip.push({\n            \"Prods\": prod\n        });\n    }\n});\n\n// --- 5. APLICACIÓN DEL DESCUENTO ---\nif (montoDescuento > 0) {\n    const descNeto = parseFloat(montoDescuento) * -1; \n    const descIva = descNeto * 0.21; \n    const descTotal = descNeto + descIva;\n\n    sumaNeto += descNeto;\n    sumaIva += descIva;\n    sumaTotal += descTotal;\n\n    if (!ivaAccumulator[5]) {\n         ivaAccumulator[5] = { Id: 5, BaseImp: 0, Importe: 0 };\n    }\n    ivaAccumulator[5].BaseImp += descNeto;\n    ivaAccumulator[5].Importe += descIva;\n\n    itemsParaAfip.push({\n        \"Prods\": {\n            \"u_mtx\": 7,\n            \"cod_mtx\": \"DESC\",\n            \"ds\": \"Descuento Global\",\n            \"qty\": 1,\n            \"price\": descNeto,\n            \"neto\": descNeto,\n            \"iva_id\": 5,\n            \"imp_iva\": descIva,\n            \"item_total\": descTotal\n        }\n    });\n}\n\n// --- 6. REDONDEO FINAL ---\nconst totalNetoFinal = parseFloat(sumaNeto.toFixed(2));\nconst totalIvaFinal = parseFloat(sumaIva.toFixed(2));\nconst totalFinal = parseFloat(sumaTotal.toFixed(2));\n\n// --- 7. GENERACIÓN ARRAY 'IVA' FINAL ---\nlet arrayIvaFinal = [];\nfor (const key in ivaAccumulator) {\n    if (Math.abs(ivaAccumulator[key].BaseImp) > 0.009) {\n        arrayIvaFinal.push({\n            \"Id\": ivaAccumulator[key].Id,\n            \"BaseImp\": parseFloat(ivaAccumulator[key].BaseImp.toFixed(2)),\n            \"Importe\": parseFloat(ivaAccumulator[key].Importe.toFixed(2))\n        });\n    }\n}\n\n// --- 8. ARMADO DEL OBJETO FINAL ---\nconst detalle = {\n    \"Concepto\": 3,  // <--- CAMBIO: Concepto Productos y Servicios\n    \"DocTipo\": docTipo,\n    \"DocNro\": cuitCliente,\n    \"CbteFch\": fechaParaAfip,\n    \n    // --- CAMPOS OBLIGATORIOS PARA SERVICIOS ---\n    // Usamos la misma fecha del comprobante para simplificar la validación\n    \"FchServDesde\": fechaParaAfip,\n    \"FchServHasta\": fechaParaAfip,\n    \"FchVtoPago\": fechaParaAfip,\n    // ------------------------------------------\n\n    \"ImpTotal\": totalFinal,\n    \"ImpTotConc\": 0,\n    \"ImpNeto\": totalNetoFinal,\n    \"ImpOpEx\": 0,\n    \"ImpTrib\": 0,\n    \"ImpIVA\": totalIvaFinal,\n    \"MonId\": \"PES\",\n    \"MonCotiz\": 1,\n    \"Iva\": arrayIvaFinal \n};\n\nreturn {\n    json: {\n        PtoVta: PUNTO_VENTA,\n        CbteTipo: TIPO_COMPROBANTE,\n        cuit: cuitCliente,\n        detalleParaAfip: detalle,\n        ItemsDetalle: itemsParaAfip,\n        descuento_aplicado: montoDescuento,\n        debug_fecha_usada: fechaParaAfip,\n        debug_concepto_usado: 3\n    }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        3584
+      ],
+      "id": "890085c2-e370-4be6-aad0-0cf38db0359b",
+      "name": "Code Factura A1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const PUNTO_VENTA = $('Webhook').first().json.body.emisor.puntoVenta || 1;\n\n// Obtenemos los datos del nodo anterior (Switch4)\nconst input = $input.first().json;\n\n// --- 1. RESCATE DE DATOS DEL WEBHOOK (DESCUENTO Y FECHA) ---\nlet montoDescuento = 0;\n// Por defecto usamos la fecha de hoy, por si falla el webhook o no viene fecha\nlet fechaParaAfip = new Date().toISOString().slice(0,10).replace(/-/g, ''); \n\ntry {\n    const webhookData = $('Webhook').first().json.body; \n    \n    // A. Rescate del descuento\n    montoDescuento = parseFloat(webhookData.discountAmount || 0);\n\n    // B. Rescate de la fecha (Igual que en la Factura A)\n    let fechaWebhook = webhookData.date || webhookData.fecha || null; \n    \n    if (fechaWebhook) {\n        // Formateamos a YYYYMMDD\n        fechaParaAfip = fechaWebhook.toString().slice(0,10).replace(/-/g, '');\n    }\n\n} catch (e) {\n    // Si falla, intentamos ver si el descuento quedó en el input\n    montoDescuento = parseFloat(input.discountAmount || 0);\n}\n\n// --- 2. CONFIGURACIÓN ---\n// La variable FECHA_HOY ya no se define aquí, se calculó arriba como 'fechaParaAfip'\nconst TIPO_COMPROBANTE = 6; // FACTURA B\n\n// --- 3. IDENTIFICACIÓN DEL CLIENTE (LÓGICA FACTURA B) ---\n// En Factura B el cliente puede ser CUIT, DNI o Consumidor Final.\nlet rawDoc = input.cliente_doc || input.cuit || 0;\n// Limpiamos guiones o espacios por si acaso\nlet strDoc = String(rawDoc).replace(/\\D/g, ''); \nlet cuitCliente = parseFloat(strDoc);\nlet docTipo = 99; // Por defecto: Consumidor Final (99)\n\nif (strDoc.length === 11) {\n    // Si tiene 11 dígitos, es un CUIT (ej: Monotributista)\n    docTipo = 80; \n} else if (strDoc.length >= 7 && strDoc.length <= 8) {\n    // Si tiene 7 u 8 dígitos, es un DNI\n    docTipo = 96; \n} else {\n    // Si es 0, vacío o cualquier otra cosa, lo mandamos como Anónimo (< tope AFIP)\n    cuitCliente = 0;\n    docTipo = 99;\n}\n\n// --- 4. CÁLCULO DE ÍTEMS Y ARRAY DE IVA ---\n// IMPORTANTE: Aunque en el PDF de Factura B no se discrimina el IVA, \n// AFIP EXIGE que el JSON lleve el desglose matemático interno.\n\nlet sumaNeto = 0;\nlet sumaIva = 0;\nlet sumaTotal = 0;\nlet ivaAccumulator = {}; \n\nconst items = input.ItemsDetalle || [];\nconst itemsParaAfip = [];\n\nitems.forEach(itemWrapper => {\n    const prod = itemWrapper.Prods || itemWrapper; \n    \n    if (prod) {\n        const netoItem = parseFloat(prod.neto || 0);\n        const ivaId = parseInt(prod.iva_id || 5); // 5 = 21%\n        const ivaItem = parseFloat(prod.imp_iva || 0);\n        const totalItem = parseFloat(prod.item_total || 0);\n\n        sumaNeto += netoItem;\n        sumaIva += ivaItem;\n        sumaTotal += totalItem;\n\n        if (!ivaAccumulator[ivaId]) {\n            ivaAccumulator[ivaId] = { Id: ivaId, BaseImp: 0, Importe: 0 };\n        }\n        ivaAccumulator[ivaId].BaseImp += netoItem;\n        ivaAccumulator[ivaId].Importe += ivaItem;\n\n        itemsParaAfip.push({\n            \"Prods\": prod\n        });\n    }\n});\n\n// --- 5. APLICACIÓN DEL DESCUENTO ---\nif (montoDescuento > 0) {\n    const descNeto = parseFloat(montoDescuento) * -1;\n    const descIva = descNeto * 0.21; \n    const descTotal = descNeto + descIva;\n\n    sumaNeto += descNeto;\n    sumaIva += descIva;\n    sumaTotal += descTotal;\n\n    if (!ivaAccumulator[5]) {\n         ivaAccumulator[5] = { Id: 5, BaseImp: 0, Importe: 0 };\n    }\n    ivaAccumulator[5].BaseImp += descNeto;\n    ivaAccumulator[5].Importe += descIva;\n\n    itemsParaAfip.push({\n        \"Prods\": {\n            \"u_mtx\": 7,\n            \"cod_mtx\": \"DESC\",\n            \"ds\": \"Descuento Global\",\n            \"qty\": 1,\n            \"price\": descNeto,\n            \"neto\": descNeto,\n            \"iva_id\": 5,\n            \"imp_iva\": descIva,\n            \"item_total\": descTotal\n        }\n    });\n}\n\n// --- 6. REDONDEO FINAL ---\nconst totalNetoFinal = parseFloat(sumaNeto.toFixed(2));\nconst totalIvaFinal = parseFloat(sumaIva.toFixed(2));\nconst totalFinal = parseFloat(sumaTotal.toFixed(2));\n\n// --- 7. GENERACIÓN ARRAY 'IVA' FINAL ---\nlet arrayIvaFinal = [];\nfor (const key in ivaAccumulator) {\n    if (Math.abs(ivaAccumulator[key].BaseImp) > 0.009) {\n        arrayIvaFinal.push({\n            \"Id\": ivaAccumulator[key].Id,\n            \"BaseImp\": parseFloat(ivaAccumulator[key].BaseImp.toFixed(2)),\n            \"Importe\": parseFloat(ivaAccumulator[key].Importe.toFixed(2))\n        });\n    }\n}\n\n// --- 8. ARMADO DEL OBJETO FINAL ---\nconst detalle = {\n    \"Concepto\": 1,\n    \"DocTipo\": docTipo,    // Variable dinámica (80, 96 o 99)\n    \"DocNro\": cuitCliente, // CUIT, DNI o 0\n    \"CbteFch\": fechaParaAfip, // <--- CAMBIO: Usamos la fecha procesada\n    \"ImpTotal\": totalFinal,\n    \"ImpTotConc\": 0,\n    \"ImpNeto\": totalNetoFinal,\n    \"ImpOpEx\": 0,\n    \"ImpTrib\": 0,\n    \"ImpIVA\": totalIvaFinal,\n    \"MonId\": \"PES\",\n    \"MonCotiz\": 1,\n    \"Iva\": arrayIvaFinal // SIEMPRE se manda a AFIP\n};\n\nreturn {\n    json: {\n        PtoVta: PUNTO_VENTA,\n        CbteTipo: TIPO_COMPROBANTE,\n        cuit: cuitCliente, \n        detalleParaAfip: detalle,\n        ItemsDetalle: itemsParaAfip,\n        descuento_aplicado: montoDescuento,\n        doc_tipo_detectado: docTipo,\n        debug_fecha_usada: fechaParaAfip\n    }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        3760
+      ],
+      "id": "fa08c509-162d-460e-99e0-afa817261e2e",
+      "name": "Code Factura B1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const PUNTO_VENTA = $('Webhook').first().json.body.emisor.puntoVenta || 1;\n\n// Obtenemos los datos del nodo anterior (Switch4)\nconst input = $input.first().json;\n\n// --- 1. RESCATE DE DATOS DEL WEBHOOK (DESCUENTO Y FECHA) ---\nlet montoDescuento = 0;\n// Por defecto usamos la fecha de hoy, por si falla el webhook\nlet fechaParaAfip = new Date().toISOString().slice(0,10).replace(/-/g, ''); \n\ntry {\n    // Intentamos obtener el body del Webhook por si acaso\n    const webhookData = $('Webhook').first().json.body || {}; \n    \n    // A. Rescate del descuento\n    montoDescuento = parseFloat(webhookData.discountAmount || 0);\n\n    // B. Rescate de la fecha\n    // PRIORIDAD: 1. FechaComprobante (del input JSON) -> 2. date/fecha (del Webhook)\n    let fechaEntrante = input.FechaComprobante || webhookData.date || webhookData.fecha || null; \n    \n    if (fechaEntrante) {\n        // Formateamos a YYYYMMDD (Quitamos guiones si vienen)\n        fechaParaAfip = fechaEntrante.toString().slice(0,10).replace(/-/g, '');\n    }\n\n} catch (e) {\n    // Si falla, intentamos ver si el descuento quedó en el input\n    montoDescuento = parseFloat(input.discountAmount || 0);\n}\n\n// --- LOGICA AGREGADA: PUNTO DE VENTA SEGUN FECHA ---\nconst fechaHoyString = new Date().toISOString().slice(0,10).replace(/-/g, '');\nlet puntoVentaCalculado = 5; // Valor por defecto (si es hoy)\n\n// Comparamos numéricamente para estar seguros\nif (parseInt(fechaParaAfip) < parseInt(fechaHoyString)) {\n    puntoVentaCalculado = 4; // Si es fecha vieja (menor a hoy)\n} else {\n    puntoVentaCalculado = 5; // Si es hoy (o futuro)\n}\n\n// --- 2. CONFIGURACIÓN ---\nconst TIPO_COMPROBANTE = 11; // 11 es FACTURA C\n\n// --- 3. IDENTIFICACIÓN DEL CLIENTE ---\nlet rawDoc = input.cliente_doc || input.cuit || 0;\nlet strDoc = String(rawDoc).replace(/\\D/g, ''); \nlet cuitCliente = parseFloat(strDoc);\nlet docTipo = 99; // Default: Consumidor Final\n\nif (strDoc.length === 11) {\n    docTipo = 80; // CUIT\n} else if (strDoc.length >= 7 && strDoc.length <= 8) {\n    docTipo = 96; // DNI\n} else {\n    cuitCliente = 0;\n    docTipo = 99; // Consumidor Final\n}\n\n// --- 4. CÁLCULO DE ÍTEMS (LÓGICA FACTURA C) ---\nlet sumaTotal = 0;\nconst items = input.ItemsDetalle || [];\nconst itemsParaAfip = [];\n\nitems.forEach(itemWrapper => {\n    const prod = itemWrapper.Prods || itemWrapper; \n    \n    if (prod) {\n        // En Factura C tomamos directamente el TOTAL del ítem\n        const totalItem = parseFloat(prod.item_total || 0);\n        sumaTotal += totalItem;\n\n        // Guardamos el item tal cual para referencia interna\n        itemsParaAfip.push({\n            \"Prods\": prod\n        });\n    }\n});\n\n// --- 5. APLICACIÓN DEL DESCUENTO ---\nif (montoDescuento > 0) {\n    const descTotal = parseFloat(montoDescuento) * -1;\n    sumaTotal += descTotal;\n\n    itemsParaAfip.push({\n        \"Prods\": {\n            \"u_mtx\": 7,\n            \"cod_mtx\": \"DESC\",\n            \"ds\": \"Descuento Global\",\n            \"qty\": 1,\n            \"price\": descTotal,\n            \"neto\": descTotal,\n            \"iva_id\": 0,\n            \"imp_iva\": 0,\n            \"item_total\": descTotal\n        }\n    });\n}\n\n// --- 6. REDONDEO FINAL ---\nconst totalFinal = parseFloat(sumaTotal.toFixed(2));\n\n// --- 7. ARMADO DEL OBJETO FINAL (AFIP FACTURA C) ---\nconst detalle = {\n    \"Concepto\": 3,      // <--- CAMBIO CLAVE: 3 = Productos y Servicios\n    \"DocTipo\": docTipo, \n    \"DocNro\": cuitCliente, \n    \"CbteFch\": fechaParaAfip, \n    \n    // --- CAMPOS OBLIGATORIOS PARA CONCEPTO 2 o 3 ---\n    // Usamos la misma fecha de la factura para evitar errores de validación\n    \"FchServDesde\": fechaParaAfip,\n    \"FchServHasta\": fechaParaAfip,\n    \"FchVtoPago\": fechaParaAfip,\n    // ----------------------------------------------\n\n    \"ImpTotal\": totalFinal,\n    \"ImpTotConc\": 0,\n    \"ImpNeto\": totalFinal, \n    \"ImpOpEx\": 0,\n    \"ImpTrib\": 0,\n    \"ImpIVA\": 0,\n    \n    \"MonId\": \"PES\",\n    \"MonCotiz\": 1,\n    \n    \"Iva\": null \n};\n\nreturn {\n    json: {\n        PtoVta: PUNTO_VENTA,\n        CbteTipo: TIPO_COMPROBANTE,\n        cuit: cuitCliente, \n        \n        detalleParaAfip: detalle,\n        ItemsDetalle: itemsParaAfip,\n        \n        descuento_aplicado: montoDescuento,\n        doc_tipo_detectado: docTipo,\n        debug_fecha_usada: fechaParaAfip,\n        debug_pto_venta_usado: PUNTO_VENTA,\n        debug_concepto_usado: 3\n    }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        3936
+      ],
+      "id": "bd03694b-859a-4bcc-87de-f8751635257f",
+      "name": "Code Factura C1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const PUNTO_VENTA = $('Webhook').first().json.body.emisor.puntoVenta || 1;\n\n// Obtenemos los datos del nodo anterior\nconst input = $input.first().json;\n\n// --- 1. RESCATE DE CUIT (Lógica original) ---\nlet cuitOrigen = 0;\ntry {\n    const datosRaiz = $('Recibo Datos').first().json;\n    cuitOrigen = datosRaiz.cuit || datosRaiz.CUIT || datosRaiz.Cuit || datosRaiz.docNum || datosRaiz.doc_numero || 0;\n} catch (e) {\n    cuitOrigen = 0;\n}\n\n// --- 2. NUEVA LOGICA: FECHAS Y PUNTO DE VENTA ---\n\n// A. Calculamos fecha de HOY (YYYYMMDD) para comparar\nconst fechaHoyString = new Date().toISOString().slice(0,10).replace(/-/g, '');\n\n// B. Rescatamos la fecha del nodo anterior (Prioridad: CbteFch)\n// Si viene en detalleParaAfip, o directo en el root, o usamos hoy.\nlet fechaEntrante = input.CbteFch || input.FechaComprobante || (input.detalleParaAfip ? input.detalleParaAfip.CbteFch : null) || fechaHoyString;\n\n// C. Limpiamos formato (Quitamos guiones por si vienen \"2026-01-29\")\nlet fechaFinal = String(fechaEntrante).replace(/-/g, '');\n\n// D. Determinamos el Punto de Venta\nlet puntoVentaCalculado = 5; // Default (Hoy o Futuro)\n\nif (parseInt(fechaFinal) < parseInt(fechaHoyString)) {\n    puntoVentaCalculado = 4; // Si es fecha vieja (Pasado)\n}\n\n// Asignamos a constantes de configuración\nconst FECHA_USADA = fechaFinal;\n\n\n// --- 3. DETECCIÓN TIPO COMPROBANTE ---\nconst tipoComprobante = parseInt(input.CbteTipo); \nconst esFacturaC = (tipoComprobante === 11 || tipoComprobante === 12 || tipoComprobante === 13);\nconst esFacturaA = (tipoComprobante === 1 || tipoComprobante === 2 || tipoComprobante === 3);\n\n// --- 4. SELECCIÓN DE ID (CUIT/DNI) ---\nlet rawId = input.cuit_output || input.DocNro || input.cliente?.cuit || input.cuit || input.cliente_doc || cuitOrigen || 0;\n\n// Limpieza: solo números\nlet stringId = String(rawId).replace(/[^0-9]/g, ''); \nlet docNumeroDefinitivo = parseFloat(stringId);\n\nif (isNaN(docNumeroDefinitivo)) docNumeroDefinitivo = 0;\n\n// --- 5. DETERMINACIÓN DE TIPO DE DOCUMENTO ---\nlet docTipoDefinitivo = 99; // Default: Consumidor Final\n\nif (docNumeroDefinitivo > 0) {\n    if (stringId.length === 11) {\n        docTipoDefinitivo = 80; \n    } else if (stringId.length >= 7 && stringId.length <= 8) {\n        docTipoDefinitivo = 96; \n    } else {\n        if (esFacturaA) docTipoDefinitivo = 80;\n        else docTipoDefinitivo = 99;\n    }\n} else {\n    if (esFacturaA) {\n        docTipoDefinitivo = 80; \n    } else {\n        docTipoDefinitivo = 99;\n    }\n}\n\n// --- 6. CÁLCULOS MATEMÁTICOS ---\n// Aquí definimos la \"fuente\" de los datos. \nconst sourceData = input.detalleParaAfip || input;\n\nconst neto = parseFloat(Number(sourceData.ImpNeto || 0).toFixed(2));\nconst iva = parseFloat(Number(sourceData.ImpIVA || 0).toFixed(2));\nconst tributos = parseFloat(Number(sourceData.ImpTrib || 0).toFixed(2));\nconst opEx = parseFloat(Number(sourceData.ImpOpEx || 0).toFixed(2));\n\n// Si ya venía un Total calculado, lo usamos, si no, lo recalculamos\nlet totalCalculado = 0;\nif (sourceData.ImpTotal) {\n    totalCalculado = parseFloat(Number(sourceData.ImpTotal).toFixed(2));\n} else {\n    totalCalculado = parseFloat((neto + iva + tributos + opEx).toFixed(2));\n}\n\n// --- 7. ARMADO DEL OBJETO \"DETALLE\" ---\n\n// Recuperamos el concepto REAL que viene del nodo anterior (o del input)\n// Si no viene, asume 1 (Productos), pero si es 3 necesitamos saberlo.\nconst conceptoFinal = sourceData.Concepto || input.Concepto || 1;\n\nconst detalle = {\n    \"Concepto\": conceptoFinal, \n    \"DocTipo\": sourceData.DocTipo || docTipoDefinitivo,\n    \"DocNro\": sourceData.DocNro || docNumeroDefinitivo,\n    \n    // CAMBIO AQUÍ: Usamos la fecha procesada arriba\n    \"CbteFch\": FECHA_USADA, \n    \n    \"ImpTotal\": totalCalculado,\n    \"ImpTotConc\": 0,\n    \"ImpNeto\": neto,\n    \"ImpOpEx\": opEx,\n    \"ImpTrib\": tributos,\n    \"ImpIVA\": iva,\n    \"MonId\": \"PES\",\n    \"MonCotiz\": 1\n};\n\n// --- CORRECCIÓN AGREGADA: INYECCIÓN DE FECHAS DE SERVICIO ---\n// Si es Concepto 2 (Servicios) o 3 (Productos y Servicios), AFIP OBLIGA a tener estas fechas.\n// Las igualamos a la fecha del comprobante para simplificar.\nif (conceptoFinal === 2 || conceptoFinal === 3) {\n    detalle.FchServDesde = FECHA_USADA;\n    detalle.FchServHasta = FECHA_USADA;\n    detalle.FchVtoPago   = FECHA_USADA;\n}\n// -----------------------------------------------------------\n\n// --- 8. LÓGICA DE IVA ---\nif (esFacturaC) {\n    detalle.ImpIVA = 0;\n    delete detalle.Iva; \n    if (detalle.ImpNeto === 0 && detalle.ImpTotal > 0) {\n        detalle.ImpNeto = detalle.ImpTotal;\n    }\n} else {\n    // FACTURA A y B\n    // PRIORIDAD 1: Si viene el array listo desde Factura A\n    if (sourceData.Iva && Array.isArray(sourceData.Iva) && sourceData.Iva.length > 0) {\n         detalle.Iva = sourceData.Iva;\n    }\n    // PRIORIDAD 2: Si viene en el input raíz\n    else if (input.Iva && Array.isArray(input.Iva) && input.Iva.length > 0) {\n        detalle.Iva = input.Iva;\n    } \n    // PRIORIDAD 3: Calcular uno genérico al 21%\n    else if (detalle.ImpIVA > 0) {\n        detalle.Iva = [{\n            \"Id\": 5, // 21%\n            \"BaseImp\": detalle.ImpNeto,\n            \"Importe\": detalle.ImpIVA\n        }];\n    }\n}\n\nreturn {\n    json: {\n        // CAMBIO AQUÍ: Usamos la variable calculada (4 o 5)\n        PtoVta: PUNTO_VENTA, \n        CbteTipo: tipoComprobante,\n        \n        // Output limpio\n        cuit: docNumeroDefinitivo, \n\n        detalleParaAfip: detalle,\n        \n        cliente: input.cliente || {},\n        items: input.items || [],\n        \n        // Debug info (útil para verificar)\n        debug_fecha_usada: FECHA_USADA,\n        debug_origen_pto_venta: PUNTO_VENTA,\n        debug_concepto_final: conceptoFinal\n    }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        336,
+        3760
+      ],
+      "id": "c7ac7ce6-5767-411a-ab37-88eb5e245287",
+      "name": "Code Unificador4"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a36ec55c-c9c9-45f5-8e9e-ec22893cb9a8",
+              "leftValue": "={{ $('Recibo Datos').first().json.creditNote }}",
+              "rightValue": "Nota de Crédito ",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -608,
+        3232
+      ],
+      "id": "5b8f19e8-5b4e-4ec3-ac38-a2edf26554f1",
+      "name": "If5"
+    },
+    {
+      "parameters": {
+        "jsCode": "const emisorWebhook = $('Webhook').first().json.body.emisor || {};\nconst emisor = {\n  razonSocial: emisorWebhook.razonSocial || \"SIN CONFIGURAR\",\n  domicilio: emisorWebhook.domicilio || \"-\",\n  condicionIva: emisorWebhook.condicionIva || \"-\",\n  iibb: emisorWebhook.iibb || \"-\",\n  inicioAct: emisorWebhook.inicioActividades || \"-\"\n};\nconst CUIT_EMISOR = Number($('Config Credenciales1').first().json.authBody.tax_id);\n\nlet qrNode = {};\nlet webhookBody = {};\nlet unificadorNode = {}; \nlet detAfip = {};\n\ntry {\n    qrNode = $('generate_qr_text6').first().json; \n} catch (e) {\n    qrNode = {};\n}\n\ntry {\n    try {\n        webhookBody = $('webhook1').first().json.body;\n    } catch (innerE) {\n        webhookBody = $('Webhook').first().json.body;\n    }\n} catch (e) {\n    throw new Error(\"ERROR: No encuentro el nodo 'webhook1'.\");\n}\n\ntry {\n    unificadorNode = $('Code Unificador4').first().json;\n} catch (e) {\n    console.log(\"No se pudo leer Code Unificador4\");\n}\n\ntry {\n    const cv = $('create_voucher9').first().json;\n    const r = cv.FECAESolicitarResult || {};\n    if (r.FeDetResp && r.FeDetResp.FECAEDetResponse && r.FeDetResp.FECAEDetResponse[0]) {\n        detAfip = r.FeDetResp.FECAEDetResponse[0];\n    }\n} catch (e) {\n    console.log(\"No se pudo leer create_voucher9. Usando fallback.\");\n}\n\nconst money = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });\nconst pad = (num, size) => ('000000000' + (num ?? 0)).slice(-size);\nconst formatAfipDate = (dateStr) => {\n    const s = String(dateStr || \"\");\n    if (s.length !== 8) return \"\"; \n    return `${s.substring(6, 8)}/${s.substring(4, 6)}/${s.substring(0, 4)}`;\n};\n\nlet itemsHtml = \"\";\nlet tasaIva = \"21\"; \nif (webhookBody.items && webhookBody.items.length > 0) {\n    if (webhookBody.items[0].vatRate != null) {\n        tasaIva = money.format(webhookBody.items[0].vatRate);\n    }\n    itemsHtml = webhookBody.items.map(item => {\n        const nombre = item.productName || \"Concepto\";\n        const sku = item.sku || \"\";\n        const desp = item.dispatchNumber;\n        const org = item.origin;\n        \n        let descripcionFinal = nombre;\n        if (desp || org) {\n            let extras = [];\n            if (desp) extras.push(`Desp: ${desp}`);\n            if (org)  extras.push(`Org: ${org}`);\n            descripcionFinal += ` (${extras.join(' ')})`;\n        }\n        return `\n        <tr>\n            <td>${sku}</td>\n            <td>${descripcionFinal}</td>\n            <td class=\"text-center\">${item.quantity ?? 1}</td>\n            <td class=\"text-center\">u.</td>\n            <td class=\"text-right\">${money.format(item.unitPrice || 0)}</td>\n            <td class=\"text-right\">${money.format(item.subtotal || 0)}</td>\n        </tr>\n        `;\n    }).join('');\n}\n\nconst tipoCmp = Number(unificadorNode.CbteTipo || qrNode.tipo_comprobante || 1);\nconst letras = { 1: 'A', 6: 'B', 11: 'C', 51: 'M' };\nconst letra = letras[tipoCmp] || 'A'; \nconst codigoComprobante = pad(tipoCmp, 3); \n\nconst detalleUni = unificadorNode.detalleParaAfip || {};\nconst concepto = detalleUni.Concepto || 1; \nconst fDesde = formatAfipDate(detalleUni.FchServDesde);\nconst fHasta = formatAfipDate(detalleUni.FchServHasta);\nconst fechaEmision = formatAfipDate(detalleUni.CbteFch) || qrNode.fecha_emision;\nconst fVto = formatAfipDate(detalleUni.FchVtoPago) || fechaEmision;\nconst caeFinal = String(detAfip.CAE || qrNode.cod_autorizacion || \"\");\nconst vtoCaeFinal = formatAfipDate(detAfip.CAEFchVto) || qrNode.vto_cae || \"\"; \nconst qrImg = qrNode.qr_url || \"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=AFIP\";\n\nreturn {\n    emisor: emisor,\n    cliente: {\n        nombre: webhookBody.client.name || \"Consumidor Final\",       \n        cuit: webhookBody.client.cuit || \"0\",          \n        condicionIva: webhookBody.client.tax_condition || webhookBody.client.taxCondition || \"Consumidor Final\", \n        domicilio: webhookBody.client.address || \"-\"  \n    },\n    factura: {\n        letra: letra,\n        codigo: codigoComprobante,\n        ptoVta: pad(qrNode.punto_venta || unificadorNode.PtoVta || 4, 5),      \n        numero: pad(detAfip.CbteDesde || qrNode.numero_comprobante || 0, 8), \n        fecha: fechaEmision,              \n        vencimiento: fVto,\n        concepto: concepto,\n        serv_desde: fDesde,\n        serv_hasta: fHasta\n    },\n    totales: {\n        subtotal: money.format(webhookBody.totals.subtotal || 0),      \n        descuento: money.format(webhookBody.totals.discountAmount || 0), \n        neto: money.format(webhookBody.totals.netTaxable || 0),        \n        iva: money.format(webhookBody.totals.vatTotal || 0),\n        tasa_iva: tasaIva,\n        total: money.format(webhookBody.totals.total || 0),             \n        moneda: \"$\",\n    },\n    qr: {\n        img: qrImg,             \n        cae: caeFinal, \n        vto: vtoCaeFinal\n    },\n    f_asociado: \"\",\n    tabla_productos: itemsHtml \n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        3744
+      ],
+      "id": "0248240e-1bee-4a1d-ade1-a41c1c208caf",
+      "name": "Code in JavaScript6"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://app.afipsdk.com/api/v1/afip/requests",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 3zZiVxOJP4zPQbK5mEc6FXQOa34hOPAPTSu3bl2S51LewxPc15xUb63Dm43s4BiL"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "=json",
+        "specifyBody": "json",
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "jsonBody": "={\n  \"environment\": \"prod\",\n  \"method\": \"FECAESolicitar\",\n  \"wsid\": \"wsfe\",\n  \"params\": {\n    \"Auth\": {\n      \"Token\": \"{{ $('get_authorization').item.json.token }}\",\n      \"Sign\": \"{{ $('get_authorization').item.json.sign }}\",\n      \"Cuit\": {{ Number($(\"Config Credenciales1\").first().json.authBody.tax_id) }}\n    },\n    \"FeCAEReq\": {\n      \"FeCabReq\": {\n        \"CantReg\": 1,\n        \"PtoVta\": {{ Number($(\"Webhook\").first().json.body.emisor.puntoVenta) || 1 }},\n        \"CbteTipo\": {{ $('Code Unificador4').item.json.CbteTipo }}\n      },\n      \"FeDetReq\": {\n        \"FECAEDetRequest\": [\n          {\n            \"Concepto\": {{ $('Code Unificador4').item.json.detalleParaAfip.Concepto }},\n            \"DocTipo\": {{ $('Code Unificador4').item.json.detalleParaAfip.DocTipo }},\n            \"DocNro\": {{ $('Code Unificador4').item.json.detalleParaAfip.DocNro }},\n            \"CbteDesde\": {{ $('get_last_voucher_number1').item.json.FECompUltimoAutorizadoResult.CbteNro + 1 }},\n            \"CbteHasta\": {{ $('get_last_voucher_number1').item.json.FECompUltimoAutorizadoResult.CbteNro + 1 }},\n            \"CbteFch\": \"{{ $('Code Unificador4').item.json.detalleParaAfip.CbteFch }}\",\n            \"ImpTotal\": {{ $('Code Unificador4').item.json.detalleParaAfip.ImpTotal }},\n            \"ImpTotConc\": 0,\n            \"ImpNeto\": {{ $('Code Unificador4').item.json.detalleParaAfip.ImpNeto }},\n            \"ImpOpEx\": {{ $('Code Unificador4').item.json.detalleParaAfip.ImpOpEx }},\n            \"ImpTrib\": {{ $('Code Unificador4').item.json.detalleParaAfip.ImpTrib }},\n            \"ImpIVA\": {{ $('Code Unificador4').item.json.detalleParaAfip.ImpIVA }},\n            \"MonId\": \"PES\",\n            \"MonCotiz\": 1,\n            \"FchServDesde\": \"{{ $('Code Unificador4').item.json.detalleParaAfip.FchServDesde }}\",\n            \"FchServHasta\": \"{{ $('Code Unificador4').item.json.detalleParaAfip.FchServHasta }}\",\n            \"FchVtoPago\": \"{{ $('Code Unificador4').item.json.detalleParaAfip.FchVtoPago }}\"\n          }\n        ]\n      }\n    }\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        768,
+        3920
+      ],
+      "id": "17c8af63-6837-4288-a806-ae9b1e89ba43",
+      "name": "create_voucher9",
+      "alwaysOutputData": false
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Config Credenciales1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript16",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_authorization": {
+      "main": [
+        [
+          {
+            "node": "get_authorization_PADRON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript15": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limpia CUIT/CUIL": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "get_authorization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_authorization_PADRON": {
+      "main": [
+        [
+          {
+            "node": "get_persona",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_persona": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript15",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Config Credenciales1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recibo Datos": {
+      "main": [
+        [
+          {
+            "node": "Limpia CUIT/CUIL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript16": {
+      "main": [
+        [
+          {
+            "node": "Recibo Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch nota de credito1": {
+      "main": [
+        [
+          {
+            "node": "Code NOTA A1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code NOTA B",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code NOTA C1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code NOTA A1": {
+      "main": [
+        [
+          {
+            "node": "Code Unificador1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code NOTA C1": {
+      "main": [
+        [
+          {
+            "node": "Code Unificador1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code NOTA B": {
+      "main": [
+        [
+          {
+            "node": "Code Unificador1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code Unificador1": {
+      "main": [
+        [
+          {
+            "node": "get_last_voucher_number6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate_qr_text1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request12",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request12": {
+      "main": [
+        [
+          {
+            "node": "generar pdf para mail1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generar pdf para mail1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_last_voucher_number6": {
+      "main": [
+        [
+          {
+            "node": "create_voucher",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript5": {
+      "main": [
+        [
+          {
+            "node": "HTML1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create_voucher": {
+      "main": [
+        [
+          {
+            "node": "generate_qr_text1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_last_voucher_number1": {
+      "main": [
+        [
+          {
+            "node": "create_voucher9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create_voucher8": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML5": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request13",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate_qr_text6": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request13": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request14",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request14": {
+      "main": [
+        [
+          {
+            "node": "generar pdf para mail3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "If5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch1": {
+      "main": [
+        [
+          {
+            "node": "Code Factura A1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code Factura B1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code Factura C1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "generate_qr_text6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generar pdf para mail3": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code Factura A1": {
+      "main": [
+        [
+          {
+            "node": "Code Unificador4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code Factura B1": {
+      "main": [
+        [
+          {
+            "node": "Code Unificador4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code Factura C1": {
+      "main": [
+        [
+          {
+            "node": "Code Unificador4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code Unificador4": {
+      "main": [
+        [
+          {
+            "node": "get_last_voucher_number1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If5": {
+      "main": [
+        [
+          {
+            "node": "Switch nota de credito1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Switch1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript6": {
+      "main": [
+        [
+          {
+            "node": "HTML5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create_voucher9": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": true
+  },
+  "versionId": "57970d4c-9a54-40fa-a328-43600642e252",
+  "meta": {
+    "instanceId": "389bc4a833b9a53a284e411ec17b72e882bb1083c0e92907792c004c331457ab"
+  },
+  "id": "PxUhoRS9cMZJVy2X",
+  "tags": []
+}

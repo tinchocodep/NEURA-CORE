@@ -1,0 +1,1179 @@
+{
+  "name": "Carga de comrpobantes",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "CargaDeComprobantes",
+        "responseMode": "responseNode",
+        "options": {
+          "binaryPropertyName": "data"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -976,
+        0
+      ],
+      "id": "e6ac43ff-e21a-480d-8734-c8e559f6634a",
+      "name": "Webhook",
+      "webhookId": "1084c52e-de42-4d15-9757-cba6d34fe74c"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "data0",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        -304,
+        -160
+      ],
+      "id": "bbcce182-73af-4b4f-a39c-eee589348ee9",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "f14f2d74-6624-4a70-aa21-99b191830e05",
+              "leftValue": "={{ $('Webhook').item.json.body.filename }}",
+              "rightValue": "pdf",
+              "operator": {
+                "type": "string",
+                "operation": "endsWith"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -480,
+        -16
+      ],
+      "id": "8127a625-cd91-4d84-b0bb-9fe6a1e457e4",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3.1-pro-preview",
+          "mode": "list",
+          "cachedResultName": "models/gemini-3.1-pro-preview"
+        },
+        "text": "=Eres un asistente contable experto y un procesador de datos OCR de alta precisión. Tu único objetivo es analizar la imagen adjunta de este comprobante contable y extraer la información solicitada en un formato JSON estructurado perfecto. No inventes datos. Si un campo no está presente, devuelve \"null\". Devuelve ÚNICAMENTE un objeto JSON válido, sin texto adicional ni bloques de código markdown (no uses ```json).\n\nReglas de extracción estrictas:\n1. \"fecha\": Formato estricto YYYY-MM-DD.\n2. \"numero_comprobante\": El número completo (ej. 00003-00001234).\n3. \"tipo_comprobante\": Identifica si es \"Factura A\", \"Factura B\", \"Factura C\", \"Ticket\", \"Remito\", etc.\n4. \"moneda\": Usa el código ISO (ej. \"ARS\", \"USD\"). Si hay símbolo $, asume ARS salvo que diga explícitamente dólares.\n5. \"monto_original\": Devuelve solo el número final total, sin símbolos ni separadores de miles. Usa punto para los decimales.\n6. \"descripcion\": Genera un resumen muy breve (máximo 5 palabras) de lo que se facturó.\n7. \"cuit_emisor\": El CUIT de quien emite el comprobante (solo números, sin guiones).\n8. \"cuit_receptor\": El CUIT a quien se le factura (solo números, sin guiones).\n9. \"Razon social\": La Razon social es el nombre del emisor",
+        "inputType": "binary",
+        "binaryPropertyName": "data0",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        80,
+        0
+      ],
+      "id": "403d9d16-8e2f-4bc9-a078-fc3b34180a41",
+      "name": "Analyze an image",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ckp67BViTFwefxtq",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3.1-flash-lite-preview",
+          "mode": "list",
+          "cachedResultName": "models/gemini-3.1-flash-lite-preview"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Analiza el siguiente texto extraído de un comprobante y extrae los datos siguiendo estas reglas:\n\n\"fecha\": Formato YYYY-MM-DD.\n\n\"numero_comprobante\": Número completo (ej. 0001-00012345).\n\n\"tipo_comprobante\": Factura A, B, C, Ticket, etc.\n\n\"moneda\": Código ISO (ARS, USD).\n\n\"monto_original\": Solo número, usa punto para decimales.\n\n\"descripcion\": Resumen de máximo 5 palabras.\n\n\"cuit_emisor\": Solo números del emisor.\n\n\"cuit_receptor\": Solo números del receptor.\n\nTEXTO A ANALIZAR:\n{{ $json.text }}"
+            }
+          ]
+        },
+        "options": {
+          "systemMessage": "=Eres un asistente contable experto y un procesador de datos OCR de alta precisión. Tu único objetivo es analizar el texto de comprobantes contables y extraer la información solicitada en un formato JSON estructurado perfecto.  REGLAS CRÍTICAS:  No inventes datos. Si un campo no está presente, devuelve \"null\".  Formatea las fechas estrictamente como YYYY-MM-DD.  Devuelve ÚNICAMENTE un objeto JSON válido.  No incluyas explicaciones, ni bloques de código markdown (sin ```json)."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        -160
+      ],
+      "id": "8e46410e-a2bb-4b0c-b01e-d292b5d3de26",
+      "name": "Message a model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ckp67BViTFwefxtq",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Obtenemos el objeto principal\nconst item = items[0].json;\n\n// 2. Navegamos por la estructura específica: content -> parts[0] -> text\nlet rawResponse = \"\";\n\nif (item.content && item.content.parts && item.content.parts[0] && item.content.parts[0].text) {\n    rawResponse = item.content.parts[0].text;\n} else {\n    // Backup por si la estructura cambia o viene de otro modo\n    rawResponse = item.text || item.output || (typeof item.content === 'string' ? item.content : \"\");\n}\n\ntry {\n    // 3. Limpieza de Markdown (quitar bloques ```json ... ```)\n    let cleanString = rawResponse\n        .replace(/```json/gi, '') \n        .replace(/```/g, '')      \n        .trim();\n\n    // 4. Parsear el JSON interno\n    const parsedData = JSON.parse(cleanString);\n\n    // 5. Devolvemos el objeto para que n8n vea los campos (fecha, monto, etc.)\n    return [{ json: parsedData }];\n\n} catch (error) {\n    // Si falla el parseo, devolvemos el texto plano para no perder la info\n    return [{ \n        json: { \n            error: \"No se pudo parsear el JSON\",\n            raw_text: rawResponse \n        } \n    }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        272,
+        -80
+      ],
+      "id": "44888b52-22cd-43a5-9523-57cf7020ab6b",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTU2MTQzMSwiZXhwIjoyMDg3MTM3NDMxfQ.N9AhuM2sPXcXJmTiM1lux4weZI94ltNw0B4oHwxWecU"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/pdf"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        3184,
+        -128
+      ],
+      "id": "052bed16-a9ec-456f-9b09-6a23ae3406f1",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "619529fd-5e5b-46ee-b9d6-e366fc42e3bf",
+              "name": "fecha",
+              "value": "={{ $json.fecha }}",
+              "type": "string"
+            },
+            {
+              "id": "1d7283b7-35fd-4c4f-826e-556863bce5e0",
+              "name": "numero_comprobante",
+              "value": "={{ $json.numero_comprobante }}",
+              "type": "string"
+            },
+            {
+              "id": "13cfb759-d3c7-4364-a00a-6cdc2826713a",
+              "name": "tipo_comprobante",
+              "value": "={{ $json.tipo_comprobante }}",
+              "type": "string"
+            },
+            {
+              "id": "247d18c9-fba5-46ea-a0da-a7a2b99064dc",
+              "name": "moneda",
+              "value": "={{ $json.moneda }}",
+              "type": "string"
+            },
+            {
+              "id": "ab001f60-a140-4705-a33f-7e639832157d",
+              "name": "monto_original",
+              "value": "={{ $json.monto_original }}",
+              "type": "number"
+            },
+            {
+              "id": "e15e1603-f69e-4abd-a7b7-8ae102b71aa9",
+              "name": "descripcion",
+              "value": "={{ $json.descripcion }}",
+              "type": "string"
+            },
+            {
+              "id": "8d77fd6f-52e3-45ac-9d9b-bb8a21e1c416",
+              "name": "cuit_emisor",
+              "value": "={{ $json.cuit_emisor }}",
+              "type": "string"
+            },
+            {
+              "id": "b7b78a40-36b8-44b9-98ee-8dd140afccee",
+              "name": "cuit_receptor",
+              "value": "={{ $json.cuit_receptor }}",
+              "type": "string"
+            },
+            {
+              "id": "ec768fe6-8e8f-472d-87cf-4104e764f488",
+              "name": "body.tenant_id",
+              "value": "={{ $('Edit Fields1').item.json.body.tenant_id }}",
+              "type": "string"
+            },
+            {
+              "id": "18871a99-3a31-4ac1-a3b7-69e119757eda",
+              "name": "razon_social",
+              "value": "={{ $json['Razon social'] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        416,
+        -80
+      ],
+      "id": "9722d656-3c2a-4180-85ad-2bd2d4cb0ae3",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "73461ec5-0b3b-4501-9a68-9ea8f8ec1d13",
+              "leftValue": "={{ $('Edit Fields').item.json.cuit_receptor ? $('Edit Fields').item.json.cuit_receptor.toString().replace(/\\D/g, '') : '' }}",
+              "rightValue": "={{ $json.arca_cuit }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        64,
+        528
+      ],
+      "id": "5499b057-3daf-400b-937d-9f897a79ca38",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b70f1a1e-aaf3-4a7f-a3a5-b0be4bb9de8c",
+              "name": "body.tenant_id",
+              "value": "={{ $json.body.tenant_id }}",
+              "type": "string"
+            },
+            {
+              "id": "c3d7a2ec-b874-43b2-8df2-75bc0fb39ed7",
+              "name": "body.filename",
+              "value": "={{ $json.body.filename }}",
+              "type": "string"
+            },
+            {
+              "id": "94c99bc1-7bf6-46ed-9f99-3b43954dc9d8",
+              "name": "body.tenant_id",
+              "value": "={{ $json.body.tenant_id }}",
+              "type": "string"
+            },
+            {
+              "id": "e5ec520c-20d6-491e-87e7-e88d0f8e58de",
+              "name": "cuit_empresa",
+              "value": "={{ $json.body.cuit_empresa }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -640,
+        -16
+      ],
+      "id": "675a8070-918d-45ec-bc4d-6091d775041d",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "tableId": "contable_comprobantes",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "tenant_id",
+              "fieldValue": "={{ $('Edit Fields1').first().json.body.tenant_id }}"
+            },
+            {
+              "fieldId": "cuit_emisor",
+              "fieldValue": "={{ $('Edit Fields').first().json.cuit_emisor }}"
+            },
+            {
+              "fieldId": "proveedor_id",
+              "fieldValue": "={{ $if($('Crea el proveedor si no esta').isExecuted, $('Crea el proveedor si no esta').first().json.id, $('Ve si existe el proveedor').first().json.id) }}"
+            },
+            {
+              "fieldId": "numero_comprobante",
+              "fieldValue": "={{ $('Edit Fields').first().json.numero_comprobante }}"
+            },
+            {
+              "fieldId": "monto_original",
+              "fieldValue": "={{ $('Edit Fields').first().json.monto_original }}"
+            },
+            {
+              "fieldId": "moneda",
+              "fieldValue": "={{ $('Edit Fields').first().json.moneda }}"
+            },
+            {
+              "fieldId": "descripcion",
+              "fieldValue": "={{ $('Edit Fields').first().json.descripcion }}"
+            },
+            {
+              "fieldId": "cuit_receptor",
+              "fieldValue": "={{ $('Edit Fields').first().json.cuit_receptor }}"
+            },
+            {
+              "fieldId": "tipo",
+              "fieldValue": "compra"
+            },
+            {
+              "fieldId": "tipo_comprobante",
+              "fieldValue": "={{ $('Edit Fields').first().json.tipo_comprobante }}"
+            },
+            {
+              "fieldId": "pdf_url",
+              "fieldValue": "={{ ($json.pdf_url || '').replace(/[\\n\\r\\s]+$/, '').replaceAll(' ', '_') }}"
+            },
+            {
+              "fieldId": "source",
+              "fieldValue": "pdf_upload "
+            },
+            {
+              "fieldId": "fecha",
+              "fieldValue": "={{ $('Edit Fields').first().json.fecha }}"
+            },
+            {
+              "fieldId": "categoria_id",
+              "fieldValue": "={{ $json.text.replace(/[\\n\\r]/g, '').trim() }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2816,
+        -128
+      ],
+      "id": "86375da7-466b-44a6-a894-da5f4e061fad",
+      "name": "Create a row1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{'https://fuytejvnwihghxymyayw.supabase.co/storage/v1/object/comprobantes/' + $('Webhook').first().binary.data0.fileName.trim()}}\n\n",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization ",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTU2MTQzMSwiZXhwIjoyMDg3MTM3NDMxfQ.N9AhuM2sPXcXJmTiM1lux4weZI94ltNw0B4oHwxWecU"
+            },
+            {
+              "name": "Content-Type",
+              "value": "=image/png"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTU2MTQzMSwiZXhwIjoyMDg3MTM3NDMxfQ.N9AhuM2sPXcXJmTiM1lux4weZI94ltNw0B4oHwxWecU"
+            },
+            {
+              "name": "x-upsert\t",
+              "value": "true"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data0",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -432,
+        192
+      ],
+      "id": "bd5a73a2-3726-4f31-8446-58fbc3f4a213",
+      "name": "HTTP Request",
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Aquí tienes los detalles del comprobante a clasificar:\n\n- Descripción o Ítems: {{ $('Edit Fields').first().json.tipo_comprobante }}\n- Proveedor/Cliente: {{ $('Edit Fields').first().json.cuit_emisor }}\n- Monto Total: {{ $('Edit Fields').first().json.monto_original }}\n\nAquí está la lista ESTRICTA de categorías disponibles en nuestra base de datos (formato JSON):\n{{ $json.categorias_texto }}\n\nAnaliza el comprobante que puede ser:\n\n{{ $if($(\"Extract from File\").isExecuted, $(\"Extract from File\").first().json.text, $(\"Analyze an image\").first().json.content.parts[0].text) }}\n\ny empareja lógicamente el gasto o ingreso con la categoría más adecuada de la lista anterior.\nRecuerda: Responde ÚNICAMENTE con el \"id\" de la categoría ganadora, o con \"null\" si nada encaja.\n",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "Eres un asistente contable experto en clasificación financiera.  Tu única misión es asignar la categoría correcta a un comprobante (factura, ticket, recibo de gasto o ingreso) según una lista estricta de categorías permitidas.  REGLAS ESTRICTAS: 1. SOLO debes responder con el \"id\" (UUID) de la categoría que mejor describa el comprobante. 2. NUNCA respondas con texto adicional, explicaciones, ni comillas. Solo la cadena exacta del UUID válido. 3. Si el comprobante es un Gasto (compra), solo puedes asignarlo a categorías de tipo \"gasto\" o \"ambos\". 4. Si el comprobante es un Ingreso (venta), solo puedes asignarlo a categorías de tipo \"ingreso\" o \"ambos\". 5. Si ninguna de las categorías encaja lógicamente con la descripción del comprobante, o si la lista de categorías permitidas está vacía, DEBES responder exactamente con la palabra: null 6. BAJO NINGUNA CIRCUNSTANCIA inventes una categoría nueva ni devuelvas un ID que no esté en la lista que se te proporciona."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        2256,
+        -128
+      ],
+      "id": "535bf174-a178-4826-bd46-1736e79658ca",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite-preview",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        2192,
+        80
+      ],
+      "id": "92e61718-79d0-41af-9df1-4ab4a64b3572",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ckp67BViTFwefxtq",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "contable_proveedores",
+        "limit": 1,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "cuit",
+              "condition": "eq",
+              "keyValue": "={{ $('Edit Fields').first().json.cuit_emisor }}"
+            },
+            {
+              "keyName": "tenant_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Edit Fields1').first().json.body.tenant_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        832,
+        -80
+      ],
+      "id": "3952fd74-3ba0-4149-ae09-3af470c123a5",
+      "name": "Contable proveedores cuit",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const categorias = $input.all().map(item => item.json);\n\nconst listaCategoriasTexto = categorias.map(c => \n  `- ID: ${c.id} | Nombre: ${c.nombre} | Tipo: ${c.tipo}`\n).join('\\n');\n\nreturn [{\n  json: {\n    categorias_texto: listaCategoriasTexto,\n    descripcion_gasto: $('Edit Fields').first().json.descripcion,\n    monto: $('Edit Fields').first().json.monto_original\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2096,
+        -144
+      ],
+      "id": "0a28325a-e173-4a7e-bca9-35bdadc85a5e",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "contable_comprobantes",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "categoria_id",
+              "fieldValue": "={{ $json.categoria_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3024,
+        -128
+      ],
+      "id": "c3bc3f30-57c1-465e-9f93-6c416e338ce5",
+      "name": "Update a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://fuytejvnwihghxymyayw.supabase.co/rest/v1/contable_config?tenant_id=eq.{{ $('Edit Fields1').item.json.body.tenant_id }}&select=arca_cuit",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjE0MzEsImV4cCI6MjA4NzEzNzQzMX0.DpQeHA--4qG8hjudz4fMBhnYwlpKcsZ7wuKgTzxpKsw"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTU2MTQzMSwiZXhwIjoyMDg3MTM3NDMxfQ.N9AhuM2sPXcXJmTiM1lux4weZI94ltNw0B4oHwxWecU"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -80,
+        528
+      ],
+      "id": "1224b33b-1a31-48ab-97e9-3f5e7b10bc37",
+      "name": "HTTP Request10"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Edit Fields1').first().json.body.chat_id }}",
+        "text": "=🧾 *Nueva {{ $json.tipo_comprobante }} Registrada*\n\n*Nro de Comprobante:* {{ $json.numero_comprobante }}\n*Fecha:* {{ $json.fecha }}\n*Concepto:* {{ $json.descripcion }}\n\n💰 *Monto Total:* ${{ $json.monto_original }} ({{ $json.moneda }})\n🏢 *CUIT Emisor:* {{ $json.cuit_emisor }}\n👤 *CUIT Receptor:* {{ $json.cuit_receptor }}\n\n📌 *Estado:* {{ $json.estado }}\n📎 [Ver comprobante original]({{ $json.pdf_url }})",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3392,
+        -128
+      ],
+      "id": "9df8f010-b11d-4e51-bffa-c6fa68ce13a6",
+      "name": "Send a text message2",
+      "webhookId": "ba6cb6b3-8f48-411e-962e-823a89c1ed77",
+      "credentials": {
+        "telegramApi": {
+          "id": "7S6oXZM7j1LN9Hd9",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "bc48c1c3-595c-43ca-8f95-c8a05b0b636d",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1760,
+        -128
+      ],
+      "id": "e0b357e3-5f23-4b0f-b443-f0954f13b5dd",
+      "name": "If4"
+    },
+    {
+      "parameters": {
+        "tableId": "contable_categorias",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "tenant_id",
+              "fieldValue": "={{ $('Edit Fields1').item.json.body.tenant_id }}"
+            },
+            {
+              "fieldId": "nombre",
+              "fieldValue": "={{ $('Edit Fields').item.json.descripcion }}"
+            },
+            {
+              "fieldId": "tipo",
+              "fieldValue": "gasto"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1936,
+        64
+      ],
+      "id": "964c9d35-78f1-45dc-a422-fe8c0ff5960d",
+      "name": "Create a categorias",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://fuytejvnwihghxymyayw.supabase.co/rest/v1/contable_proveedores?cuit=eq.{{ $('Edit Fields').first().json.cuit_emisor }}&tenant_id=eq.{{ $('Edit Fields1').first().json.body.tenant_id }}&limit=1",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjE0MzEsImV4cCI6MjA4NzEzNzQzMX0.DpQeHA--4qG8hjudz4fMBhnYwlpKcsZ7wuKgTzxpKsw"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1eXRlanZud2loZ2h4eW15YXl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTU2MTQzMSwiZXhwIjoyMDg3MTM3NDMxfQ.N9AhuM2sPXcXJmTiM1lux4weZI94ltNw0B4oHwxWecU"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        240,
+        432
+      ],
+      "id": "7b7058ea-e119-4485-a3da-7a3b2f5fea3e",
+      "name": "HTTP Request11",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "tableId": "contable_proveedores",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "cuit",
+              "fieldValue": "={{ $('Edit Fields').first().json.cuit_emisor }}"
+            },
+            {
+              "fieldId": "razon_social",
+              "fieldValue": "={{ $('Edit Fields').first().json.razon_social }}"
+            },
+            {
+              "fieldId": "tenant_id",
+              "fieldValue": "={{ $('Edit Fields1').first().json.body.tenant_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1328,
+        112
+      ],
+      "id": "55bfe8ad-9a81-4fca-a316-27b8d1ef8150",
+      "name": "Crea el proveedor si no esta",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "10ce6bc3-b2fe-4ab7-bebb-176bddc9176e",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1120,
+        -80
+      ],
+      "id": "5c64aece-859c-4fa4-84a1-03e1ff9b3b3a",
+      "name": "Ve si existe el proveedor"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "contable_categorias",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "tenant_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Edit Fields1').item.json.body.tenant_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1552,
+        -144
+      ],
+      "id": "68350f59-f54d-4ddf-b093-660bf8819310",
+      "name": "Agarra el tenant (nose si mio o del proveedor pero lo trae del Edit Field)",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "ot7tTJCG3GENX2kF",
+          "name": "Supabase account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    ...($input.first().json),\n    text: $input.first().json.text.replace(/[\\n\\r]/g, '').trim(),\n    pdf_url: ('https://fuytejvnwihghxymyayw.supabase.co/storage/v1/object/public/comprobantes/' + $('Webhook').first().binary.data0.fileName).replace(/[\\n\\r]/g, '').trim(),\n    categoria_id: ($input.first().json.categoria_id || '').replace(/[\\n\\r]/g, '').trim()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2608,
+        -112
+      ],
+      "id": "ae972452-b13b-4499-bb1a-7d349e1731c6",
+      "name": "Code in JavaScript5"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Edit Fields1').first().json.body.chat_id }}",
+        "text": "Este comprobante no corresponde a una factura que tu empresa sea la receptora",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        576
+      ],
+      "id": "c9d164a8-e0dc-48a4-a964-933f3f027d1d",
+      "name": "Send a text message3",
+      "webhookId": "bc9a4368-8922-41ed-b6b2-446b6a8e7362",
+      "credentials": {
+        "telegramApi": {
+          "id": "7S6oXZM7j1LN9Hd9",
+          "name": "Telegram account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Analyze an image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze an image": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Contable proveedores cuit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request11",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row1": {
+      "main": [
+        [
+          {
+            "node": "Update a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        []
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contable proveedores cuit": {
+      "main": [
+        [
+          {
+            "node": "Ve si existe el proveedor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update a row": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request10": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        [
+          {
+            "node": "Send a text message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If4": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create a categorias",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a categorias": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request11": {
+      "main": [
+        []
+      ]
+    },
+    "Crea el proveedor si no esta": {
+      "main": [
+        [
+          {
+            "node": "Agarra el tenant (nose si mio o del proveedor pero lo trae del Edit Field)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ve si existe el proveedor": {
+      "main": [
+        [
+          {
+            "node": "Agarra el tenant (nose si mio o del proveedor pero lo trae del Edit Field)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Crea el proveedor si no esta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agarra el tenant (nose si mio o del proveedor pero lo trae del Edit Field)": {
+      "main": [
+        [
+          {
+            "node": "If4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript5": {
+      "main": [
+        [
+          {
+            "node": "Create a row1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": true
+  },
+  "versionId": "2a3ece2d-fb1d-4c36-910a-6fc62d562c20",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "389bc4a833b9a53a284e411ec17b72e882bb1083c0e92907792c004c331457ab"
+  },
+  "id": "DL4f73ony4VaBiJX",
+  "tags": []
+}

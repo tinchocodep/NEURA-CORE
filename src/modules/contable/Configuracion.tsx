@@ -3,8 +3,9 @@ import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
 import {
     Users, Plus, Settings, RefreshCw, Building2, Save, Trash2, CheckCircle, XCircle, Eye, EyeOff, FolderTree,
-    Zap, Download, Upload, Landmark, MessageCircle, FileText
+    Zap, Download, Upload, Landmark, MessageCircle, FileText, Star, Receipt, Lock
 } from 'lucide-react';
+import { hasFeature } from '../../config/features';
 import { SkeletonCard } from '../../shared/components/SkeletonKit';
 import MessagingTab from './components/MessagingTab';
 import { getXubioService } from '../../services/XubioService';
@@ -48,13 +49,33 @@ interface BankCredential {
     environment: string;
 }
 
-type TabKey = 'empresa' | 'integraciones' | 'usuarios' | 'mensajeria';
+interface FacturacionEmisor {
+    id?: string;
+    tenant_id?: string;
+    cuit: string;
+    razon_social: string;
+    alias: string | null;
+    punto_venta: number;
+    condicion_iva: string | null;
+    environment: string;
+    cert_pem: string;
+    key_pem: string;
+    arca_username: string | null;
+    arca_password: string | null;
+    is_default: boolean;
+    activo: boolean;
+    created_at?: string;
+    updated_at?: string;
+}
 
-const ALL_TABS: { key: TabKey; label: string; icon: any; superadminOnly?: boolean }[] = [
+type TabKey = 'empresa' | 'facturacion' | 'integraciones' | 'usuarios' | 'mensajeria';
+
+const ALL_TABS: { key: TabKey; label: string; icon: any }[] = [
     { key: 'empresa', label: 'Empresa', icon: Building2 },
+    { key: 'facturacion', label: 'Facturación', icon: Receipt },
     { key: 'usuarios', label: 'Usuarios', icon: Users },
-    { key: 'integraciones', label: 'Integraciones', icon: Zap, superadminOnly: true },
-    { key: 'mensajeria', label: 'Mensajería', icon: MessageCircle, superadminOnly: true },
+    { key: 'integraciones', label: 'Integraciones', icon: Zap },
+    { key: 'mensajeria', label: 'Mensajería', icon: MessageCircle },
 ];
 
 /* ─── Component ─────────────── */
@@ -70,10 +91,8 @@ export default function Configuracion() {
     const [showSecret, setShowSecret] = useState(false);
     const [testingXubio, setTestingXubio] = useState(false);
     const [testingColpy, setTestingColpy] = useState(false);
-    const [testingArca, setTestingArca] = useState(false);
     const [xubioStatus, setXubioStatus] = useState<'idle' | 'ok' | 'error'>('idle');
     const [colpyStatus, setColpyStatus] = useState<'idle' | 'ok' | 'error'>('idle');
-    const [arcaStatus, setArcaStatus] = useState<'idle' | 'ok' | 'error'>('idle');
     const [xubioMessage, setXubioMessage] = useState('');
     const [colpyMessage, setColpyMessage] = useState('');
     const [colpyEmpresas, setColpyEmpresas] = useState<{ idEmpresa: string, RazonSocial: string }[] | null>(null);
@@ -142,10 +161,19 @@ export default function Configuracion() {
     const [savingUser, setSavingUser] = useState(false);
     const [userSaveResult, setUserSaveResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
+    // Facturación emisores state
+    const [emisores, setEmisores] = useState<FacturacionEmisor[]>([]);
+    const [loadingEmisores, setLoadingEmisores] = useState(false);
+    const [savingEmisor, setSavingEmisor] = useState(false);
+    const [emisorForm, setEmisorForm] = useState<FacturacionEmisor | null>(null);
+    const [emisorSaveResult, setEmisorSaveResult] = useState<{ ok: boolean; msg: string } | null>(null);
+    const [showEmisorPassword, setShowEmisorPassword] = useState(false);
+
     useEffect(() => {
         if (!tenant) return;
         loadConfig();
         loadUsers();
+        loadEmisores();
         setTenantRazonSocial(tenant.razon_social || tenant.name || '');
         setTenantCuit(tenant.cuit || '');
         setTenantDireccion(tenant.direccion || '');
@@ -155,6 +183,112 @@ export default function Configuracion() {
         setUiFontSize((tenant as any).ui_font_size || 'medium');
         setUiDensity((tenant as any).ui_density || 'normal');
     }, [tenant?.id]);
+
+    async function loadEmisores() {
+        if (!tenant) return;
+        setLoadingEmisores(true);
+        const { data } = await supabase
+            .from('facturacion_emisores')
+            .select('*')
+            .eq('tenant_id', tenant.id)
+            .order('is_default', { ascending: false })
+            .order('created_at', { ascending: true });
+        setEmisores((data as FacturacionEmisor[]) || []);
+        setLoadingEmisores(false);
+    }
+
+    function startAddEmisor() {
+        setEmisorForm({
+            cuit: '',
+            razon_social: '',
+            alias: '',
+            punto_venta: 1,
+            condicion_iva: 'RI',
+            environment: 'prod',
+            cert_pem: '',
+            key_pem: '',
+            arca_username: '',
+            arca_password: '',
+            is_default: emisores.length === 0,
+            activo: true,
+        });
+        setEmisorSaveResult(null);
+    }
+
+    function startEditEmisor(em: FacturacionEmisor) {
+        setEmisorForm({ ...em });
+        setEmisorSaveResult(null);
+    }
+
+    function cancelEmisorForm() {
+        setEmisorForm(null);
+        setEmisorSaveResult(null);
+    }
+
+    async function handleSaveEmisor() {
+        if (!tenant || !emisorForm) return;
+        if (!emisorForm.cuit.trim() || !emisorForm.razon_social.trim() || !emisorForm.punto_venta) {
+            setEmisorSaveResult({ ok: false, msg: 'Faltan campos obligatorios: CUIT, razón social, punto de venta' });
+            return;
+        }
+        if (!emisorForm.cert_pem || !emisorForm.key_pem) {
+            setEmisorSaveResult({ ok: false, msg: 'Subí el certificado (.crt) y la clave privada (.key)' });
+            return;
+        }
+        setSavingEmisor(true);
+        setEmisorSaveResult(null);
+        try {
+            if (emisorForm.is_default) {
+                await supabase
+                    .from('facturacion_emisores')
+                    .update({ is_default: false })
+                    .eq('tenant_id', tenant.id);
+            }
+            const payload = {
+                tenant_id: tenant.id,
+                cuit: emisorForm.cuit.trim(),
+                razon_social: emisorForm.razon_social.trim(),
+                alias: emisorForm.alias?.trim() || null,
+                punto_venta: emisorForm.punto_venta,
+                condicion_iva: emisorForm.condicion_iva,
+                environment: emisorForm.environment,
+                cert_pem: emisorForm.cert_pem,
+                key_pem: emisorForm.key_pem,
+                arca_username: emisorForm.arca_username?.trim() || null,
+                arca_password: emisorForm.arca_password?.trim() || null,
+                is_default: emisorForm.is_default,
+                activo: emisorForm.activo,
+                updated_at: new Date().toISOString(),
+            };
+            if (emisorForm.id) {
+                const { error } = await supabase.from('facturacion_emisores').update(payload).eq('id', emisorForm.id);
+                if (error) throw error;
+            } else {
+                const { error } = await supabase.from('facturacion_emisores').insert(payload);
+                if (error) throw error;
+            }
+            setEmisorSaveResult({ ok: true, msg: 'Emisor guardado correctamente' });
+            await loadEmisores();
+            setTimeout(() => { setEmisorForm(null); setEmisorSaveResult(null); }, 1200);
+        } catch (err: any) {
+            setEmisorSaveResult({ ok: false, msg: err?.message || 'Error al guardar' });
+        }
+        setSavingEmisor(false);
+    }
+
+    async function handleDeleteEmisor(em: FacturacionEmisor) {
+        if (!em.id) return;
+        if (!confirm(`¿Borrar el emisor "${em.alias || em.razon_social}"? Esta acción no se puede deshacer.`)) return;
+        await supabase.from('facturacion_emisores').delete().eq('id', em.id);
+        await loadEmisores();
+    }
+
+    async function handleSetDefaultEmisor(em: FacturacionEmisor) {
+        if (!tenant || !em.id) return;
+        await supabase.from('facturacion_emisores').update({ is_default: false }).eq('tenant_id', tenant.id);
+        await supabase.from('facturacion_emisores').update({ is_default: true }).eq('id', em.id);
+        await loadEmisores();
+    }
 
     /* ─── Data Loaders ─── */
     async function loadConfig() {
@@ -489,15 +623,6 @@ export default function Configuracion() {
         setSyncingComprobantes(false);
     }
 
-    async function testArca() {
-        setTestingArca(true); setArcaStatus('idle');
-        await new Promise(r => setTimeout(r, 1500));
-        const hasMisComprobantes = config?.arca_cuit && config?.arca_username && config?.arca_password;
-        const hasCertificado = config?.arca_cuit && config?.arca_certificate;
-        setArcaStatus(hasMisComprobantes || hasCertificado ? 'ok' : 'error');
-        setTestingArca(false);
-    }
-
     function updateConfig(field: string, value: any) {
         if (!config) return;
         setConfig({ ...config, [field]: value });
@@ -731,94 +856,6 @@ export default function Configuracion() {
                 </div>
             </details>
 
-            {/* SECCIÓN 2: ARCA */}
-            <details style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-lg)', overflow: 'hidden' }}>
-                <summary style={{ padding: '1rem 1.5rem', fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', cursor: 'pointer', background: 'var(--bg-subtle)' }}>
-                    Reguladores y Facturación Electrónica
-                </summary>
-                <div style={{ padding: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1.5rem', alignItems: 'start', background: 'var(--bg-main)' }}>
-            {/* ARCA */}
-            <div className="card" style={{ padding: '1.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '1.5rem' }}>
-                    <div style={{ width: 40, height: 40, borderRadius: 'var(--r-md)', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Settings size={20} color="var(--success)" />
-                    </div>
-                    <div>
-                        <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>ARCA (ex-AFIP)</h3>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Certificado digital · Mis Comprobantes</p>
-                    </div>
-                    {arcaStatus === 'ok' && <CheckCircle size={20} color="var(--success)" style={{ marginLeft: 'auto' }} />}
-                    {arcaStatus === 'error' && <XCircle size={20} color="var(--danger)" style={{ marginLeft: 'auto' }} />}
-                </div>
-                <div className="form-group">
-                    <label className="form-label">CUIT de la empresa</label>
-                    <input className="form-input" value={config?.arca_cuit || ''} onChange={e => updateConfig('arca_cuit', e.target.value)} placeholder="Ej: 30-12345678-9" />
-                </div>
-                <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '1rem 0', paddingTop: '1rem' }}>
-                    <p style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.75rem' }}>Mis Comprobantes (AFIP SDK)</p>
-                </div>
-                <div className="form-group">
-                    <label className="form-label">CUIT login</label>
-                    <input className="form-input" value={config?.arca_username || ''} onChange={e => updateConfig('arca_username', e.target.value)} placeholder="CUIT para loguearse en ARCA (si administrás sociedad, es tu CUIT personal)" />
-                    <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4 }}>Normalmente es el mismo CUIT de la empresa. Si administrás una sociedad, usá tu CUIT personal</p>
-                </div>
-                <div className="form-group">
-                    <label className="form-label">Clave fiscal</label>
-                    <div style={{ position: 'relative' }}>
-                        <input className="form-input" type={showSecret ? 'text' : 'password'} value={config?.arca_password || ''} onChange={e => updateConfig('arca_password', e.target.value)} placeholder="Contraseña de ARCA" style={{ paddingRight: 40 }} />
-                        <button type="button" onClick={() => setShowSecret(!showSecret)} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
-                            {showSecret ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
-                    </div>
-                </div>
-                <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '1rem 0', paddingTop: '1rem' }}>
-                    <p style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.75rem' }}>Facturación Electrónica (Certificado Digital)</p>
-                </div>
-                <div className="form-group">
-                    <label className="form-label">Certificado (.crt)</label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <label className="btn btn-secondary" style={{ cursor: 'pointer', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: 6, margin: 0 }}>
-                            <Upload size={14} /> {config?.arca_certificate ? 'Cambiar certificado' : 'Subir .crt'}
-                            <input type="file" accept=".crt,.pem,.cer" style={{ display: 'none' }} onChange={e => {
-                                const file = e.target.files?.[0];
-                                if (!file) return;
-                                const reader = new FileReader();
-                                reader.onload = () => updateConfig('arca_certificate', reader.result as string);
-                                reader.readAsText(file);
-                            }} />
-                        </label>
-                        {config?.arca_certificate && <CheckCircle size={16} color="var(--success)" />}
-                    </div>
-                </div>
-                <div className="form-group">
-                    <label className="form-label">Clave privada (.key)</label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <label className="btn btn-secondary" style={{ cursor: 'pointer', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: 6, margin: 0 }}>
-                            <Upload size={14} /> {config?.arca_private_key ? 'Cambiar clave' : 'Subir .key'}
-                            <input type="file" accept=".key,.pem" style={{ display: 'none' }} onChange={e => {
-                                const file = e.target.files?.[0];
-                                if (!file) return;
-                                const reader = new FileReader();
-                                reader.onload = () => updateConfig('arca_private_key', reader.result as string);
-                                reader.readAsText(file);
-                            }} />
-                        </label>
-                        {config?.arca_private_key && <CheckCircle size={16} color="var(--success)" />}
-                    </div>
-                    <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4 }}>Se genera con OpenSSL y se tramita en AFIP → Administración de Certificados Digitales</p>
-                </div>
-                <div className="form-group">
-                    <label className="form-label">Punto de Venta</label>
-                    <input className="form-input" type="number" min={1} value={config?.punto_venta || 1} onChange={e => updateConfig('punto_venta', Number(e.target.value))} placeholder="Ej: 1" style={{ width: 120 }} />
-                    <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4 }}>Número de punto de venta habilitado en AFIP</p>
-                </div>
-                <button className="btn btn-secondary" onClick={testArca} disabled={testingArca} style={{ width: '100%' }}>
-                    <RefreshCw size={14} className={testingArca ? 'spinning' : ''} /> {testingArca ? 'Probando...' : 'Probar conexión'}
-                </button>
-            </div>
-                </div>
-            </details>
-
             {/* SECCIÓN 3: BANCOS */}
             <details style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-lg)', overflow: 'hidden' }}>
                 <summary style={{ padding: '1rem 1.5rem', fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', cursor: 'pointer', background: 'var(--bg-subtle)' }}>
@@ -1016,13 +1053,247 @@ export default function Configuracion() {
     const isSuperadmin = userRole === 'superadmin';
     const tenantModules = (tenant?.enabled_modules as string[]) || [];
     const hasErpModule = tenantModules.includes('erp_colppy') || tenantModules.includes('erp_xubio');
-    const TABS = ALL_TABS.filter(t => {
-        if (!t.superadminOnly) return true;
-        if (isSuperadmin) return true;
-        if (t.key === 'integraciones' && hasErpModule) return true;
-        if (t.key === 'mensajeria') return true; // Mensajería visible para todos
-        return false;
-    });
+    const hasFacturacion = isSuperadmin || hasFeature(tenantModules, 'facturacion_afip');
+
+    const TABS = ALL_TABS; // todas las tabs visibles siempre; dentro de cada una se muestra lock si corresponde
+
+    const renderFacturacion = () => {
+        if (!hasFacturacion) {
+            return (
+                <div className="card" style={{ padding: '2rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--bg-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Lock size={24} color="var(--text-muted)" />
+                    </div>
+                    <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Facturación electrónica no activa</h3>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', maxWidth: 420 }}>
+                        Con este módulo podés emitir facturas electrónicas AFIP desde NeuraCore usando tus certificados digitales, con soporte multi-razón-social.
+                    </p>
+                    <a href="mailto:neuracallbot@gmail.com?subject=Activación de Facturación AFIP" className="btn btn-primary" style={{ marginTop: '0.5rem' }}>
+                        Solicitar activación
+                    </a>
+                </div>
+            );
+        }
+
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ flex: 1 }}>
+                        <h2 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: 2 }}>Emisores de Facturación</h2>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                            Razones sociales con las que podés emitir facturas AFIP. La marcada como default se usa cuando no elegís otra al facturar.
+                        </p>
+                    </div>
+                    {!emisorForm && (
+                        <button className="btn btn-primary" onClick={startAddEmisor} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Plus size={14} /> Agregar emisor
+                        </button>
+                    )}
+                </div>
+
+                {emisorForm && (
+                    <div className="card" style={{ padding: '1.5rem', border: '2px solid var(--color-accent)' }}>
+                        <h3 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '1rem' }}>
+                            {emisorForm.id ? 'Editar emisor' : 'Nuevo emisor'}
+                        </h3>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+                            <div className="form-group">
+                                <label className="form-label">Alias (opcional)</label>
+                                <input className="form-input" value={emisorForm.alias || ''} onChange={e => setEmisorForm({ ...emisorForm, alias: e.target.value })} placeholder="Ej: SRL Principal" />
+                                <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4 }}>Nombre corto para identificarlo en los dropdowns</p>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Razón social *</label>
+                                <input className="form-input" value={emisorForm.razon_social} onChange={e => setEmisorForm({ ...emisorForm, razon_social: e.target.value })} placeholder="Ej: Antigravity Gestora SRL" />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">CUIT *</label>
+                                <input className="form-input" value={emisorForm.cuit} onChange={e => setEmisorForm({ ...emisorForm, cuit: e.target.value })} placeholder="30-12345678-9" />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Punto de venta *</label>
+                                <input className="form-input" type="number" min={1} value={emisorForm.punto_venta} onChange={e => setEmisorForm({ ...emisorForm, punto_venta: Number(e.target.value) })} />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Condición IVA</label>
+                                <StyledSelect value={emisorForm.condicion_iva || 'RI'} onChange={e => setEmisorForm({ ...emisorForm, condicion_iva: e.target.value })}>
+                                    <option value="RI">Responsable Inscripto</option>
+                                    <option value="Monotributo">Monotributo</option>
+                                    <option value="Exento">Exento</option>
+                                    <option value="CF">Consumidor Final</option>
+                                </StyledSelect>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Ambiente</label>
+                                <StyledSelect value={emisorForm.environment} onChange={e => setEmisorForm({ ...emisorForm, environment: e.target.value })}>
+                                    <option value="homo">Homologación (pruebas)</option>
+                                    <option value="prod">Producción (real)</option>
+                                </StyledSelect>
+                            </div>
+                        </div>
+
+                        <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '1rem 0', paddingTop: '1rem' }}>
+                            <p style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.75rem' }}>Certificado digital AFIP</p>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                                Se genera con OpenSSL y se tramita en AFIP → Administración de Certificados Digitales
+                            </p>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+                            <div className="form-group">
+                                <label className="form-label">Certificado (.crt) *</label>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <label className="btn btn-secondary" style={{ cursor: 'pointer', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: 6, margin: 0 }}>
+                                        <Upload size={14} /> {emisorForm.cert_pem ? 'Cambiar certificado' : 'Subir .crt'}
+                                        <input type="file" accept=".crt,.pem,.cer" style={{ display: 'none' }} onChange={e => {
+                                            const file = e.target.files?.[0];
+                                            if (!file) return;
+                                            const reader = new FileReader();
+                                            reader.onload = () => setEmisorForm(curr => curr ? { ...curr, cert_pem: reader.result as string } : curr);
+                                            reader.readAsText(file);
+                                        }} />
+                                    </label>
+                                    {emisorForm.cert_pem && <CheckCircle size={16} color="var(--success)" />}
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Clave privada (.key) *</label>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <label className="btn btn-secondary" style={{ cursor: 'pointer', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: 6, margin: 0 }}>
+                                        <Upload size={14} /> {emisorForm.key_pem ? 'Cambiar clave' : 'Subir .key'}
+                                        <input type="file" accept=".key,.pem" style={{ display: 'none' }} onChange={e => {
+                                            const file = e.target.files?.[0];
+                                            if (!file) return;
+                                            const reader = new FileReader();
+                                            reader.onload = () => setEmisorForm(curr => curr ? { ...curr, key_pem: reader.result as string } : curr);
+                                            reader.readAsText(file);
+                                        }} />
+                                    </label>
+                                    {emisorForm.key_pem && <CheckCircle size={16} color="var(--success)" />}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '1rem 0', paddingTop: '1rem' }}>
+                            <p style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.25rem' }}>Credenciales Mis Comprobantes (opcional)</p>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                                Usuario y clave fiscal de AFIP. Se usan para importar los comprobantes que esta razón social recibe de terceros. Dejalo vacío si solo vas a emitir.
+                            </p>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+                            <div className="form-group">
+                                <label className="form-label">Usuario AFIP</label>
+                                <input className="form-input" value={emisorForm.arca_username || ''} onChange={e => setEmisorForm({ ...emisorForm, arca_username: e.target.value })} placeholder="CUIT para loguearse en ARCA" />
+                                <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4 }}>Normalmente es el mismo CUIT. Si administrás una sociedad, usá tu CUIT personal</p>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Clave fiscal</label>
+                                <div style={{ position: 'relative' }}>
+                                    <input className="form-input" type={showEmisorPassword ? 'text' : 'password'} value={emisorForm.arca_password || ''} onChange={e => setEmisorForm({ ...emisorForm, arca_password: e.target.value })} placeholder="Clave fiscal de AFIP" style={{ paddingRight: 40 }} />
+                                    <button type="button" onClick={() => setShowEmisorPassword(!showEmisorPassword)} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                                        {showEmisorPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', cursor: 'pointer' }}>
+                                <input type="checkbox" checked={emisorForm.is_default} onChange={e => setEmisorForm({ ...emisorForm, is_default: e.target.checked })} />
+                                Marcar como emisor por defecto
+                            </label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', cursor: 'pointer' }}>
+                                <input type="checkbox" checked={emisorForm.activo} onChange={e => setEmisorForm({ ...emisorForm, activo: e.target.checked })} />
+                                Activo
+                            </label>
+                        </div>
+
+                        {emisorSaveResult && (
+                            <div style={{ marginTop: '1rem', fontSize: '0.8rem', padding: '0.625rem 0.875rem', borderRadius: 'var(--r-md)', background: emisorSaveResult.ok ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: emisorSaveResult.ok ? 'var(--success)' : 'var(--danger)' }}>
+                                {emisorSaveResult.msg}
+                            </div>
+                        )}
+
+                        <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                            <button className="btn btn-outline" onClick={cancelEmisorForm} disabled={savingEmisor}>Cancelar</button>
+                            <button className="btn btn-primary" onClick={handleSaveEmisor} disabled={savingEmisor}>
+                                {savingEmisor ? 'Guardando...' : <><Save size={14} /> Guardar emisor</>}
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {loadingEmisores ? (
+                    <SkeletonCard />
+                ) : emisores.length === 0 && !emisorForm ? (
+                    <div className="card" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                        <Receipt size={28} style={{ marginBottom: '0.5rem', opacity: 0.6 }} />
+                        <p style={{ fontSize: '0.85rem' }}>No hay emisores cargados todavía.</p>
+                        <p style={{ fontSize: '0.75rem', marginTop: 4 }}>Agregá el primero para empezar a facturar.</p>
+                    </div>
+                ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem' }}>
+                        {emisores.map(em => (
+                            <div key={em.id} className="card" style={{ padding: '1.25rem', position: 'relative', opacity: em.activo ? 1 : 0.6 }}>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                                            {em.is_default && <Star size={14} fill="var(--warning, #f59e0b)" color="var(--warning, #f59e0b)" />}
+                                            <h3 style={{ fontSize: '0.95rem', fontWeight: 700 }}>{em.alias || em.razon_social}</h3>
+                                        </div>
+                                        {em.alias && <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{em.razon_social}</p>}
+                                    </div>
+                                    <span style={{
+                                        fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
+                                        padding: '2px 8px', borderRadius: 99,
+                                        background: em.environment === 'prod' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
+                                        color: em.environment === 'prod' ? 'var(--success)' : 'var(--warning, #f59e0b)',
+                                    }}>
+                                        {em.environment === 'prod' ? 'Producción' : 'Homologación'}
+                                    </span>
+                                </div>
+
+                                <div style={{ fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: 4, marginBottom: '0.75rem' }}>
+                                    <div><span style={{ color: 'var(--text-muted)' }}>CUIT:</span> {em.cuit}</div>
+                                    <div><span style={{ color: 'var(--text-muted)' }}>Punto de venta:</span> {em.punto_venta}</div>
+                                    <div><span style={{ color: 'var(--text-muted)' }}>Condición IVA:</span> {em.condicion_iva || '—'}</div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <span style={{ color: 'var(--text-muted)' }}>Emisión (cert):</span>
+                                        {em.cert_pem && em.key_pem ? (
+                                            <span style={{ color: 'var(--success)', display: 'flex', alignItems: 'center', gap: 4 }}><CheckCircle size={13} /> cargado</span>
+                                        ) : (
+                                            <span style={{ color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: 4 }}><XCircle size={13} /> incompleto</span>
+                                        )}
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <span style={{ color: 'var(--text-muted)' }}>Mis Comprobantes:</span>
+                                        {em.arca_username && em.arca_password ? (
+                                            <span style={{ color: 'var(--success)', display: 'flex', alignItems: 'center', gap: 4 }}><CheckCircle size={13} /> conectado</span>
+                                        ) : (
+                                            <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>—</span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                    <button className="btn btn-outline btn-sm" onClick={() => startEditEmisor(em)} style={{ flex: 1 }}>
+                                        <Settings size={13} /> Editar
+                                    </button>
+                                    {!em.is_default && (
+                                        <button className="btn btn-outline btn-sm" onClick={() => handleSetDefaultEmisor(em)} title="Marcar como default">
+                                            <Star size={13} />
+                                        </button>
+                                    )}
+                                    <button className="btn btn-outline btn-sm" onClick={() => handleDeleteEmisor(em)} title="Borrar" style={{ color: 'var(--danger)' }}>
+                                        <Trash2 size={13} />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+    };
 
     /* ─── Main Render ─── */
     return (
@@ -1031,10 +1302,12 @@ export default function Configuracion() {
             <div className="module-header-desktop">
                 <h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Configuración</h1>
                 <div style={{ flex: 1 }} />
-                <button className="btn btn-primary" onClick={activeTab === 'integraciones' ? handleSave : handleSaveTenant} disabled={saving || savingTenant}
-                    style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem' }}>
-                    {tenantSaved ? <><CheckCircle size={14} /> Guardado</> : <><Save size={14} /> {saving || savingTenant ? 'Guardando...' : 'Guardar'}</>}
-                </button>
+                {activeTab !== 'facturacion' && activeTab !== 'mensajeria' && activeTab !== 'usuarios' && (
+                    <button className="btn btn-primary" onClick={activeTab === 'integraciones' ? handleSave : handleSaveTenant} disabled={saving || savingTenant}
+                        style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem' }}>
+                        {tenantSaved ? <><CheckCircle size={14} /> Guardado</> : <><Save size={14} /> {saving || savingTenant ? 'Guardando...' : 'Guardar'}</>}
+                    </button>
+                )}
             </div>
 
             {/* Tabs as pills */}
@@ -1063,7 +1336,22 @@ export default function Configuracion() {
 
             {/* Tab content */}
             {activeTab === 'empresa' && renderEmpresa()}
+            {activeTab === 'facturacion' && renderFacturacion()}
             {activeTab === 'integraciones' && (isSuperadmin || hasErpModule) && renderIntegraciones()}
+            {activeTab === 'integraciones' && !isSuperadmin && !hasErpModule && (
+                <div className="card" style={{ padding: '2rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--bg-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Lock size={24} color="var(--text-muted)" />
+                    </div>
+                    <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Integraciones no activas</h3>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', maxWidth: 420 }}>
+                        Conectá tu tenant con ERPs (Xubio, Colppy), ARCA, bancos y más. Activalo para ver las opciones disponibles.
+                    </p>
+                    <a href="mailto:neuracallbot@gmail.com?subject=Activación de Integraciones" className="btn btn-primary" style={{ marginTop: '0.5rem' }}>
+                        Solicitar activación
+                    </a>
+                </div>
+            )}
             {activeTab === 'usuarios' && renderUsuarios()}
             {activeTab === 'mensajeria' && <MessagingTab />}
         </div>

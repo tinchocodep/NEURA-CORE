@@ -837,7 +837,6 @@ export default function ComprobantesIndex({ defaultTipo }: ComprobantesIndexProp
                     filters: {
                         t: tipoConsulta,
                         fechaEmision: `${fromDate} - ${toDate}`,
-                        ...(arcaConfig.punto_venta && tipoConsulta === 'E' ? { puntosVenta: [arcaConfig.punto_venta] } : {}),
                     },
                 });
 
@@ -906,12 +905,12 @@ export default function ComprobantesIndex({ defaultTipo }: ComprobantesIndexProp
                                 if (!cli) {
                                     const { data: nuevo } = await supabase
                                         .from('contable_clientes')
-                                        .insert({
+                                        .upsert({
                                             tenant_id: tenant.id,
                                             razon_social: denomContraparte,
                                             cuit: cuitContraparteClean,
                                             activo: true,
-                                        })
+                                        }, { onConflict: 'tenant_id,cuit' })
                                         .select('id')
                                         .single();
                                     if (nuevo) {
@@ -926,14 +925,14 @@ export default function ComprobantesIndex({ defaultTipo }: ComprobantesIndexProp
                                 if (!prov) {
                                     const { data: nuevo } = await supabase
                                         .from('contable_proveedores')
-                                        .insert({
+                                        .upsert({
                                             tenant_id: tenant.id,
                                             razon_social: denomContraparte,
                                             cuit: cuitContraparteClean,
                                             activo: true,
                                             es_caso_rojo: false,
                                             es_favorito: false,
-                                        })
+                                        }, { onConflict: 'tenant_id,cuit' })
                                         .select('id, categoria_default_id, centro_costo_default_id')
                                         .single();
                                     if (nuevo) {
