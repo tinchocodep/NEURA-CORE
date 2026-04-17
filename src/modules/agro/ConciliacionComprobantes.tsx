@@ -57,14 +57,17 @@ type MatchStatus =
     | 'solo_afip'
     | 'solo_sistema'
     | 'solo_xubio'
-    | 'diferencia';        // dos o tres lados matchean por clave pero difieren montos
+    | 'diferencia'         // dos o tres lados matchean por clave pero difieren montos
+    | 'duplicado';         // la misma clave aparece 2+ veces en sistema y/o xubio
 
-type FilterGroup = 'todos' | 'conciliado' | 'parcial' | 'solo_uno' | 'diferencia';
+type FilterGroup = 'todos' | 'conciliado' | 'parcial' | 'solo_uno' | 'diferencia' | 'duplicado';
 
 interface ComprobanteMatch {
     afip: ComprobanteAFIP | null;
     sistema: ComprobanteLocal | null;
     xubio: ComprobanteLocal | null;
+    sistemaExtras?: ComprobanteLocal[];
+    xubioExtras?: ComprobanteLocal[];
     status: MatchStatus;
     diferencias?: string[];
     key: string;
@@ -76,6 +79,7 @@ function matchGroup(s: MatchStatus): Exclude<FilterGroup, 'todos'> {
     if (s === 'conciliado_total') return 'conciliado';
     if (s === 'falta_xubio' || s === 'falta_sistema' || s === 'falta_afip') return 'parcial';
     if (s === 'solo_afip' || s === 'solo_sistema' || s === 'solo_xubio') return 'solo_uno';
+    if (s === 'duplicado') return 'duplicado';
     return 'diferencia';
 }
 
@@ -139,6 +143,17 @@ export default function ConciliacionComprobantes() {
     // Modal detalle y estados de acciones
     const [detailMatch, setDetailMatch] = useState<ComprobanteMatch | null>(null);
     const [importingIds, setImportingIds] = useState<Set<string>>(new Set());
+    const [consolidatingIds, setConsolidatingIds] = useState<Set<string>>(new Set());
+    const [chosenGanadorId, setChosenGanadorId] = useState<string | null>(null);
+
+    // Al abrir modal de detalle de un duplicado, auto-elegir ganador
+    useEffect(() => {
+        if (detailMatch && detailMatch.status === 'duplicado') {
+            setChosenGanadorId(pickGanadorAuto(detailMatch));
+        } else {
+            setChosenGanadorId(null);
+        }
+    }, [detailMatch]);
 
     // Load config
     useEffect(() => {
@@ -322,30 +337,37 @@ export default function ConciliacionComprobantes() {
         sistemaList: ComprobanteLocal[],
         xubioList: ComprobanteLocal[]
     ): ComprobanteMatch[] {
-        const buckets = new Map<string, { afip?: ComprobanteAFIP; sistema?: ComprobanteLocal; xubio?: ComprobanteLocal }>();
+        const buckets = new Map<string, { afip?: ComprobanteAFIP; sistemaList: ComprobanteLocal[]; xubioList: ComprobanteLocal[] }>();
+
+        function ensure(k: string) {
+            if (!buckets.has(k)) buckets.set(k, { sistemaList: [], xubioList: [] });
+            return buckets.get(k)!;
+        }
 
         for (const a of afipList) {
-            const k = afipToKey(a);
-            if (!buckets.has(k)) buckets.set(k, {});
-            if (!buckets.get(k)!.afip) buckets.get(k)!.afip = a;
+            const b = ensure(afipToKey(a));
+            if (!b.afip) b.afip = a;
         }
         for (const l of sistemaList) {
-            const k = localToKey(l);
-            if (!buckets.has(k)) buckets.set(k, {});
-            if (!buckets.get(k)!.sistema) buckets.get(k)!.sistema = l;
+            ensure(localToKey(l)).sistemaList.push(l);
         }
         for (const l of xubioList) {
-            const k = localToKey(l);
-            if (!buckets.has(k)) buckets.set(k, {});
-            if (!buckets.get(k)!.xubio) buckets.get(k)!.xubio = l;
+            ensure(localToKey(l)).xubioList.push(l);
         }
 
         const result: ComprobanteMatch[] = [];
-        const debugSoloAfip: any[] = [];
-        const debugSoloSistema: any[] = [];
-        for (const [key, { afip, sistema, xubio }] of buckets) {
-            const hasA = !!afip, hasS = !!sistema, hasX = !!xubio;
+        for (const [key, { afip, sistemaList: sList, xubioList: xList }] of buckets) {
+            const sistema = sList[0] || null;
+            const xubio = xList[0] || null;
+            const sistemaExtras = sList.length > 1 ? sList.slice(1) : undefined;
+            const xubioExtras = xList.length > 1 ? xList.slice(1) : undefined;
+            // Duplicado = 2+ filas en contable_comprobantes con la misma clave,
+            // sin importar si cayeron en bucket sistema (arca/manual) o xubio.
+            // Un comprobante que vino por ARCA y tambien por Xubio es el mismo
+            // registro duplicado, aunque caiga en buckets distintos.
+            const hasDuplicados = sList.length + xList.length > 1;
 
+            const hasA = !!afip, hasS = !!sistema, hasX = !!xubio;
             let status: MatchStatus;
             if (hasA && hasS && hasX) status = 'conciliado_total';
             else if (hasA && hasS) status = 'falta_xubio';
@@ -354,35 +376,6 @@ export default function ConciliacionComprobantes() {
             else if (hasA) status = 'solo_afip';
             else if (hasS) status = 'solo_sistema';
             else status = 'solo_xubio';
-
-            if (status === 'solo_afip' && afip) {
-                debugSoloAfip.push({
-                    key,
-                    tipo: afip.tipo,
-                    tipoComp_code: afip.tipoComprobante,
-                    tipoComp_mapped: TIPOS_COMPROBANTE_AFIP[afip.tipoComprobante] || `Tipo ${afip.tipoComprobante}`,
-                    puntoVenta: afip.puntoVenta,
-                    numeroDesde: afip.numeroDesde,
-                    nroDocReceptor: afip.nroDocReceptor,
-                    denominacionReceptor: afip.denominacionReceptor,
-                    fechaEmision: afip.fechaEmision,
-                    total: afip.total,
-                });
-            }
-            if (status === 'solo_sistema' && sistema) {
-                debugSoloSistema.push({
-                    key,
-                    id: sistema.id,
-                    tipo: sistema.tipo,
-                    tipo_comprobante: sistema.tipo_comprobante,
-                    numero_comprobante: sistema.numero_comprobante,
-                    cuit_emisor: sistema.cuit_emisor,
-                    cuit_receptor: sistema.cuit_receptor,
-                    fecha: sistema.fecha,
-                    monto_original: sistema.monto_original,
-                    source: sistema.source,
-                });
-            }
 
             const difs: string[] = [];
             const totals: Array<[string, number]> = [];
@@ -398,26 +391,20 @@ export default function ConciliacionComprobantes() {
                 }
             }
 
+            // 'duplicado' tiene prioridad: si hay copias extras, ese es el hallazgo principal
+            if (hasDuplicados) status = 'duplicado';
+
             result.push({
                 afip: afip || null,
-                sistema: sistema || null,
-                xubio: xubio || null,
+                sistema,
+                xubio,
+                sistemaExtras,
+                xubioExtras,
                 status,
                 diferencias: difs.length > 0 ? difs : undefined,
                 key,
             });
         }
-
-        console.log('[Conciliacion DEBUG] Totales:', {
-            afip: afipList.length,
-            sistema: sistemaList.length,
-            xubio: xubioList.length,
-            matches: result.length,
-            solo_afip: debugSoloAfip.length,
-            solo_sistema: debugSoloSistema.length,
-        });
-        if (debugSoloAfip.length > 0) console.table(debugSoloAfip);
-        if (debugSoloSistema.length > 0) console.table(debugSoloSistema);
 
         return result;
     }
@@ -479,6 +466,7 @@ export default function ConciliacionComprobantes() {
 
     // Helper: recalcula status de un match después de mutar uno de sus lados
     function recomputeStatus(m: ComprobanteMatch): MatchStatus {
+        if ((m.sistemaExtras && m.sistemaExtras.length > 0) || (m.xubioExtras && m.xubioExtras.length > 0)) return 'duplicado';
         const hasA = !!m.afip, hasS = !!m.sistema, hasX = !!m.xubio;
         if (hasA && hasS && hasX) return 'conciliado_total';
         if (hasA && hasS) return 'falta_xubio';
@@ -622,6 +610,88 @@ export default function ConciliacionComprobantes() {
         return (m.afip?.tipo || m.sistema?.tipo || m.xubio?.tipo || null) as 'venta' | 'compra' | null;
     }
 
+    // Retorna todas las copias locales de un match (sistema + extras + xubio + extras)
+    function allCopiasOf(m: ComprobanteMatch): Array<{ bucket: 'Sistema' | 'Xubio'; row: ComprobanteLocal }> {
+        return [
+            ...(m.sistema ? [{ bucket: 'Sistema' as const, row: m.sistema }] : []),
+            ...(m.sistemaExtras || []).map(r => ({ bucket: 'Sistema' as const, row: r })),
+            ...(m.xubio ? [{ bucket: 'Xubio' as const, row: m.xubio }] : []),
+            ...(m.xubioExtras || []).map(r => ({ bucket: 'Xubio' as const, row: r })),
+        ];
+    }
+
+    // Heuristica: elige la fila mas probable de ser "la buena" para consolidar duplicados
+    function pickGanadorAuto(m: ComprobanteMatch): string | null {
+        const copias = allCopiasOf(m);
+        if (copias.length === 0) return null;
+
+        // 1. Si hay match con AFIP, preferir la que coincide exacto en monto total
+        if (m.afip) {
+            const afipTotal = Number(m.afip.total);
+            const matching = copias.find(c => Math.abs(Number(c.row.monto_original) - afipTotal) < 0.01);
+            if (matching) return matching.row.id;
+        }
+
+        // 2. La mas completa (mayor cantidad de campos con info)
+        const scored = copias.map(({ row }) => {
+            let score = 0;
+            if (row.descripcion) score++;
+            if (row.neto_gravado) score++;
+            if (row.total_iva) score++;
+            if (row.cuit_emisor) score++;
+            if (row.cuit_receptor) score++;
+            if (row.xubio_id) score++;
+            if ((row as any).proveedor_nombre || (row as any).cliente_nombre) score++;
+            return { id: row.id, score };
+        });
+        scored.sort((a, b) => b.score - a.score);
+        return scored[0].id;
+    }
+
+    async function handleConsolidar(m: ComprobanteMatch, ganadorId: string) {
+        if (!tenant?.id) return;
+        const copias = allCopiasOf(m);
+        const perdedoresIds = copias.filter(c => c.row.id !== ganadorId).map(c => c.row.id);
+        if (perdedoresIds.length === 0) {
+            addToast('info', 'Nada que consolidar', 'Seleccionaste la unica fila disponible.');
+            return;
+        }
+
+        setConsolidatingIds(prev => new Set(prev).add(m.key));
+        try {
+            const { data, error } = await supabase.rpc('consolidar_comprobantes_duplicados', {
+                ganador_id: ganadorId,
+                perdedores_ids: perdedoresIds,
+            });
+            if (error) throw error;
+            const r = (data || {}) as {
+                perdedores_consolidados?: number;
+                cta_cte_movidos?: number;
+                ops_movidas?: number;
+                movimientos_bancarios_movidos?: number;
+                sources_finales?: string[];
+            };
+            addToast(
+                'success',
+                'Consolidado',
+                `${r.perdedores_consolidados || 0} copia(s) eliminada(s). Cta cte: ${r.cta_cte_movidos || 0} · OPs: ${r.ops_movidas || 0} · Bancarios: ${r.movimientos_bancarios_movidos || 0}`,
+            );
+            // Remover el match del listado (ya no es duplicado)
+            setMatches(prev => prev.filter(x => x.key !== m.key));
+            setDetailMatch(null);
+            setChosenGanadorId(null);
+        } catch (err: any) {
+            console.error('[consolidar] error:', err);
+            addToast('error', 'Error al consolidar', err.message || 'No se pudo consolidar');
+        } finally {
+            setConsolidatingIds(prev => {
+                const s = new Set(prev);
+                s.delete(m.key);
+                return s;
+            });
+        }
+    }
+
     const filtered = matches.filter(m => {
         if (filterGroup !== 'todos' && matchGroup(m.status) !== filterGroup) return false;
         if (filtroTipo !== 'todos' && matchTipo(m) !== filtroTipo) return false;
@@ -633,7 +703,13 @@ export default function ConciliacionComprobantes() {
         parcial: matches.filter(m => matchGroup(m.status) === 'parcial').length,
         soloUno: matches.filter(m => matchGroup(m.status) === 'solo_uno').length,
         diferencia: matches.filter(m => matchGroup(m.status) === 'diferencia').length,
+        duplicado: matches.filter(m => matchGroup(m.status) === 'duplicado').length,
     };
+
+    // Total de filas duplicadas (copias extras que hay que resolver)
+    const duplicadosRowCount = matches.reduce((acc, m) => {
+        return acc + (m.sistemaExtras?.length || 0) + (m.xubioExtras?.length || 0);
+    }, 0);
 
     if (configLoading) return <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Cargando configuración...</div>;
 
@@ -709,6 +785,13 @@ export default function ConciliacionComprobantes() {
                         <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--warning)' }}>{stats.diferencia}</div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Diferencias</div>
                     </button>
+                    <button onClick={() => setFilterGroup('duplicado')} className="card" style={{ padding: '1rem', textAlign: 'center', cursor: 'pointer', border: filterGroup === 'duplicado' ? '2px solid #dc2626' : undefined, background: stats.duplicado > 0 ? 'rgba(220, 38, 38, 0.04)' : undefined }}>
+                        <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#dc2626' }}>{stats.duplicado}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Duplicados</div>
+                        {duplicadosRowCount > 0 && (
+                            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>({duplicadosRowCount} copias extra)</div>
+                        )}
+                    </button>
                 </div>
             )}
 
@@ -736,10 +819,12 @@ export default function ConciliacionComprobantes() {
                             )}
                             {filtered.map((m, i) => {
                                 const statusIcon = m.status === 'conciliado_total' ? <CheckCircle size={16} color="var(--success)" />
+                                    : m.status === 'duplicado' ? <AlertTriangle size={16} color="#dc2626" />
                                     : m.status === 'diferencia' ? <AlertTriangle size={16} color="var(--warning)" />
                                     : matchGroup(m.status) === 'parcial' ? <AlertTriangle size={16} color="#f59e0b" />
                                     : <XCircle size={16} color="var(--danger)" />;
 
+                                const totalCopias = (m.sistema ? 1 : 0) + (m.sistemaExtras?.length || 0) + (m.xubio ? 1 : 0) + (m.xubioExtras?.length || 0);
                                 const statusLabels: Record<MatchStatus, string> = {
                                     conciliado_total: 'Conciliado',
                                     falta_xubio: 'Falta Xubio',
@@ -749,6 +834,7 @@ export default function ConciliacionComprobantes() {
                                     solo_sistema: 'Solo Sistema',
                                     solo_xubio: 'Solo Xubio',
                                     diferencia: 'Diferencia',
+                                    duplicado: `Duplicado (${totalCopias} copias)`,
                                 };
 
                                 const tipoNombre = m.afip ? (TIPOS_COMPROBANTE_AFIP[m.afip.tipoComprobante] || `Tipo ${m.afip.tipoComprobante}`)
@@ -761,8 +847,16 @@ export default function ConciliacionComprobantes() {
                                     : (m.sistema?.cliente_nombre || m.sistema?.proveedor_nombre
                                         || m.xubio?.cliente_nombre || m.xubio?.proveedor_nombre || '-');
 
-                                const cell = (hasIt: boolean, value: number | null) => hasIt
-                                    ? <span style={{ color: 'var(--success)', fontWeight: 500 }}>✓ {value != null ? formatCurrency(value) : ''}</span>
+                                const isDupe = m.status === 'duplicado';
+                                const sistemaCount = (m.sistema ? 1 : 0) + (m.sistemaExtras?.length || 0);
+                                const xubioCount = (m.xubio ? 1 : 0) + (m.xubioExtras?.length || 0);
+                                const checkColor = isDupe ? '#dc2626' : 'var(--success)';
+                                const cell = (hasIt: boolean, value: number | null, count?: number) => hasIt
+                                    ? <span style={{ color: checkColor, fontWeight: 500 }}>
+                                        {isDupe ? '⚠' : '✓'}
+                                        {count && count > 1 ? ` ${count}x` : ''}
+                                        {value != null ? ` ${formatCurrency(value)}` : ''}
+                                      </span>
                                     : <span style={{ color: 'var(--text-muted)' }}>✗</span>;
 
                                 const tipoVC = matchTipo(m);
@@ -786,8 +880,8 @@ export default function ConciliacionComprobantes() {
                                         <td style={{ padding: '0.6rem 0.75rem', whiteSpace: 'nowrap' }}>{fecha}</td>
                                         <td style={{ padding: '0.6rem 0.75rem', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{contraparte}</td>
                                         <td style={{ padding: '0.6rem 0.75rem', textAlign: 'right', fontFamily: 'monospace', fontSize: '0.75rem' }}>{cell(!!m.afip, m.afip?.total ?? null)}</td>
-                                        <td style={{ padding: '0.6rem 0.75rem', textAlign: 'right', fontFamily: 'monospace', fontSize: '0.75rem' }}>{cell(!!m.sistema, m.sistema ? Number(m.sistema.monto_original) : null)}</td>
-                                        <td style={{ padding: '0.6rem 0.75rem', textAlign: 'right', fontFamily: 'monospace', fontSize: '0.75rem' }}>{cell(!!m.xubio, m.xubio ? Number(m.xubio.monto_original) : null)}</td>
+                                        <td style={{ padding: '0.6rem 0.75rem', textAlign: 'right', fontFamily: 'monospace', fontSize: '0.75rem' }}>{cell(!!m.sistema, m.sistema ? Number(m.sistema.monto_original) : null, sistemaCount)}</td>
+                                        <td style={{ padding: '0.6rem 0.75rem', textAlign: 'right', fontFamily: 'monospace', fontSize: '0.75rem' }}>{cell(!!m.xubio, m.xubio ? Number(m.xubio.monto_original) : null, xubioCount)}</td>
                                         <td style={{ padding: '0.6rem 0.75rem' }}>
                                             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                                                 <button
@@ -863,6 +957,14 @@ export default function ConciliacionComprobantes() {
                                 {detailMatch.diferencias.map((d, i) => <div key={i}>⚠ {d}</div>)}
                             </div>
                         )}
+                        {detailMatch.status === 'duplicado' && (
+                            <div style={{ padding: '0.75rem', background: 'rgba(220, 38, 38, 0.06)', borderLeft: '3px solid #dc2626', marginBottom: '1rem', fontSize: '0.8rem' }}>
+                                <div style={{ fontWeight: 600, marginBottom: 6 }}>🔴 Comprobante duplicado en el sistema</div>
+                                <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                                    Hay {(detailMatch.sistema ? 1 : 0) + (detailMatch.sistemaExtras?.length || 0) + (detailMatch.xubio ? 1 : 0) + (detailMatch.xubioExtras?.length || 0)} filas con la misma clave (tipo + número + CUIT). Elegí cuál queda como oficial; las otras se borran y sus pagos/cta cte/bancarios se transfieren automáticamente.
+                                </div>
+                            </div>
+                        )}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', fontSize: '0.8rem' }}>
                             {/* AFIP */}
                             <div className="card" style={{ padding: '1rem' }}>
@@ -915,8 +1017,80 @@ export default function ConciliacionComprobantes() {
                                 ) : <div style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No está en Xubio</div>}
                             </div>
                         </div>
+                        {detailMatch.status === 'duplicado' && (
+                            <div style={{ marginTop: '1.25rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                                    <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>Todas las copias en DB — elegí la ganadora</div>
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>La marcada se queda, las otras se borran</div>
+                                </div>
+                                <div style={{ overflowX: 'auto', border: '1px solid var(--border-subtle)', borderRadius: 6 }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+                                        <thead>
+                                            <tr style={{ background: 'var(--bg-subtle, rgba(0,0,0,0.03))', textAlign: 'left' }}>
+                                                <th style={{ padding: '0.5rem', width: 40 }}>Ganador</th>
+                                                <th style={{ padding: '0.5rem' }}>Bucket</th>
+                                                <th style={{ padding: '0.5rem' }}>ID</th>
+                                                <th style={{ padding: '0.5rem' }}>Source</th>
+                                                <th style={{ padding: '0.5rem' }}>Fecha</th>
+                                                <th style={{ padding: '0.5rem', textAlign: 'right' }}>Monto</th>
+                                                <th style={{ padding: '0.5rem' }}>Descripción</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {allCopiasOf(detailMatch).map((entry, idx) => {
+                                                const isGanador = chosenGanadorId === entry.row.id;
+                                                const matcheaConAfip = detailMatch.afip
+                                                    ? Math.abs(Number(entry.row.monto_original) - Number(detailMatch.afip.total)) < 0.01
+                                                    : false;
+                                                return (
+                                                    <tr key={idx} style={{
+                                                        borderTop: '1px solid var(--border-subtle)',
+                                                        background: isGanador ? 'rgba(16, 185, 129, 0.08)' : undefined,
+                                                    }}>
+                                                        <td style={{ padding: '0.5rem', textAlign: 'center' }}>
+                                                            <input
+                                                                type="radio"
+                                                                name="ganador"
+                                                                checked={isGanador}
+                                                                onChange={() => setChosenGanadorId(entry.row.id)}
+                                                                style={{ cursor: 'pointer' }}
+                                                            />
+                                                        </td>
+                                                        <td style={{ padding: '0.5rem' }}>
+                                                            <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '2px 6px', borderRadius: 99, background: entry.bucket === 'Sistema' ? 'rgba(59,130,246,0.12)' : 'rgba(16,185,129,0.12)', color: entry.bucket === 'Sistema' ? '#3B82F6' : '#10B981' }}>
+                                                                {entry.bucket}
+                                                            </span>
+                                                            {matcheaConAfip && (
+                                                                <span style={{ fontSize: '0.6rem', marginLeft: 4, padding: '1px 5px', borderRadius: 99, background: 'rgba(16,185,129,0.15)', color: '#10B981' }} title="Monto coincide con AFIP">
+                                                                    ✓ AFIP
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td style={{ padding: '0.5rem', fontFamily: 'monospace', fontSize: '0.7rem' }} title={entry.row.id}>{entry.row.id.slice(0, 8)}…</td>
+                                                        <td style={{ padding: '0.5rem' }}>{entry.row.source || '-'}</td>
+                                                        <td style={{ padding: '0.5rem', whiteSpace: 'nowrap' }}>{entry.row.fecha}</td>
+                                                        <td style={{ padding: '0.5rem', textAlign: 'right', fontFamily: 'monospace' }}>{formatCurrency(Number(entry.row.monto_original))}</td>
+                                                        <td style={{ padding: '0.5rem', maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.row.descripcion || '-'}</td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: '1rem' }}>
-                            {detailMatch.xubio && !detailMatch.sistema && (
+                            {detailMatch.status === 'duplicado' && (
+                                <button
+                                    onClick={() => chosenGanadorId && handleConsolidar(detailMatch, chosenGanadorId)}
+                                    disabled={!chosenGanadorId || consolidatingIds.has(detailMatch.key)}
+                                    className="btn btn-primary"
+                                    style={{ background: '#dc2626', borderColor: '#dc2626' }}
+                                >
+                                    {consolidatingIds.has(detailMatch.key) ? 'Consolidando...' : 'Consolidar duplicados'}
+                                </button>
+                            )}
+                            {detailMatch.status !== 'duplicado' && detailMatch.xubio && !detailMatch.sistema && (
                                 <button
                                     onClick={() => { handleImportarDesdeXubio(detailMatch); setDetailMatch(null); }}
                                     disabled={importingIds.has(detailMatch.key)}
@@ -925,7 +1099,7 @@ export default function ConciliacionComprobantes() {
                                     Importar de Xubio al sistema
                                 </button>
                             )}
-                            {detailMatch.sistema && !detailMatch.xubio && (
+                            {detailMatch.status !== 'duplicado' && detailMatch.sistema && !detailMatch.xubio && (
                                 <button
                                     onClick={() => { handleInyectarAXubio(detailMatch); setDetailMatch(null); }}
                                     disabled={importingIds.has(detailMatch.key)}
@@ -934,7 +1108,7 @@ export default function ConciliacionComprobantes() {
                                     Inyectar a Xubio
                                 </button>
                             )}
-                            {!detailMatch.afip && matchTipo(detailMatch) === 'venta' && (
+                            {detailMatch.status !== 'duplicado' && !detailMatch.afip && matchTipo(detailMatch) === 'venta' && (
                                 <button
                                     onClick={() => { navigate('/agro/facturar'); setDetailMatch(null); }}
                                     className="btn btn-secondary"
