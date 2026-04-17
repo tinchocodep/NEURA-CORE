@@ -690,7 +690,8 @@ export class XubioService {
                     }
 
                     // Dedup: primero por clave natural (tenant+tipo+tipo_comp+nro+cuit_receptor); fallback por xubio_id
-                    let existing: { id: string; sources: string[] | null; xubio_id: string | null } | null = null;
+                    type ExistingRow = { id: string; sources: string[] | null; xubio_id: string | null };
+                    let existing: ExistingRow | null = null;
                     if (nroComp) {
                         let q = supabase.from('contable_comprobantes')
                             .select('id, sources, xubio_id')
@@ -700,7 +701,7 @@ export class XubioService {
                             .eq('numero_comprobante', nroComp);
                         q = clienteCuit ? q.eq('cuit_receptor', clienteCuit) : q.is('cuit_receptor', null);
                         const { data } = await q.maybeSingle();
-                        existing = data as typeof existing;
+                        existing = (data as unknown as ExistingRow | null);
                     }
                     if (!existing) {
                         const { data } = await supabase.from('contable_comprobantes')
@@ -708,7 +709,7 @@ export class XubioService {
                             .eq('tenant_id', this.tenantId)
                             .eq('xubio_id', xubioId)
                             .maybeSingle();
-                        existing = data as typeof existing;
+                        existing = (data as unknown as ExistingRow | null);
                     }
 
                     if (existing) {
@@ -784,7 +785,8 @@ export class XubioService {
                     }
 
                     // Dedup: primero por clave natural (tenant+tipo+tipo_comp+nro+cuit_emisor); fallback por xubio_id
-                    let existing: { id: string; sources: string[] | null; xubio_id: string | null } | null = null;
+                    type ExistingRow = { id: string; sources: string[] | null; xubio_id: string | null };
+                    let existing: ExistingRow | null = null;
                     if (nroComp) {
                         let q = supabase.from('contable_comprobantes')
                             .select('id, sources, xubio_id')
@@ -794,7 +796,7 @@ export class XubioService {
                             .eq('numero_comprobante', nroComp);
                         q = provCuit ? q.eq('cuit_emisor', provCuit) : q.is('cuit_emisor', null);
                         const { data } = await q.maybeSingle();
-                        existing = data as typeof existing;
+                        existing = (data as unknown as ExistingRow | null);
                     }
                     if (!existing) {
                         const { data } = await supabase.from('contable_comprobantes')
@@ -802,7 +804,7 @@ export class XubioService {
                             .eq('tenant_id', this.tenantId)
                             .eq('xubio_id', xubioId)
                             .maybeSingle();
-                        existing = data as typeof existing;
+                        existing = (data as unknown as ExistingRow | null);
                     }
 
                     if (existing) {
