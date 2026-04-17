@@ -4,7 +4,7 @@ import { useTenant } from '../../contexts/TenantContext';
 import { useToast } from '../../contexts/ToastContext';
 import { useSync } from '../../contexts/SyncContext';
 import { supabase } from '../../lib/supabase';
-import { RefreshCw, Search, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
+import { RefreshCw, Search, CheckCircle, AlertTriangle, XCircle, Mail } from 'lucide-react';
 
 /* ── Types ─── */
 interface ComprobanteAFIP {
@@ -145,6 +145,7 @@ export default function ConciliacionComprobantes() {
     const [importingIds, setImportingIds] = useState<Set<string>>(new Set());
     const [consolidatingIds, setConsolidatingIds] = useState<Set<string>>(new Set());
     const [chosenGanadorId, setChosenGanadorId] = useState<string | null>(null);
+    const [enviandoMail, setEnviandoMail] = useState(false);
 
     // Al abrir modal de detalle de un duplicado, auto-elegir ganador
     useEffect(() => {
@@ -437,6 +438,81 @@ export default function ConciliacionComprobantes() {
         }
 
         return result;
+    }
+
+    async function handleEnviarMail() {
+        if (!tenant?.id) return;
+        if (matches.length === 0) {
+            addToast('warning', 'Sin datos', 'Corré una conciliación antes de enviar el reporte.');
+            return;
+        }
+        // Destinatarios desde contable_config.auto_conciliacion_emails (seteado en Configuración)
+        const { data: cfg } = await supabase
+            .from('contable_config')
+            .select('auto_conciliacion_emails')
+            .eq('tenant_id', tenant.id)
+            .maybeSingle();
+        const destRaw = (cfg?.auto_conciliacion_emails || '').trim();
+        if (!destRaw) {
+            addToast('warning', 'Sin destinatarios', 'Configurá los emails en Configuración → Conciliación automática.');
+            return;
+        }
+        const destinatarios = destRaw.split(/[,;]/).map((e: string) => e.trim()).filter(Boolean);
+        setEnviandoMail(true);
+        try {
+            // Envio "chico": manda la data actual en pantalla, el workflow solo arma HTML y
+            // manda Gmail. No re-sincroniza ni re-concilia.
+            const payload = {
+                tenant_id: tenant.id,
+                tenant_name: (tenant as any).razon_social || tenant.name,
+                destinatarios,
+                periodo: { desde: fechaDesde, hasta: fechaHasta },
+                stats: {
+                    total: matches.length,
+                    conciliado: stats.conciliado,
+                    parcial: stats.parcial,
+                    solo_uno: stats.soloUno,
+                    diferencia: stats.diferencia,
+                    duplicado: stats.duplicado,
+                },
+                matches: matches.map(m => ({
+                    status: m.status,
+                    afip: m.afip ? {
+                        tipo: m.afip.tipo,
+                        tipo_comprobante: m.afip.tipoComprobante,
+                        numero: `${m.afip.puntoVenta}-${m.afip.numeroDesde}`,
+                        fecha: m.afip.fechaEmision,
+                        total: m.afip.total,
+                        contraparte: m.afip.denominacionEmisor || m.afip.denominacionReceptor || '',
+                    } : null,
+                    sistema: m.sistema ? {
+                        tipo: m.sistema.tipo,
+                        tipo_comprobante: m.sistema.tipo_comprobante,
+                        numero: m.sistema.numero_comprobante,
+                        fecha: m.sistema.fecha,
+                        total: Number(m.sistema.monto_original),
+                    } : null,
+                    xubio: m.xubio ? {
+                        tipo: m.xubio.tipo,
+                        tipo_comprobante: m.xubio.tipo_comprobante,
+                        numero: m.xubio.numero_comprobante,
+                        fecha: m.xubio.fecha,
+                        total: Number(m.xubio.monto_original),
+                    } : null,
+                    diferencias: m.diferencias || [],
+                })),
+            };
+            const res = await fetch('https://n8n.neuracall.net/webhook/EnvioMailBoton', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
+            addToast('success', 'Reporte enviado', `A: ${destinatarios.join(', ')}`);
+        } catch (e: any) {
+            addToast('error', 'Error al enviar', e.message || 'No se pudo enviar el reporte');
+        }
+        setEnviandoMail(false);
     }
 
     async function handleConciliar() {
@@ -788,6 +864,16 @@ export default function ConciliacionComprobantes() {
                     <button className="btn btn-primary" onClick={handleConciliar} disabled={loading} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         {loading ? <RefreshCw size={14} className="spinning" /> : <Search size={14} />}
                         {loading ? (syncStep || 'Procesando...') : 'Conciliar todo'}
+                    </button>
+                    <button
+                        className="btn btn-secondary"
+                        onClick={handleEnviarMail}
+                        disabled={enviandoMail || matches.length === 0}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                        title="Enviar el reporte de conciliación por mail"
+                    >
+                        {enviandoMail ? <RefreshCw size={14} className="spinning" /> : <Mail size={14} />}
+                        {enviandoMail ? 'Enviando...' : 'Enviar por mail'}
                     </button>
                 </div>
             </div>
