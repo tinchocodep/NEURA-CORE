@@ -7,6 +7,8 @@ import CustomSelect from '../../shared/components/CustomSelect';
 import { useConfirmDelete } from '../../shared/components/ConfirmDelete';
 import jsPDF from 'jspdf';
 import StyledSelect from '../../shared/components/StyledSelect';
+import EmisorSelector from '../../shared/components/EmisorSelector';
+import { useFacturacionEmisores } from '../../shared/hooks/useFacturacionEmisores';
 
 interface Comprobante {
   id: string; tipo: string; fecha: string; numero_comprobante: string | null;
@@ -65,6 +67,7 @@ export default function FacturarMobile({ wizardOnly, onClose }: FacturarMobilePr
   const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
   const [lineas, setLineas] = useState<{ descripcion: string; cantidad: number; precio_unitario: number; iva_porcentaje: number }[]>([]);
   const [observaciones, setObs] = useState('');
+  const { emisores, selected: emisorSel, selectedId: emisorId, setSelectedId: setEmisorId, loading: loadingEmisores } = useFacturacionEmisores();
   const { requestDelete, ConfirmModal } = useConfirmDelete();
 
   useEffect(() => { if (tenant) loadData(); }, [tenant]);
@@ -155,6 +158,7 @@ export default function FacturarMobile({ wizardOnly, onClose }: FacturarMobilePr
       tipo_comprobante: tipoComp,
       numero_comprobante: 'PENDIENTE-ARCA',
       cliente_id: isInmob ? (c?.inquilino_id || null) : selCliente,
+      emisor_id: emisorSel?.id || null,
       moneda: c?.moneda || 'ARS',
       monto_original: totalFinal,
       monto_ars: totalFinal,
@@ -490,6 +494,15 @@ export default function FacturarMobile({ wizardOnly, onClose }: FacturarMobilePr
                   </div>
                 </div>
                 <div className="wizard-field">
+                  <label className="form-label">Razón social emisora</label>
+                  <EmisorSelector
+                    emisores={emisores}
+                    selectedId={emisorId}
+                    onChange={setEmisorId}
+                    loading={loadingEmisores}
+                  />
+                </div>
+                <div className="wizard-field">
                   <label className="form-label">Fecha</label>
                   <input type="date" className="form-input" value={fecha} onChange={e => setFecha(e.target.value)} />
                 </div>
@@ -549,6 +562,14 @@ export default function FacturarMobile({ wizardOnly, onClose }: FacturarMobilePr
                     <span style={{ color: 'var(--color-text-muted)' }}>Tipo</span>
                     <span style={{ fontWeight: 600 }}>{tipoComp}</span>
                   </div>
+                  {emisorSel && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: '0.8125rem', gap: 8 }}>
+                      <span style={{ color: 'var(--color-text-muted)' }}>Emisor</span>
+                      <span style={{ fontWeight: 600, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {emisorSel.alias || emisorSel.razon_social}
+                      </span>
+                    </div>
+                  )}
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: '0.8125rem' }}>
                     <span style={{ color: 'var(--color-text-muted)' }}>Propiedad</span>
                     <span style={{ fontWeight: 600 }}>{selCt ? (selCt.propiedad as any)?.direccion : '—'}</span>

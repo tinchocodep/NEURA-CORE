@@ -188,9 +188,18 @@ export default function ComprobantesGrid({
                 const entityParam = c.tipo === 'compra' ? `?id=${entityId}` : `?cliente_id=${entityId}`;
 
                 return (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                            <div>{name || <span style={{ color: 'var(--color-text-muted)' }}>—</span>}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                        <div
+                            style={{
+                                flex: 1,
+                                minWidth: 0,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                            }}
+                            title={name || undefined}
+                        >
+                            {name || <span style={{ color: 'var(--color-text-muted)' }}>—</span>}
                         </div>
                         {hasEntity && name && (
                             <button

@@ -8,6 +8,8 @@ import type { DolarResumen } from '../../services/DolarService';
 import { Plus, Trash2, Send, Search, X } from 'lucide-react';
 import OrdenDePagoForm from './OrdenDePagoForm';
 import StyledSelect from '../../shared/components/StyledSelect';
+import EmisorSelector from '../../shared/components/EmisorSelector';
+import { useFacturacionEmisores } from '../../shared/hooks/useFacturacionEmisores';
 
 /* ── Types ─── */
 interface Cliente { id: string; razon_social: string; cuit: string | null; condicion_fiscal: string | null; telefono: string | null; email: string | null; direccion: string | null; }
@@ -52,9 +54,10 @@ export default function FacturarAgro() {
     const [, setRecientes] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // Emisor config (from contable_config)
-    const [emisorCuit, setEmisorCuit] = useState('');
-    const [emisorPuntoVenta, setEmisorPuntoVenta] = useState(1);
+    // Emisores (multi-razón social)
+    const { emisores, selected: emisorSel, selectedId: emisorId, setSelectedId: setEmisorId, loading: loadingEmisores } = useFacturacionEmisores();
+    const emisorCuit = emisorSel?.cuit || '';
+    const emisorPuntoVenta = emisorSel?.punto_venta || 1;
 
     // Form
     const [, setShowForm] = useState(true);
@@ -98,8 +101,7 @@ export default function FacturarAgro() {
             supabase.from('contable_productos_servicio').select('id, nombre, tipo, grupo').eq('tenant_id', tenant.id).eq('activo', true).order('nombre'),
             supabase.from('contable_comprobantes').select('id, tipo, tipo_comprobante, numero_comprobante, fecha, monto_original, estado, descripcion, cliente:contable_clientes!cliente_id(razon_social)')
                 .eq('tenant_id', tenant.id).eq('tipo', 'venta').order('created_at', { ascending: false }).limit(10),
-            supabase.from('contable_config').select('arca_cuit, punto_venta').eq('tenant_id', tenant.id).maybeSingle(),
-        ]).then(([cliRes, prodRes, recRes, configRes]) => {
+        ]).then(([cliRes, prodRes, recRes]) => {
             if (cliRes.data) {
                 setClientes(cliRes.data as any);
                 // Pre-select client from URL param
@@ -115,10 +117,6 @@ export default function FacturarAgro() {
             }
             if (prodRes.data) setProductos(prodRes.data.filter((p: any) => p.tipo === 'venta' || p.tipo === 'ambos') as any);
             if (recRes.data) setRecientes(recRes.data as any);
-            if (configRes.data) {
-                if (configRes.data.arca_cuit) setEmisorCuit(configRes.data.arca_cuit);
-                if (configRes.data.punto_venta) setEmisorPuntoVenta(configRes.data.punto_venta);
-            }
             setLoading(false);
         });
     }, [tenant?.id]);
@@ -274,11 +272,12 @@ export default function FacturarAgro() {
             if (emitirArca && webhookUrl && !isOrdenPago) {
                 const payload = {
                     emisor: {
-                        razonSocial: (tenant as any).razon_social || tenant.name,
-                        cuit: Number((emisorCuit || (tenant as any).cuit || '').replace(/[-\s]/g, '')) || 0,
+                        id: emisorSel?.id || null,
+                        razonSocial: emisorSel?.razon_social || (tenant as any).razon_social || tenant.name,
+                        cuit: Number(((emisorSel?.cuit || emisorCuit || (tenant as any).cuit || '') as string).replace(/[-\s]/g, '')) || 0,
                         domicilio: (tenant as any).direccion || '',
-                        condicionIva: (tenant as any).condicion_iva || 'Responsable Inscripto',
-                        iibb: (tenant as any).ingresos_brutos || emisorCuit || ((tenant as any).cuit || ''),
+                        condicionIva: emisorSel?.condicion_iva || (tenant as any).condicion_iva || 'Responsable Inscripto',
+                        iibb: (tenant as any).ingresos_brutos || emisorSel?.cuit || emisorCuit || ((tenant as any).cuit || ''),
                         inicioActividades: (tenant as any).inicio_actividades || '01/01/2020',
                         puntoVenta: emisorPuntoVenta,
                     },
@@ -353,7 +352,7 @@ export default function FacturarAgro() {
             }
 
             // Save to Supabase
-            const nroComp = invoiceNumber ? `${String((tenant as any).punto_venta || 1).padStart(5, '0')}-${String(invoiceNumber).padStart(8, '0')}` : undefined;
+            const nroComp = invoiceNumber ? `${String(emisorPuntoVenta).padStart(5, '0')}-${String(invoiceNumber).padStart(8, '0')}` : undefined;
             const { error } = await supabase.from('contable_comprobantes').insert({
                 tenant_id: tenant.id,
                 tipo: isOrdenPago ? 'compra' : 'venta',
@@ -361,6 +360,7 @@ export default function FacturarAgro() {
                 numero_comprobante: nroComp,
                 fecha: fecha || new Date().toISOString().split('T')[0],
                 cliente_id: clienteId,
+                emisor_id: emisorSel?.id || null,
                 moneda: 'ARS',
                 monto_original: total,
                 monto_ars: total,
@@ -602,8 +602,8 @@ export default function FacturarAgro() {
                             <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 4, padding: '24px 20px', fontFamily: 'Georgia, serif', color: '#1a1a1a', fontSize: '0.7rem', lineHeight: 1.5, boxShadow: '0 2px 12px rgba(0,0,0,0.08)', position: 'sticky', top: 20 }}>
                               <div style={{ textAlign: 'center', borderBottom: '2px solid #1a1a1a', paddingBottom: 12, marginBottom: 12 }}>
                                 <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#64748b', marginBottom: 2 }}>{tipoComp}</div>
-                                <div style={{ fontSize: '1rem', fontWeight: 700 }}>{(tenant as any)?.razon_social || tenant?.name || '—'}</div>
-                                <div style={{ fontSize: '0.6rem', color: '#64748b' }}>CUIT: {emisorCuit || (tenant as any)?.cuit || '—'}</div>
+                                <div style={{ fontSize: '1rem', fontWeight: 700 }}>{emisorSel?.razon_social || (tenant as any)?.razon_social || tenant?.name || '—'}</div>
+                                <div style={{ fontSize: '0.6rem', color: '#64748b' }}>CUIT: {emisorSel?.cuit || emisorCuit || (tenant as any)?.cuit || '—'}</div>
                               </div>
                               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', marginBottom: 14 }}>
                                 <div><span style={{ color: '#64748b' }}>Fecha:</span> <b>{new Date(fecha + 'T12:00:00').toLocaleDateString('es-AR')}</b></div>
@@ -657,11 +657,14 @@ export default function FacturarAgro() {
                             /* ─── FACTURA SUMMARY ─── */
                             <div style={{ background: 'var(--color-bg-surface-2)', borderRadius: 12, padding: 20, position: 'sticky', top: 20 }}>
                                 <h3 style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: 16, margin: '0 0 16px' }}>Resumen</h3>
-                                <div style={{ marginBottom: 10, padding: '8px 10px', background: 'var(--color-bg-card)', borderRadius: 8, border: '1px solid var(--color-border-subtle)' }}>
-                                    <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>Emisor</div>
-                                    <div style={{ fontSize: '0.75rem', fontWeight: 600 }}>{(tenant as any)?.razon_social || tenant?.name || '—'}</div>
-                                    <div style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)' }}>CUIT: {emisorCuit || (tenant as any)?.cuit || '—'}</div>
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>Pto. Venta: {String(emisorPuntoVenta).padStart(5, '0')}</div>
+                                <div style={{ marginBottom: 10 }}>
+                                    <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Emisor</div>
+                                    <EmisorSelector
+                                        emisores={emisores}
+                                        selectedId={emisorId}
+                                        onChange={setEmisorId}
+                                        loading={loadingEmisores}
+                                    />
                                 </div>
                                 {[
                                   ['Tipo', tipoComp], ['Fecha', fecha], ['Cliente', selectedCliente?.razon_social || '—'], ['Condición', condicionPago],
@@ -699,9 +702,14 @@ export default function FacturarAgro() {
                                     </label>
                                 </div>
                                 <button className="btn btn-primary" style={{ width: '100%', marginTop: 12, height: 42, fontSize: '0.875rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-                                    onClick={handleSave} disabled={saving || !clienteId || lineas.length === 0}>
+                                    onClick={handleSave} disabled={saving || !clienteId || lineas.length === 0 || (emitirArca && !emisorSel)}>
                                     <Send size={16} /> {saving ? (emitirArca ? 'Emitiendo...' : 'Guardando...') : (emitirArca ? 'Emitir factura' : 'Guardar borrador')}
                                 </button>
+                                {emitirArca && !emisorSel && !loadingEmisores && (
+                                    <div style={{ fontSize: '0.7rem', color: '#F59E0B', marginTop: 6, textAlign: 'center' }}>
+                                        Configurá un emisor para poder emitir
+                                    </div>
+                                )}
                                 {lastCae && (
                                     <div style={{ marginTop: 12, padding: 12, background: '#22C55E10', borderRadius: 8, border: '1px solid #22C55E30' }}>
                                         <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#22C55E', marginBottom: 4 }}>Factura emitida</div>
