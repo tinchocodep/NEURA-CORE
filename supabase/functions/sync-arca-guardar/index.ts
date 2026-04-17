@@ -225,22 +225,35 @@ serve(async (req: Request) => {
           const monedaRaw = r["Moneda"] || "PES";
           const moneda = monedaRaw === "PES" ? "ARS" : monedaRaw === "DOL" ? "USD" : monedaRaw;
 
-          // Deduplicación: buscar si ya existe
-          const { data: existe } = await supabase
+          const cuitClean = (arcaCuit || "").replace(/-/g, "");
+          const cuitReceptor = isVenta ? nroDocReceptor : cuitClean;
+          const cuitEmisor = isVenta ? cuitClean : nroDocReceptor;
+
+          // Deduplicación por clave natural (tenant+tipo+tipo_comp+nro+cuits).
+          // Si existe: agregamos 'arca' a sources[] en vez de saltear — evita duplicados
+          // cross-source (ej: comprobante ya traido por Xubio o carga manual).
+          let existeQuery = supabase
             .from("contable_comprobantes")
-            .select("id")
+            .select("id, sources")
             .eq("tenant_id", tenantId)
-            .eq("numero_comprobante", nroComprobante)
-            .eq("tipo_comprobante", tipoNombre)
             .eq("tipo", isVenta ? "venta" : "compra")
-            .maybeSingle();
+            .eq("tipo_comprobante", tipoNombre)
+            .eq("numero_comprobante", nroComprobante);
+          existeQuery = cuitEmisor ? existeQuery.eq("cuit_emisor", cuitEmisor) : existeQuery.is("cuit_emisor", null);
+          existeQuery = cuitReceptor ? existeQuery.eq("cuit_receptor", cuitReceptor) : existeQuery.is("cuit_receptor", null);
+          const { data: existe } = await existeQuery.maybeSingle();
 
           if (existe) {
+            const currentSources: string[] = Array.isArray(existe.sources) ? existe.sources : [];
+            if (!currentSources.includes("arca")) {
+              await supabase
+                .from("contable_comprobantes")
+                .update({ sources: [...currentSources, "arca"] })
+                .eq("id", existe.id);
+            }
             skipped++;
             continue;
           }
-
-          const cuitClean = (arcaCuit || "").replace(/-/g, "");
 
           // ── Resolver proveedor o cliente ──
           let proveedorId: string | null = null;
@@ -298,9 +311,10 @@ serve(async (req: Request) => {
             total_iva: iva,
             estado: "aprobado",
             source: "arca",
+            sources: ["arca"],
             origen: "arca",
-            cuit_receptor: isVenta ? nroDocReceptor : cuitClean,
-            cuit_emisor: isVenta ? cuitClean : nroDocReceptor,
+            cuit_receptor: cuitReceptor,
+            cuit_emisor: cuitEmisor,
             descripcion: `${denominacion}${codAutorizacion ? ` | CAE: ${codAutorizacion}` : ""}${otrosTributos ? ` | Otros tributos: ${otrosTributos}` : ""}`,
             // Vinculación con proveedor/cliente y aplicación de defaults
             proveedor_id: proveedorId,

@@ -649,14 +649,6 @@ export class XubioService {
                 if (!xubioId) continue;
 
                 try {
-                    // Check if already synced
-                    const { data: existing } = await supabase
-                        .from('contable_comprobantes')
-                        .select('id')
-                        .eq('tenant_id', this.tenantId)
-                        .eq('xubio_id', xubioId)
-                        .maybeSingle();
-
                     const tipoNombre = this.mapTipoComprobante(cv.tipo, true);
                     const letra = cv.nombre?.match(/[ABC]/)?.[0] || '';
                     const tipoComprobante = letra ? `${tipoNombre} ${letra}` : tipoNombre;
@@ -664,13 +656,14 @@ export class XubioService {
                     const clienteXubioId = cv.cliente?.ID || cv.cliente?.id;
                     const clienteData = clienteXubioId ? clienteMap.get(String(clienteXubioId)) : null;
                     const clienteCuit = clienteData?.cuit || cv.cliente?.CUIT || cv.cliente?.cuit || cv.cliente?.documento || null;
+                    const nroComp = cv.numeroDocumento || null;
 
                     const compData: Record<string, unknown> = {
                         tenant_id: this.tenantId,
                         tipo: 'venta',
                         tipo_comprobante: tipoComprobante,
                         fecha: cv.fecha,
-                        numero_comprobante: cv.numeroDocumento || null,
+                        numero_comprobante: nroComp,
                         cliente_id: clienteData?.id || null,
                         cuit_receptor: clienteCuit,
                         moneda: 'ARS',
@@ -689,11 +682,37 @@ export class XubioService {
                         compData.tipo_cambio = cv.cotizacion;
                     }
 
+                    // Dedup: primero por clave natural (tenant+tipo+tipo_comp+nro+cuit_receptor); fallback por xubio_id
+                    let existing: { id: string; sources: string[] | null; xubio_id: string | null } | null = null;
+                    if (nroComp) {
+                        let q = supabase.from('contable_comprobantes')
+                            .select('id, sources, xubio_id')
+                            .eq('tenant_id', this.tenantId)
+                            .eq('tipo', 'venta')
+                            .eq('tipo_comprobante', tipoComprobante)
+                            .eq('numero_comprobante', nroComp);
+                        q = clienteCuit ? q.eq('cuit_receptor', clienteCuit) : q.is('cuit_receptor', null);
+                        const { data } = await q.maybeSingle();
+                        existing = data as typeof existing;
+                    }
+                    if (!existing) {
+                        const { data } = await supabase.from('contable_comprobantes')
+                            .select('id, sources, xubio_id')
+                            .eq('tenant_id', this.tenantId)
+                            .eq('xubio_id', xubioId)
+                            .maybeSingle();
+                        existing = data as typeof existing;
+                    }
+
                     if (existing) {
-                        await supabase.from('contable_comprobantes').update(compData).eq('id', existing.id);
+                        const currentSources: string[] = Array.isArray(existing.sources) ? existing.sources : [];
+                        const newSources = currentSources.includes('xubio') ? currentSources : [...currentSources, 'xubio'];
+                        const patch: Record<string, unknown> = { sources: newSources, xubio_synced_at: new Date().toISOString() };
+                        if (!existing.xubio_id) patch.xubio_id = xubioId;
+                        await supabase.from('contable_comprobantes').update(patch).eq('id', existing.id);
                         updated++;
                     } else {
-                        await supabase.from('contable_comprobantes').insert(compData);
+                        await supabase.from('contable_comprobantes').insert({ ...compData, sources: ['xubio'] });
                         imported++;
                     }
                 } catch (err) {
@@ -719,13 +738,6 @@ export class XubioService {
                 if (!xubioId) continue;
 
                 try {
-                    const { data: existing } = await supabase
-                        .from('contable_comprobantes')
-                        .select('id')
-                        .eq('tenant_id', this.tenantId)
-                        .eq('xubio_id', xubioId)
-                        .maybeSingle();
-
                     const tipoNombre = this.mapTipoComprobante(cc.tipo, false);
                     const letra = cc.nombre?.match(/[ABC]/)?.[0] || '';
                     const tipoComprobante = letra ? `${tipoNombre} ${letra}` : tipoNombre;
@@ -733,13 +745,14 @@ export class XubioService {
                     const provXubioId = cc.proveedor?.ID || cc.proveedor?.id;
                     const provData = provXubioId ? proveedorMap.get(String(provXubioId)) : null;
                     const provCuit = provData?.cuit || cc.proveedor?.CUIT || cc.proveedor?.cuit || cc.proveedor?.documento || null;
+                    const nroComp = cc.numeroDocumento || null;
 
                     const compData: Record<string, unknown> = {
                         tenant_id: this.tenantId,
                         tipo: 'compra',
                         tipo_comprobante: tipoComprobante,
                         fecha: cc.fecha,
-                        numero_comprobante: cc.numeroDocumento || null,
+                        numero_comprobante: nroComp,
                         proveedor_id: provData?.id || null,
                         cuit_emisor: provCuit,
                         moneda: 'ARS',
@@ -758,11 +771,37 @@ export class XubioService {
                         compData.tipo_cambio = cc.cotizacion;
                     }
 
+                    // Dedup: primero por clave natural (tenant+tipo+tipo_comp+nro+cuit_emisor); fallback por xubio_id
+                    let existing: { id: string; sources: string[] | null; xubio_id: string | null } | null = null;
+                    if (nroComp) {
+                        let q = supabase.from('contable_comprobantes')
+                            .select('id, sources, xubio_id')
+                            .eq('tenant_id', this.tenantId)
+                            .eq('tipo', 'compra')
+                            .eq('tipo_comprobante', tipoComprobante)
+                            .eq('numero_comprobante', nroComp);
+                        q = provCuit ? q.eq('cuit_emisor', provCuit) : q.is('cuit_emisor', null);
+                        const { data } = await q.maybeSingle();
+                        existing = data as typeof existing;
+                    }
+                    if (!existing) {
+                        const { data } = await supabase.from('contable_comprobantes')
+                            .select('id, sources, xubio_id')
+                            .eq('tenant_id', this.tenantId)
+                            .eq('xubio_id', xubioId)
+                            .maybeSingle();
+                        existing = data as typeof existing;
+                    }
+
                     if (existing) {
-                        await supabase.from('contable_comprobantes').update(compData).eq('id', existing.id);
+                        const currentSources: string[] = Array.isArray(existing.sources) ? existing.sources : [];
+                        const newSources = currentSources.includes('xubio') ? currentSources : [...currentSources, 'xubio'];
+                        const patch: Record<string, unknown> = { sources: newSources, xubio_synced_at: new Date().toISOString() };
+                        if (!existing.xubio_id) patch.xubio_id = xubioId;
+                        await supabase.from('contable_comprobantes').update(patch).eq('id', existing.id);
                         updated++;
                     } else {
-                        await supabase.from('contable_comprobantes').insert(compData);
+                        await supabase.from('contable_comprobantes').insert({ ...compData, sources: ['xubio'] });
                         imported++;
                     }
                 } catch (err) {
