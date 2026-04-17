@@ -58,8 +58,8 @@ interface FacturacionEmisor {
     punto_venta: number;
     condicion_iva: string | null;
     environment: string;
-    cert_pem: string;
-    key_pem: string;
+    cert_pem: string | null;
+    key_pem: string | null;
     arca_username: string | null;
     arca_password: string | null;
     is_default: boolean;
@@ -205,8 +205,8 @@ export default function Configuracion() {
             punto_venta: 1,
             condicion_iva: 'RI',
             environment: 'prod',
-            cert_pem: '',
-            key_pem: '',
+            cert_pem: null,
+            key_pem: null,
             arca_username: '',
             arca_password: '',
             is_default: emisores.length === 0,
@@ -231,8 +231,10 @@ export default function Configuracion() {
             setEmisorSaveResult({ ok: false, msg: 'Faltan campos obligatorios: CUIT, razón social, punto de venta' });
             return;
         }
-        if (!emisorForm.cert_pem || !emisorForm.key_pem) {
-            setEmisorSaveResult({ ok: false, msg: 'Subí el certificado (.crt) y la clave privada (.key)' });
+        // Cert y key son opcionales: si se cargan parcialmente (uno si, el otro no), aviso.
+        // Sin ninguno: solo se puede sincronizar, no facturar.
+        if ((emisorForm.cert_pem && !emisorForm.key_pem) || (!emisorForm.cert_pem && emisorForm.key_pem)) {
+            setEmisorSaveResult({ ok: false, msg: 'Si cargás certificado, también necesitás la clave privada (y viceversa). Dejalos vacíos si solo querés sincronizar comprobantes.' });
             return;
         }
         setSavingEmisor(true);
@@ -1133,14 +1135,17 @@ export default function Configuracion() {
                         </div>
 
                         <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '1rem 0', paddingTop: '1rem' }}>
-                            <p style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.75rem' }}>Certificado digital AFIP</p>
-                            <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-                                Se genera con OpenSSL y se tramita en AFIP → Administración de Certificados Digitales
+                            <p style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.5rem' }}>Certificado digital AFIP <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(opcional)</span></p>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                                Se genera con OpenSSL y se tramita en AFIP → Administración de Certificados Digitales.
+                            </p>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--color-info)', marginBottom: '0.75rem', padding: '6px 10px', background: 'var(--color-info-dim)', borderRadius: 6 }}>
+                                Sin certificado, este emisor solo puede <b>sincronizar comprobantes desde ARCA</b> (descarga). Para <b>emitir facturas</b> hay que cargar ambos archivos.
                             </p>
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
                             <div className="form-group">
-                                <label className="form-label">Certificado (.crt) *</label>
+                                <label className="form-label">Certificado (.crt)</label>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                     <label className="btn btn-secondary" style={{ cursor: 'pointer', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: 6, margin: 0 }}>
                                         <Upload size={14} /> {emisorForm.cert_pem ? 'Cambiar certificado' : 'Subir .crt'}
@@ -1156,7 +1161,7 @@ export default function Configuracion() {
                                 </div>
                             </div>
                             <div className="form-group">
-                                <label className="form-label">Clave privada (.key) *</label>
+                                <label className="form-label">Clave privada (.key)</label>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                     <label className="btn btn-secondary" style={{ cursor: 'pointer', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: 6, margin: 0 }}>
                                         <Upload size={14} /> {emisorForm.key_pem ? 'Cambiar clave' : 'Subir .key'}
