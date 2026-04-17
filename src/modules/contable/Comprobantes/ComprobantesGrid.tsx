@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     ArrowDownLeft, ArrowUpRight, CheckCircle, XCircle, Send,
-    Eye, Upload as UploadIcon, Trash2, ExternalLink,
+    Eye, Upload as UploadIcon, Trash2, ExternalLink, Copy,
     ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight
 } from 'lucide-react';
 import { DataGrid } from '../../../design-system/components/DataGrid/DataGrid';
@@ -41,6 +41,7 @@ interface Props {
     sortCol?: string | null;
     sortDir?: 'asc' | 'desc';
     onAttachInvoice?: (id: string) => void;
+    onDuplicate?: (id: string) => void;
     hasErp?: boolean;
     // Constructora-only: editar centro de costos (proyecto) y categoría desde la card expandida
     esConstructora?: boolean;
@@ -54,7 +55,7 @@ const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 export default function ComprobantesGrid({
     data, totalCount, isLoading, hasMore, currentPage, totalPages, pageSize,
     onPageChange, onPageSizeChange, onAction, onDocPreview,
-    selectedIds, onSelectionChange, onSort, sortCol, sortDir, onAttachInvoice, hasErp,
+    selectedIds, onSelectionChange, onSort, sortCol, sortDir, onAttachInvoice, onDuplicate, hasErp,
     esConstructora = false, proyectoOpts = [], categoriaOpts = [], onUpdateClasificacion
 }: Props) {
     const navigate = useNavigate();
@@ -347,6 +348,15 @@ export default function ComprobantesGrid({
             width: 140,
             accessor: (c) => (
                 <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }} onClick={e => e.stopPropagation()}>
+                    {c.tipo === 'venta' && onDuplicate && (
+                        <button
+                            className="btn btn-ghost btn-icon btn-sm"
+                            onClick={() => onDuplicate(c.id)}
+                            title="Duplicar (emitir una nueva con estos datos)"
+                        >
+                            <Copy size={13} color="var(--color-accent)" />
+                        </button>
+                    )}
                     {c.pdf_url && (
                         <button
                             className="btn btn-ghost btn-icon btn-sm"

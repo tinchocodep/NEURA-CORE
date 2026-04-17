@@ -113,6 +113,7 @@ export default function ComprobantesIndex({ defaultTipo }: ComprobantesIndexProp
 
     // Opciones de clasificación (centro de costos + categorías) — solo se cargan para constructora
     const esConstructora = tenant?.rubro === 'constructora';
+    const esAgro = tenant?.rubro === 'agro';
     const [proyectoOpts, setProyectoOpts] = useState<{ id: string; name: string }[]>([]);
     const [categoriaOpts, setCategoriaOpts] = useState<{ id: string; nombre: string; color: string }[]>([]);
     useEffect(() => {
@@ -1424,6 +1425,7 @@ export default function ComprobantesIndex({ defaultTipo }: ComprobantesIndexProp
                         sortCol={sortCol}
                         sortDir={sortDir}
                         onAttachInvoice={handleAttachInvoiceClick}
+                        onDuplicate={esAgro ? (id) => navigate(`/contable/comprobantes?duplicar=${id}`) : undefined}
                         hasErp={hasErp}
                         esConstructora={esConstructora}
                         proyectoOpts={proyectoOpts}

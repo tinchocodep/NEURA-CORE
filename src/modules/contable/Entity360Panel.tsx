@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabase';
 import {
-    X, FileText, Eye, ChevronDown, DollarSign,
+    X, FileText, Eye, ChevronDown, DollarSign, Copy,
     TrendingUp, Calendar, Phone, Mail, MapPin, Hash, Building2,
 } from 'lucide-react';
 
@@ -47,6 +47,7 @@ interface Entity360PanelProps {
     entityType: 'proveedor' | 'cliente';
     onClose: () => void;
     onDocPreview?: (url: string) => void;
+    onDuplicate?: (comprobanteId: string) => void;
 }
 
 /* ─── Helpers ────────────────────────────────────────── */
@@ -82,7 +83,7 @@ const estadoBadge = (estado: string) => {
 
 /* ─── Component ─────────────────────────────────────── */
 
-export default function Entity360Panel({ entity, entityType, onClose, onDocPreview }: Entity360PanelProps) {
+export default function Entity360Panel({ entity, entityType, onClose, onDocPreview, onDuplicate }: Entity360PanelProps) {
     const { tenant } = useTenant();
     const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -458,6 +459,16 @@ export default function Entity360Panel({ entity, entityType, onClose, onDocPrevi
                                                     style={{ flexShrink: 0 }}
                                                 >
                                                     <Eye size={14} color="var(--color-accent)" />
+                                                </button>
+                                            )}
+                                            {entityType === 'cliente' && item.itemType === 'comprobante' && onDuplicate && (
+                                                <button
+                                                    onClick={e => { e.stopPropagation(); onDuplicate(item.id); }}
+                                                    className="btn btn-ghost btn-icon"
+                                                    title="Duplicar (emitir nueva con estos datos)"
+                                                    style={{ flexShrink: 0 }}
+                                                >
+                                                    <Copy size={14} color="var(--color-accent)" />
                                                 </button>
                                             )}
 

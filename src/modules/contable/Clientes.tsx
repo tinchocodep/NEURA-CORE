@@ -384,6 +384,7 @@ export default function Clientes() {
                     entity={selectedCliente}
                     entityType="cliente"
                     onClose={() => setSelectedCliente(null)}
+                    onDuplicate={tenant?.rubro === 'agro' ? (id) => navigate(`/contable/comprobantes?duplicar=${id}`) : undefined}
                 />
             )}
         </div>

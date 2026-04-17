@@ -5,7 +5,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { supabase } from '../../lib/supabase';
 import { DolarService } from '../../services/DolarService';
 import type { DolarResumen } from '../../services/DolarService';
-import { Plus, Trash2, Send, Search, X } from 'lucide-react';
+import { Plus, Trash2, Send, Search, X, Copy } from 'lucide-react';
 import OrdenDePagoForm from './OrdenDePagoForm';
 import StyledSelect from '../../shared/components/StyledSelect';
 import EmisorSelector from '../../shared/components/EmisorSelector';
@@ -51,8 +51,10 @@ export default function FacturarAgro() {
     // Data
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [productos, setProductos] = useState<Producto[]>([]);
-    const [, setRecientes] = useState<any[]>([]);
+    const [recientes, setRecientes] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [showDuplicarModal, setShowDuplicarModal] = useState(false);
+    const [duplicarSearch, setDuplicarSearch] = useState('');
 
     // Emisores (multi-razón social)
     const { emisores, selected: emisorSel, selectedId: emisorId, setSelectedId: setEmisorId, loading: loadingEmisores } = useFacturacionEmisores();
@@ -100,7 +102,7 @@ export default function FacturarAgro() {
             supabase.from('contable_clientes').select('id, razon_social, cuit, condicion_fiscal, telefono, email, direccion').eq('tenant_id', tenant.id).eq('activo', true).order('razon_social'),
             supabase.from('contable_productos_servicio').select('id, nombre, tipo, grupo').eq('tenant_id', tenant.id).eq('activo', true).order('nombre'),
             supabase.from('contable_comprobantes').select('id, tipo, tipo_comprobante, numero_comprobante, fecha, monto_original, estado, descripcion, cliente:contable_clientes!cliente_id(razon_social)')
-                .eq('tenant_id', tenant.id).eq('tipo', 'venta').order('created_at', { ascending: false }).limit(10),
+                .eq('tenant_id', tenant.id).eq('tipo', 'venta').order('created_at', { ascending: false }).limit(30),
         ]).then(([cliRes, prodRes, recRes]) => {
             if (cliRes.data) {
                 setClientes(cliRes.data as any);
@@ -118,8 +120,67 @@ export default function FacturarAgro() {
             if (prodRes.data) setProductos(prodRes.data.filter((p: any) => p.tipo === 'venta' || p.tipo === 'ambos') as any);
             if (recRes.data) setRecientes(recRes.data as any);
             setLoading(false);
+
+            // Pre-cargar desde ?duplicar={id} — copia cliente, lineas, tipo, etc. y fecha = hoy
+            const duplicarId = searchParams.get('duplicar');
+            if (duplicarId && cliRes.data) {
+                cargarDesdeDuplicar(duplicarId, cliRes.data as any);
+            }
         });
     }, [tenant?.id]);
+
+    const cargarDesdeDuplicar = async (compId: string, clientesLista: Cliente[]) => {
+        const { data: comp } = await supabase
+            .from('contable_comprobantes')
+            .select('tipo_comprobante, cliente_id, moneda, descripcion, lineas_detalle, lineas, emisor_id, monto_original, neto_gravado, total_iva, tipo_cambio')
+            .eq('id', compId)
+            .maybeSingle();
+        if (!comp) return;
+        if (comp.tipo_comprobante) setTipoComp(comp.tipo_comprobante);
+        if (comp.cliente_id) {
+            const cli = clientesLista.find(c => c.id === comp.cliente_id);
+            if (cli) {
+                setClienteId(cli.id);
+                setClienteSearch(cli.razon_social);
+            }
+        }
+        if (comp.moneda === 'USD' || comp.moneda === 'ARS') setMoneda(comp.moneda);
+        if (comp.descripcion) setObservaciones(comp.descripcion);
+        if (comp.emisor_id) setEmisorId(comp.emisor_id);
+
+        // Intentar líneas detalladas desde lineas_detalle (FacturarAgro) o lineas (FacturarMobile)
+        const rawLineas = Array.isArray(comp.lineas_detalle) ? comp.lineas_detalle
+                        : Array.isArray(comp.lineas) ? comp.lineas
+                        : null;
+        if (rawLineas && rawLineas.length > 0) {
+            setLineas((rawLineas as any[]).map(l => ({
+                producto_id: l.producto_id || '',
+                descripcion: l.descripcion || '',
+                cantidad: Number(l.cantidad) || 1,
+                precio_unitario: Number(l.precio_unitario) || 0,
+                iva_porcentaje: Number(l.iva_porcentaje) || 21,
+            })));
+        } else if (comp.monto_original && comp.monto_original > 0) {
+            // Fallback: comprobante sin detalle de líneas (vino por ARCA/Xubio).
+            // Armar una sola línea con el neto/IVA/total reconstruidos del monto total.
+            const total = Number(comp.monto_original);
+            const ivaPct = comp.total_iva && comp.neto_gravado
+                ? Math.round((Number(comp.total_iva) / Number(comp.neto_gravado)) * 100)
+                : 21;
+            const precioUnit = comp.neto_gravado ? Number(comp.neto_gravado) : total / (1 + ivaPct / 100);
+            setLineas([{
+                producto_id: '',
+                descripcion: comp.descripcion || 'Ítem duplicado (sin detalle original)',
+                cantidad: 1,
+                precio_unitario: Number(precioUnit.toFixed(2)),
+                iva_porcentaje: [0, 10.5, 21, 27].includes(ivaPct) ? ivaPct : 21,
+            }]);
+        }
+
+        // Fecha siempre = hoy (no se copia del original)
+        setFecha(new Date().toISOString().split('T')[0]);
+        addToast('success', 'Factura duplicada', 'Revisá los datos y ajustá lo que necesites antes de emitir');
+    };
 
     // Auto-complete from last invoice when client is selected
     const [autocompletando, setAutocompletando] = useState(false);
@@ -249,6 +310,7 @@ export default function FacturarAgro() {
         setSaving(true);
         try {
             const lineasDetalle = lineas.map(l => ({
+                producto_id: l.producto_id || null,
                 descripcion: l.descripcion,
                 cantidad: l.cantidad,
                 precio_unitario: l.precio_unitario,
@@ -397,11 +459,20 @@ export default function FacturarAgro() {
             <div style={{ background: 'var(--color-bg-card)', borderRadius: 14, border: '1px solid var(--color-border-subtle)', overflow: 'hidden' }}>
                 {/* Form header */}
                 {/* Tipo selector - always visible */}
-                <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
                     <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>Tipo de comprobante</label>
                     <StyledSelect className="form-input" value={tipoComp} onChange={e => setTipoComp(e.target.value)} style={{ height: 36, fontSize: '0.85rem', maxWidth: 220 }}>
                         {TIPOS_COMP.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                     </StyledSelect>
+                    <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => setShowDuplicarModal(true)}
+                        style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem' }}
+                        title="Buscar una factura anterior y duplicarla"
+                    >
+                        <Copy size={13} /> Duplicar factura existente
+                    </button>
                 </div>
 
                 {/* Orden de Pago: dedicated form with live preview */}
@@ -724,6 +795,75 @@ export default function FacturarAgro() {
                     </div>
                 </>)}
             </div>
+
+            {/* Modal: Duplicar factura existente */}
+            {showDuplicarModal && (
+                <div
+                    onClick={() => setShowDuplicarModal(false)}
+                    style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+                >
+                    <div onClick={e => e.stopPropagation()} style={{ background: 'var(--color-bg-card)', borderRadius: 12, width: '100%', maxWidth: 600, maxHeight: '80vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                        <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>Duplicar factura existente</div>
+                            <button onClick={() => setShowDuplicarModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)' }}>
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <div style={{ padding: 14, borderBottom: '1px solid var(--color-border-subtle)', position: 'relative' }}>
+                            <Search size={14} style={{ position: 'absolute', left: 24, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
+                            <input
+                                autoFocus
+                                className="form-input"
+                                placeholder="Buscar por cliente, número o monto..."
+                                value={duplicarSearch}
+                                onChange={e => setDuplicarSearch(e.target.value)}
+                                style={{ paddingLeft: 34, height: 38 }}
+                            />
+                        </div>
+                        <div style={{ flex: 1, overflowY: 'auto', padding: 6 }}>
+                            {recientes.length === 0 && (
+                                <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
+                                    No hay ventas recientes para duplicar.
+                                </div>
+                            )}
+                            {recientes
+                                .filter(r => {
+                                    if (!duplicarSearch.trim()) return true;
+                                    const q = duplicarSearch.toLowerCase();
+                                    return (r.cliente?.razon_social || '').toLowerCase().includes(q)
+                                        || (r.numero_comprobante || '').toLowerCase().includes(q)
+                                        || String(r.monto_original || '').includes(q)
+                                        || (r.tipo_comprobante || '').toLowerCase().includes(q);
+                                })
+                                .map(r => (
+                                    <button
+                                        key={r.id}
+                                        onClick={() => {
+                                            setShowDuplicarModal(false);
+                                            setDuplicarSearch('');
+                                            cargarDesdeDuplicar(r.id, clientes);
+                                        }}
+                                        style={{ width: '100%', textAlign: 'left', padding: '10px 12px', border: 'none', background: 'none', cursor: 'pointer', borderRadius: 8, display: 'flex', justifyContent: 'space-between', gap: 12 }}
+                                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
+                                        onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                                    >
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{ fontWeight: 600, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                {r.cliente?.razon_social || 'Sin cliente'}
+                                            </div>
+                                            <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>
+                                                {r.tipo_comprobante} · {r.numero_comprobante || 'sin nº'} · {r.fecha}
+                                            </div>
+                                        </div>
+                                        <div style={{ fontSize: '0.85rem', fontWeight: 700, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
+                                            ${Number(r.monto_original).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                                        </div>
+                                    </button>
+                                ))}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
