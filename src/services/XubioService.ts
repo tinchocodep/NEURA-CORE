@@ -650,13 +650,20 @@ export class XubioService {
 
                 try {
                     const tipoNombre = this.mapTipoComprobante(cv.tipo, true);
-                    const letra = cv.nombre?.match(/[ABC]/)?.[0] || '';
+                    // Normalizar numero: Xubio viene como "A-00009-00028612" o "00009-00028612".
+                    // ARCA guarda "00009-00028612" (sin letra). Canonicalizamos quitando el prefijo
+                    // para que el dedup cross-source matchee.
+                    const rawNro: string = cv.numeroDocumento || '';
+                    const prefixMatch = rawNro.match(/^([A-Z])-(.+)$/);
+                    const letraInferida = prefixMatch ? prefixMatch[1] : '';
+                    const nroCanonico = prefixMatch ? prefixMatch[2] : rawNro;
+                    const letra = cv.nombre?.match(/[ABCEM]/)?.[0] || letraInferida || '';
                     const tipoComprobante = letra ? `${tipoNombre} ${letra}` : tipoNombre;
 
                     const clienteXubioId = cv.cliente?.ID || cv.cliente?.id;
                     const clienteData = clienteXubioId ? clienteMap.get(String(clienteXubioId)) : null;
                     const clienteCuit = clienteData?.cuit || cv.cliente?.CUIT || cv.cliente?.cuit || cv.cliente?.documento || null;
-                    const nroComp = cv.numeroDocumento || null;
+                    const nroComp = nroCanonico || null;
 
                     const compData: Record<string, unknown> = {
                         tenant_id: this.tenantId,
@@ -739,13 +746,18 @@ export class XubioService {
 
                 try {
                     const tipoNombre = this.mapTipoComprobante(cc.tipo, false);
-                    const letra = cc.nombre?.match(/[ABC]/)?.[0] || '';
+                    // Normalizar numero: igual que ventas, sacar prefijo de letra para matchear con ARCA
+                    const rawNro: string = cc.numeroDocumento || '';
+                    const prefixMatch = rawNro.match(/^([A-Z])-(.+)$/);
+                    const letraInferida = prefixMatch ? prefixMatch[1] : '';
+                    const nroCanonico = prefixMatch ? prefixMatch[2] : rawNro;
+                    const letra = cc.nombre?.match(/[ABCEM]/)?.[0] || letraInferida || '';
                     const tipoComprobante = letra ? `${tipoNombre} ${letra}` : tipoNombre;
 
                     const provXubioId = cc.proveedor?.ID || cc.proveedor?.id;
                     const provData = provXubioId ? proveedorMap.get(String(provXubioId)) : null;
                     const provCuit = provData?.cuit || cc.proveedor?.CUIT || cc.proveedor?.cuit || cc.proveedor?.documento || null;
-                    const nroComp = cc.numeroDocumento || null;
+                    const nroComp = nroCanonico || null;
 
                     const compData: Record<string, unknown> = {
                         tenant_id: this.tenantId,

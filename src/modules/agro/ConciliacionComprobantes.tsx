@@ -355,6 +355,31 @@ export default function ConciliacionComprobantes() {
             ensure(localToKey(l)).xubioList.push(l);
         }
 
+        // Fix cross-source cuando un lado trae CUIT vacio: fusionar buckets con la misma
+        // (tipo+tipoComp+pv-nro) donde uno tiene CUIT y el otro no. Evita que aparezcan
+        // como "Solo AFIP" y "Solo Xubio" el mismo comprobante porque Xubio no mapeo al proveedor.
+        // Key format: `${tipo}|${tipoComp}|${pv}-${nro}|${cuit}`
+        const keysByPartial = new Map<string, string[]>();
+        for (const k of buckets.keys()) {
+            const parts = k.split('|');
+            const partial = parts.slice(0, 3).join('|'); // sin cuit
+            const arr = keysByPartial.get(partial) || [];
+            arr.push(k);
+            keysByPartial.set(partial, arr);
+        }
+        for (const [, fullKeys] of keysByPartial) {
+            if (fullKeys.length < 2) continue;
+            const withCuit = fullKeys.find(k => k.split('|')[3]);
+            const withoutCuit = fullKeys.find(k => !k.split('|')[3]);
+            if (!withCuit || !withoutCuit || withCuit === withoutCuit) continue;
+            const src = buckets.get(withoutCuit)!;
+            const dst = buckets.get(withCuit)!;
+            if (!dst.afip && src.afip) dst.afip = src.afip;
+            dst.sistemaList.push(...src.sistemaList);
+            dst.xubioList.push(...src.xubioList);
+            buckets.delete(withoutCuit);
+        }
+
         const result: ComprobanteMatch[] = [];
         for (const [key, { afip, sistemaList: sList, xubioList: xList }] of buckets) {
             const sistema = sList[0] || null;
@@ -382,8 +407,13 @@ export default function ConciliacionComprobantes() {
             if (afip) totals.push(['AFIP', afip.total]);
             if (sistema) totals.push(['Sistema', Number(sistema.monto_original)]);
             if (xubio) totals.push(['Xubio', Number(xubio.monto_original)]);
+            // Para Notas de Credito: AFIP reporta en positivo (registro del comprobante) y
+            // Xubio en negativo (porque ya la aplica como resta en cta cte). Representan el
+            // mismo monto, no son diferencia real. Comparamos por valor absoluto.
+            const tipoCompStr = (afip ? (TIPOS_COMPROBANTE_AFIP[afip.tipoComprobante] || '') : (sistema?.tipo_comprobante || xubio?.tipo_comprobante || '')).toLowerCase();
+            const esNotaCredito = tipoCompStr.includes('nota de cr') || tipoCompStr.includes('nota de cred');
             if (totals.length >= 2) {
-                const values = totals.map(t => t[1]);
+                const values = totals.map(t => esNotaCredito ? Math.abs(t[1]) : t[1]);
                 const min = Math.min(...values), max = Math.max(...values);
                 if (max - min >= 0.01) {
                     difs.push(`Montos: ${totals.map(([l, v]) => `${l} ${formatCurrency(v)}`).join(' · ')}`);
